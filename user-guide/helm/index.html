@@ -1889,16 +1889,16 @@ ENV HELM_PLUGINS=&quot;/home/argocd/.local/share/helm/plugins/&quot;
 <p>You have to remember about <code>HELM_PLUGINS</code> environment property - this is required for plugins to work correctly.</p>
 <p>After that you have to use your custom image for ArgoCD installation.</p>
 <h2 id="helm-version">Helm Version<a class="headerlink" href="#helm-version" title="Permanent link">&para;</a></h2>
-<p>ArgoCD normally detects which version of Helm to use by looking at the <code>apiVersion</code> in Chart.yaml.</p>
+<p>Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).</p>
 <p>If needed, it is possible to specifically set the Helm version to template with by setting the <code>helm-version</code> flag on the cli (either v2 or v3):</p>
-<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --helm-version v2
+<div class="codehilite"><pre><span></span><code>argocd app <span class="nb">set</span> helm-guestbook --helm-version v3
 </code></pre></div>
 
 <p>Or using declarative syntax:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">source</span><span class="p">:</span>
     <span class="nt">helm</span><span class="p">:</span>
-      <span class="nt">version</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v2</span>
+      <span class="nt">version</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v3</span>
 </code></pre></div>
                 
               
