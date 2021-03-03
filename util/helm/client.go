@@ -16,17 +16,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
+
+	"github.com/argoproj/argo-cd/util/env"
+
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
+	"github.com/argoproj/argo-cd/util/cache"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/io"
 )
 
 var (
-	globalLock = sync.NewKeyLock()
+	globalLock    = sync.NewKeyLock()
+	indexDuration = env.ParseDurationFromEnv(common.EnvHelmIndexCacheDuration, 0, 0, time.Hour*24)
+	indexCache    = cache.NewInMemoryCache(indexDuration)
+	indexLock     = sync.NewKeyLock()
 )
 
 type Creds struct {
@@ -41,7 +49,7 @@ type Creds struct {
 type Client interface {
 	CleanChartCache(chart string, version *semver.Version) error
 	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
-	GetIndex() (*Index, error)
+	GetIndex(noCache bool) (*Index, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -202,21 +210,37 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 	}), nil
 }
 
-func (c *nativeHelmChart) GetIndex() (*Index, error) {
-	start := time.Now()
+func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
+	indexLock.Lock(c.repoURL)
+	defer indexLock.Unlock(c.repoURL)
 
-	data, err := c.loadRepoIndex()
-	if err != nil {
-		return nil, err
+	var data []byte
+	useCache := !noCache && indexDuration > 0
+	if useCache {
+		if err := indexCache.Get(c.repoURL, &data); err != nil && err != cache.ErrCacheMiss {
+			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
+		}
+	}
+
+	if len(data) == 0 {
+		start := time.Now()
+		var err error
+		data, err = c.loadRepoIndex()
+		if err != nil {
+			return nil, err
+		}
+		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
+
+		if err := indexCache.Set(&cache.Item{Key: c.repoURL, Object: data}); err != nil {
+			log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
+		}
 	}
 
 	index := &Index{}
-	err = yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
+	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
 	if err != nil {
 		return nil, err
 	}
-
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 	return index, nil
 }

@@ -78,7 +78,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 
 	chart := "my-chart"
 	version := semver.MustParse("1.1.0")
-	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
+	helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
 		chart: {{Version: "1.0.0"}, {Version: version.String()}},
 	}}, nil)
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
@@ -1110,12 +1110,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "")
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "", true)
 		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "")
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "", true)
+		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
 	})
 }
 
