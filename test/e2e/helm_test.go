@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -322,7 +323,7 @@ func TestKubeVersion(t *testing.T) {
 			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.Equal(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+			assert.LessOrEqual(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		})
 }
 
@@ -349,7 +350,7 @@ func TestHelm2WithDependencies(t *testing.T) {
 }
 
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
-	testHelmWithDependencies(t, "helm2-with-dependencies", false)
+	testHelmWithDependencies(t, "helm-with-dependencies", true)
 }
 
 func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
@@ -382,9 +383,13 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		ctx = ctx.HelmRepoAdded("custom-repo")
 	}
 
+	helmVer := ""
+	if strings.Contains(chartPath, "helm2") {
+		helmVer = "v2"
+	}
 	ctx.Path(chartPath).
 		When().
-		Create().
+		Create("--helm-version", helmVer).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
