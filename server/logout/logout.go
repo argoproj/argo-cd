@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -35,7 +36,7 @@ type Handler struct {
 	appClientset versioned.Interface
 	settingsMgr  *settings.SettingsManager
 	rootPath     string
-	verifyToken  func(tokenString string) (jwt.Claims, error)
+	verifyToken  func(tokenString string) (jwt.Claims, string, error)
 	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
 }
 
@@ -64,20 +65,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 
-	argocdCookie, err := r.Cookie(common.AuthCookieName)
-	if err != nil {
+	cookies := r.Cookies()
+	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
+	if tokenString == "" || err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
 	}
 
-	tokenString = argocdCookie.Value
+	for _, cookie := range cookies {
+		if !strings.HasPrefix(cookie.Name, common.AuthCookieName) {
+			continue
+		}
+		argocdCookie := http.Cookie{
+			Name:  cookie.Name,
+			Value: "",
+		}
+		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
+		w.Header().Add("Set-Cookie", argocdCookie.String())
+	}
 
-	argocdCookie.Value = ""
-	argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
-	w.Header().Set("Set-Cookie", argocdCookie.String())
-
-	claims, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return

@@ -59,6 +59,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
     }
 
+    private get page(): number {
+        return parseInt(new URLSearchParams(this.props.history.location.search).get('page'), 10) || 0;
+    }
+
+    private get untilTimes(): string[] {
+        return (new URLSearchParams(this.props.history.location.search).get('untilTimes') || '').split(',') || [];
+    }
+
     private get selectedNodeInfo() {
         const nodeContainer = {key: '', container: 0};
         const node = new URLSearchParams(this.props.location.search).get('node');
@@ -792,6 +800,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                                         namespace={podState.metadata.namespace}
                                         applicationName={application.metadata.name}
                                         containerName={AppUtils.getContainerName(podState, this.selectedNodeInfo.container)}
+                                        page={{number: this.page, untilTimes: this.untilTimes}}
+                                        setPage={pageData => this.appContext.apis.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     />
                                 </div>
                             </div>

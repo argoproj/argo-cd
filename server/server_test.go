@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -463,6 +464,17 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+	})
+
+	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "abc.xyz." + strings.Repeat("x", 4093),
+		})
+		assert.NoError(t, err)
+		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -471,7 +483,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
 }
@@ -533,4 +545,25 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestFileExists(t *testing.T) {
+	t.Run("File exists and path is within dir", func(t *testing.T) {
+		exists := fileExists(".", "server.go")
+		assert.True(t, exists)
+		exists = fileExists(".", "account/account.go")
+		assert.True(t, exists)
+	})
+	t.Run("File does not exist", func(t *testing.T) {
+		exists := fileExists(".", "notexist.go")
+		assert.False(t, exists)
+	})
+	t.Run("Dir does not exist", func(t *testing.T) {
+		exists := fileExists("/notexisting", "server.go")
+		assert.False(t, exists)
+	})
+	t.Run("File outside of dir", func(t *testing.T) {
+		exists := fileExists(".", "../reposerver/server.go")
+		assert.False(t, exists)
+	})
 }

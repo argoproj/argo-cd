@@ -206,18 +206,27 @@ export class ApplicationsService {
             search.set('filter', filter);
         }
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {
                     if (entry.last) {
+                        first = true;
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
-                        observer.next(entry);
+                        observer.next({...entry, first});
+                        first = false;
                     }
                 },
-                err => observer.error(err),
-                () => observer.complete()
+                err => {
+                    first = true;
+                    observer.error(err);
+                },
+                () => {
+                    first = true;
+                    observer.complete();
+                }
             );
             return () => subscription.unsubscribe();
         });
