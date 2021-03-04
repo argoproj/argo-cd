@@ -24,21 +24,26 @@ func PrintResources(resources []interface{}, output string) error {
 		}
 		resources[i] = filteredResource
 	}
+	var obj interface{} = resources
+	if len(resources) == 1 {
+		obj = resources[0]
+	}
 
 	switch output {
 	case "json":
-		jsonBytes, err := json.MarshalIndent(resources, "", "  ")
+		jsonBytes, err := json.MarshalIndent(obj, "", "  ")
 		if err != nil {
 			return err
 		}
 
 		fmt.Println(string(jsonBytes))
 	case "yaml":
-		yamlBytes, err := yaml.Marshal(resources)
+		yamlBytes, err := yaml.Marshal(obj)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yamlBytes))
+		// marshaled YAML already ends with the new line character
+		fmt.Print(string(yamlBytes))
 	default:
 		return fmt.Errorf("unknown output format: %s", output)
 	}

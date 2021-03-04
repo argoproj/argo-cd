@@ -49,7 +49,6 @@ func NewGenerateConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 func NewGenAppConfigCommand() *cobra.Command {
 	var (
 		appOpts      cmdutil.AppOptions
-		fileURL      string
 		appName      string
 		labels       []string
 		outputFormat string
@@ -77,7 +76,7 @@ func NewGenAppConfigCommand() *cobra.Command {
 	argocd-util config app ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp("", appName, labels, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -91,13 +90,8 @@ func NewGenAppConfigCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
-	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
-
-	// Only complete files with appropriate extension.
-	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
-	errors.CheckError(err)
 
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
@@ -107,14 +101,13 @@ func NewGenAppConfigCommand() *cobra.Command {
 func NewGenProjectConfigCommand() *cobra.Command {
 	var (
 		opts         cmdutil.ProjectOpts
-		fileURL      string
 		outputFormat string
 	)
 	var command = &cobra.Command{
 		Use:   "proj PROJECT",
 		Short: "Generate declarative config for a project",
 		Run: func(c *cobra.Command, args []string) {
-			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			proj, err := cmdutil.ConstructAppProj("", args, opts, c)
 			errors.CheckError(err)
 
 			var printResources []interface{}
@@ -122,12 +115,7 @@ func NewGenProjectConfigCommand() *cobra.Command {
 			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}
-	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
-	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
-	if err != nil {
-		log.Fatal(err)
-	}
 	cmdutil.AddProjFlags(command, &opts)
 	return command
 }
