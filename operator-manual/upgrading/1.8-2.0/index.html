@@ -14,7 +14,7 @@
     
     
       
-        <title>v1.8 to 1.9 - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>v1.8 to v2.0 - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#v18-to-19" class="md-skip">
+        <a href="#v18-to-v20" class="md-skip">
           Skip to content
         </a>
       
@@ -99,7 +99,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              v1.8 to 1.9
+              v1.8 to v2.0
             
           </span>
         </div>
@@ -265,12 +265,14 @@
 
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" checked>
       
       <label class="md-nav__link" for="__nav_5">
         Operator Manual
@@ -700,12 +702,14 @@
             
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5_20" type="checkbox" id="__nav_5_20" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5_20" type="checkbox" id="__nav_5_20" checked>
       
       <label class="md-nav__link" for="__nav_5_20">
         Upgrading
@@ -726,6 +730,112 @@
       <a href="../overview/" class="md-nav__link">
         Overview
       </a>
+    </li>
+  
+
+          
+            
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          v1.8 to v2.0
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        v1.8 to v2.0
+      </a>
+      
+        
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables-expansion" class="md-nav__link">
+    Environment variables expansion
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docker-image-migrated-to-use-ubuntu-as-base" class="md-nav__link">
+    Docker image migrated to use Ubuntu as base
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository" class="md-nav__link">
+    Container registry switched to quay.io and sundown of Docker Hub repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dex-tool-migrated-from-argocd-util-to-argocd-dex" class="md-nav__link">
+    Dex tool migrated from argocd-util to argocd-dex
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updated-retry-params-type-from-string-to-duration-for-app-sync" class="md-nav__link">
+    Updated retry params type from String to Duration for app sync
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#switch-to-golang-116" class="md-nav__link">
+    Switch to Golang 1.16
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-of-crds-from-apiextensionsv1beta1-to-apiextensionsv1" class="md-nav__link">
+    Migration of CRDs from apiextensions/v1beta1 to apiextensions/v1
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#helm-v3-is-now-the-default-when-rendering-charts" class="md-nav__link">
+    Helm v3 is now the default when rendering Charts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kustomize-version-updated-to-v394" class="md-nav__link">
+    Kustomize version updated to v3.9.4
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1539,6 +1649,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#switch-to-golang-116" class="md-nav__link">
+    Switch to Golang 1.16
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-of-crds-from-apiextensionsv1beta1-to-apiextensionsv1" class="md-nav__link">
+    Migration of CRDs from apiextensions/v1beta1 to apiextensions/v1
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#helm-v3-is-now-the-default-when-rendering-charts" class="md-nav__link">
+    Helm v3 is now the default when rendering Charts
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kustomize-version-updated-to-v394" class="md-nav__link">
+    Kustomize version updated to v3.9.4
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1551,12 +1689,12 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/upgrading/1.8-1.9.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/upgrading/1.8-2.0.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                <h1 id="v18-to-19">v1.8 to 1.9<a class="headerlink" href="#v18-to-19" title="Permanent link">&para;</a></h1>
+                <h1 id="v18-to-v20">v1.8 to v2.0<a class="headerlink" href="#v18-to-v20" title="Permanent link">&para;</a></h1>
 <h2 id="environment-variables-expansion">Environment variables expansion<a class="headerlink" href="#environment-variables-expansion" title="Permanent link">&para;</a></h2>
 <p>Argo CD supports using <a href="../../../user-guide/build-environment/">environment variables</a> in
 config management tools parameters. The expansion logic has been improved and now expands missing environment variables
@@ -1567,21 +1705,21 @@ into an empty string.</p>
 you might be affected if you use custom-built images and/or include third party
 tools in custom-built images.</p>
 <p>Please make sure that your custom tools are still working with the update to
-v1.9 before deploying it onto production.</p>
+v2.0 before deploying it onto production.</p>
 <h2 id="container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository">Container registry switched to quay.io and sundown of Docker Hub repository<a class="headerlink" href="#container-registry-switched-to-quayio-and-sundown-of-docker-hub-repository" title="Permanent link">&para;</a></h2>
 <p>Due to Docker Hub's new rate-limiting and retention policies, the Argo project
 has decided to switch to the
 <a href="https://quay.io">quay.io</a>
 registry as a new home for all images published by its sub-projects.</p>
-<p>As of Argo CD version 1.9, the installation manifests are configured to pull the
+<p>As of Argo CD version 2.0, the installation manifests are configured to pull the
 container images from <code>quay.io</code> and we announce the <strong>sundown</strong> of the existing
-Docker Hub repositories. For the 1.9 release this means, we will still push to
-both registries, but we will stop pushing images to Docker Hub once Argo CD 1.10
+Docker Hub repositories. For the 2.0 release this means, we will still push to
+both registries, but we will stop pushing images to Docker Hub once Argo CD 2.1
 has been released.</p>
 <p>Please make sure that your clusters can pull from the <code>quay.io</code> registry.
 If you aren't able to do so timely, you can change the container image slugs in
-the installation manually to Docker Hub as a workaround to install Argo CD 1.9.
-This workaround will not be possible anymore with 1.10, however.</p>
+the installation manually to Docker Hub as a workaround to install Argo CD 2.0.
+This workaround will not be possible anymore with 2.1, however.</p>
 <h2 id="dex-tool-migrated-from-argocd-util-to-argocd-dex">Dex tool migrated from argocd-util to argocd-dex<a class="headerlink" href="#dex-tool-migrated-from-argocd-util-to-argocd-dex" title="Permanent link">&para;</a></h2>
 <p>The dex commands <code>rundex</code> and <code>gendexcfg</code> have been migrated from <code>argocd-util</code> to <code>argocd-dex</code>.
 It means that you need to update <code>argocd-dex-server</code> deployment's commands to install <code>argocd-dex</code> 
@@ -1600,7 +1738,7 @@ binary instead of <code>argocd-util</code> in init container and run dex command
   - rundex
 </code></pre></div>
 
-<p>Note that starting from v1.9 argocd binary behaviour has changed. 
+<p>Note that starting from v2.0 argocd binary behaviour has changed. 
 It will have all argocd binaries such <code>argocd-dex</code>, <code>argocd-server</code>, <code>argocd-repo-server</code>, 
 <code>argocd-application-controller</code>, <code>argocd-util</code>, <code>argocd</code> baked inside. 
 The binary will change behaviour based on its name. </p>
@@ -1613,6 +1751,47 @@ but since we have migrated from <code>string</code> to <code>duration</code>, it
 argocd app sync &lt;app-name&gt; --retry-backoff-duration<span class="o">=</span><span class="m">10</span> -&gt; invalid
 argocd app sync &lt;app-name&gt; --retry-backoff-duration<span class="o">=</span>10s -&gt; valid
 </code></pre></div>
+
+<h2 id="switch-to-golang-116">Switch to Golang 1.16<a class="headerlink" href="#switch-to-golang-116" title="Permanent link">&para;</a></h2>
+<p>The official Argo CD binaries are now being build using Go 1.16, making a jump
+from the previous 1.14.x. Users should note that Go 1.15 introduced deprecation
+of validating server names against the <code>CommonName</code> property of a certificate
+when performing TLS connections.</p>
+<p>If you have repository servers with an incompatible certificate, connections to
+those servers might break. You will have to issue correct certificates to 
+unbreak such a situation.</p>
+<h2 id="migration-of-crds-from-apiextensionsv1beta1-to-apiextensionsv1">Migration of CRDs from apiextensions/v1beta1 to apiextensions/v1<a class="headerlink" href="#migration-of-crds-from-apiextensionsv1beta1-to-apiextensionsv1" title="Permanent link">&para;</a></h2>
+<p>Our CRDs (<code>Application</code> and <code>AppProject</code>) have been moved from the
+deprecated <code>apiextensions/v1beta1</code> to the <code>apiextensions/v1</code> API group.</p>
+<p>This does <strong>not</strong> affect the version of the CRDs themselves.</p>
+<p>We do not expect that changes to existing CRs for <code>Application</code> and <code>AppProject</code>
+are required from users, or that this change requires otherwise actions and this
+note is just included for completeness.</p>
+<h2 id="helm-v3-is-now-the-default-when-rendering-charts">Helm v3 is now the default when rendering Charts<a class="headerlink" href="#helm-v3-is-now-the-default-when-rendering-charts" title="Permanent link">&para;</a></h2>
+<p>With this release, we made Helm v3 being the default version for rendering any
+Helm charts through Argo CD. We also disabled the Helm version auto-detection
+depending on the <code>apiVersion</code> field of the <code>Chart.yaml</code>, so the charts will
+be rendered using Helm v3 regardless of what's in the Chart's <code>apiVersion</code>
+field.</p>
+<p>This can result in minor out-of-sync conditions on your Applications that were
+previously rendered using Helm v2 (e.g. a change in one of the annotations that
+Helm adds). You can fix this by syncing the Application.</p>
+<p>If you have existing Charts that require to be rendered using Helm v2, you will
+need to explicitly configure your Application to use Helm v2 for rendering the
+chart, as described 
+<a href="../../../user-guide/helm/#helm-version">here</a></p>
+<p>Please also note that Helm v2 is now being considered deprecated in Argo CD, as
+it will not receive any updates from the upstream Helm project anymore. We will
+still ship the Helm v2 binary for the next two releases, but it will be subject
+to removal after that grace period.</p>
+<p>Users are encouraged to upgrade any Charts that still require Helm v2 to be
+compatible with Helm v3.</p>
+<h2 id="kustomize-version-updated-to-v394">Kustomize version updated to v3.9.4<a class="headerlink" href="#kustomize-version-updated-to-v394" title="Permanent link">&para;</a></h2>
+<p>Argo CD now ships with Kustomize v3.9.4 by default. Please make sure that your
+manifests will render correctly with this Kustomize version.</p>
+<p>If you need backwards compatibility to a previous version of Kustomize, please
+consider setting up a custom Kustomize version and configure your Applications
+to be rendered using that specific version.</p>
                 
               
               
@@ -1627,6 +1806,39 @@ argocd app sync &lt;app-name&gt; --retry-backoff-duration<span class="o">=</span
       
         
 <footer class="md-footer">
+  
+    <nav class="md-footer__inner md-grid" aria-label="Footer">
+      
+        <a href="../overview/" class="md-footer__link md-footer__link--prev" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Overview
+            </div>
+          </div>
+        </a>
+      
+      
+        <a href="../1.7-1.8/" class="md-footer__link md-footer__link--next" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              v1.7 to 1.8
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
