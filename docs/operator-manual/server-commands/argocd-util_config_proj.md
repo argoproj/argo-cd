@@ -11,7 +11,6 @@ argocd-util config proj PROJECT [flags]
 ```
       --description string        Project description
   -d, --dest stringArray          Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
-  -f, --file string               Filename or URL to Kubernetes manifests for the project
   -h, --help                      help for proj
       --orphaned-resources        Enables orphaned resources monitoring
       --orphaned-resources-warn   Specifies if applications should have a warning condition when orphaned resources detected
