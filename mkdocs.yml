@@ -95,6 +95,7 @@ nav:
     - user-guide/selective_sync.md
     - user-guide/sync-waves.md
     - user-guide/sync_windows.md
+    - Generating Applications with ApplicationSet: user-guide/application-set.md
     - user-guide/ci_automation.md
     - user-guide/app_deletion.md
     - user-guide/best_practices.md
