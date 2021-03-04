@@ -6,8 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/Masterminds/semver"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
@@ -57,6 +61,27 @@ func (k *kustomize) getBinaryPath() string {
 	return "kustomize"
 }
 
+// kustomize v3.8.5 patch release introduced a breaking change in "edit add <label/annotation>" commands:
+// https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
+func mapToEditAddArgs(val map[string]string) []string {
+	var args []string
+	if getSemverSafe().LessThan(semver.MustParse("v3.8.5")) {
+		arg := ""
+		for labelName, labelValue := range val {
+			if arg != "" {
+				arg += ","
+			}
+			arg += fmt.Sprintf("%s:%s", labelName, labelValue)
+		}
+		args = append(args, arg)
+	} else {
+		for labelName, labelValue := range val {
+			args = append(args, fmt.Sprintf("%s:%s", labelName, labelValue))
+		}
+	}
+	return args
+}
+
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
@@ -93,16 +118,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
-			args := []string{"edit", "add", "label"}
-			arg := ""
-			for labelName, labelValue := range opts.CommonLabels {
-				if arg != "" {
-					arg += ","
-				}
-				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
-			}
-			args = append(args, arg)
-			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd := exec.Command(k.getBinaryPath(), append([]string{"edit", "add", "label"}, mapToEditAddArgs(opts.CommonLabels)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -112,16 +128,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 		if len(opts.CommonAnnotations) > 0 {
 			//  edit add annotation foo:bar
-			args := []string{"edit", "add", "annotation"}
-			arg := ""
-			for annotationName, annotationValue := range opts.CommonAnnotations {
-				if arg != "" {
-					arg += ","
-				}
-				arg += fmt.Sprintf("%s:%s", annotationName, annotationValue)
-			}
-			args = append(args, arg)
-			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd := exec.Command(k.getBinaryPath(), append([]string{"edit", "add", "annotation"}, mapToEditAddArgs(opts.CommonAnnotations)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -204,6 +211,46 @@ func IsKustomization(path string) bool {
 		}
 	}
 	return false
+}
+
+var (
+	unknownVersion = semver.MustParse("v99.99.99")
+	semverRegex    = regexp.MustCompile(semver.SemVerRegex)
+	semVer         *semver.Version
+	semVerLock     sync.Mutex
+)
+
+// getSemver returns parsed kustomize version
+func getSemver() (*semver.Version, error) {
+	verStr, err := Version(true)
+	if err != nil {
+		return nil, err
+	}
+
+	semverMatches := semverRegex.FindStringSubmatch(verStr)
+	if len(semverMatches) == 0 {
+		return nil, fmt.Errorf("expected string that includes semver formatted version but got: '%s'", verStr)
+	}
+
+	return semver.NewVersion(semverMatches[0])
+}
+
+// getSemverSafe returns parsed kustomize version;
+// if version cannot be parsed assumes that "kustomize version" output format changed again
+//  and fallback to latest ( v99.99.99 )
+func getSemverSafe() *semver.Version {
+	if semVer == nil {
+		semVerLock.Lock()
+		defer semVerLock.Unlock()
+
+		if ver, err := getSemver(); err != nil {
+			semVer = unknownVersion
+			log.Warnf("Failed to parse kustomize version: %v", err)
+		} else {
+			semVer = ver
+		}
+	}
+	return semVer
 }
 
 func Version(shortForm bool) (string, error) {
