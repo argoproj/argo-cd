@@ -1232,18 +1232,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1260,18 +1254,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Path(guestbookWithNamespace).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
