@@ -515,7 +515,7 @@ type ApplicationDestination struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
 	// nolint:govet
-	isServerInferred bool `json:"-"`
+	isServerInferred bool
 }
 
 // ApplicationStatus contains status information for the application
