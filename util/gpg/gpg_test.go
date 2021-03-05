@@ -305,8 +305,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
@@ -320,8 +319,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, TrustUnknown, res.Trust)
@@ -335,8 +333,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, TrustUnknown, res.Trust)
@@ -350,8 +347,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
@@ -365,9 +361,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse output")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse output")
 	}
 
 	// Bad case: Incomplete signature data #1
@@ -376,9 +372,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "end-of-file")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "end-of-file")
 	}
 
 	// Bad case: Incomplete signature data #2
@@ -387,9 +383,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "end-of-file")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "end-of-file")
 	}
 
 	// Bad case: No signature data #1
@@ -398,9 +394,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no verification data found")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "no verification data found")
 	}
 
 	// Bad case: Malformed signature data #1
@@ -409,9 +405,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no verification data found")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "no verification data found")
 	}
 
 	// Bad case: Malformed signature data #2
@@ -420,9 +416,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse key ID")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse key ID")
 	}
 
 	// Bad case: Malformed signature data #3
@@ -431,9 +427,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse result of verify")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse result of verify")
 	}
 
 	// Bad case: Invalid key ID in signature
@@ -442,9 +438,9 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Invalid PGP key ID")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Invalid PGP key ID")
 	}
 }
 

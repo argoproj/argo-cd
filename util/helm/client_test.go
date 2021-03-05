@@ -3,6 +3,7 @@ package helm
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/stretchr/testify/assert"
@@ -13,12 +14,12 @@ import (
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", Creds{}, false)
-		_, err := client.GetIndex()
+		_, err := client.GetIndex(false)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
-		index, err := client.GetIndex()
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -27,10 +28,24 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false)
-		index, err := client.GetIndex()
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
+
+	t.Run("Cached", func(t *testing.T) {
+		var prev time.Duration
+		indexDuration, prev = time.Minute, indexDuration
+		defer func() {
+			indexDuration = prev
+		}()
+
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
+		index, err := client.GetIndex(false)
+		assert.NoError(t, err)
+		assert.NotNil(t, index)
+	})
+
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {

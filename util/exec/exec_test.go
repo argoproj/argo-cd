@@ -3,6 +3,7 @@ package exec
 import (
 	"os"
 	"os/exec"
+	"regexp"
 	"testing"
 	"time"
 
@@ -26,4 +27,15 @@ func TestRun(t *testing.T) {
 	out, err := Run(exec.Command("ls"))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, out)
+}
+
+func TestHideUsernamePassword(t *testing.T) {
+	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
+	assert.NotEmpty(t, err)
+
+	var redactor = func(text string) string {
+		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
+	}
+	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
+	assert.NotEmpty(t, err)
 }
