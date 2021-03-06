@@ -3115,8 +3115,7 @@ spec:
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      app: redis-ha-haproxy
-      release: argocd
+      app.kubernetes.io/name: argocd-redis-ha-haproxy
   strategy:
     type: RollingUpdate
   template:
@@ -3124,9 +3123,7 @@ spec:
       annotations:
         checksum/config: d2ea567716f714054660c172aa717a4ec9daa16d25dab418d8fd7a0c961b03e3
       labels:
-        app: redis-ha-haproxy
-        release: argocd
-        revision: "1"
+        app.kubernetes.io/name: argocd-redis-ha-haproxy
       name: argocd-redis-ha-haproxy
     spec:
       affinity:
@@ -3423,17 +3420,14 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      app: redis-ha
-      release: argocd
+      app.kubernetes.io/name: argocd-redis-ha
   serviceName: argocd-redis-ha
   template:
     metadata:
       annotations:
         checksum/init-config: f967dc53802e37a7bd0a7097785686e65cefc3002881b7c2a1936b3988698c11
       labels:
-        app: redis-ha
-        argocd-redis-ha: replica
-        release: argocd
+        app.kubernetes.io/name: argocd-redis-ha
     spec:
       affinity:
         podAntiAffinity:
