@@ -3221,7 +3221,7 @@ spec:
                 revision: "1"
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.0.4
+      - image: haproxy:2.0.20-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3250,7 +3250,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.0.4
+        image: haproxy:2.0.20-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:
@@ -3529,7 +3529,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:6.0.7-alpine
+        image: redis:6.2.1-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3567,7 +3567,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:6.0.7-alpine
+        image: redis:6.2.1-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3613,7 +3613,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:6.0.7-alpine
+        image: redis:6.2.1-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:
