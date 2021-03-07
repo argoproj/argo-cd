@@ -3216,9 +3216,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: redis-ha-haproxy
-                release: argocd
-                revision: "1"
+                app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
       - image: haproxy:2.0.20-alpine
@@ -3519,9 +3517,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: redis-ha
-                argocd-redis-ha: replica
-                release: argocd
+                app.kubernetes.io/name: argocd-redis-ha
             topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       containers:

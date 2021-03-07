@@ -6,3 +6,7 @@
   path: /spec/template/metadata/labels
   value:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
+- op: replace
+  path: /spec/template/spec/affinity/podAntiAffinity/requiredDuringSchedulingIgnoredDuringExecution/0/labelSelector/matchLabels
+  value:
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
