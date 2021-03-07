@@ -63,7 +63,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+	argoURL := argoCDSettings.URL
+	if argoURL == "" {
+		// golang does not provide any easy way to determine scheme of current request
+		// so redirecting ot http which will auto-redirect too https if necessary
+		argoURL = fmt.Sprintf("http://%s", r.Host)
+	}
+
+	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
