@@ -2593,7 +2593,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:5.0.10-alpine
+        image: redis:6.2.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:
