@@ -7,5 +7,7 @@ redis-ha:
       save: "\"\""
   haproxy:
     enabled: true
+    image:
+      tag: 2.0.20-alpine
   image:
-    tag: 5.0.10-alpine
+    tag: 6.2.1-alpine

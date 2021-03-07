@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
 - chart/upstream.yaml
-- overlays/redis-ha-haproxy.yaml
 
 patchesJson6902:
 - target:
