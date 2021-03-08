@@ -72,7 +72,7 @@ docker run --rm -it -w /src -v $(pwd):/src argoproj/argocd:<version> \
 
 ## Cluster credentials
 
-The `argocd-util kubeconfig` is useful if you manually created Secret with cluster credentials and trying need to
+The `argocd-util cluster kubeconfig` is useful if you manually created Secret with cluster credentials and trying need to
 troubleshoot connectivity issues. In this case, it is suggested to use the following steps:
 
 1 SSH into [argocd-application-controller] pod.
@@ -82,10 +82,10 @@ kubectl exec -n argocd -it \
   $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
-2 Use `argocd-util kubeconfig` command to export kubeconfig file from the configured Secret:
+2 Use `argocd-util cluster kubeconfig` command to export kubeconfig file from the configured Secret:
 
 ```
-argocd-util kubeconfig https://<api-server-url> /tmp/kubeconfig --namespace argocd
+argocd-util cluster kubeconfig https://<api-server-url> /tmp/kubeconfig --namespace argocd
 ```
 
 3 Use `kubectl` to get more details about connection issues, fix them and apply changes back to secret:

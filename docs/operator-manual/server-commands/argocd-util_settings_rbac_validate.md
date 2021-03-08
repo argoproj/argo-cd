@@ -1,12 +1,26 @@
-## argocd-util settings
+## argocd-util settings rbac validate
 
-Provides set of commands for settings validation and troubleshooting
+Validate RBAC policy
+
+### Synopsis
+
+
+Validates an RBAC policy for being syntactically correct. The policy must be
+a local file, and in either CSV or K8s ConfigMap format.
+
 
 ```
-argocd-util settings [flags]
+argocd-util settings rbac validate --policy-file=POLICYFILE [flags]
 ```
 
 ### Options
+
+```
+  -h, --help                 help for validate
+      --policy-file string   path to the policy file to use
+```
+
+### Options inherited from parent commands
 
 ```
       --argocd-cm-path string          Path to local argocd-cm.yaml file
@@ -18,7 +32,6 @@ argocd-util settings [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for settings
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
       --load-cluster-settings          Indicates that config map and secret should be loaded from cluster unless local file path is provided
@@ -34,8 +47,5 @@ argocd-util settings [flags]
 
 ### SEE ALSO
 
-* [argocd-util](argocd-util.md)	 - argocd-util tools used by Argo CD
 * [argocd-util settings rbac](argocd-util_settings_rbac.md)	 - Validate and test RBAC configuration
-* [argocd-util settings resource-overrides](argocd-util_settings_resource-overrides.md)	 - Troubleshoot resource overrides
-* [argocd-util settings validate](argocd-util_settings_validate.md)	 - Validate settings
 
