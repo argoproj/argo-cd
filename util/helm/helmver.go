@@ -1,13 +1,8 @@
 package helm
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
-
-	"gopkg.in/yaml.v2"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -52,27 +47,6 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 			_ = os.Remove(lockPath)
 		}
 	}, nil
-}
-
-func getHelmVersion(chartPath string) (*HelmVer, error) {
-	data, err := ioutil.ReadFile(path.Join(chartPath, "Chart.yaml"))
-	if err != nil {
-		return nil, err
-	}
-	obj := make(map[string]interface{})
-	err = yaml.Unmarshal(data, &obj)
-	if err != nil {
-		return nil, err
-	}
-	version, _, _ := unstructured.NestedString(obj, "apiVersion")
-	switch version {
-	case "", "v1":
-		return &HelmV2, nil
-	case "v2":
-		return &HelmV3, nil
-
-	}
-	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
 // HelmVer contains Helm version specific settings such as helm binary and command names

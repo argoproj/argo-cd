@@ -36,7 +36,7 @@ type Handler struct {
 	appClientset versioned.Interface
 	settingsMgr  *settings.SettingsManager
 	rootPath     string
-	verifyToken  func(tokenString string) (jwt.Claims, error)
+	verifyToken  func(tokenString string) (jwt.Claims, string, error)
 	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
 }
 
@@ -63,7 +63,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+	argoURL := argoCDSettings.URL
+	if argoURL == "" {
+		// golang does not provide any easy way to determine scheme of current request
+		// so redirecting ot http which will auto-redirect too https if necessary
+		argoURL = fmt.Sprintf("http://%s", r.Host)
+	}
+
+	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
@@ -85,7 +92,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
-	claims, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -105,6 +106,7 @@ import (
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 const replicasCountEnv = "ARGOCD_API_SERVER_REPLICAS"
+const renewTokenKey = "renew-token"
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -594,29 +596,43 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	return grpcS
 }
 
-// TranslateGrpcCookieHeader conditionally sets a cookie on the response.
+// translateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
-		cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
-		flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-		if !a.Insecure {
-			flags = append(flags, "Secure")
-		}
 		token := sessionResp.Token
-		if token != "" {
-			var err error
-			token, err = zjwt.ZJWT(token)
-			if err != nil {
-				return err
-			}
-		}
-		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		err := a.setTokenCookie(token, w)
 		if err != nil {
 			return err
 		}
-		for _, cookie := range cookies {
-			w.Header().Add("Set-Cookie", cookie)
+	} else if md, ok := runtime.ServerMetadataFromContext(ctx); ok {
+		renewToken := md.HeaderMD[renewTokenKey]
+		if len(renewToken) > 0 {
+			return a.setTokenCookie(renewToken[0], w)
 		}
+	}
+
+	return nil
+}
+
+func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
+	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
+	if !a.Insecure {
+		flags = append(flags, "Secure")
+	}
+	if token != "" {
+		var err error
+		token, err = zjwt.ZJWT(token)
+		if err != nil {
+			return err
+		}
+	}
+	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+	if err != nil {
+		return err
+	}
+	for _, cookie := range cookies {
+		w.Header().Add("Set-Cookie", cookie)
 	}
 	return nil
 }
@@ -825,8 +841,18 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	return filePath, nil
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
+func fileExists(dir, filename string) bool {
+	// We make sure that the resulting path is within the directory we intend to
+	// serve content from. path.Join() will normalize the path.
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	fp := path.Join(abs, filename)
+	if !strings.HasPrefix(fp, abs) {
+		return false
+	}
+	info, err := os.Stat(fp)
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -843,7 +869,8 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 				break
 			}
 		}
-		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
+
+		fileRequest := r.URL.Path != "/index.html" && fileExists(dir, r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
@@ -883,11 +910,19 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	claims, claimsErr := a.getClaims(ctx)
+	claims, newToken, claimsErr := a.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
+		if newToken != "" {
+			// Session tokens that are expiring soon should be regenerated if user stays active.
+			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
+			// response forwarder that will translate it into Set-Cookie header.
+			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
+				log.Warnf("Failed to set %s header", renewTokenKey)
+			}
+		}
 	}
 
 	if claimsErr != nil {
@@ -903,20 +938,20 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
+func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, ErrNoSession
+		return nil, "", ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return nil, ErrNoSession
+		return nil, "", ErrNoSession
 	}
-	claims, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return claims, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	return claims, nil
+	return claims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

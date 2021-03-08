@@ -119,3 +119,9 @@ func TestVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
+
+func TestGetSemver(t *testing.T) {
+	ver, err := getSemver()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ver)
+}

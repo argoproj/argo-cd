@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	Blue   = color.RGBA{13, 173, 234, 255}  // #0dadea
-	Green  = color.RGBA{24, 190, 82, 255}   // #18be52
-	Purple = color.RGBA{178, 102, 255, 255} // #b266ff
-	Orange = color.RGBA{244, 192, 48, 255}  // #f4c030
-	Red    = color.RGBA{233, 109, 118, 255} // #e96d76
-	Grey   = color.RGBA{204, 214, 221, 255} // #ccd6dd
+	Blue   = color.RGBA{16, 61, 102, 255} // #103d66
+	Green  = color.RGBA{11, 97, 42, 255}  // #0b612a
+	Purple = color.RGBA{115, 31, 77, 255} // #731f4d
+	Orange = color.RGBA{189, 115, 0, 255} // #bd7300
+	Red    = color.RGBA{167, 46, 38, 255} // #a72e26
+	Grey   = color.RGBA{41, 52, 61, 255}  // #29343D
 
 	HealthStatusColors = map[health.HealthStatusCode]color.RGBA{
 		health.HealthStatusDegraded:    Red,
