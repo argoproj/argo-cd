@@ -14,7 +14,7 @@
     
     
       
-        <title>Argocd util settings - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd util app diff reconcile results - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#argocd-util-settings" class="md-skip">
+        <a href="#argocd-util-app-diff-reconcile-results" class="md-skip">
           Skip to content
         </a>
       
@@ -99,7 +99,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Argocd util settings
+              Argocd util app diff reconcile results
             
           </span>
         </div>
@@ -1527,11 +1527,11 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-util-settings" class="md-nav__link">
-    argocd-util settings
+  <a href="#argocd-util-app-diff-reconcile-results" class="md-nav__link">
+    argocd-util app diff-reconcile-results
   </a>
   
-    <nav class="md-nav" aria-label="argocd-util settings">
+    <nav class="md-nav" aria-label="argocd-util app diff-reconcile-results">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1565,48 +1565,25 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_settings.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_app_diff-reconcile-results.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                  <h1>Argocd util settings</h1>
+                  <h1>Argocd util app diff reconcile results</h1>
                 
-                <h2 id="argocd-util-settings">argocd-util settings<a class="headerlink" href="#argocd-util-settings" title="Permanent link">&para;</a></h2>
-<p>Provides set of commands for settings validation and troubleshooting</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+                <h2 id="argocd-util-app-diff-reconcile-results">argocd-util app diff-reconcile-results<a class="headerlink" href="#argocd-util-app-diff-reconcile-results" title="Permanent link">&para;</a></h2>
+<p>Compare results of two reconciliations and print diff.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="n">diff</span><span class="o">-</span><span class="n">reconcile</span><span class="o">-</span><span class="n">results</span><span class="w"> </span><span class="n">PATH1</span><span class="w"> </span><span class="n">PATH2</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code>      <span class="o">--</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">cm</span><span class="o">-</span><span class="nv">path</span> <span class="nv">string</span>          <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">local</span> <span class="nv">argocd</span><span class="o">-</span><span class="nv">cm</span>.<span class="nv">yaml</span> <span class="nv">file</span>
-      <span class="o">--</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">secret</span><span class="o">-</span><span class="nv">path</span> <span class="nv">string</span>      <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">local</span> <span class="nv">argocd</span><span class="o">-</span><span class="nv">secret</span>.<span class="nv">yaml</span> <span class="nv">file</span>
-      <span class="o">--</span><span class="nv">as</span> <span class="nv">string</span>                      <span class="nv">Username</span> <span class="nv">to</span> <span class="nv">impersonate</span> <span class="k">for</span> <span class="nv">the</span> <span class="nv">operation</span>
-      <span class="o">--</span><span class="nv">as</span><span class="o">-</span><span class="nv">group</span> <span class="nv">stringArray</span>           <span class="nv">Group</span> <span class="nv">to</span> <span class="nv">impersonate</span> <span class="k">for</span> <span class="nv">the</span> <span class="nv">operation</span>, <span class="nv">this</span> <span class="nv">flag</span> <span class="nv">can</span> <span class="nv">be</span> <span class="nv">repeated</span> <span class="nv">to</span> <span class="nv">specify</span> <span class="nv">multiple</span> <span class="nv">groups</span>.
-      <span class="o">--</span><span class="nv">certificate</span><span class="o">-</span><span class="nv">authority</span> <span class="nv">string</span>   <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">cert</span> <span class="nv">file</span> <span class="k">for</span> <span class="nv">the</span> <span class="nv">certificate</span> <span class="nv">authority</span>
-      <span class="o">--</span><span class="nv">client</span><span class="o">-</span><span class="nv">certificate</span> <span class="nv">string</span>      <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">client</span> <span class="nv">certificate</span> <span class="nv">file</span> <span class="k">for</span> <span class="nv">TLS</span>
-      <span class="o">--</span><span class="nv">client</span><span class="o">-</span><span class="nv">key</span> <span class="nv">string</span>              <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">client</span> <span class="nv">key</span> <span class="nv">file</span> <span class="k">for</span> <span class="nv">TLS</span>
-      <span class="o">--</span><span class="nv">cluster</span> <span class="nv">string</span>                 <span class="nv">The</span> <span class="nv">name</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">kubeconfig</span> <span class="nv">cluster</span> <span class="nv">to</span> <span class="nv">use</span>
-      <span class="o">--</span><span class="nv">context</span> <span class="nv">string</span>                 <span class="nv">The</span> <span class="nv">name</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">kubeconfig</span> <span class="nv">context</span> <span class="nv">to</span> <span class="nv">use</span>
-  <span class="o">-</span><span class="nv">h</span>, <span class="o">--</span><span class="nv">help</span>                           <span class="nv">help</span> <span class="k">for</span> <span class="nv">settings</span>
-      <span class="o">--</span><span class="nv">insecure</span><span class="o">-</span><span class="nv">skip</span><span class="o">-</span><span class="nv">tls</span><span class="o">-</span><span class="nv">verify</span>       <span class="k">If</span> <span class="nv">true</span>, <span class="nv">the</span> <span class="nv">server</span><span class="s1">&#39;</span><span class="s">s certificate will not be checked for validity. This will make your HTTPS connections insecure</span>
-      <span class="o">--</span><span class="nv">kubeconfig</span> <span class="nv">string</span>              <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">kube</span> <span class="nv">config</span>. <span class="nv">Only</span> <span class="nv">required</span> <span class="k">if</span> <span class="nv">out</span><span class="o">-</span><span class="nv">of</span><span class="o">-</span><span class="nv">cluster</span>
-      <span class="o">--</span><span class="nv">load</span><span class="o">-</span><span class="nv">cluster</span><span class="o">-</span><span class="nv">settings</span>          <span class="nv">Indicates</span> <span class="nv">that</span> <span class="nv">config</span> <span class="nv">map</span> <span class="nv">and</span> <span class="nv">secret</span> <span class="nv">should</span> <span class="nv">be</span> <span class="nv">loaded</span> <span class="nv">from</span> <span class="nv">cluster</span> <span class="nv">unless</span> <span class="nv">local</span> <span class="nv">file</span> <span class="nv">path</span> <span class="nv">is</span> <span class="nv">provided</span>
-  <span class="o">-</span><span class="nv">n</span>, <span class="o">--</span><span class="nv">namespace</span> <span class="nv">string</span>               <span class="k">If</span> <span class="nv">present</span>, <span class="nv">the</span> <span class="nv">namespace</span> <span class="nv">scope</span> <span class="k">for</span> <span class="nv">this</span> <span class="nv">CLI</span> <span class="nv">request</span>
-      <span class="o">--</span><span class="nv">password</span> <span class="nv">string</span>                <span class="nv">Password</span> <span class="k">for</span> <span class="nv">basic</span> <span class="nv">authentication</span> <span class="nv">to</span> <span class="nv">the</span> <span class="nv">API</span> <span class="nv">server</span>
-      <span class="o">--</span><span class="nv">request</span><span class="o">-</span><span class="nb">timeout</span> <span class="nv">string</span>         <span class="nv">The</span> <span class="nv">length</span> <span class="nv">of</span> <span class="nv">time</span> <span class="nv">to</span> <span class="k">wait</span> <span class="nv">before</span> <span class="nv">giving</span> <span class="nv">up</span> <span class="nv">on</span> <span class="nv">a</span> <span class="nv">single</span> <span class="nv">server</span> <span class="nv">request</span>. <span class="nv">Non</span><span class="o">-</span><span class="nv">zero</span> <span class="nv">values</span> <span class="nv">should</span> <span class="nv">contain</span> <span class="nv">a</span> <span class="nv">corresponding</span> <span class="nv">time</span> <span class="nv">unit</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="mi">1</span><span class="nv">s</span>, <span class="mi">2</span><span class="nv">m</span>, <span class="mi">3</span><span class="nv">h</span><span class="ss">)</span>. <span class="nv">A</span> <span class="nv">value</span> <span class="nv">of</span> <span class="nv">zero</span> <span class="nv">means</span> <span class="nv">don</span><span class="s1">&#39;</span><span class="s">t timeout requests. (default &quot;0&quot;)</span>
-      <span class="o">--</span><span class="nv">server</span> <span class="nv">string</span>                  <span class="nv">The</span> <span class="nv">address</span> <span class="nv">and</span> <span class="nv">port</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">Kubernetes</span> <span class="nv">API</span> <span class="nv">server</span>
-      <span class="o">--</span><span class="nv">tls</span><span class="o">-</span><span class="nv">server</span><span class="o">-</span><span class="nv">name</span> <span class="nv">string</span>         <span class="k">If</span> <span class="nv">provided</span>, <span class="nv">this</span> <span class="nv">name</span> <span class="nv">will</span> <span class="nv">be</span> <span class="nv">used</span> <span class="nv">to</span> <span class="nv">validate</span> <span class="nv">server</span> <span class="nv">certificate</span>. <span class="k">If</span> <span class="nv">this</span> <span class="nv">is</span> <span class="nv">not</span> <span class="nv">provided</span>, <span class="nv">hostname</span> <span class="nv">used</span> <span class="nv">to</span> <span class="nv">contact</span> <span class="nv">the</span> <span class="nv">server</span> <span class="nv">is</span> <span class="nv">used</span>.
-      <span class="o">--</span><span class="nv">token</span> <span class="nv">string</span>                   <span class="nv">Bearer</span> <span class="nv">token</span> <span class="k">for</span> <span class="nv">authentication</span> <span class="nv">to</span> <span class="nv">the</span> <span class="nv">API</span> <span class="nv">server</span>
-      <span class="o">--</span><span class="nv">user</span> <span class="nv">string</span>                    <span class="nv">The</span> <span class="nv">name</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">kubeconfig</span> <span class="nv">user</span> <span class="nv">to</span> <span class="nv">use</span>
-      <span class="o">--</span><span class="nv">username</span> <span class="nv">string</span>                <span class="nv">Username</span> <span class="k">for</span> <span class="nv">basic</span> <span class="nv">authentication</span> <span class="nv">to</span> <span class="nv">the</span> <span class="nv">API</span> <span class="nv">server</span>
+<div class="codehilite"><pre><span></span><code>  <span class="o">-</span><span class="nv">h</span>, <span class="o">--</span><span class="nv">help</span>   <span class="nv">help</span> <span class="k">for</span> <span class="nv">diff</span><span class="o">-</span><span class="nv">reconcile</span><span class="o">-</span><span class="nv">results</span>
 </code></pre></div>
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd-util/">argocd-util</a>  - argocd-util tools used by Argo CD</li>
-<li><a href="../argocd-util_settings_rbac/">argocd-util settings rbac</a>  - Validate and test RBAC configuration</li>
-<li><a href="../argocd-util_settings_resource-overrides/">argocd-util settings resource-overrides</a>  - Troubleshoot resource overrides</li>
-<li><a href="../argocd-util_settings_validate/">argocd-util settings validate</a>  - Validate settings</li>
+<li><a href="../argocd-util_app/">argocd-util app</a>  - Manage applications configuration</li>
 </ul>
                 
               

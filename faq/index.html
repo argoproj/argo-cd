@@ -1881,7 +1881,7 @@ e.g. <code>argocd login --username admin &amp;&amp; argocd cluster list</code>).
 <h2 id="argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it">Argo CD is unable to connect to my cluster, how do I troubleshoot it?<a class="headerlink" href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Permanent link">&para;</a></h2>
 <p>Use the following steps to reconstruct configured cluster config and connect to your cluster manually using kubectl:</p>
 <div class="codehilite"><pre><span></span><code>kubectl <span class="nb">exec</span> -it &lt;argocd-pod-name&gt; bash <span class="c1"># ssh into any argocd server pod</span>
-argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argocd <span class="c1"># generate your cluster config</span>
+argocd-util cluster kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argocd <span class="c1"># generate your cluster config</span>
 <span class="nv">KUBECONFIG</span><span class="o">=</span>/tmp/config kubectl get pods <span class="c1"># test connection manually</span>
 </code></pre></div>
 

@@ -1,0 +1,1705 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      <link rel="shortcut icon" href="../../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.1.2, mkdocs-material-7.0.5">
+    
+    
+      
+        <title>Argocd util app generate spec - Argo CD - Declarative GitOps CD for Kubernetes</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.77f3fd56.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.7fa14f5b.min.css">
+        
+          
+          
+          <meta name="theme-color" content="#009485">
+        
+      
+    
+    
+    
+      
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700%7C&display=fallback">
+        <style>:root{--md-text-font-family:"Work Sans";--md-code-font-family:""}</style>
+      
+    
+    
+    
+      <link rel="stylesheet" href="../../../assets/versions.css">
+    
+    
+      
+        
+<script>window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)},ga.l=+new Date,ga("create","UA-105170809-2","auto"),ga("set","anonymizeIp",!0),ga("send","pageview"),document.addEventListener("DOMContentLoaded",function(){document.forms.search&&document.forms.search.query.addEventListener("blur",function(){var e;this.value&&(e=document.location.pathname,ga("send","pageview",e+"?q="+this.value))}),"undefined"!=typeof location$&&location$.subscribe(function(e){ga("send","pageview",e.pathname)})})</script>
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+      
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="" data-md-color-primary="teal" data-md-color-accent="">
+      
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#argocd-util-app-generate-spec" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Argo CD - Declarative GitOps CD for Kubernetes" class="md-header__button md-logo" aria-label="Argo CD - Declarative GitOps CD for Kubernetes">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Argo CD - Declarative GitOps CD for Kubernetes
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Argocd util app generate spec
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="md-header__options">
+      
+    </div>
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+      </label>
+      
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" data-md-state="active" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </label>
+      <button type="reset" class="md-search__icon md-icon" aria-label="Clear" tabindex="-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        
+<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M439.55 236.05L244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Argo CD - Declarative GitOps CD for Kubernetes" class="md-nav__button md-logo" aria-label="Argo CD - Declarative GitOps CD for Kubernetes">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    Argo CD - Declarative GitOps CD for Kubernetes
+  </label>
+  
+    <div class="md-nav__source">
+      
+<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M439.55 236.05L244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../understand_the_basics/" class="md-nav__link">
+        Understand The Basics
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../core_concepts/" class="md-nav__link">
+        Core Concepts
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting_started/" class="md-nav__link">
+        Getting Started
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" >
+      
+      <label class="md-nav__link" for="__nav_5">
+        Operator Manual
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="Operator Manual" data-md-level="1">
+        <label class="md-nav__title" for="__nav_5">
+          <span class="md-nav__icon md-icon"></span>
+          Operator Manual
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        Architectural Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../declarative-setup/" class="md-nav__link">
+        Declarative Setup
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ingress/" class="md-nav__link">
+        Ingress Configuration
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5_5" type="checkbox" id="__nav_5_5" >
+      
+      <label class="md-nav__link" for="__nav_5_5">
+        User Management
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="User Management" data-md-level="2">
+        <label class="md-nav__title" for="__nav_5_5">
+          <span class="md-nav__icon md-icon"></span>
+          User Management
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/auth0/" class="md-nav__link">
+        Auth0
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/microsoft/" class="md-nav__link">
+        Microsoft
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/okta/" class="md-nav__link">
+        Okta
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/onelogin/" class="md-nav__link">
+        OneLogin
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/keycloak/" class="md-nav__link">
+        Keycloak
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/openunison/" class="md-nav__link">
+        OpenUnison
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-management/google/" class="md-nav__link">
+        Google
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rbac/" class="md-nav__link">
+        RBAC Configuration
+      </a>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        Security
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cluster-bootstrapping/" class="md-nav__link">
+        Cluster Bootstrapping
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../secret-management/" class="md-nav__link">
+        Secret Management
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../high_availability/" class="md-nav__link">
+        High Availability
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../disaster_recovery/" class="md-nav__link">
+        Disaster Recovery
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../webhook/" class="md-nav__link">
+        Git Webhook Configuration
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../health/" class="md-nav__link">
+        Resource Health
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../custom_tools/" class="md-nav__link">
+        Custom Tooling
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../custom-styles/" class="md-nav__link">
+        Custom Styles
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/" class="md-nav__link">
+        Metrics
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notifications/" class="md-nav__link">
+        Notifications
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        Troubleshooting Tools
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5_18" type="checkbox" id="__nav_5_18" >
+      
+      <label class="md-nav__link" for="__nav_5_18">
+        Server Configuration Parameters
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="Server Configuration Parameters" data-md-level="2">
+        <label class="md-nav__title" for="__nav_5_18">
+          <span class="md-nav__icon md-icon"></span>
+          Server Configuration Parameters
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../argocd-server/" class="md-nav__link">
+        Argocd server
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../argocd-application-controller/" class="md-nav__link">
+        Argocd application controller
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../argocd-repo-server/" class="md-nav__link">
+        Argocd repo server
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../argocd-dex/" class="md-nav__link">
+        Argocd dex
+      </a>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../argocd-util/" class="md-nav__link">
+        argocd-util Tools
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5_20" type="checkbox" id="__nav_5_20" >
+      
+      <label class="md-nav__link" for="__nav_5_20">
+        Upgrading
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="Upgrading" data-md-level="2">
+        <label class="md-nav__title" for="__nav_5_20">
+          <span class="md-nav__icon md-icon"></span>
+          Upgrading
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/overview/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.8-2.0/" class="md-nav__link">
+        v1.8 to v2.0
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.7-1.8/" class="md-nav__link">
+        v1.7 to 1.8
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.6-1.7/" class="md-nav__link">
+        v1.6 to 1.7
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.5-1.6/" class="md-nav__link">
+        v1.5 to 1.6
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.4-1.5/" class="md-nav__link">
+        v1.4 to 1.5
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.3-1.4/" class="md-nav__link">
+        v1.3 to 1.4
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.2-1.3/" class="md-nav__link">
+        v1.2 to 1.3
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.1-1.2/" class="md-nav__link">
+        v1.1 to 1.2
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrading/1.0-1.1/" class="md-nav__link">
+        v1.0 to 1.1
+      </a>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6" type="checkbox" id="__nav_6" >
+      
+      <label class="md-nav__link" for="__nav_6">
+        User Guide
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="User Guide" data-md-level="1">
+        <label class="md-nav__title" for="__nav_6">
+          <span class="md-nav__icon md-icon"></span>
+          User Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/application_sources/" class="md-nav__link">
+        Tools
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/kustomize/" class="md-nav__link">
+        Kustomize
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/helm/" class="md-nav__link">
+        Helm
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/ksonnet/" class="md-nav__link">
+        Ksonnet
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/jsonnet/" class="md-nav__link">
+        Jsonnet
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/config-management-plugins/" class="md-nav__link">
+        Plugins
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/tool_detection/" class="md-nav__link">
+        Tool Detection
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/projects/" class="md-nav__link">
+        Projects
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/private-repositories/" class="md-nav__link">
+        Private Repositories
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/gpg-verification/" class="md-nav__link">
+        GnuPG verification
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/auto_sync/" class="md-nav__link">
+        Automated Sync Policy
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/diffing/" class="md-nav__link">
+        Diffing Customization
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/orphaned-resources/" class="md-nav__link">
+        Orphaned Resources Monitoring
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/compare-options/" class="md-nav__link">
+        Compare Options
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/sync-options/" class="md-nav__link">
+        Sync Options
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/parameters/" class="md-nav__link">
+        Parameter Overrides
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/build-environment/" class="md-nav__link">
+        Build Environment
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/tracking_strategies/" class="md-nav__link">
+        Tracking and Deployment Strategies
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/resource_hooks/" class="md-nav__link">
+        Resource Hooks
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/selective_sync/" class="md-nav__link">
+        Selective Sync
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/sync-waves/" class="md-nav__link">
+        Sync Phases and Waves
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/sync_windows/" class="md-nav__link">
+        Sync Windows
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/application-set/" class="md-nav__link">
+        Generating Applications with ApplicationSet
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/ci_automation/" class="md-nav__link">
+        Automation from CI Pipelines
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/app_deletion/" class="md-nav__link">
+        App Deletion
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/best_practices/" class="md-nav__link">
+        Best Practices
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/status-badge/" class="md-nav__link">
+        Status Badge
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/external-url/" class="md-nav__link">
+        Add external URL
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user-guide/commands/argocd/" class="md-nav__link">
+        Command Reference
+      </a>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_7" type="checkbox" id="__nav_7" >
+      
+      <label class="md-nav__link" for="__nav_7">
+        Developer Guide
+        <span class="md-nav__icon md-icon"></span>
+      </label>
+      <nav class="md-nav" aria-label="Developer Guide" data-md-level="1">
+        <label class="md-nav__title" for="__nav_7">
+          <span class="md-nav__icon md-icon"></span>
+          Developer Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/contributing/" class="md-nav__link">
+        Contribution guide
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/running-locally/" class="md-nav__link">
+        Running ArgoCD locally
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/debugging-remote-environment/" class="md-nav__link">
+        Debugging a Remote ArgoCD Environment
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/api-docs/" class="md-nav__link">
+        API Docs
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/test-e2e/" class="md-nav__link">
+        E2E Tests
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/dependencies/" class="md-nav__link">
+        Managing Dependencies
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/ci/" class="md-nav__link">
+        Continuous Integration (CI)
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/releasing/" class="md-nav__link">
+        Releasing
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/site/" class="md-nav__link">
+        Site
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/static-code-analysis/" class="md-nav__link">
+        Static Code Analysis
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer-guide/faq/" class="md-nav__link">
+        Contribution FAQ
+      </a>
+    </li>
+  
+
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../faq/" class="md-nav__link">
+        FAQ
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../security_considerations/" class="md-nav__link">
+        Security Considerations
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../SUPPORT/" class="md-nav__link">
+        Support
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../roadmap/" class="md-nav__link">
+        Roadmap
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/argoproj/argo-cd/releases" class="md-nav__link">
+        Releases ⧉
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://blog.argoproj.io/" class="md-nav__link">
+        Blog ⧉
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#argocd-util-app-generate-spec" class="md-nav__link">
+    argocd-util app generate-spec
+  </a>
+  
+    <nav class="md-nav" aria-label="argocd-util app generate-spec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    Options
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    SEE ALSO
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content" data-md-component="content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_app_generate-spec.md" title="Edit this page" class="md-content__button md-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
+                  </a>
+                
+                
+                  <h1>Argocd util app generate spec</h1>
+                
+                <h2 id="argocd-util-app-generate-spec">argocd-util app generate-spec<a class="headerlink" href="#argocd-util-app-generate-spec" title="Permanent link">&para;</a></h2>
+<p>Generate declarative config for an application</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="n">generate</span><span class="o">-</span><span class="n">spec</span><span class="w"> </span><span class="n">APPNAME</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+</code></pre></div>
+
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">directory</span> <span class="nv">app</span>
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">guestbook</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">github</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">argoproj</span><span class="o">/</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">example</span><span class="o">-</span><span class="nv">apps</span>.<span class="nv">git</span> <span class="o">--</span><span class="nv">path</span> <span class="nv">guestbook</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span> <span class="o">--</span><span class="nv">directory</span><span class="o">-</span><span class="nv">recurse</span>
+
+    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">Jsonnet</span> <span class="nv">app</span>
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">jsonnet</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">github</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">argoproj</span><span class="o">/</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">example</span><span class="o">-</span><span class="nv">apps</span>.<span class="nv">git</span> <span class="o">--</span><span class="nv">path</span> <span class="nv">jsonnet</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span> <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">ext</span><span class="o">-</span><span class="nv">str</span> <span class="nv">replicas</span><span class="o">=</span><span class="mi">2</span>
+
+    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">Helm</span> <span class="nv">app</span>
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">helm</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">github</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">argoproj</span><span class="o">/</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">example</span><span class="o">-</span><span class="nv">apps</span>.<span class="nv">git</span> <span class="o">--</span><span class="nv">path</span> <span class="nv">helm</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span> <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span> <span class="nv">replicaCount</span><span class="o">=</span><span class="mi">2</span>
+
+    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">Helm</span> <span class="nv">app</span> <span class="nv">from</span> <span class="nv">a</span> <span class="nv">Helm</span> <span class="nv">repo</span>
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">nginx</span><span class="o">-</span><span class="nv">ingress</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span><span class="o">-</span><span class="nv">charts</span>.<span class="nv">storage</span>.<span class="nv">googleapis</span>.<span class="nv">com</span> <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">chart</span> <span class="nv">nginx</span><span class="o">-</span><span class="nv">ingress</span> <span class="o">--</span><span class="nv">revision</span> <span class="mi">1</span>.<span class="mi">24</span>.<span class="mi">3</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span>
+
+    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">Kustomize</span> <span class="nv">app</span>
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">kustomize</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">github</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">argoproj</span><span class="o">/</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">example</span><span class="o">-</span><span class="nv">apps</span>.<span class="nv">git</span> <span class="o">--</span><span class="nv">path</span> <span class="nv">kustomize</span><span class="o">-</span><span class="nv">guestbook</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span> <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">image</span> <span class="nv">gcr</span>.<span class="nv">io</span><span class="o">/</span><span class="nv">heptio</span><span class="o">-</span><span class="nv">images</span><span class="o">/</span><span class="nv">ks</span><span class="o">-</span><span class="nv">guestbook</span><span class="o">-</span><span class="nv">demo</span>:<span class="mi">0</span>.<span class="mi">1</span>
+
+    # <span class="nv">Generate</span> <span class="nv">declarative</span> <span class="nv">config</span> <span class="k">for</span> <span class="nv">a</span> <span class="nv">app</span> <span class="nv">using</span> <span class="nv">a</span> <span class="nv">custom</span> <span class="nv">tool</span>:
+    <span class="nv">argocd</span><span class="o">-</span><span class="nv">util</span> <span class="nv">app</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span> <span class="nv">ksane</span> <span class="o">--</span><span class="nv">repo</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">github</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">argoproj</span><span class="o">/</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">example</span><span class="o">-</span><span class="nv">apps</span>.<span class="nv">git</span> <span class="o">--</span><span class="nv">path</span> <span class="nv">plugins</span><span class="o">/</span><span class="nv">kasane</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">default</span> <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span> <span class="o">--</span><span class="nv">config</span><span class="o">-</span><span class="nv">management</span><span class="o">-</span><span class="nv">plugin</span> <span class="nv">kasane</span>
+</code></pre></div>
+
+<h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>      <span class="o">--</span><span class="nv">allow</span><span class="o">-</span><span class="nv">empty</span>                               <span class="nv">Set</span> <span class="nv">allow</span> <span class="nv">zero</span> <span class="nv">live</span> <span class="nv">resources</span> <span class="nv">when</span> <span class="nv">sync</span> <span class="nv">is</span> <span class="nv">automated</span>
+      <span class="o">--</span><span class="nv">auto</span><span class="o">-</span><span class="nv">prune</span>                                <span class="nv">Set</span> <span class="nv">automatic</span> <span class="nv">pruning</span> <span class="nv">when</span> <span class="nv">sync</span> <span class="nv">is</span> <span class="nv">automated</span>
+      <span class="o">--</span><span class="nv">config</span><span class="o">-</span><span class="nv">management</span><span class="o">-</span><span class="nv">plugin</span> <span class="nv">string</span>           <span class="nv">Config</span> <span class="nv">management</span> <span class="nv">plugin</span> <span class="nv">name</span>
+      <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">name</span> <span class="nv">string</span>                          <span class="nv">K8s</span> <span class="nv">cluster</span> <span class="nv">Name</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="nv">minikube</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">namespace</span> <span class="nv">string</span>                     <span class="nv">K8s</span> <span class="nv">target</span> <span class="nv">namespace</span> <span class="ss">(</span><span class="nv">overrides</span> <span class="nv">the</span> <span class="nv">namespace</span> <span class="nv">specified</span> <span class="nv">in</span> <span class="nv">the</span> <span class="nv">ksonnet</span> <span class="nv">app</span>.<span class="nv">yaml</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">dest</span><span class="o">-</span><span class="nv">server</span> <span class="nv">string</span>                        <span class="nv">K8s</span> <span class="nv">cluster</span> <span class="nv">URL</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="nv">https</span>:<span class="o">//</span><span class="nv">kubernetes</span>.<span class="nv">default</span>.<span class="nv">svc</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">directory</span><span class="o">-</span><span class="nv">exclude</span> <span class="nv">string</span>                  <span class="nv">Set</span> <span class="nv">glob</span> <span class="nv">expression</span> <span class="nv">used</span> <span class="nv">to</span> <span class="nv">exclude</span> <span class="nv">files</span> <span class="nv">from</span> <span class="nv">application</span> <span class="nv">source</span> <span class="nv">path</span>
+      <span class="o">--</span><span class="nv">directory</span><span class="o">-</span><span class="k">include</span> <span class="nv">string</span>                  <span class="nv">Set</span> <span class="nv">glob</span> <span class="nv">expression</span> <span class="nv">used</span> <span class="nv">to</span> <span class="k">include</span> <span class="nv">files</span> <span class="nv">from</span> <span class="nv">application</span> <span class="nv">source</span> <span class="nv">path</span>
+      <span class="o">--</span><span class="nv">directory</span><span class="o">-</span><span class="nv">recurse</span>                         <span class="nv">Recurse</span> <span class="nv">directory</span>
+      <span class="o">--</span><span class="nv">env</span> <span class="nv">string</span>                                <span class="nv">Application</span> <span class="nv">environment</span> <span class="nv">to</span> <span class="nv">monitor</span>
+      <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">chart</span> <span class="nv">string</span>                         <span class="nv">Helm</span> <span class="nv">Chart</span> <span class="nv">name</span>
+      <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span> <span class="nv">stringArray</span>                      <span class="nv">Helm</span> <span class="nv">set</span> <span class="nv">values</span> <span class="nv">on</span> <span class="nv">the</span> <span class="nv">command</span> <span class="nv">line</span> <span class="ss">(</span><span class="nv">can</span> <span class="nv">be</span> <span class="nv">repeated</span> <span class="nv">to</span> <span class="nv">set</span> <span class="nv">several</span> <span class="nv">values</span>: <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span> <span class="nv">key1</span><span class="o">=</span><span class="nv">val1</span> <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span> <span class="nv">key2</span><span class="o">=</span><span class="nv">val2</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">file</span> <span class="nv">stringArray</span>                 <span class="nv">Helm</span> <span class="nv">set</span> <span class="nv">values</span> <span class="nv">from</span> <span class="nv">respective</span> <span class="nv">files</span> <span class="nv">specified</span> <span class="nv">via</span> <span class="nv">the</span> <span class="nv">command</span> <span class="nv">line</span> <span class="ss">(</span><span class="nv">can</span> <span class="nv">be</span> <span class="nv">repeated</span> <span class="nv">to</span> <span class="nv">set</span> <span class="nv">several</span> <span class="nv">values</span>: <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">file</span> <span class="nv">key1</span><span class="o">=</span><span class="nv">path1</span> <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">file</span> <span class="nv">key2</span><span class="o">=</span><span class="nv">path2</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">string</span> <span class="nv">stringArray</span>               <span class="nv">Helm</span> <span class="nv">set</span> <span class="nv">STRING</span> <span class="nv">values</span> <span class="nv">on</span> <span class="nv">the</span> <span class="nv">command</span> <span class="nv">line</span> <span class="ss">(</span><span class="nv">can</span> <span class="nv">be</span> <span class="nv">repeated</span> <span class="nv">to</span> <span class="nv">set</span> <span class="nv">several</span> <span class="nv">values</span>: <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">string</span> <span class="nv">key1</span><span class="o">=</span><span class="nv">val1</span> <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">set</span><span class="o">-</span><span class="nv">string</span> <span class="nv">key2</span><span class="o">=</span><span class="nv">val2</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">helm</span><span class="o">-</span><span class="nv">version</span> <span class="nv">string</span>                       <span class="nv">Helm</span> <span class="nv">version</span>
+  <span class="o">-</span><span class="nv">h</span>, <span class="o">--</span><span class="nv">help</span>                                      <span class="nv">help</span> <span class="k">for</span> <span class="nv">generate</span><span class="o">-</span><span class="nv">spec</span>
+      <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">ext</span><span class="o">-</span><span class="nv">var</span><span class="o">-</span><span class="nv">code</span> <span class="nv">stringArray</span>          <span class="nv">Jsonnet</span> <span class="nv">ext</span> <span class="nv">var</span>
+      <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">ext</span><span class="o">-</span><span class="nv">var</span><span class="o">-</span><span class="nv">str</span> <span class="nv">stringArray</span>           <span class="nv">Jsonnet</span> <span class="nv">string</span> <span class="nv">ext</span> <span class="nv">var</span>
+      <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">libs</span> <span class="nv">stringArray</span>                  <span class="nv">Additional</span> <span class="nv">jsonnet</span> <span class="nv">libs</span> <span class="ss">(</span><span class="nv">prefixed</span> <span class="nv">by</span> <span class="nv">repoRoot</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">tla</span><span class="o">-</span><span class="nv">code</span> <span class="nv">stringArray</span>              <span class="nv">Jsonnet</span> <span class="nv">top</span> <span class="nv">level</span> <span class="nv">code</span> <span class="nv">arguments</span>
+      <span class="o">--</span><span class="nv">jsonnet</span><span class="o">-</span><span class="nv">tla</span><span class="o">-</span><span class="nv">str</span> <span class="nv">stringArray</span>               <span class="nv">Jsonnet</span> <span class="nv">top</span> <span class="nv">level</span> <span class="nv">string</span> <span class="nv">arguments</span>
+      <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">common</span><span class="o">-</span><span class="nv">annotation</span> <span class="nv">stringArray</span>   <span class="nv">Set</span> <span class="nv">common</span> <span class="nv">labels</span> <span class="nv">in</span> <span class="nv">Kustomize</span>
+      <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">common</span><span class="o">-</span><span class="nv">label</span> <span class="nv">stringArray</span>        <span class="nv">Set</span> <span class="nv">common</span> <span class="nv">labels</span> <span class="nv">in</span> <span class="nv">Kustomize</span>
+      <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">image</span> <span class="nv">stringArray</span>               <span class="nv">Kustomize</span> <span class="nv">images</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">image</span> <span class="nv">node</span>:<span class="mi">8</span>.<span class="mi">15</span>.<span class="mi">0</span> <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">image</span> <span class="nv">mysql</span><span class="o">=</span><span class="nv">mariadb</span>,<span class="nv">alpine</span>@<span class="nv">sha256</span>:<span class="mi">24</span><span class="nv">a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">kustomize</span><span class="o">-</span><span class="nv">version</span> <span class="nv">string</span>                  <span class="nv">Kustomize</span> <span class="nv">version</span>
+  <span class="o">-</span><span class="nv">l</span>, <span class="o">--</span><span class="nv">label</span> <span class="nv">stringArray</span>                         <span class="nv">Labels</span> <span class="nv">to</span> <span class="nv">apply</span> <span class="nv">to</span> <span class="nv">the</span> <span class="nv">app</span>
+      <span class="o">--</span><span class="nv">name</span> <span class="nv">string</span>                               <span class="nv">A</span> <span class="nv">name</span> <span class="k">for</span> <span class="nv">the</span> <span class="nv">app</span>, <span class="nv">ignored</span> <span class="k">if</span> <span class="nv">a</span> <span class="nv">file</span> <span class="nv">is</span> <span class="nv">set</span> <span class="ss">(</span><span class="nv">DEPRECATED</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">nameprefix</span> <span class="nv">string</span>                         <span class="nv">Kustomize</span> <span class="nv">nameprefix</span>
+      <span class="o">--</span><span class="nv">namesuffix</span> <span class="nv">string</span>                         <span class="nv">Kustomize</span> <span class="nv">namesuffix</span>
+  <span class="o">-</span><span class="nv">o</span>, <span class="o">--</span><span class="nv">output</span> <span class="nv">string</span>                             <span class="nv">Output</span> <span class="nv">format</span>. <span class="nv">One</span> <span class="nv">of</span>: <span class="nv">json</span><span class="o">|</span><span class="nv">yaml</span> <span class="ss">(</span><span class="nv">default</span> <span class="s2">&quot;</span><span class="s">yaml</span><span class="s2">&quot;</span><span class="ss">)</span>
+  <span class="o">-</span><span class="nv">p</span>, <span class="o">--</span><span class="nv">parameter</span> <span class="nv">stringArray</span>                     <span class="nv">set</span> <span class="nv">a</span> <span class="nv">parameter</span> <span class="nv">override</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="o">-</span><span class="nv">p</span> <span class="nv">guestbook</span><span class="o">=</span><span class="nv">image</span><span class="o">=</span><span class="nv">example</span><span class="o">/</span><span class="nv">guestbook</span>:<span class="nv">latest</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">path</span> <span class="nv">string</span>                               <span class="nv">Path</span> <span class="nv">in</span> <span class="nv">repository</span> <span class="nv">to</span> <span class="nv">the</span> <span class="nv">app</span> <span class="nv">directory</span>, <span class="nv">ignored</span> <span class="k">if</span> <span class="nv">a</span> <span class="nv">file</span> <span class="nv">is</span> <span class="nv">set</span>
+      <span class="o">--</span><span class="nv">plugin</span><span class="o">-</span><span class="nv">env</span> <span class="nv">stringArray</span>                    <span class="nv">Additional</span> <span class="nv">plugin</span> <span class="nv">envs</span>
+      <span class="o">--</span><span class="nv">project</span> <span class="nv">string</span>                            <span class="nv">Application</span> <span class="nv">project</span> <span class="nv">name</span>
+      <span class="o">--</span><span class="nv">release</span><span class="o">-</span><span class="nv">name</span> <span class="nv">string</span>                       <span class="nv">Helm</span> <span class="nv">release</span><span class="o">-</span><span class="nv">name</span>
+      <span class="o">--</span><span class="nv">repo</span> <span class="nv">string</span>                               <span class="nv">Repository</span> <span class="nv">URL</span>, <span class="nv">ignored</span> <span class="k">if</span> <span class="nv">a</span> <span class="nv">file</span> <span class="nv">is</span> <span class="nv">set</span>
+      <span class="o">--</span><span class="nv">retry</span><span class="o">-</span><span class="nv">backoff</span><span class="o">-</span><span class="nv">duration</span> <span class="nv">duration</span>           <span class="nv">Retry</span> <span class="nv">backoff</span> <span class="nv">base</span> <span class="nv">duration</span>. <span class="nv">Input</span> <span class="nv">needs</span> <span class="nv">to</span> <span class="nv">be</span> <span class="nv">a</span> <span class="nv">duration</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="mi">2</span><span class="nv">m</span>, <span class="mi">1</span><span class="nv">h</span><span class="ss">)</span> <span class="ss">(</span><span class="nv">default</span> <span class="mi">5</span><span class="nv">s</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">retry</span><span class="o">-</span><span class="nv">backoff</span><span class="o">-</span><span class="nv">factor</span> <span class="nv">int</span>                  <span class="nv">Factor</span> <span class="nv">multiplies</span> <span class="nv">the</span> <span class="nv">base</span> <span class="nv">duration</span> <span class="nv">after</span> <span class="nv">each</span> <span class="nv">failed</span> <span class="nv">retry</span> <span class="ss">(</span><span class="nv">default</span> <span class="mi">2</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">retry</span><span class="o">-</span><span class="nv">backoff</span><span class="o">-</span><span class="nv">max</span><span class="o">-</span><span class="nv">duration</span> <span class="nv">duration</span>       <span class="nv">Max</span> <span class="nv">retry</span> <span class="nv">backoff</span> <span class="nv">duration</span>. <span class="nv">Input</span> <span class="nv">needs</span> <span class="nv">to</span> <span class="nv">be</span> <span class="nv">a</span> <span class="nv">duration</span> <span class="ss">(</span><span class="nv">e</span>.<span class="nv">g</span>. <span class="mi">2</span><span class="nv">m</span>, <span class="mi">1</span><span class="nv">h</span><span class="ss">)</span> <span class="ss">(</span><span class="nv">default</span> <span class="mi">3</span><span class="nv">m0s</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">retry</span><span class="o">-</span><span class="nv">limit</span> <span class="nv">int</span>                           <span class="nv">Max</span> <span class="nv">number</span> <span class="nv">of</span> <span class="nv">allowed</span> <span class="nv">sync</span> <span class="nv">retries</span>
+      <span class="o">--</span><span class="nv">revision</span> <span class="nv">string</span>                           <span class="nv">The</span> <span class="nv">tracking</span> <span class="nv">source</span> <span class="nv">branch</span>, <span class="nv">tag</span>, <span class="nv">commit</span> <span class="nv">or</span> <span class="nv">Helm</span> <span class="nv">chart</span> <span class="nv">version</span> <span class="nv">the</span> <span class="nv">application</span> <span class="nv">will</span> <span class="nv">sync</span> <span class="nv">to</span>
+      <span class="o">--</span><span class="nv">revision</span><span class="o">-</span><span class="nv">history</span><span class="o">-</span><span class="nv">limit</span> <span class="nv">int</span>                <span class="nv">How</span> <span class="nv">many</span> <span class="nv">items</span> <span class="nv">to</span> <span class="nv">keep</span> <span class="nv">in</span> <span class="nv">revision</span> <span class="nv">history</span> <span class="ss">(</span><span class="nv">default</span> <span class="mi">10</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">self</span><span class="o">-</span><span class="nv">heal</span>                                 <span class="nv">Set</span> <span class="nv">self</span> <span class="nv">healing</span> <span class="nv">when</span> <span class="nv">sync</span> <span class="nv">is</span> <span class="nv">automated</span>
+      <span class="o">--</span><span class="nv">sync</span><span class="o">-</span><span class="nv">option</span> <span class="nv">Prune</span><span class="o">=</span><span class="nv">false</span>                   <span class="nv">Add</span> <span class="nv">or</span> <span class="nv">remove</span> <span class="nv">a</span> <span class="nv">sync</span> <span class="nv">option</span>, <span class="nv">e</span>.<span class="nv">g</span> <span class="nv">add</span> <span class="nv">Prune</span><span class="o">=</span><span class="nv">false</span>. <span class="nv">Remove</span> <span class="nv">using</span> `<span class="o">!</span>` <span class="nv">prefix</span>, <span class="nv">e</span>.<span class="nv">g</span>. `<span class="o">!</span><span class="nv">Prune</span><span class="o">=</span><span class="nv">false</span>`
+      <span class="o">--</span><span class="nv">sync</span><span class="o">-</span><span class="nv">policy</span> <span class="nv">string</span>                        <span class="nv">Set</span> <span class="nv">the</span> <span class="nv">sync</span> <span class="nv">policy</span> <span class="ss">(</span><span class="nv">one</span> <span class="nv">of</span>: <span class="nv">none</span>, <span class="nv">automated</span> <span class="ss">(</span><span class="nv">aliases</span> <span class="nv">of</span> <span class="nv">automated</span>: <span class="nv">auto</span>, <span class="nv">automatic</span><span class="ss">))</span>
+      <span class="o">--</span><span class="nv">validate</span>                                  <span class="nv">Validation</span> <span class="nv">of</span> <span class="nv">repo</span> <span class="nv">and</span> <span class="nv">cluster</span> <span class="ss">(</span><span class="nv">default</span> <span class="nv">true</span><span class="ss">)</span>
+      <span class="o">--</span><span class="nv">values</span> <span class="nv">stringArray</span>                        <span class="nv">Helm</span> <span class="nv">values</span> <span class="nv">file</span><span class="ss">(</span><span class="nv">s</span><span class="ss">)</span> <span class="nv">to</span> <span class="nv">use</span>
+      <span class="o">--</span><span class="nv">values</span><span class="o">-</span><span class="nv">literal</span><span class="o">-</span><span class="nv">file</span> <span class="nv">string</span>                <span class="nv">Filename</span> <span class="nv">or</span> <span class="nv">URL</span> <span class="nv">to</span> <span class="nv">import</span> <span class="nv">as</span> <span class="nv">a</span> <span class="nv">literal</span> <span class="nv">Helm</span> <span class="nv">values</span> <span class="nv">block</span>
+</code></pre></div>
+
+<h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="../argocd-util_app/">argocd-util app</a>  - Manage applications configuration</li>
+</ul>
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        Made with
+        <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+          Material for MkDocs
+        </a>
+        
+      </div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing"}, "search": "../../../assets/javascripts/workers/search.fb4a9340.min.js", "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.5cf3e710.min.js"></script>
+      
+        <script src="../../../assets/versions.js"></script>
+      
+    
+  </body>
+</html>

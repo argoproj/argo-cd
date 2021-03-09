@@ -14,7 +14,7 @@
     
     
       
-        <title>Argocd util settings - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Argocd util settings rbac - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#argocd-util-settings" class="md-skip">
+        <a href="#argocd-util-settings-rbac" class="md-skip">
           Skip to content
         </a>
       
@@ -99,7 +99,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Argocd util settings
+              Argocd util settings rbac
             
           </span>
         </div>
@@ -1527,16 +1527,23 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#argocd-util-settings" class="md-nav__link">
-    argocd-util settings
+  <a href="#argocd-util-settings-rbac" class="md-nav__link">
+    argocd-util settings rbac
   </a>
   
-    <nav class="md-nav" aria-label="argocd-util settings">
+    <nav class="md-nav" aria-label="argocd-util settings rbac">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#options" class="md-nav__link">
     Options
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#options-inherited-from-parent-commands" class="md-nav__link">
+    Options inherited from parent commands
   </a>
   
 </li>
@@ -1565,19 +1572,23 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_settings.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/server-commands/argocd-util_settings_rbac.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                  <h1>Argocd util settings</h1>
+                  <h1>Argocd util settings rbac</h1>
                 
-                <h2 id="argocd-util-settings">argocd-util settings<a class="headerlink" href="#argocd-util-settings" title="Permanent link">&para;</a></h2>
-<p>Provides set of commands for settings validation and troubleshooting</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
+                <h2 id="argocd-util-settings-rbac">argocd-util settings rbac<a class="headerlink" href="#argocd-util-settings-rbac" title="Permanent link">&para;</a></h2>
+<p>Validate and test RBAC configuration</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="n">rbac</span><span class="w"> </span><span class="o">[</span><span class="n">flags</span><span class="o">]</span><span class="w"></span>
 </code></pre></div>
 
 <h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>  <span class="o">-</span><span class="nv">h</span>, <span class="o">--</span><span class="nv">help</span>   <span class="nv">help</span> <span class="k">for</span> <span class="nv">rbac</span>
+</code></pre></div>
+
+<h3 id="options-inherited-from-parent-commands">Options inherited from parent commands<a class="headerlink" href="#options-inherited-from-parent-commands" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code>      <span class="o">--</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">cm</span><span class="o">-</span><span class="nv">path</span> <span class="nv">string</span>          <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">local</span> <span class="nv">argocd</span><span class="o">-</span><span class="nv">cm</span>.<span class="nv">yaml</span> <span class="nv">file</span>
       <span class="o">--</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">secret</span><span class="o">-</span><span class="nv">path</span> <span class="nv">string</span>      <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">local</span> <span class="nv">argocd</span><span class="o">-</span><span class="nv">secret</span>.<span class="nv">yaml</span> <span class="nv">file</span>
       <span class="o">--</span><span class="nv">as</span> <span class="nv">string</span>                      <span class="nv">Username</span> <span class="nv">to</span> <span class="nv">impersonate</span> <span class="k">for</span> <span class="nv">the</span> <span class="nv">operation</span>
@@ -1587,7 +1598,6 @@
       <span class="o">--</span><span class="nv">client</span><span class="o">-</span><span class="nv">key</span> <span class="nv">string</span>              <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">client</span> <span class="nv">key</span> <span class="nv">file</span> <span class="k">for</span> <span class="nv">TLS</span>
       <span class="o">--</span><span class="nv">cluster</span> <span class="nv">string</span>                 <span class="nv">The</span> <span class="nv">name</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">kubeconfig</span> <span class="nv">cluster</span> <span class="nv">to</span> <span class="nv">use</span>
       <span class="o">--</span><span class="nv">context</span> <span class="nv">string</span>                 <span class="nv">The</span> <span class="nv">name</span> <span class="nv">of</span> <span class="nv">the</span> <span class="nv">kubeconfig</span> <span class="nv">context</span> <span class="nv">to</span> <span class="nv">use</span>
-  <span class="o">-</span><span class="nv">h</span>, <span class="o">--</span><span class="nv">help</span>                           <span class="nv">help</span> <span class="k">for</span> <span class="nv">settings</span>
       <span class="o">--</span><span class="nv">insecure</span><span class="o">-</span><span class="nv">skip</span><span class="o">-</span><span class="nv">tls</span><span class="o">-</span><span class="nv">verify</span>       <span class="k">If</span> <span class="nv">true</span>, <span class="nv">the</span> <span class="nv">server</span><span class="s1">&#39;</span><span class="s">s certificate will not be checked for validity. This will make your HTTPS connections insecure</span>
       <span class="o">--</span><span class="nv">kubeconfig</span> <span class="nv">string</span>              <span class="nv">Path</span> <span class="nv">to</span> <span class="nv">a</span> <span class="nv">kube</span> <span class="nv">config</span>. <span class="nv">Only</span> <span class="nv">required</span> <span class="k">if</span> <span class="nv">out</span><span class="o">-</span><span class="nv">of</span><span class="o">-</span><span class="nv">cluster</span>
       <span class="o">--</span><span class="nv">load</span><span class="o">-</span><span class="nv">cluster</span><span class="o">-</span><span class="nv">settings</span>          <span class="nv">Indicates</span> <span class="nv">that</span> <span class="nv">config</span> <span class="nv">map</span> <span class="nv">and</span> <span class="nv">secret</span> <span class="nv">should</span> <span class="nv">be</span> <span class="nv">loaded</span> <span class="nv">from</span> <span class="nv">cluster</span> <span class="nv">unless</span> <span class="nv">local</span> <span class="nv">file</span> <span class="nv">path</span> <span class="nv">is</span> <span class="nv">provided</span>
@@ -1603,10 +1613,9 @@
 
 <h3 id="see-also">SEE ALSO<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h3>
 <ul>
-<li><a href="../argocd-util/">argocd-util</a>  - argocd-util tools used by Argo CD</li>
-<li><a href="../argocd-util_settings_rbac/">argocd-util settings rbac</a>  - Validate and test RBAC configuration</li>
-<li><a href="../argocd-util_settings_resource-overrides/">argocd-util settings resource-overrides</a>  - Troubleshoot resource overrides</li>
-<li><a href="../argocd-util_settings_validate/">argocd-util settings validate</a>  - Validate settings</li>
+<li><a href="../argocd-util_settings/">argocd-util settings</a>    - Provides set of commands for settings validation and troubleshooting</li>
+<li><a href="../argocd-util_settings_rbac_can/">argocd-util settings rbac can</a>  - Check RBAC permissions for a role or subject</li>
+<li><a href="../argocd-util_settings_rbac_validate/">argocd-util settings rbac validate</a>    - Validate RBAC policy</li>
 </ul>
                 
               

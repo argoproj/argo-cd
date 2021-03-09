@@ -1657,15 +1657,15 @@ applied modifications.</p>
 </code></pre></div>
 
 <h2 id="cluster-credentials">Cluster credentials<a class="headerlink" href="#cluster-credentials" title="Permanent link">&para;</a></h2>
-<p>The <code>argocd-util kubeconfig</code> is useful if you manually created Secret with cluster credentials and trying need to
+<p>The <code>argocd-util cluster kubeconfig</code> is useful if you manually created Secret with cluster credentials and trying need to
 troubleshoot connectivity issues. In this case, it is suggested to use the following steps:</p>
 <p>1 SSH into [argocd-application-controller] pod.</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">kubectl</span> <span class="k">exec</span> <span class="o">-</span><span class="nv">n</span> <span class="nv">argocd</span> <span class="o">-</span><span class="nv">it</span> \
   $<span class="ss">(</span><span class="nv">kubectl</span> <span class="nv">get</span> <span class="nv">pods</span> <span class="o">-</span><span class="nv">n</span> <span class="nv">argocd</span> <span class="o">-</span><span class="nv">l</span> <span class="nv">app</span>.<span class="nv">kubernetes</span>.<span class="nv">io</span><span class="o">/</span><span class="nv">name</span><span class="o">=</span><span class="nv">argocd</span><span class="o">-</span><span class="nv">application</span><span class="o">-</span><span class="nv">controller</span> <span class="o">-</span><span class="nv">o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;</span><span class="s">{.items[0].metadata.name}</span><span class="s1">&#39;</span><span class="ss">)</span> <span class="nv">bash</span>
 </code></pre></div>
 
-<p>2 Use <code>argocd-util kubeconfig</code> command to export kubeconfig file from the configured Secret:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span> <span class="n">kubeconfig</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">api</span><span class="o">-</span><span class="n">server</span><span class="o">-</span><span class="n">url</span><span class="o">&gt;</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">kubeconfig</span> <span class="c1">--namespace argocd</span>
+<p>2 Use <code>argocd-util cluster kubeconfig</code> command to export kubeconfig file from the configured Secret:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="o">-</span><span class="n">util</span> <span class="k">cluster</span> <span class="n">kubeconfig</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">api</span><span class="o">-</span><span class="n">server</span><span class="o">-</span><span class="n">url</span><span class="o">&gt;</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">kubeconfig</span> <span class="c1">--namespace argocd</span>
 </code></pre></div>
 
 <p>3 Use <code>kubectl</code> to get more details about connection issues, fix them and apply changes back to secret:</p>
