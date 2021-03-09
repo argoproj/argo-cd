@@ -841,7 +841,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	filteredObjs := FilterObjectsForDeletion(objs)
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+		var deleteOption metav1.DeleteOptions
+		propagationPolicy := metav1.DeletePropagationForeground
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), deleteOption)
 	})
 	if err != nil {
 		return objs, err
