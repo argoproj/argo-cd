@@ -9,15 +9,19 @@ argocd proj create PROJECT [flags]
 ### Options
 
 ```
-      --description string        Project description
-  -d, --dest stringArray          Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
-  -f, --file string               Filename or URL to Kubernetes manifests for the project
-  -h, --help                      help for create
-      --orphaned-resources        Enables orphaned resources monitoring
-      --orphaned-resources-warn   Specifies if applications should have a warning condition when orphaned resources detected
-      --signature-keys strings    GnuPG public key IDs for commit signature verification
-  -s, --src stringArray           Permitted source repository URL
-      --upsert                    Allows to override a project with the same name even if supplied project spec is different from existing spec
+      --allow-cluster-resource stringArray      List of allowed cluster level resources
+      --allow-namespaced-resource stringArray   List of allowed namespaced resources
+      --deny-cluster-resource stringArray       List of denied cluster level resources
+      --deny-namespaced-resource stringArray    List of denied namespaced resources
+      --description string                      Project description
+  -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+  -f, --file string                             Filename or URL to Kubernetes manifests for the project
+  -h, --help                                    help for create
+      --orphaned-resources                      Enables orphaned resources monitoring
+      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
+      --signature-keys strings                  GnuPG public key IDs for commit signature verification
+  -s, --src stringArray                         Permitted source repository URL
+      --upsert                                  Allows to override a project with the same name even if supplied project spec is different from existing spec
 ```
 
 ### Options inherited from parent commands

@@ -39,13 +39,14 @@ func NewProjectsCommand() *cobra.Command {
 func NewGenProjectSpecCommand() *cobra.Command {
 	var (
 		opts         cmdutil.ProjectOpts
+		fileURL      string
 		outputFormat string
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
 		Run: func(c *cobra.Command, args []string) {
-			proj, err := cmdutil.ConstructAppProj("", args, opts, c)
+			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
 			errors.CheckError(err)
 
 			var printResources []interface{}
@@ -54,6 +55,12 @@ func NewGenProjectSpecCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
+
+	// Only complete files with appropriate extension.
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	errors.CheckError(err)
+
 	cmdutil.AddProjFlags(command, &opts)
 	return command
 }
