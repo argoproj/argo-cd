@@ -115,7 +115,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        application.status.resources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
+                                                        application.status.resources
+                                                            .filter(item => !item.hook)
+                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
                                                 }>
                                                 out of sync
