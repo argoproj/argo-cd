@@ -12,6 +12,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
@@ -100,6 +101,7 @@ func NewImportCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		prune        bool
 		dryRun       bool
+		verbose      bool
 	)
 	var command = cobra.Command{
 		Use:   "import SOURCE",
@@ -192,7 +194,9 @@ func NewImportCommand() *cobra.Command {
 					}
 					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 				} else if specsEqual(*bakObj, liveObj) {
-					fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					if verbose {
+						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					}
 				} else {
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj)
@@ -204,7 +208,7 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			// Delete objects not in backup
-			for key := range pruneObjects {
+			for key, liveObj := range pruneObjects {
 				if prune {
 					var dynClient dynamic.ResourceInterface
 					switch key.Kind {
@@ -214,12 +218,24 @@ func NewImportCommand() *cobra.Command {
 						dynClient = acdClients.projects
 					case "Application":
 						dynClient = acdClients.applications
+						if !dryRun {
+							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
+								newLive := liveObj.DeepCopy()
+								newLive.SetFinalizers(nil)
+								_, err = dynClient.Update(context.Background(), newLive, v1.UpdateOptions{})
+								if err != nil && !apierr.IsNotFound(err) {
+									errors.CheckError(err)
+								}
+							}
+						}
 					default:
 						logrus.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
 					if !dryRun {
 						err = dynClient.Delete(context.Background(), key.Name, v1.DeleteOptions{})
-						errors.CheckError(err)
+						if err != nil && !apierr.IsNotFound(err) {
+							errors.CheckError(err)
+						}
 					}
 					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
 				} else {
@@ -232,6 +248,7 @@ func NewImportCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Print what will be performed")
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
+	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 
 	return &command
 }
