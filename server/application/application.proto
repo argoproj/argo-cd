@@ -139,6 +139,7 @@ message ApplicationResourceDeleteRequest {
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
 	optional bool force = 7 [(gogoproto.nullable) = true];
+	optional bool orphan = 8 [(gogoproto.nullable) = true];
 }
 
 message ResourceActionRunRequest {

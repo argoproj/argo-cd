@@ -1106,6 +1106,11 @@
             "type": "boolean",
             "name": "force",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "orphan",
+            "in": "query"
           }
         ],
         "responses": {
