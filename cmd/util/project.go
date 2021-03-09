@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -19,12 +20,17 @@ import (
 )
 
 type ProjectOpts struct {
-	Description              string
-	destinations             []string
-	Sources                  []string
-	SignatureKeys            []string
-	orphanedResourcesEnabled bool
-	orphanedResourcesWarn    bool
+	Description   string
+	destinations  []string
+	Sources       []string
+	SignatureKeys []string
+
+	orphanedResourcesEnabled   bool
+	orphanedResourcesWarn      bool
+	allowedClusterResources    []string
+	deniedClusterResources     []string
+	allowedNamespacedResources []string
+	deniedNamespacedResources  []string
 }
 
 func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
@@ -35,6 +41,39 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should have a warning condition when orphaned resources detected")
+	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources")
+	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
+	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
+	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
+
+}
+
+func getGroupKindList(values []string) []v1.GroupKind {
+	var res []v1.GroupKind
+	for _, val := range values {
+		if parts := strings.Split(val, "/"); len(parts) == 2 {
+			res = append(res, v1.GroupKind{Group: parts[0], Kind: parts[1]})
+		} else if len(parts) == 1 {
+			res = append(res, v1.GroupKind{Kind: parts[0]})
+		}
+	}
+	return res
+}
+
+func (opts *ProjectOpts) GetAllowedClusterResources() []v1.GroupKind {
+	return getGroupKindList(opts.allowedClusterResources)
+}
+
+func (opts *ProjectOpts) GetDeniedClusterResources() []v1.GroupKind {
+	return getGroupKindList(opts.deniedClusterResources)
+}
+
+func (opts *ProjectOpts) GetAllowedNamespacedResources() []v1.GroupKind {
+	return getGroupKindList(opts.allowedNamespacedResources)
+}
+
+func (opts *ProjectOpts) GetDeniedNamespacedResources() []v1.GroupKind {
+	return getGroupKindList(opts.deniedNamespacedResources)
 }
 
 func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
@@ -65,8 +104,8 @@ func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	return signatureKeys
 }
 
-func GetOrphanedResourcesSettings(c *cobra.Command, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
-	warnChanged := c.Flag("orphaned-resources-warn").Changed
+func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
+	warnChanged := flagSet.Changed("orphaned-resources-warn")
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
 		if warnChanged {
@@ -96,8 +135,43 @@ func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	return err
 }
 
+func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, projOpts *ProjectOpts) int {
+	visited := 0
+	flags.Visit(func(f *pflag.Flag) {
+		visited++
+		switch f.Name {
+		case "description":
+			spec.Description = projOpts.Description
+		case "dest":
+			spec.Destinations = projOpts.GetDestinations()
+		case "src":
+			spec.SourceRepos = projOpts.Sources
+		case "signature-keys":
+			spec.SignatureKeys = projOpts.GetSignatureKeys()
+		case "allow-cluster-resource":
+			spec.ClusterResourceWhitelist = projOpts.GetAllowedClusterResources()
+		case "deny-cluster-resource":
+			spec.ClusterResourceBlacklist = projOpts.GetDeniedClusterResources()
+		case "allow-namespaced-resource":
+			spec.NamespaceResourceWhitelist = projOpts.GetAllowedNamespacedResources()
+		case "deny-namespaced-resource":
+			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
+		}
+	})
+	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {
+		spec.OrphanedResources = GetOrphanedResourcesSettings(flags, *projOpts)
+		visited++
+	}
+	return visited
+}
+
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
-	var proj v1alpha1.AppProject
+	var proj = v1alpha1.AppProject{
+		TypeMeta: v1.TypeMeta{
+			Kind:       application.AppProjectKind,
+			APIVersion: application.Group + "/v1alpha1",
+		},
+	}
 	if fileURL == "-" {
 		// read stdin
 		err := readProjFromStdin(&proj)
@@ -120,22 +194,9 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		projName := args[0]
-		proj = v1alpha1.AppProject{
-			TypeMeta: v1.TypeMeta{
-				Kind:       application.AppProjectKind,
-				APIVersion: application.Group + "/v1alpha1",
-			},
-			ObjectMeta: v1.ObjectMeta{Name: projName},
-			Spec: v1alpha1.AppProjectSpec{
-				Description:       opts.Description,
-				Destinations:      opts.GetDestinations(),
-				SourceRepos:       opts.Sources,
-				SignatureKeys:     opts.GetSignatureKeys(),
-				OrphanedResources: GetOrphanedResourcesSettings(c, opts),
-			},
-		}
+		proj.Name = args[0]
 	}
+	SetProjSpecOptions(c.Flags(), &proj.Spec, &opts)
 
 	return &proj, nil
 }
