@@ -21,7 +21,7 @@ import {ApplicationTiles} from './applications-tiles';
 
 require('./applications-list.scss');
 
-const EVENTS_BUFFER_TIMEOUT = 500;
+const EVENTS_BUFFER_TIMEOUT = 300;
 const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
@@ -41,7 +41,6 @@ const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.appl
 
 function loadApplications(page: number, pageSize: number): Observable<models.Application[]> {
     const applications = new Array<models.Application>();
-    const start = new Date();
     return (
         services.applications
             .watch({}, {fields: APP_WATCH_FIELDS})
@@ -72,15 +71,13 @@ function loadApplications(page: number, pageSize: number): Observable<models.App
                 applications.sort((first, second) => first.metadata.name.localeCompare(second.metadata.name));
                 return {applications, updated: appChanges.length > 0, eventTypes};
             })
-            .filter(item => item.updated)
             .skipWhile(state => {
                 // keep accumulating applications until we loaded enough for current page
                 // or all 'ADDED' events are loaded and we start getting 'DELETED' and 'MODIFIED'
-                // or we've been waiting for too long (2 seconds)
+                // or we've have not received any updates during last 0.3 seconds (EVENTS_BUFFER_TIMEOUT)
                 const addedOnly = state.eventTypes.has('ADDED') || state.eventTypes.size === 1;
                 const noEnough = state.applications.length < page * pageSize;
-                const waitingForMilliseconds = new Date().getTime() - start.getTime();
-                return noEnough && addedOnly && waitingForMilliseconds < 2000;
+                return noEnough && addedOnly && state.updated;
             })
             .map(item => item.applications)
     );
