@@ -120,7 +120,7 @@ export interface Application {
     operation?: Operation;
 }
 
-type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
+export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 
 export interface ApplicationWatchEvent {
     type: WatchType;
