@@ -37,54 +37,64 @@ const APP_FIELDS = [
     'status.operationState.operation.sync',
     'status.summary'
 ];
-const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(): Observable<models.Application[]> {
-    return Observable.fromPromise(services.applications.list([], {fields: APP_LIST_FIELDS})).flatMap(applicationsList => {
-        const applications = applicationsList.items;
-        return Observable.merge(
-            Observable.from([applications]),
-            services.applications
-                .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
-                .repeat()
-                .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
-                // batch events to avoid constant re-rendering and improve UI performance
-                .bufferTime(EVENTS_BUFFER_TIMEOUT)
-                .map(appChanges => {
-                    appChanges.forEach(appChange => {
-                        const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                        switch (appChange.type) {
-                            case 'DELETED':
-                                if (index > -1) {
-                                    applications.splice(index, 1);
-                                }
-                                break;
-                            default:
-                                if (index > -1) {
-                                    applications[index] = appChange.application;
-                                } else {
-                                    applications.unshift(appChange.application);
-                                }
-                                break;
-                        }
-                    });
-                    return {applications, updated: appChanges.length > 0};
-                })
-                .filter(item => item.updated)
-                .map(item => item.applications)
-        );
-    });
+function loadApplications(page: number, pageSize: number): Observable<models.Application[]> {
+    const applications = new Array<models.Application>();
+    const start = new Date();
+    return (
+        services.applications
+            .watch({}, {fields: APP_WATCH_FIELDS})
+            .repeat()
+            .retryWhen(errors => errors.delay(WATCH_RETRY_TIMEOUT))
+            // batch events to avoid constant re-rendering and improve UI performance
+            .bufferTime(EVENTS_BUFFER_TIMEOUT)
+            .map(appChanges => {
+                const eventTypes = new Set<models.WatchType>();
+                appChanges.forEach(appChange => {
+                    const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                    eventTypes.add(appChange.type);
+                    switch (appChange.type) {
+                        case 'DELETED':
+                            if (index > -1) {
+                                applications.splice(index, 1);
+                            }
+                            break;
+                        default:
+                            if (index > -1) {
+                                applications[index] = appChange.application;
+                            } else {
+                                applications.unshift(appChange.application);
+                            }
+                            break;
+                    }
+                });
+                applications.sort((first, second) => first.metadata.name.localeCompare(second.metadata.name));
+                return {applications, updated: appChanges.length > 0, eventTypes};
+            })
+            .filter(item => item.updated)
+            .skipWhile(state => {
+                // keep accumulating applications until we loaded enough for current page
+                // or all 'ADDED' events are loaded and we start getting 'DELETED' and 'MODIFIED'
+                // or we've been waiting for too long (2 seconds)
+                const addedOnly = state.eventTypes.has('ADDED') || state.eventTypes.size === 1;
+                const noEnough = state.applications.length < page * pageSize;
+                const waitingForMilliseconds = new Date().getTime() - start.getTime();
+                return noEnough && addedOnly && waitingForMilliseconds < 2000;
+            })
+            .map(item => item.applications)
+    );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; pageSize: number; search: string}) => React.ReactNode}) => (
     <ObservableQuery>
         {q => (
             <DataLoader
                 load={() =>
-                    Observable.combineLatest(services.viewPreferences.getPreferences().map(item => item.appList), q).map(items => {
+                    Observable.combineLatest(services.viewPreferences.getPreferences(), q).map(items => {
                         const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
+                        const viewPref: AppsListPreferences = {...items[0].appList};
+                        const pageSizes = {...items[0].pageSizes};
                         if (params.get('proj') != null) {
                             viewPref.projectsFilter = params
                                 .get('proj')
@@ -125,7 +135,8 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        const pageSize = pageSizes['applications-list'] || 10;
+                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', pageSize};
                     })
                 }>
                 {pref => children(pref)}
@@ -298,7 +309,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                 {pref => (
                                     <DataLoader
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications())}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.page, pref.pageSize))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
