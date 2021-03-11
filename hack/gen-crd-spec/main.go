@@ -12,7 +12,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
-	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -28,6 +28,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
 		"crd:trivialVersions=true",
+		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
 	checkErr(err)
@@ -35,6 +36,8 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	// clean up stuff left by controller-gen
 	deleteFile("config/webhook/manifests.yaml")
 	deleteFile("config/webhook")
+	deleteFile("config/argoproj.io_applications.yaml")
+	deleteFile("config/argoproj.io_appprojects.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
@@ -58,7 +61,6 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 		}
 		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
 		crd.Spec.Scope = "Namespaced"
-		crd.Spec.PreserveUnknownFields = nil
 		crds[crd.Name] = crd
 	}
 	return crds
@@ -72,7 +74,7 @@ func deleteFile(path string) {
 }
 
 func removeValidation(un *unstructured.Unstructured, path string) {
-	schemaPath := []string{"spec", "validation", "openAPIV3Schema"}
+	schemaPath := []string{"spec", "versions[*]", "schema", "openAPIV3Schema"}
 	for _, part := range strings.Split(path, ".") {
 		schemaPath = append(schemaPath, "properties", part)
 	}

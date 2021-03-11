@@ -206,18 +206,27 @@ export class ApplicationsService {
             search.set('filter', filter);
         }
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
                 entry => {
                     if (entry.last) {
+                        first = true;
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
-                        observer.next(entry);
+                        observer.next({...entry, first});
+                        first = false;
                     }
                 },
-                err => observer.error(err),
-                () => observer.complete()
+                err => {
+                    first = true;
+                    observer.error(err);
+                },
+                () => {
+                    first = true;
+                    observer.complete();
+                }
             );
             return () => subscription.unsubscribe();
         });
@@ -282,7 +291,7 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean): Promise<any> {
+    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean, orphan: boolean): Promise<any> {
         return requests
             .delete(`/applications/${applicationName}/resource`)
             .query({
@@ -292,7 +301,8 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group,
-                force
+                force,
+                orphan
             })
             .send()
             .then(() => true);

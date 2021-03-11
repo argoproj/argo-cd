@@ -913,6 +913,10 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 
 	manifest, err := s.kubectl.PatchResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
 	if err != nil {
+		// don't expose real error for secrets since it might contain secret data
+		if res.Kind == kube.SecretKind && res.Group == "" {
+			return nil, fmt.Errorf("failed to patch Secret %s/%s", res.Namespace, res.Name)
+		}
 		return nil, err
 	}
 	manifest, err = replaceSecretValues(manifest)
@@ -943,15 +947,22 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, err
 	}
-
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	var force bool
-	if q.Force != nil {
-		force = *q.Force
+	var deleteOption metav1.DeleteOptions
+	if q.GetOrphan() {
+		propagationPolicy := metav1.DeletePropagationOrphan
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	} else if q.GetForce() {
+		propagationPolicy := metav1.DeletePropagationBackground
+		zeroGracePeriod := int64(0)
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy, GracePeriodSeconds: &zeroGracePeriod}
+	} else {
+		propagationPolicy := metav1.DeletePropagationForeground
+		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
-	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, force)
+	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,14 +1159,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	logStream := mergeLogStreams(streams, time.Millisecond*100)
 	sentCount := int64(0)
-	for {
-		select {
-		case entry, ok := <-logStream:
-			if !ok {
-				return ws.Send(&application.LogEntry{Last: true})
-			}
+	done := make(chan error)
+	go func() {
+		for entry := range logStream {
 			if entry.err != nil {
-				return err
+				done <- entry.err
+				return
 			} else {
 				if q.Filter != nil {
 					lineContainsFilter := strings.Contains(entry.line, literal)
@@ -1164,9 +1173,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 					}
 				}
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
-					return ws.Send(&application.LogEntry{
+					done <- ws.Send(&application.LogEntry{
 						Last: true,
 					})
+					return
 				} else {
 					sentCount++
 					if err := ws.Send(&application.LogEntry{
@@ -1175,14 +1185,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
 						TimeStamp:    metav1.NewTime(entry.timeStamp),
 					}); err != nil {
-						return err
+						done <- err
+						break
 					}
 				}
 			}
-		case <-ws.Context().Done():
-			log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
-			return nil
 		}
+		done <- ws.Send(&application.LogEntry{Last: true})
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ws.Context().Done():
+		log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
+		return nil
 	}
 }
 
@@ -1402,7 +1419,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 			return ambiguousRevision, ambiguousRevision, nil
 		}
 		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci())
-		index, err := client.GetIndex()
+		index, err := client.GetIndex(false)
 		if err != nil {
 			return "", "", err
 		}

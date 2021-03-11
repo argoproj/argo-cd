@@ -8,6 +8,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [3Rein](https://www.3rein.com/)
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
+1. [Ambassador Labs](https://www.getambassador.io/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
@@ -117,3 +118,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [Sap Labs](http://sap.com)
+1. [Smilee.io](https://smilee.io)

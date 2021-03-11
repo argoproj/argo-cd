@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -21,15 +22,39 @@ import (
 
 func NewProjectsCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "projects",
-		Short: "Utility commands operate on ArgoCD Projects",
+		Use:   "proj",
+		Short: "Manage projects configuration",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
 
+	command.AddCommand(NewGenProjectSpecCommand())
 	command.AddCommand(NewUpdatePolicyRuleCommand())
 	command.AddCommand(NewProjectAllowListGenCommand())
+	return command
+}
+
+// NewGenProjectConfigCommand generates declarative configuration file for given project
+func NewGenProjectSpecCommand() *cobra.Command {
+	var (
+		opts         cmdutil.ProjectOpts
+		outputFormat string
+	)
+	var command = &cobra.Command{
+		Use:   "generate-spec PROJECT",
+		Short: "Generate declarative config for a project",
+		Run: func(c *cobra.Command, args []string) {
+			proj, err := cmdutil.ConstructAppProj("", args, opts, c)
+			errors.CheckError(err)
+
+			var printResources []interface{}
+			printResources = append(printResources, proj)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
+		},
+	}
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
+	cmdutil.AddProjFlags(command, &opts)
 	return command
 }
 

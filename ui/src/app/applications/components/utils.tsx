@@ -1,4 +1,4 @@
-import {DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
+import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {Checkbox, Text} from 'react-form';
@@ -28,6 +28,16 @@ export function isSameNode(first: NodeId, second: NodeId) {
     return nodeKey(first) === nodeKey(second);
 }
 
+export function helpTip(text: string) {
+    return (
+        <Tooltip content={text}>
+            <span style={{fontSize: 'smaller'}}>
+                {' '}
+                <i className='fas fa-info-circle' />
+            </span>
+        </Tooltip>
+    );
+}
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     await apis.popup.prompt(
@@ -173,6 +183,12 @@ export function renderResourceMenu(
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
+    const deleteOptions = {
+        option: 'foreground'
+    };
+    function handleStateChange(option: string) {
+        deleteOptions.option = option;
+    }
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
@@ -209,7 +225,25 @@ export function renderResourceMenu(
                                     ''
                                 )}
                                 <div className='argo-form-row'>
-                                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
+                                    <input
+                                        type='radio'
+                                        name='deleteOptions'
+                                        value='foreground'
+                                        onChange={() => handleStateChange('foreground')}
+                                        defaultChecked={true}
+                                        style={{marginRight: '5px'}}
+                                    />
+                                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
+                                        Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
+                                    </label>
+                                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
+                                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                                    </label>
+                                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                                    <label htmlFor='cascade-delete-radio'>
+                                        Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}
+                                    </label>
                                 </div>
                             </div>
                         ),
@@ -219,8 +253,10 @@ export function renderResourceMenu(
                                     resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
                                 },
                             submit: async (vals, _, close) => {
+                                const force = deleteOptions.option === 'force';
+                                const orphan = deleteOptions.option === 'orphan';
                                 try {
-                                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
+                                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
                                     appChanged.next(await services.applications.get(application.metadata.name));
                                     close();
                                 } catch (e) {
@@ -358,7 +394,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
@@ -382,7 +418,7 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
 };
@@ -463,7 +499,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.hookPhase}: ${resource.message};`;
+            title = `${resource.hookPhase}: ${resource.message}`;
         }
         return <i title={title} className={className} style={{color}} />;
     }

@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -346,7 +347,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 					break
 				}
 			}
-
 			assert.True(t, index > -1)
 
 			deployment := resources[index]
@@ -424,6 +424,15 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+
+			// make sure resource update error does not print secret details
+			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
+				"--patch-type", "application/json-patch+json")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			assert.NotContains(t, err.Error(), "username")
+			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
 			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
@@ -1222,18 +1231,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1250,18 +1253,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Path(guestbookWithNamespace).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)

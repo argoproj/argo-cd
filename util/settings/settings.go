@@ -1356,7 +1356,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		log.Warnf("config referenced '%s', but key does not exist in secret", val)
 		return val
 	}
-	return secretVal
+	return strings.TrimSpace(secretVal)
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap

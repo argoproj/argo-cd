@@ -59,19 +59,20 @@ type Application struct {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
-	// Source is a reference to the location ksonnet application definition
+	// Source is a reference to the location of the application's manifests or chart
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
-	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
+	// Destination is a reference to the target Kubernetes server and namespace
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
-	// Project is a application project name. Empty name means that application belongs to 'default' project.
+	// Project is a reference to the project this application belongs to.
+	// The empty string means that application belongs to the 'default' project.
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
-	// SyncPolicy controls when a sync will be performed
+	// SyncPolicy controls when and how a sync will be performed
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-	// IgnoreDifferences controls resources fields which should be ignored during comparison
+	// IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
-	// Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application
+	// Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
-	// This limits this number of items kept in the apps revision history.
+	// RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
 	// This should only be changed in exceptional circumstances.
 	// Setting to zero will store no history. This will reduce storage used.
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
@@ -88,17 +89,20 @@ type ResourceIgnoreDifferences struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
+// EnvEntry represents an entry in the application's environment
 type EnvEntry struct {
-	// the name, usually uppercase
+	// Name is the name of the variable, usually expressed in uppercase
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// the value
+	// Value is the value of the variable
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
+// IsZero returns true if a variable is considered empty or unset
 func (a *EnvEntry) IsZero() bool {
 	return a == nil || a.Name == "" && a.Value == ""
 }
 
+// NewEnvEntry parses a string in format name=value and returns an EnvEntry object
 func NewEnvEntry(text string) (*EnvEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
@@ -110,12 +114,15 @@ func NewEnvEntry(text string) (*EnvEntry, error) {
 	}, nil
 }
 
+// Env is a list of environment variable entries
 type Env []*EnvEntry
 
+// IsZero returns true if a list of variables is considered empty
 func (e Env) IsZero() bool {
 	return len(e) == 0
 }
 
+// Environ returns a list of environment variables in name=value format from a list of variables
 func (e Env) Environ() []string {
 	var environ []string
 	for _, item := range e {
@@ -126,7 +133,7 @@ func (e Env) Environ() []string {
 	return environ
 }
 
-// does an operation similar to `envsubst` tool,
+// Envsubst interpolates variable references in a string from a list of variables
 func (e Env) Envsubst(s string) string {
 	valByEnv := map[string]string{}
 	for _, item := range e {
@@ -137,14 +144,15 @@ func (e Env) Envsubst(s string) string {
 	})
 }
 
-// ApplicationSource contains information about github repository, path within repository and target application environment.
+// ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
-	// RepoURL is the repository URL of the application manifests
+	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within the Git repository
+	// Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
 	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
-	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
-	// If omitted, will sync to HEAD
+	// TargetRevision defines the revision of the source to sync the application to.
+	// In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+	// In case of Helm, this is a semver tag for the Chart's version.
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
@@ -156,7 +164,7 @@ type ApplicationSource struct {
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
-	// Chart is a Helm chart name
+	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 }
 
@@ -173,10 +181,12 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+// IsHelm returns true when the application source is of type Helm
 func (a *ApplicationSource) IsHelm() bool {
 	return a.Chart != ""
 }
 
+// IsHelmOci returns true when the application source is of type Helm OCI
 func (a *ApplicationSource) IsHelmOci() bool {
 	if a.Chart == "" {
 		return false
@@ -184,6 +194,7 @@ func (a *ApplicationSource) IsHelmOci() bool {
 	return helm.IsHelmOciChart(a.Chart)
 }
 
+// IsZero returns true if the application source is considered empty
 func (a *ApplicationSource) IsZero() bool {
 	return a == nil ||
 		a.RepoURL == "" &&
@@ -196,6 +207,7 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Plugin.IsZero()
 }
 
+// ApplicationSourceType specifies the type of the application's source
 type ApplicationSourceType string
 
 const (
@@ -206,6 +218,7 @@ const (
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
 
+// RefreshType specifies how to refresh the sources of a given application
 type RefreshType string
 
 const (
@@ -217,38 +230,39 @@ const (
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
-	// Parameters are parameters to the helm template
+	// Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
-	// The Helm release name. If omitted it will use the application name
+	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
-	// Values is Helm values, typically defined as a block
+	// Values specifies Helm values to be passed to helm template, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
-	// Version is the Helm version to use for templating with
+	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 }
 
-// HelmParameter is a parameter to a helm template
+// HelmParameter is a parameter that's passed to helm template during manifest generation
 type HelmParameter struct {
-	// Name is the name of the helm parameter
+	// Name is the name of the Helm parameter
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value for the helm parameter
+	// Value is the value for the Helm parameter
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	// ForceString determines whether to tell Helm to interpret booleans and numbers as strings
 	ForceString bool `json:"forceString,omitempty" protobuf:"bytes,3,opt,name=forceString"`
 }
 
-// HelmFileParameter is a file parameter to a helm template
+// HelmFileParameter is a file parameter that's passed to helm template during manifest generation
 type HelmFileParameter struct {
-	// Name is the name of the helm parameter
+	// Name is the name of the Helm parameter
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Path is the path value for the helm parameter
+	// Path is the path to the file containing the values for the Helm parameter
 	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 }
 
 var helmParameterRx = regexp.MustCompile(`([^\\]),`)
 
+// NewHelmParameter parses a string in format name=value into a HelmParameter object and returns it
 func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
@@ -261,6 +275,7 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	}, nil
 }
 
+// NewHelmFileParameter parses a string in format name=value into a HelmFileParameter object and returns it
 func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
@@ -272,6 +287,8 @@ func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 	}, nil
 }
 
+// AddParameter adds a HelmParameter to the application source. If a parameter with the same name already
+// exists, its value will be overwritten. Otherwise, the HelmParameter will be appended as a new entry.
 func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 	found := false
 	for i, cp := range in.Parameters {
@@ -286,6 +303,8 @@ func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 	}
 }
 
+// AddFileParameter adds a HelmFileParameter to the application source. If a file parameter with the same name already
+// exists, its value will be overwritten. Otherwise, the HelmFileParameter will be appended as a new entry.
 func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 	found := false
 	for i, cp := range in.FileParameters {
@@ -300,10 +319,12 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 	}
 }
 
+// IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
 }
 
+// KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
 func (i KustomizeImage) delim() string {
@@ -315,7 +336,7 @@ func (i KustomizeImage) delim() string {
 	return ":"
 }
 
-// if the image name matches (i.e. up to the first delimiter)
+// Match returns true if the image name matches (i.e. up to the first delimiter)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
 	delim := j.delim()
 	if !strings.Contains(string(j), delim) {
@@ -324,9 +345,10 @@ func (i KustomizeImage) Match(j KustomizeImage) bool {
 	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
 }
 
+// KustomizeImages is a list of Kustomize images
 type KustomizeImages []KustomizeImage
 
-// find the image or -1
+// Find returns a positive integer representing the index in the list of images
 func (images KustomizeImages) Find(image KustomizeImage) int {
 	for i, a := range images {
 		if a.Match(image) {
@@ -336,22 +358,23 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 	return -1
 }
 
-// ApplicationSourceKustomize holds kustomize specific options
+// ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for kustomize apps
+	// NamePrefix is a prefix appended to resources for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for kustomize apps
+	// NameSuffix is a suffix appended to resources for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
-	// Images are kustomize image overrides
+	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
-	// CommonLabels adds additional kustomize commonLabels
+	// CommonLabels is a list of additional labels to add to rendered manifests
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-	// Version contains optional Kustomize version
+	// Version controls which version of Kustomize to use for rendering manifests
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
-	// CommonAnnotations adds additional kustomize commonAnnotations
+	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
 }
 
+// AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
@@ -359,6 +382,7 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		k.NameSuffix == ""
 }
 
+// IsZero returns true when the Kustomize options are considered empty
 func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k == nil ||
 		k.NamePrefix == "" &&
@@ -369,7 +393,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.CommonAnnotations) == 0
 }
 
-// either updates or adds the images
+// MergeImage merges a new Kustomize image identifier in to a list of images
 func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	i := k.Images.Find(image)
 	if i >= 0 {
@@ -379,13 +403,14 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	}
 }
 
-// JsonnetVar is a jsonnet variable
+// JsonnetVar represents a variable to be passed to jsonnet during manifest generation
 type JsonnetVar struct {
 	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
 }
 
+// NewJsonnetVar parses a Jsonnet variable from a string in the format name=value
 func NewJsonnetVar(s string, code bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
@@ -395,7 +420,7 @@ func NewJsonnetVar(s string, code bool) JsonnetVar {
 	}
 }
 
-// ApplicationSourceJsonnet holds jsonnet specific options
+// ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
 type ApplicationSourceJsonnet struct {
 	// ExtVars is a list of Jsonnet External Variables
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
@@ -405,6 +430,7 @@ type ApplicationSourceJsonnet struct {
 	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
 
+// IsZero returns true if the JSonnet options of an application are considered to be empty
 func (j *ApplicationSourceJsonnet) IsZero() bool {
 	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
 }
@@ -424,35 +450,46 @@ type KsonnetParameter struct {
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
+// AllowsConcurrentProcessing returns true if multiple processes can run ksonnet builds on the same source at the same time
 func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
 	return len(k.Parameters) == 0
 }
 
+// IsZero returns true if the KSonnet options of an application are considered to be empty
 func (k *ApplicationSourceKsonnet) IsZero() bool {
 	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
+// ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
 type ApplicationSourceDirectory struct {
-	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	// Recurse specifies whether to scan a directory recursively for manifests
+	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	// Jsonnet holds options specific to Jsonnet
 	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
-	Exclude string                   `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
-	Include string                   `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
+	// Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation
+	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
+	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
+	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
 }
 
+// IsZero returns true if the ApplicationSourceDirectory is considered empty
 func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
-// ApplicationSourcePlugin holds config management plugin specific options
+// ApplicationSourcePlugin holds options specific to config management plugins
 type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
 }
 
+// IsZero returns true if the ApplicationSourcePlugin is considered empty
 func (c *ApplicationSourcePlugin) IsZero() bool {
 	return c == nil || c.Name == "" && c.Env.IsZero()
 }
 
+// AddEnvEntry merges an EnvEntry into a list of entries. If an entry with the same name already exists,
+// its value will be overwritten. Otherwise, the entry is appended to the list.
 func (c *ApplicationSourcePlugin) AddEnvEntry(e *EnvEntry) {
 	found := false
 	for i, ce := range c.Env {
@@ -467,62 +504,77 @@ func (c *ApplicationSourcePlugin) AddEnvEntry(e *EnvEntry) {
 	}
 }
 
-// ApplicationDestination contains deployment destination information
+// ApplicationDestination holds information about the application's destination
 type ApplicationDestination struct {
-	// Server overrides the environment server value in the ksonnet app.yaml
+	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
-	// Namespace overrides the environment namespace value in the ksonnet app.yaml
+	// Namespace specifies the target namespace for the application's resources.
+	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// Name of the destination cluster which can be used instead of server (url) field
+	// Name is an alternate way of specifying the target cluster by its symbolic name
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
 	// nolint:govet
 	isServerInferred bool `json:"-"`
 }
 
-// ApplicationStatus contains information about application sync, health status
+// ApplicationStatus contains status information for the application
 type ApplicationStatus struct {
-	Resources  []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync       SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health     HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History    RevisionHistories      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	// Resources is a list of Kubernetes resources managed by this application
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	// Sync contains information about the application's current sync status
+	Sync SyncStatus `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	// Health contains information about the application's current health status
+	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	// History contains information about the application's sync history
+	History RevisionHistories `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	// Conditions is a list of currently observed application conditions
 	Conditions []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
 	// ReconciledAt indicates when the application state was reconciled using the latest git version
-	ReconciledAt   *metav1.Time    `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	ReconciledAt *metav1.Time `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	// OperationState contains information about any ongoing operations, such as a sync
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
 	// Deprecated: controller no longer updates ObservedAt field
-	ObservedAt *metav1.Time          `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	// SourceType specifies the type of this application
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
-	Summary    ApplicationSummary    `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	// Summary contains a list of URLs and container images used by this application
+	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
+// JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
 }
 
-// AppProjectStatus contains information about appproj
+// AppProjectStatus contains status information for AppProject CRs
 type AppProjectStatus struct {
+	// JWTTokensByRole contains a list of JWT tokens issued for a given role
 	JWTTokensByRole map[string]JWTTokens `json:"jwtTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jwtTokensByRole"`
 }
 
-// OperationInitiator holds information about the operation initiator
+// OperationInitiator contains information about the initiator of an operation
 type OperationInitiator struct {
-	// Name of a user who started operation.
+	// Username contains the name of a user who started operation
 	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
 	// Automated is set to true if operation was initiated automatically by the application controller.
 	Automated bool `json:"automated,omitempty" protobuf:"bytes,2,opt,name=automated"`
 }
 
-// Operation contains requested operation parameters.
+// Operation contains information about a requested or running operation
 type Operation struct {
-	Sync        *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	// Sync contains parameters for the operation
+	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	// InitiatedBy contains information about who initiated the operations
 	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
-	Info        []*Info            `json:"info,omitempty" protobuf:"bytes,3,name=info"`
-	// Retry controls failed sync retry behavior
+	// Info is a list of informational items for this operation
+	Info []*Info `json:"info,omitempty" protobuf:"bytes,3,name=info"`
+	// Retry controls the strategy to apply if a sync fails
 	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
 }
 
+// DryRun returns true if an operation was requested to be performed in dry run mode
 func (o *Operation) DryRun() bool {
 	if o.Sync != nil {
 		return o.Sync.DryRun
@@ -541,10 +593,12 @@ type SyncOperationResource struct {
 // RevisionHistories is a array of history, oldest first and newest last
 type RevisionHistories []RevisionHistory
 
+// LastRevisionHistory returns the latest history item from the revision history
 func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
 	return in[len(in)-1]
 }
 
+// Trunc truncates the list of history items to size n
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
 	i := len(in) - n
 	if i > 0 {
@@ -561,21 +615,21 @@ func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk sc
 	return false
 }
 
-// SyncOperation contains sync operation details.
+// SyncOperation contains details about a sync operation.
 type SyncOperation struct {
-	// Revision is the revision in which to sync the application to.
+	// Revision is the revision (Git) or chart version (Helm) which to sync the application to
 	// If omitted, will use the revision specified in app spec.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
-	// Prune deletes resources that are no longer tracked in git
+	// Prune specifies to delete resources from the cluster that are no longer tracked in git
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	// DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
+	// DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
 	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
-	// Resources describes which resources to sync
+	// Resources describes which resources shall be part of the sync
 	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
 	// Source overrides the source definition set in the application.
-	// This is typically set in a Rollback operation and nil during a Sync operation
+	// This is typically set in a Rollback operation and is nil during a Sync operation
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 	// Manifests is an optional field that overrides sync source with a local directory for development
 	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
@@ -583,17 +637,18 @@ type SyncOperation struct {
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,9,opt,name=syncOptions"`
 }
 
+// IsApplyStrategy returns true if the sync strategy is "apply"
 func (o *SyncOperation) IsApplyStrategy() bool {
 	return o.SyncStrategy != nil && o.SyncStrategy.Apply != nil
 }
 
-// OperationState contains information about state of currently performing operation on application.
+// OperationState contains information about state of a running operation
 type OperationState struct {
 	// Operation is the original requested operation
 	Operation Operation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
 	// Phase is the current phase of the operation
 	Phase synccommon.OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
-	// Message hold any pertinent messages when attempting to perform operation (typically errors).
+	// Message holds any pertinent messages when attempting to perform operation (typically errors).
 	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// SyncResult is the result of a Sync operation
 	SyncResult *SyncOperationResult `json:"syncResult,omitempty" protobuf:"bytes,4,opt,name=syncResult"`
@@ -612,6 +667,8 @@ type Info struct {
 
 type SyncOptions []string
 
+// AddOption adds a sync option to the list of sync options and returns the modified list.
+// If option was already set, returns the unmodified list of sync options.
 func (o SyncOptions) AddOption(option string) SyncOptions {
 	for _, j := range o {
 		if j == option {
@@ -621,6 +678,8 @@ func (o SyncOptions) AddOption(option string) SyncOptions {
 	return append(o, option)
 }
 
+// RemoveOption removes a sync option from the list of sync options and returns the modified list.
+// If option has not been already set, returns the unmodified list of sync options.
 func (o SyncOptions) RemoveOption(option string) SyncOptions {
 	for i, j := range o {
 		if j == option {
@@ -630,6 +689,7 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 	return o
 }
 
+// HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
 	for _, i := range o {
 		if option == i {
@@ -649,15 +709,16 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 }
 
+// IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
 }
 
+// RetryStrategy contains information about the strategy to apply when a sync failed
 type RetryStrategy struct {
-	// Limit is the maximum number of attempts when retrying a container
+	// Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.
 	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
-
-	// Backoff is a backoff strategy
+	// Backoff controls how to backoff on subsequent retries of failed syncs
 	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
 }
 
@@ -674,6 +735,7 @@ func parseStringToDuration(durationString string) (time.Duration, error) {
 	return suspendDuration, nil
 }
 
+// NextRetryAt calculates the earliest time the next retry should be performed on a failing sync
 func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (time.Time, error) {
 	maxDuration := common.DefaultSyncRetryMaxDuration
 	duration := common.DefaultSyncRetryDuration
@@ -704,7 +766,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	return lastAttempt.Add(timeToWait), nil
 }
 
-// Backoff is a backoff strategy to use within retryStrategy
+// Backoff is the backoff strategy to use on subsequent retries for failing syncs
 type Backoff struct {
 	// Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
 	Duration string `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration"`
@@ -716,9 +778,9 @@ type Backoff struct {
 
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
-	// Prune will prune resources automatically as part of automated sync (default: false)
+	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
-	// SelfHeal enables auto-syncing if  (default: false)
+	// SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
@@ -732,6 +794,7 @@ type SyncStrategy struct {
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
+// Force returns true if the sync strategy specifies to perform a forced sync
 func (m *SyncStrategy) Force() bool {
 	if m == nil {
 		return false
@@ -760,31 +823,29 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-// data about a specific revision within a repo
+// RevisionMetadata contains metadata for a specific revision in a Git repository
 type RevisionMetadata struct {
 	// who authored this revision,
 	// typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
 	// but might not match this example
 	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
-	// when the revision was authored
+	// Date specifies when the revision was authored
 	Date metav1.Time `json:"date" protobuf:"bytes,2,opt,name=date"`
-	// tags on the revision,
-	// note - tags can move from one revision to another
+	// Tags specifies any tags currently attached to the revision
+	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
-	// the message associated with the revision,
-	// probably the commit message,
-	// this is truncated to the first newline or 64 characters (which ever comes first)
+	// Message contains the message associated with the revision, most likely the commit message.
+	// The message is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	// If revision was signed with GPG, and signature verification is enabled,
-	// this contains a hint on the signer
+	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
-	// Resources holds the sync result of each individual resource
+	// Resources contains a list of sync result items for each individual resource in a sync operation
 	Resources ResourceResults `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	// Revision holds the revision of the sync
+	// Revision holds the revision this sync operation was performed to
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
@@ -792,24 +853,30 @@ type SyncOperationResult struct {
 
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
-	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
-	Version   string `json:"version" protobuf:"bytes,2,opt,name=version"`
-	Kind      string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	// Group specifies the API group of the resource
+	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
+	// Version specifies the API version of the resource
+	Version string `json:"version" protobuf:"bytes,2,opt,name=version"`
+	// Kind specifies the API kind of the resource
+	Kind string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	// Namespace specifies the target namespace of the resource
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
-	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
+	// Name specifies the name of the resource
+	Name string `json:"name" protobuf:"bytes,5,opt,name=name"`
+	// Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
 	Status synccommon.ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	// message for the last sync OR operation
+	// Message contains an informational or error message for the last sync OR operation
 	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	// the type of the hook, empty for non-hook resources
+	// HookType specifies the type of the hook. Empty for non-hook resources
 	HookType synccommon.HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
-	// the state of any operation associated with this resource OR hook
-	// note: can contain values for non-hook resources
+	// HookPhase contains the state of any operation associated with this resource OR hook
+	// This can also contain values for non-hook resources.
 	HookPhase synccommon.OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
-	// indicates the particular phase of the sync that this is for
+	// SyncPhase indicates the particular phase of the sync that this result was acquired in
 	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 }
 
+// GroupVersionKind returns the GVK schema information for a given resource within a sync result
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   r.Group,
@@ -818,8 +885,10 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 	}
 }
 
+// ResourceResults defines a list of resource results for a given operation
 type ResourceResults []*ResourceResult
 
+// Find returns the operation result for a specified resource and the index in the list where it was found
 func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
@@ -829,6 +898,7 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 	return 0, nil
 }
 
+// PruningRequired returns a positive integer containing the number of resources that require pruning after an operation has been completed
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
 		if res.Status == synccommon.ResultCodePruneSkipped {
@@ -838,16 +908,17 @@ func (r ResourceResults) PruningRequired() (num int) {
 	return num
 }
 
-// RevisionHistory contains information relevant to an application deployment
+// RevisionHistory contains history information about a previous sync
 type RevisionHistory struct {
-	// Revision holds the revision of the sync
+	// Revision holds the revision the sync was performed against
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	// DeployedAt holds the time the deployment completed
+	// DeployedAt holds the time the sync operation completed
 	DeployedAt metav1.Time `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
 	// ID is an auto incrementing identifier of the RevisionHistory
-	ID     int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	ID int64 `json:"id" protobuf:"bytes,5,opt,name=id"`
+	// Source is a reference to the application source used for the sync operation
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
-	// DeployStartedAt holds the time the deployment started
+	// DeployStartedAt holds the time the sync operation started
 	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
 }
 
@@ -883,8 +954,11 @@ type SyncStatusCode string
 
 // Possible comparison results
 const (
-	SyncStatusCodeUnknown   SyncStatusCode = "Unknown"
-	SyncStatusCodeSynced    SyncStatusCode = "Synced"
+	// SyncStatusCodeUnknown indicates that the status of a sync could not be reliably determined
+	SyncStatusCodeUnknown SyncStatusCode = "Unknown"
+	// SyncStatusCodeOutOfSync indicates that desired and live states match
+	SyncStatusCodeSynced SyncStatusCode = "Synced"
+	// SyncStatusCodeOutOfSync indicates that there is a drift beween desired and live states
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
@@ -915,35 +989,43 @@ const (
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
-// ApplicationCondition contains details about current application condition
+// ApplicationCondition contains details about an application condition, which is usally an error or warning
 type ApplicationCondition struct {
 	// Type is an application condition type
 	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
-	// LastTransitionTime is the time the condition was first observed.
+	// LastTransitionTime is the time the condition was last observed
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
 type ComparedTo struct {
-	Source      ApplicationSource      `json:"source" protobuf:"bytes,1,opt,name=source"`
+	// Source is a reference to the application's source used for comparison
+	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	// Destination is a reference to the application's destination used for comparison
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
 }
 
-// SyncStatus is a comparison result of application spec and deployed application.
+// SyncStatus contains information about the currently observed live and desired states of an application
 type SyncStatus struct {
-	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
-	ComparedTo ComparedTo     `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string         `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
+	// Status is the sync state of the comparison
+	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	// ComparedTo contains information about what has been compared
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	// Revision contains information about the revision the comparison has been performed to
+	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 }
 
+// HealthStatus contains information about the currently observed health state of an application or resource
 type HealthStatus struct {
-	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	// Status holds the status code of the application or resource
+	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	// Message is a human-readable informational message describing the health status
+	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
 
-// InfoItem contains human readable information about object
+// InfoItem contains arbitrary, human readable information about an application
 type InfoItem struct {
 	// Name is a human readable title for this piece of information.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
@@ -952,6 +1034,7 @@ type InfoItem struct {
 }
 
 // ResourceNetworkingInfo holds networking resource related information
+// TODO: describe members of this type
 type ResourceNetworkingInfo struct {
 	TargetLabels map[string]string        `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
 	TargetRefs   []ResourceRef            `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
@@ -961,6 +1044,7 @@ type ResourceNetworkingInfo struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
+// TODO: describe this type
 type HostResourceInfo struct {
 	ResourceName         v1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
 	RequestedByApp       int64           `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
@@ -969,6 +1053,8 @@ type HostResourceInfo struct {
 }
 
 // HostInfo holds host name and resources metrics
+// TODO: describe purpose of this type
+// TODO: describe members of this type
 type HostInfo struct {
 	Name          string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
 	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
@@ -976,6 +1062,7 @@ type HostInfo struct {
 }
 
 // ApplicationTree holds nodes which belongs to the application
+// TODO: describe purpose of this type
 type ApplicationTree struct {
 	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
@@ -999,6 +1086,7 @@ func (t *ApplicationTree) Normalize() {
 	})
 }
 
+// ApplicationSummary contains information about URLs and container images used by an application
 type ApplicationSummary struct {
 	// ExternalURLs holds all external URLs of application child resources.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
@@ -1006,6 +1094,7 @@ type ApplicationSummary struct {
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
 }
 
+// TODO: Document purpose of this method
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
 	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
@@ -1015,6 +1104,7 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 	return nil
 }
 
+// TODO: Document purpose of this method
 func (t *ApplicationTree) GetSummary() ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
@@ -1045,7 +1135,7 @@ func (t *ApplicationTree) GetSummary() ApplicationSummary {
 	return ApplicationSummary{ExternalURLs: urls, Images: images}
 }
 
-// ResourceRef includes fields which unique identify resource
+// ResourceRef includes fields which uniquely identify a resource
 type ResourceRef struct {
 	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Version   string `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
@@ -1056,6 +1146,7 @@ type ResourceRef struct {
 }
 
 // ResourceNode contains information about live resource and its children
+// TODO: describe members of this type
 type ResourceNode struct {
 	ResourceRef     `json:",inline" protobuf:"bytes,1,opt,name=resourceRef"`
 	ParentRefs      []ResourceRef           `json:"parentRefs,omitempty" protobuf:"bytes,2,opt,name=parentRefs"`
@@ -1067,11 +1158,13 @@ type ResourceNode struct {
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
-// FullName returns node full name
+// FullName returns a resource node's full name in the format "group/kind/namespace/name"
+// For cluster-scoped resources, namespace will be the empty string.
 func (n *ResourceNode) FullName() string {
 	return fmt.Sprintf("%s/%s/%s/%s", n.Group, n.Kind, n.Namespace, n.Name)
 }
 
+// GroupKindVersion returns the GVK schema type for given resource node
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   n.Group,
@@ -1081,6 +1174,7 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 }
 
 // ResourceStatus holds the current sync and health status of a resource
+// TODO: describe members of this type
 type ResourceStatus struct {
 	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
@@ -1093,11 +1187,13 @@ type ResourceStatus struct {
 	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
 }
 
+// GroupKindVersion returns the GVK schema type for given resource status
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
 
 // ResourceDiff holds the diff of a live and target resource object
+// TODO: describe members of this type
 type ResourceDiff struct {
 	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind      string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
@@ -1119,25 +1215,32 @@ type ResourceDiff struct {
 	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
 }
 
-// FullName returns full name of a node that was used for diffing
+// FullName returns full name of a node that was used for diffing in the format "group/kind/namespace/name"
+// For cluster-scoped resources, namespace will be the empty string.
 func (r *ResourceDiff) FullName() string {
 	return fmt.Sprintf("%s/%s/%s/%s", r.Group, r.Kind, r.Namespace, r.Name)
 }
 
-// ConnectionStatus represents connection status
+// ConnectionStatus represents the status indicator for a connection to a remote resource
 type ConnectionStatus = string
 
 const (
+	// ConnectionStatusSuccessful indicates that a connection has been successfully established
 	ConnectionStatusSuccessful = "Successful"
-	ConnectionStatusFailed     = "Failed"
-	ConnectionStatusUnknown    = "Unknown"
+	// ConnectionStatusFailed indicates that a connection attempt has failed
+	ConnectionStatusFailed = "Failed"
+	// ConnectionStatusUnknown indicates that the connection status could not be reliably determined
+	ConnectionStatusUnknown = "Unknown"
 )
 
-// ConnectionState contains information about remote resource connection state
+// ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
 type ConnectionState struct {
-	Status     ConnectionStatus `json:"status" protobuf:"bytes,1,opt,name=status"`
-	Message    string           `json:"message" protobuf:"bytes,2,opt,name=message"`
-	ModifiedAt *metav1.Time     `json:"attemptedAt" protobuf:"bytes,3,opt,name=attemptedAt"`
+	// Status contains the current status indicator for the connection
+	Status ConnectionStatus `json:"status" protobuf:"bytes,1,opt,name=status"`
+	// Message contains human readable information about the connection status
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// ModifiedAt contains the timestamp when this connection status has been determined
+	ModifiedAt *metav1.Time `json:"attemptedAt" protobuf:"bytes,3,opt,name=attemptedAt"`
 }
 
 // Cluster is the definition of a cluster resource
@@ -1156,16 +1259,17 @@ type Cluster struct {
 	// DEPRECATED: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
-	// Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
 	// RefreshRequestedAt holds time when cluster cache refresh has been requested
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
-	// Holds information about cluster cache
+	// Info holds information about cluster cache and state
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 }
 
+// Equals returns true if two cluster objects are considered to be equal
 func (c *Cluster) Equals(other *Cluster) bool {
 	if c.Server != other.Server {
 		return false
@@ -1190,13 +1294,19 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
+// ClusterInfo contains information about the cluster
 type ClusterInfo struct {
-	ConnectionState   ConnectionState  `json:"connectionState,omitempty" protobuf:"bytes,1,opt,name=connectionState"`
-	ServerVersion     string           `json:"serverVersion,omitempty" protobuf:"bytes,2,opt,name=serverVersion"`
-	CacheInfo         ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
-	ApplicationsCount int64            `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+	// ConnectionState contains information about the connection to the cluster
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,1,opt,name=connectionState"`
+	// ServerVersion contains information about the Kubernetes version of the cluster
+	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,2,opt,name=serverVersion"`
+	// CacheInfo contains information about the cluster cache
+	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
+	// ApplicationsCount is the number of applications managed by Argo CD on the cluster
+	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 }
 
+// ClusterCacheInfo contains information about the cluster cache
 type ClusterCacheInfo struct {
 	// ResourcesCount holds number of observed Kubernetes resources
 	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"bytes,1,opt,name=resourcesCount"`
@@ -1264,7 +1374,7 @@ type ClusterConfig struct {
 
 // TLSClientConfig contains settings to enable transport layer security
 type TLSClientConfig struct {
-	// Server should be accessed without verifying the TLS certificate. For testing only.
+	// Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.
 	Insecure bool `json:"insecure" protobuf:"bytes,1,opt,name=insecure"`
 	// ServerName is passed to the server for SNI and is used in the client to check server
 	// certificates against. If ServerName is empty, the hostname used to contact the
@@ -1281,12 +1391,15 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-// KnownTypeField contains mapping between CRD field and known Kubernetes type
+// KnownTypeField contains mapping between CRD field and known Kubernetes type.
+// This is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)
+// TODO: Describe the members of this type
 type KnownTypeField struct {
 	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
+// TODO: describe this type
 type OverrideIgnoreDiff struct {
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
 }
@@ -1299,6 +1412,7 @@ type rawResourceOverride struct {
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
+// TODO: describe the members of this type
 type ResourceOverride struct {
 	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
 	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
@@ -1306,6 +1420,7 @@ type ResourceOverride struct {
 	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
+// TODO: describe this method
 func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	raw := &rawResourceOverride{}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -1317,6 +1432,7 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
 }
 
+// TODO: describe this method
 func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
 	if err != nil {
@@ -1326,6 +1442,7 @@ func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	return json.Marshal(raw)
 }
 
+// TODO: describe this method
 func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 	var actions ResourceActions
 	err := yaml.Unmarshal([]byte(o.Actions), &actions)
@@ -1335,22 +1452,30 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 	return actions, nil
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
 	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 type ResourceActionDefinition struct {
 	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	ActionLua string `json:"action.lua" yaml:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 type ResourceAction struct {
 	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
 	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
 }
 
+// TODO: describe this type
+// TODO: describe members of this type
 type ResourceActionParam struct {
 	Name    string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
@@ -1358,7 +1483,7 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// RepoCreds holds a repository credentials definition
+// RepoCreds holds the definition for repository credentials
 type RepoCreds struct {
 	// URL is the URL that this credentials matches to
 	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
@@ -1366,79 +1491,79 @@ type RepoCreds struct {
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
 	// Password for authenticating at the repo server
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	// SSH private key data for authenticating at the repo server (only Git repos)
+	// SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// TLS client cert data for authenticating at the repo server
+	// TLSClientCertData specifies the TLS client cert data for authenticating at the repo server
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
-	// TLS client cert key for authenticating at the repo server
+	// TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
-	// Github App Private Key PEM data
+	// GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
-	// Github App ID of the app used to access the repo
+	// GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
 	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
-	// Github App Installation ID of the installed GitHub App
+	// GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
-	// Github App Enterprise base url if empty will default to https://api.github.com
+	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
 // Repository is a repository holding application configurations
 type Repository struct {
-	// URL of the repo
+	// Repo contains the URL to the remote repository
 	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	// Username for authenticating at the repo server
+	// Username contains the user name used for authenticating at the remote repository
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	// Password for authenticating at the repo server
+	// Password contains the password or PAT used for authenticating at the remote repository
 	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	// SSH private key data for authenticating at the repo server
-	// only for Git repos
+	// SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// Current state of repository server connecting
+	// ConnectionState contains information about the current state of connection to the repository server
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
-	// only for Git repos
+	// Used only for Git repos
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
-	// Whether the repo is insecure
+	// Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
 	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
-	// Whether git-lfs support should be enabled for this repo
+	// EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
 	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
-	// TLS client cert data for authenticating at the repo server
+	// TLSClientCertData contains a certificate in PEM format for authenticating at the repo server
 	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
-	// TLS client cert key for authenticating at the repo server
+	// TLSClientCertKey contains a private key in PEM format for authenticating at the repo server
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
-	// type of the repo, maybe "git or "helm, "git" is assumed if empty or absent
+	// Type specifies the type of the repo. Can be either "git" or "helm. "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
-	// only for Helm repos
+	// Name specifies a name to be used for this repo. Only used with Helm repos
 	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
 	// Whether credentials were inherited from a credential set
 	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
-	// Whether helm-oci support should be enabled for this repo
+	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 	// Github App Private Key PEM data
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
-	// Github App ID of the app used to access the repo
+	// GithubAppId specifies the ID of the GitHub app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
-	// Github App Installation ID of the installed GitHub App
+	// GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
-	// Github App Enterprise base url if empty will default to https://api.github.com
+	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 }
 
-// IsInsecure returns true if receiver has been configured to skip server verification
+// IsInsecure returns true if the repository has been configured to skip server verification
 func (repo *Repository) IsInsecure() bool {
 	return repo.InsecureIgnoreHostKey || repo.Insecure
 }
 
-// IsLFSEnabled returns true if LFS support is enabled on receiver
+// IsLFSEnabled returns true if LFS support is enabled on repository
 func (repo *Repository) IsLFSEnabled() bool {
 	return repo.EnableLFS
 }
 
-// HasCredentials returns true when the receiver has been configured any credentials
+// HasCredentials returns true when the repository has been configured with any credentials
 func (m *Repository) HasCredentials() bool {
 	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != "" || m.GithubAppPrivateKey != ""
 }
 
+// CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
 func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 	if source != nil {
 		if repo.Username == "" {
@@ -1471,7 +1596,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 	}
 }
 
-// CopyCredentialsFrom copies all credentials from source to receiver
+// CopyCredentialsFrom copies credentials from given credential template to receiving repository
 func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 	if source != nil {
 		if repo.Username == "" {
@@ -1504,6 +1629,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 	}
 }
 
+// GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
 func (repo *Repository) GetGitCreds() git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
@@ -1520,6 +1646,7 @@ func (repo *Repository) GetGitCreds() git.Creds {
 	return git.NopCreds{}
 }
 
+// GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
 		Username:           repo.Username,
@@ -1558,8 +1685,10 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 	}
 }
 
+// Repositories defines a list of Repository configurations
 type Repositories []*Repository
 
+// Filter returns a list of repositories, which only contain items matched by the supplied predicate method
 func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
 	var res Repositories
 	for i := range r {
@@ -1585,15 +1714,15 @@ type RepoCredsList struct {
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 type RepositoryCertificate struct {
-	// Name of the server the certificate is intended for
+	// ServerName specifies the DNS name of the server this certificate is intended for
 	ServerName string `json:"serverName" protobuf:"bytes,1,opt,name=serverName"`
-	// Type of certificate - currently "https" or "ssh"
+	// CertType specifies the type of the certificate - currently one of "https" or "ssh"
 	CertType string `json:"certType" protobuf:"bytes,2,opt,name=certType"`
-	// The sub type of the cert, i.e. "ssh-rsa"
+	// CertSubType specifies the sub type of the cert, i.e. "ssh-rsa"
 	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
-	// Actual certificate data, protocol dependent
+	// CertData contains the actual certificate data, dependent on the certificate type
 	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
-	// Additional certificate info (e.g. SSH fingerprint, X509 CommonName)
+	// CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
 	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
 }
 
@@ -1606,17 +1735,17 @@ type RepositoryCertificateList struct {
 
 // GnuPGPublicKey is a representation of a GnuPG public key
 type GnuPGPublicKey struct {
-	// KeyID in hexadecimal string format
+	// KeyID specifies the key ID, in hexadecimal string format
 	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
-	// Fingerprint of the key
+	// Fingerprint is the fingerprint of the key
 	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
-	// Owner identification
+	// Owner holds the owner identification, e.g. a name and e-mail address
 	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
-	// Trust level
+	// Trust holds the level of trust assigned to this key
 	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
-	// Key sub type (e.g. rsa4096)
+	// SubType holds the key's sub type (e.g. rsa4096)
 	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
-	// Key data
+	// KeyData holds the raw key data, in base64 encoded format
 	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
 }
 
@@ -1711,6 +1840,7 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
 }
 
+// RemoveJWTToken removes the specified JWT from an AppProject
 func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
 	roleName := p.Spec.Roles[roleIndex].Name
 	// For backward compatibility
@@ -1736,6 +1866,7 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 }
 
+// TODO: document this method
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
@@ -1962,16 +2093,19 @@ func (p *AppProject) normalizePolicy(policy string) string {
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 type OrphanedResourcesMonitorSettings struct {
 	// Warn indicates if warning condition should be created for apps which have orphaned resources
-	Warn   *bool                 `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
+	// Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
 	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
 }
 
+// OrphanedResourceKey is a reference to a resource to be ignored from
 type OrphanedResourceKey struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
+// IsWarn returns true if warnings are enabled for orphan resources monitoring
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
 }
@@ -2002,7 +2136,7 @@ type AppProjectSpec struct {
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
-	// List of PGP key IDs that commits to be synced to must be signed with
+	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
@@ -2029,10 +2163,12 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 }
 
+// HasWindows returns true if any window is defined
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
 
+// Active returns a list of sync windows that are currently active
 func (s *SyncWindows) Active() *SyncWindows {
 	return s.active(time.Now())
 }
@@ -2061,6 +2197,7 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
+// TODO: document this method
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return s.inactiveAllows(time.Now())
 }
@@ -2091,6 +2228,7 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
+// AddWindow adds a sync window with the given parameters to the AppProject
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
@@ -2124,6 +2262,7 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 
 }
 
+// DeleteWindow deletes a sync window with the given id from the AppProject
 func (s *AppProjectSpec) DeleteWindow(id int) error {
 	var exists bool
 	for i := range s.SyncWindows {
@@ -2139,6 +2278,7 @@ func (s *AppProjectSpec) DeleteWindow(id int) error {
 	return nil
 }
 
+// Matches returns a list of sync windows that are defined for a given application
 func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	if w.HasWindows() {
 		var matchingWindows SyncWindows
@@ -2175,6 +2315,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	return nil
 }
 
+// CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
 func (w *SyncWindows) CanSync(isManual bool) bool {
 	if !w.HasWindows() {
 		return true
@@ -2248,6 +2389,7 @@ func (w *SyncWindows) manualEnabled() bool {
 	return false
 }
 
+// Active returns true if the sync window is currently active
 func (w SyncWindow) Active() bool {
 	return w.active(time.Now())
 }
@@ -2266,6 +2408,7 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	return nextWindow.Before(currentTime)
 }
 
+// Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
@@ -2292,6 +2435,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	return nil
 }
 
+// Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
@@ -2308,6 +2452,7 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
+// DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
 func (d AppProjectSpec) DestinationClusters() []string {
 	servers := make([]string, 0)
 
@@ -2360,7 +2505,7 @@ type KustomizeOptions struct {
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 }
 
-// ProjectPoliciesString returns Casbin formated string of a project's policies for each role
+// ProjectPoliciesString returns a Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {
@@ -2379,6 +2524,7 @@ func (app *Application) CascadedDeletion() bool {
 	return getFinalizerIndex(app.ObjectMeta, common.ResourcesFinalizerName) > -1
 }
 
+// IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	refreshType := RefreshTypeNormal
 	annotations := app.GetAnnotations()
@@ -2403,6 +2549,7 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
 }
 
+// Expired returns true if the application needs to be reconciled
 func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
 	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 }
@@ -2467,7 +2614,7 @@ func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationCon
 	return result
 }
 
-// IsError returns true if condition is error condition
+// IsError returns true if a condition indicates an error condition
 func (condition *ApplicationCondition) IsError() bool {
 	return strings.HasSuffix(condition.Type, "Error")
 }
@@ -2477,6 +2624,7 @@ func (source *ApplicationSource) Equals(other ApplicationSource) bool {
 	return reflect.DeepEqual(*source, other)
 }
 
+// ExplicitType returns the type (e.g. Helm, Kustomize, etc) of the application. If either none or multiple types are defined, returns an error.
 func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
 	var appTypes []ApplicationSourceType
 	if source.Kustomize != nil {
@@ -2508,7 +2656,7 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	return &appType, nil
 }
 
-// Equals compares two instances of ApplicationDestination and return true if instances are equal.
+// Equals compares two instances of ApplicationDestination and returns true if instances are equal.
 func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 	// ignore destination cluster name and isServerInferred fields during comparison
 	// since server URL is inferred from cluster name
@@ -2532,6 +2680,7 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
+// GetRevisionHistoryLimit returns the currently set revision history limit for an application
 func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
 	if spec.RevisionHistoryLimit != nil {
 		return int(*spec.RevisionHistoryLimit)
@@ -2558,16 +2707,23 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
 	if namespaced {
-		isWhiteListed = len(proj.Spec.NamespaceResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.NamespaceResourceWhitelist)
-		isBlackListed = isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+		namespaceWhitelist := proj.Spec.NamespaceResourceWhitelist
+		namespaceBlacklist := proj.Spec.NamespaceResourceBlacklist
+
+		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
+		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
 		return isWhiteListed && !isBlackListed
 	}
 
-	isWhiteListed = len(proj.Spec.ClusterResourceWhitelist) == 0 || isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
-	isBlackListed = isResourceInList(res, proj.Spec.ClusterResourceBlacklist)
+	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
+	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
+
+	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
+	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 
+// IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
 	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
 		return false
@@ -2601,10 +2757,12 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 	}
 }
 
+// HasFinalizer returns true if a resource finalizer is set on an AppProject
 func (proj AppProject) HasFinalizer() bool {
 	return getFinalizerIndex(proj.ObjectMeta, common.ResourcesFinalizerName) > -1
 }
 
+// RemoveFinalizer removes a resource finalizer from an AppProject
 func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
 }
@@ -2757,6 +2915,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	return config
 }
 
+// UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data
 func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error) {
 	if resource == "" || resource == "null" {
 		return nil, nil
@@ -2769,23 +2928,28 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 	return &obj, nil
 }
 
+// TODO: document this method
 func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.LiveState)
 }
 
+// TODO: document this method
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
+// TODO: document this method
 func (d *ApplicationDestination) SetInferredServer(server string) {
 	d.isServerInferred = true
 	d.Server = server
 }
 
+// TODO: document this method
 func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }
 
+// MarshalJSON marshals an application destination to JSON format
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
 	dest := d
@@ -2796,6 +2960,7 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
 
+// TODO: document this method
 func (proj *AppProject) NormalizeJWTTokens() bool {
 	needNormalize := false
 	for i, role := range proj.Spec.Roles {
