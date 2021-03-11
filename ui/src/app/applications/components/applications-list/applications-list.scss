@@ -29,6 +29,7 @@
         padding-left: 1em;
         border-left: 5px solid $argo-color-gray-4;
         padding-right: 1em;
+        color: $argo-color-gray-7;
 
         // healthy statuses
 
@@ -157,7 +158,7 @@
 
     &__filter-title {
         margin: 0.5em 0 0 0;
-        color: $argo-color-gray-6;
+        color: $argo-color-gray-7;
         text-transform: uppercase;
     }
 
@@ -192,13 +193,13 @@
             left: -1.5em;
             cursor: pointer;
             &:hover {
-                color: $argo-color-gray-6;
+                color: $argo-color-gray-7;
             }
         }
         i.fa-times {
             cursor: pointer;
             position: absolute;
-            color: $argo-color-gray-5;
+            color: $argo-color-gray-7;
             bottom: 0.6em;
             right: 0;
             z-index: 1;
