@@ -68,7 +68,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
                 {sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
-                <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
+                <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
                     {application.status.health.status}
