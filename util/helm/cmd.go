@@ -23,20 +23,15 @@ type Cmd struct {
 }
 
 func NewCmd(workDir string, version string) (*Cmd, error) {
-	if version != "" {
-		switch version {
-		case "v2":
-			return NewCmdWithVersion(workDir, HelmV2, false)
-		case "v3":
-			return NewCmdWithVersion(workDir, HelmV3, false)
-		}
-	}
-	helmVersion, err := getHelmVersion(workDir)
-	if err != nil {
-		return nil, err
-	}
 
-	return NewCmdWithVersion(workDir, *helmVersion, false)
+	switch version {
+	case "v2":
+		return NewCmdWithVersion(workDir, HelmV2, false)
+	// If v3 is specified (or by default, if no value is specified) then use v3
+	case "", "v3":
+		return NewCmdWithVersion(workDir, HelmV3, false)
+	}
+	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
 func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool) (*Cmd, error) {

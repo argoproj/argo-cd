@@ -30,7 +30,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
       - name: Download all Go modules
         run: |
           go mod download
@@ -48,7 +48,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -87,7 +87,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -147,7 +147,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -196,7 +196,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
@@ -354,7 +354,10 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.14.12'
+          go-version: '1.16.0'
+      - name: GH actions workaround - Kill XSP4 process
+        run: |
+          sudo pkill mono || true
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
@@ -392,7 +395,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:5.0.10-alpine
+          docker pull redis:6.2.1-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

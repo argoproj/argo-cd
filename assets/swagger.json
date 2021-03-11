@@ -1106,6 +1106,11 @@
             "type": "boolean",
             "name": "force",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "orphan",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2517,7 +2522,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL of the repo",
+            "description": "Repo contains the URL to the remote repository",
             "name": "repo.repo",
             "in": "path",
             "required": true
@@ -2863,7 +2868,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "RepoURL is the repository URL of the application manifests",
+            "description": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests",
             "name": "source.repoURL",
             "in": "path",
             "required": true
@@ -3437,14 +3442,15 @@
     },
     "applicationv1alpha1EnvEntry": {
       "type": "object",
+      "title": "EnvEntry represents an entry in the application's environment",
       "properties": {
         "name": {
           "type": "string",
-          "title": "the name, usually uppercase"
+          "title": "Name is the name of the variable, usually expressed in uppercase"
         },
         "value": {
           "type": "string",
-          "title": "the value"
+          "title": "Value is the value of the variable"
         }
       }
     },
@@ -4594,7 +4600,7 @@
         },
         "signatureKeys": {
           "type": "array",
-          "title": "List of PGP key IDs that commits to be synced to must be signed with",
+          "title": "SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync",
           "items": {
             "$ref": "#/definitions/v1alpha1SignatureKey"
           }
@@ -4617,10 +4623,11 @@
     },
     "v1alpha1AppProjectStatus": {
       "type": "object",
-      "title": "AppProjectStatus contains information about appproj",
+      "title": "AppProjectStatus contains status information for AppProject CRs",
       "properties": {
         "jwtTokensByRole": {
           "type": "object",
+          "title": "JWTTokensByRole contains a list of JWT tokens issued for a given role",
           "additionalProperties": {
             "$ref": "#/definitions/v1alpha1JWTTokens"
           }
@@ -4647,7 +4654,7 @@
     },
     "v1alpha1ApplicationCondition": {
       "type": "object",
-      "title": "ApplicationCondition contains details about current application condition",
+      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -4664,19 +4671,19 @@
     },
     "v1alpha1ApplicationDestination": {
       "type": "object",
-      "title": "ApplicationDestination contains deployment destination information",
+      "title": "ApplicationDestination holds information about the application's destination",
       "properties": {
         "name": {
           "type": "string",
-          "title": "Name of the destination cluster which can be used instead of server (url) field"
+          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
         },
         "namespace": {
           "type": "string",
-          "title": "Namespace overrides the environment namespace value in the ksonnet app.yaml"
+          "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
         },
         "server": {
           "type": "string",
-          "title": "Server overrides the environment server value in the ksonnet app.yaml"
+          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
         }
       }
     },
@@ -4696,12 +4703,12 @@
       }
     },
     "v1alpha1ApplicationSource": {
-      "description": "ApplicationSource contains information about github repository, path within repository and target application environment.",
       "type": "object",
+      "title": "ApplicationSource contains all required information about the source of an application",
       "properties": {
         "chart": {
-          "type": "string",
-          "title": "Chart is a Helm chart name"
+          "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.",
+          "type": "string"
         },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
@@ -4716,36 +4723,40 @@
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
         "path": {
-          "type": "string",
-          "title": "Path is a directory path within the Git repository"
+          "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git.",
+          "type": "string"
         },
         "plugin": {
           "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",
-          "title": "RepoURL is the repository URL of the application manifests"
+          "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
         },
         "targetRevision": {
-          "type": "string",
-          "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
+          "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version.",
+          "type": "string"
         }
       }
     },
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
+      "title": "ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet",
       "properties": {
         "exclude": {
-          "type": "string"
+          "type": "string",
+          "title": "Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation"
         },
         "include": {
-          "type": "string"
+          "type": "string",
+          "title": "Include contains a glob pattern to match paths against that should be explicitly included during manifest generation"
         },
         "jsonnet": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
         },
         "recurse": {
-          "type": "boolean"
+          "type": "boolean",
+          "title": "Recurse specifies whether to scan a directory recursively for manifests"
         }
       }
     },
@@ -4762,14 +4773,14 @@
         },
         "parameters": {
           "type": "array",
-          "title": "Parameters are parameters to the helm template",
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
         },
         "releaseName": {
           "type": "string",
-          "title": "The Helm release name. If omitted it will use the application name"
+          "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
         },
         "valueFiles": {
           "type": "array",
@@ -4780,17 +4791,17 @@
         },
         "values": {
           "type": "string",
-          "title": "Values is Helm values, typically defined as a block"
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
         },
         "version": {
           "type": "string",
-          "title": "Version is the Helm version to use for templating with"
+          "title": "Version is the Helm version to use for templating (either \"2\" or \"3\")"
         }
       }
     },
     "v1alpha1ApplicationSourceJsonnet": {
       "type": "object",
-      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
+      "title": "ApplicationSourceJsonnet holds options specific to applications of type Jsonnet",
       "properties": {
         "extVars": {
           "type": "array",
@@ -4834,46 +4845,46 @@
     },
     "v1alpha1ApplicationSourceKustomize": {
       "type": "object",
-      "title": "ApplicationSourceKustomize holds kustomize specific options",
+      "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize",
       "properties": {
         "commonAnnotations": {
           "type": "object",
-          "title": "CommonAnnotations adds additional kustomize commonAnnotations",
+          "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests",
           "additionalProperties": {
             "type": "string"
           }
         },
         "commonLabels": {
           "type": "object",
-          "title": "CommonLabels adds additional kustomize commonLabels",
+          "title": "CommonLabels is a list of additional labels to add to rendered manifests",
           "additionalProperties": {
             "type": "string"
           }
         },
         "images": {
           "type": "array",
-          "title": "Images are kustomize image overrides",
+          "title": "Images is a list of Kustomize image override specifications",
           "items": {
             "type": "string"
           }
         },
         "namePrefix": {
           "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
         },
         "nameSuffix": {
           "type": "string",
-          "title": "NameSuffix is a suffix appended to resources for kustomize apps"
+          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
         },
         "version": {
           "type": "string",
-          "title": "Version contains optional Kustomize version"
+          "title": "Version controls which version of Kustomize to use for rendering manifests"
         }
       }
     },
     "v1alpha1ApplicationSourcePlugin": {
       "type": "object",
-      "title": "ApplicationSourcePlugin holds config management plugin specific options",
+      "title": "ApplicationSourcePlugin holds options specific to config management plugins",
       "properties": {
         "env": {
           "type": "array",
@@ -4895,24 +4906,24 @@
         },
         "ignoreDifferences": {
           "type": "array",
-          "title": "IgnoreDifferences controls resources fields which should be ignored during comparison",
+          "title": "IgnoreDifferences is a list of resources and their fields which should be ignored during comparison",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
         "info": {
           "type": "array",
-          "title": "Infos contains a list of useful information (URLs, email addresses, and plain text) that relates to the application",
+          "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
           "items": {
             "$ref": "#/definitions/v1alpha1Info"
           }
         },
         "project": {
-          "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
+          "description": "Project is a reference to the project this application belongs to.\nThe empty string means that application belongs to the 'default' project.",
           "type": "string"
         },
         "revisionHistoryLimit": {
-          "description": "This limits this number of items kept in the apps revision history.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
+          "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
           "type": "string",
           "format": "int64"
         },
@@ -4926,10 +4937,11 @@
     },
     "v1alpha1ApplicationStatus": {
       "type": "object",
-      "title": "ApplicationStatus contains information about application sync, health status",
+      "title": "ApplicationStatus contains status information for the application",
       "properties": {
         "conditions": {
           "type": "array",
+          "title": "Conditions is a list of currently observed application conditions",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
@@ -4939,6 +4951,7 @@
         },
         "history": {
           "type": "array",
+          "title": "History contains information about the application's sync history",
           "items": {
             "$ref": "#/definitions/v1alpha1RevisionHistory"
           }
@@ -4954,12 +4967,14 @@
         },
         "resources": {
           "type": "array",
+          "title": "Resources is a list of Kubernetes resources managed by this application",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
         },
         "sourceType": {
-          "type": "string"
+          "type": "string",
+          "title": "SourceType specifies the type of this application"
         },
         "summary": {
           "$ref": "#/definitions/v1alpha1ApplicationSummary"
@@ -4971,6 +4986,7 @@
     },
     "v1alpha1ApplicationSummary": {
       "type": "object",
+      "title": "ApplicationSummary contains information about URLs and container images used by an application",
       "properties": {
         "externalURLs": {
           "description": "ExternalURLs holds all external URLs of application child resources.",
@@ -4990,7 +5006,7 @@
     },
     "v1alpha1ApplicationTree": {
       "type": "object",
-      "title": "ApplicationTree holds nodes which belongs to the application",
+      "title": "ApplicationTree holds nodes which belongs to the application\nTODO: describe purpose of this type",
       "properties": {
         "hosts": {
           "type": "array",
@@ -5029,7 +5045,7 @@
     },
     "v1alpha1Backoff": {
       "type": "object",
-      "title": "Backoff is a backoff strategy to use within retryStrategy",
+      "title": "Backoff is the backoff strategy to use on subsequent retries for failing syncs",
       "properties": {
         "duration": {
           "type": "string",
@@ -5064,7 +5080,7 @@
           "title": "Name of the cluster. If omitted, will use the server address"
         },
         "namespaces": {
-          "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.",
+          "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.",
           "type": "array",
           "items": {
             "type": "string"
@@ -5090,6 +5106,7 @@
     },
     "v1alpha1ClusterCacheInfo": {
       "type": "object",
+      "title": "ClusterCacheInfo contains information about the cluster cache",
       "properties": {
         "apisCount": {
           "type": "string",
@@ -5134,10 +5151,12 @@
     },
     "v1alpha1ClusterInfo": {
       "type": "object",
+      "title": "ClusterInfo contains information about the cluster",
       "properties": {
         "applicationsCount": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "title": "ApplicationsCount is the number of applications managed by Argo CD on the cluster"
         },
         "cacheInfo": {
           "$ref": "#/definitions/v1alpha1ClusterCacheInfo"
@@ -5146,7 +5165,8 @@
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
         "serverVersion": {
-          "type": "string"
+          "type": "string",
+          "title": "ServerVersion contains information about the Kubernetes version of the cluster"
         }
       }
     },
@@ -5212,16 +5232,18 @@
     },
     "v1alpha1ConnectionState": {
       "type": "object",
-      "title": "ConnectionState contains information about remote resource connection state",
+      "title": "ConnectionState contains information about remote resource connection state, currently used for clusters and repositories",
       "properties": {
         "attemptedAt": {
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "Message contains human readable information about the connection status"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "title": "Status contains the current status indicator for the connection"
         }
       }
     },
@@ -5263,27 +5285,27 @@
       "properties": {
         "fingerprint": {
           "type": "string",
-          "title": "Fingerprint of the key"
+          "title": "Fingerprint is the fingerprint of the key"
         },
         "keyData": {
           "type": "string",
-          "title": "Key data"
+          "title": "KeyData holds the raw key data, in base64 encoded format"
         },
         "keyID": {
           "type": "string",
-          "title": "KeyID in hexadecimal string format"
+          "title": "KeyID specifies the key ID, in hexadecimal string format"
         },
         "owner": {
           "type": "string",
-          "title": "Owner identification"
+          "title": "Owner holds the owner identification, e.g. a name and e-mail address"
         },
         "subType": {
           "type": "string",
-          "title": "Key sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's sub type (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
-          "title": "Trust level"
+          "title": "Trust holds the level of trust assigned to this key"
         }
       }
     },
@@ -5304,32 +5326,35 @@
     },
     "v1alpha1HealthStatus": {
       "type": "object",
+      "title": "HealthStatus contains information about the currently observed health state of an application or resource",
       "properties": {
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "title": "Status holds the status code of the application or resource"
         }
       }
     },
     "v1alpha1HelmFileParameter": {
       "type": "object",
-      "title": "HelmFileParameter is a file parameter to a helm template",
+      "title": "HelmFileParameter is a file parameter that's passed to helm template during manifest generation",
       "properties": {
         "name": {
           "type": "string",
-          "title": "Name is the name of the helm parameter"
+          "title": "Name is the name of the Helm parameter"
         },
         "path": {
           "type": "string",
-          "title": "Path is the path value for the helm parameter"
+          "title": "Path is the path to the file containing the values for the Helm parameter"
         }
       }
     },
     "v1alpha1HelmParameter": {
       "type": "object",
-      "title": "HelmParameter is a parameter to a helm template",
+      "title": "HelmParameter is a parameter that's passed to helm template during manifest generation",
       "properties": {
         "forceString": {
           "type": "boolean",
@@ -5337,17 +5362,17 @@
         },
         "name": {
           "type": "string",
-          "title": "Name is the name of the helm parameter"
+          "title": "Name is the name of the Helm parameter"
         },
         "value": {
           "type": "string",
-          "title": "Value is the value for the helm parameter"
+          "title": "Value is the value for the Helm parameter"
         }
       }
     },
     "v1alpha1HostInfo": {
       "type": "object",
-      "title": "HostInfo holds host name and resources metrics",
+      "title": "HostInfo holds host name and resources metrics\nTODO: describe purpose of this type\nTODO: describe members of this type",
       "properties": {
         "name": {
           "type": "string"
@@ -5365,6 +5390,7 @@
     },
     "v1alpha1HostResourceInfo": {
       "type": "object",
+      "title": "TODO: describe this type",
       "properties": {
         "capacity": {
           "type": "string",
@@ -5396,7 +5422,7 @@
     },
     "v1alpha1InfoItem": {
       "type": "object",
-      "title": "InfoItem contains human readable information about object",
+      "title": "InfoItem contains arbitrary, human readable information about an application",
       "properties": {
         "name": {
           "description": "Name is a human readable title for this piece of information.",
@@ -5427,6 +5453,7 @@
     },
     "v1alpha1JWTTokens": {
       "type": "object",
+      "title": "JWTTokens represents a list of JWT tokens",
       "properties": {
         "items": {
           "type": "array",
@@ -5438,7 +5465,7 @@
     },
     "v1alpha1JsonnetVar": {
       "type": "object",
-      "title": "JsonnetVar is a jsonnet variable",
+      "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation",
       "properties": {
         "code": {
           "type": "boolean"
@@ -5453,7 +5480,7 @@
     },
     "v1alpha1KnownTypeField": {
       "type": "object",
-      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type",
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type.\nThis is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)\nTODO: Describe the members of this type",
       "properties": {
         "field": {
           "type": "string"
@@ -5493,11 +5520,12 @@
       }
     },
     "v1alpha1Operation": {
-      "description": "Operation contains requested operation parameters.",
       "type": "object",
+      "title": "Operation contains information about a requested or running operation",
       "properties": {
         "info": {
           "type": "array",
+          "title": "Info is a list of informational items for this operation",
           "items": {
             "$ref": "#/definitions/v1alpha1Info"
           }
@@ -5515,27 +5543,27 @@
     },
     "v1alpha1OperationInitiator": {
       "type": "object",
-      "title": "OperationInitiator holds information about the operation initiator",
+      "title": "OperationInitiator contains information about the initiator of an operation",
       "properties": {
         "automated": {
           "description": "Automated is set to true if operation was initiated automatically by the application controller.",
           "type": "boolean"
         },
         "username": {
-          "description": "Name of a user who started operation.",
-          "type": "string"
+          "type": "string",
+          "title": "Username contains the name of a user who started operation"
         }
       }
     },
     "v1alpha1OperationState": {
-      "description": "OperationState contains information about state of currently performing operation on application.",
       "type": "object",
+      "title": "OperationState contains information about state of a running operation",
       "properties": {
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "description": "Message hold any pertinent messages when attempting to perform operation (typically errors).",
+          "description": "Message holds any pertinent messages when attempting to perform operation (typically errors).",
           "type": "string"
         },
         "operation": {
@@ -5560,6 +5588,7 @@
     },
     "v1alpha1OrphanedResourceKey": {
       "type": "object",
+      "title": "OrphanedResourceKey is a reference to a resource to be ignored from",
       "properties": {
         "group": {
           "type": "string"
@@ -5578,6 +5607,7 @@
       "properties": {
         "ignore": {
           "type": "array",
+          "title": "Ignore contains a list of resources that are to be excluded from orphaned resources monitoring",
           "items": {
             "$ref": "#/definitions/v1alpha1OrphanedResourceKey"
           }
@@ -5590,6 +5620,7 @@
     },
     "v1alpha1OverrideIgnoreDiff": {
       "type": "object",
+      "title": "TODO: describe this type",
       "properties": {
         "jSONPointers": {
           "type": "array",
@@ -5636,25 +5667,25 @@
     },
     "v1alpha1RepoCreds": {
       "type": "object",
-      "title": "RepoCreds holds a repository credentials definition",
+      "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
-          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+          "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
         },
         "githubAppID": {
           "type": "string",
           "format": "int64",
-          "title": "Github App ID of the app used to access the repo"
+          "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
         },
         "githubAppInstallationID": {
           "type": "string",
           "format": "int64",
-          "title": "Github App Installation ID of the installed GitHub App"
+          "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
         },
         "githubAppPrivateKey": {
           "type": "string",
-          "title": "Github App Private Key PEM data"
+          "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
         "password": {
           "type": "string",
@@ -5662,15 +5693,15 @@
         },
         "sshPrivateKey": {
           "type": "string",
-          "title": "SSH private key data for authenticating at the repo server (only Git repos)"
+          "title": "SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)"
         },
         "tlsClientCertData": {
           "type": "string",
-          "title": "TLS client cert data for authenticating at the repo server"
+          "title": "TLSClientCertData specifies the TLS client cert data for authenticating at the repo server"
         },
         "tlsClientCertKey": {
           "type": "string",
-          "title": "TLS client cert key for authenticating at the repo server"
+          "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "url": {
           "type": "string",
@@ -5705,26 +5736,26 @@
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
         "enableLfs": {
-          "type": "boolean",
-          "title": "Whether git-lfs support should be enabled for this repo"
+          "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
+          "type": "boolean"
         },
         "enableOCI": {
           "type": "boolean",
-          "title": "Whether helm-oci support should be enabled for this repo"
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
-          "title": "Github App Enterprise base url if empty will default to https://api.github.com"
+          "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
         },
         "githubAppID": {
           "type": "string",
           "format": "int64",
-          "title": "Github App ID of the app used to access the repo"
+          "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
         },
         "githubAppInstallationID": {
           "type": "string",
           "format": "int64",
-          "title": "Github App Installation ID of the installed GitHub App"
+          "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
         },
         "githubAppPrivateKey": {
           "type": "string",
@@ -5736,43 +5767,43 @@
         },
         "insecure": {
           "type": "boolean",
-          "title": "Whether the repo is insecure"
+          "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
-          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nonly for Git repos"
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
         },
         "name": {
           "type": "string",
-          "title": "only for Helm repos"
+          "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
         },
         "password": {
           "type": "string",
-          "title": "Password for authenticating at the repo server"
+          "title": "Password contains the password or PAT used for authenticating at the remote repository"
         },
         "repo": {
           "type": "string",
-          "title": "URL of the repo"
+          "title": "Repo contains the URL to the remote repository"
         },
         "sshPrivateKey": {
-          "type": "string",
-          "title": "SSH private key data for authenticating at the repo server\nonly for Git repos"
+          "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",
+          "type": "string"
         },
         "tlsClientCertData": {
           "type": "string",
-          "title": "TLS client cert data for authenticating at the repo server"
+          "title": "TLSClientCertData contains a certificate in PEM format for authenticating at the repo server"
         },
         "tlsClientCertKey": {
           "type": "string",
-          "title": "TLS client cert key for authenticating at the repo server"
+          "title": "TLSClientCertKey contains a private key in PEM format for authenticating at the repo server"
         },
         "type": {
-          "type": "string",
-          "title": "type of the repo, maybe \"git or \"helm, \"git\" is assumed if empty or absent"
+          "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "type": "string"
         },
         "username": {
           "type": "string",
-          "title": "Username for authenticating at the repo server"
+          "title": "Username contains the user name used for authenticating at the remote repository"
         }
       }
     },
@@ -5783,23 +5814,23 @@
         "certData": {
           "type": "string",
           "format": "byte",
-          "title": "Actual certificate data, protocol dependent"
+          "title": "CertData contains the actual certificate data, dependent on the certificate type"
         },
         "certInfo": {
           "type": "string",
-          "title": "Additional certificate info (e.g. SSH fingerprint, X509 CommonName)"
+          "title": "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)"
         },
         "certSubType": {
           "type": "string",
-          "title": "The sub type of the cert, i.e. \"ssh-rsa\""
+          "title": "CertSubType specifies the sub type of the cert, i.e. \"ssh-rsa\""
         },
         "certType": {
           "type": "string",
-          "title": "Type of certificate - currently \"https\" or \"ssh\""
+          "title": "CertType specifies the type of the certificate - currently one of \"https\" or \"ssh\""
         },
         "serverName": {
           "type": "string",
-          "title": "Name of the server the certificate is intended for"
+          "title": "ServerName specifies the DNS name of the server this certificate is intended for"
         }
       }
     },
@@ -5836,6 +5867,7 @@
     },
     "v1alpha1ResourceAction": {
       "type": "object",
+      "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
         "disabled": {
           "type": "boolean"
@@ -5853,6 +5885,7 @@
     },
     "v1alpha1ResourceActionParam": {
       "type": "object",
+      "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
         "default": {
           "type": "string"
@@ -5870,7 +5903,7 @@
     },
     "v1alpha1ResourceDiff": {
       "type": "object",
-      "title": "ResourceDiff holds the diff of a live and target resource object",
+      "title": "ResourceDiff holds the diff of a live and target resource object\nTODO: describe members of this type",
       "properties": {
         "diff": {
           "type": "string",
@@ -5941,7 +5974,7 @@
     },
     "v1alpha1ResourceNetworkingInfo": {
       "type": "object",
-      "title": "ResourceNetworkingInfo holds networking resource related information",
+      "title": "ResourceNetworkingInfo holds networking resource related information\nTODO: describe members of this type",
       "properties": {
         "externalURLs": {
           "description": "ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.",
@@ -5978,7 +6011,7 @@
     },
     "v1alpha1ResourceNode": {
       "type": "object",
-      "title": "ResourceNode contains information about live resource and its children",
+      "title": "ResourceNode contains information about live resource and its children\nTODO: describe members of this type",
       "properties": {
         "createdAt": {
           "$ref": "#/definitions/v1Time"
@@ -6017,7 +6050,7 @@
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
-      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment\nTODO: describe the members of this type",
       "properties": {
         "actions": {
           "type": "string"
@@ -6038,7 +6071,7 @@
     },
     "v1alpha1ResourceRef": {
       "type": "object",
-      "title": "ResourceRef includes fields which unique identify resource",
+      "title": "ResourceRef includes fields which uniquely identify a resource",
       "properties": {
         "group": {
           "type": "string"
@@ -6065,45 +6098,50 @@
       "title": "ResourceResult holds the operation result details of a specific resource",
       "properties": {
         "group": {
-          "type": "string"
+          "type": "string",
+          "title": "Group specifies the API group of the resource"
         },
         "hookPhase": {
-          "type": "string",
-          "title": "the state of any operation associated with this resource OR hook\nnote: can contain values for non-hook resources"
+          "description": "HookPhase contains the state of any operation associated with this resource OR hook\nThis can also contain values for non-hook resources.",
+          "type": "string"
         },
         "hookType": {
           "type": "string",
-          "title": "the type of the hook, empty for non-hook resources"
+          "title": "HookType specifies the type of the hook. Empty for non-hook resources"
         },
         "kind": {
-          "type": "string"
+          "type": "string",
+          "title": "Kind specifies the API kind of the resource"
         },
         "message": {
           "type": "string",
-          "title": "message for the last sync OR operation"
+          "title": "Message contains an informational or error message for the last sync OR operation"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "Name specifies the name of the resource"
         },
         "namespace": {
-          "type": "string"
+          "type": "string",
+          "title": "Namespace specifies the target namespace of the resource"
         },
         "status": {
           "type": "string",
-          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
+          "title": "Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
         },
         "syncPhase": {
           "type": "string",
-          "title": "indicates the particular phase of the sync that this is for"
+          "title": "SyncPhase indicates the particular phase of the sync that this result was acquired in"
         },
         "version": {
-          "type": "string"
+          "type": "string",
+          "title": "Version specifies the API version of the resource"
         }
       }
     },
     "v1alpha1ResourceStatus": {
       "type": "object",
-      "title": "ResourceStatus holds the current sync and health status of a resource",
+      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
       "properties": {
         "group": {
           "type": "string"
@@ -6136,20 +6174,21 @@
     },
     "v1alpha1RetryStrategy": {
       "type": "object",
+      "title": "RetryStrategy contains information about the strategy to apply when a sync failed",
       "properties": {
         "backoff": {
           "$ref": "#/definitions/v1alpha1Backoff"
         },
         "limit": {
+          "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "string",
-          "format": "int64",
-          "title": "Limit is the maximum number of attempts when retrying a container"
+          "format": "int64"
         }
       }
     },
     "v1alpha1RevisionHistory": {
       "type": "object",
-      "title": "RevisionHistory contains information relevant to an application deployment",
+      "title": "RevisionHistory contains history information about a previous sync",
       "properties": {
         "deployStartedAt": {
           "$ref": "#/definitions/v1Time"
@@ -6164,7 +6203,7 @@
         },
         "revision": {
           "type": "string",
-          "title": "Revision holds the revision of the sync"
+          "title": "Revision holds the revision the sync was performed against"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
@@ -6173,7 +6212,7 @@
     },
     "v1alpha1RevisionMetadata": {
       "type": "object",
-      "title": "data about a specific revision within a repo",
+      "title": "RevisionMetadata contains metadata for a specific revision in a Git repository",
       "properties": {
         "author": {
           "type": "string",
@@ -6184,15 +6223,15 @@
         },
         "message": {
           "type": "string",
-          "title": "the message associated with the revision,\nprobably the commit message,\nthis is truncated to the first newline or 64 characters (which ever comes first)"
+          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
         },
         "signatureInfo": {
-          "type": "string",
-          "title": "If revision was signed with GPG, and signature verification is enabled,\nthis contains a hint on the signer"
+          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
+          "type": "string"
         },
         "tags": {
           "type": "array",
-          "title": "tags on the revision,\nnote - tags can move from one revision to another",
+          "title": "Tags specifies any tags currently attached to the revision\nFloating tags can move from one revision to another",
           "items": {
             "type": "string"
           }
@@ -6210,12 +6249,12 @@
       }
     },
     "v1alpha1SyncOperation": {
-      "description": "SyncOperation contains sync operation details.",
+      "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
         "dryRun": {
           "type": "boolean",
-          "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
+          "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
         },
         "manifests": {
           "type": "array",
@@ -6226,17 +6265,17 @@
         },
         "prune": {
           "type": "boolean",
-          "title": "Prune deletes resources that are no longer tracked in git"
+          "title": "Prune specifies to delete resources from the cluster that are no longer tracked in git"
         },
         "resources": {
           "type": "array",
-          "title": "Resources describes which resources to sync",
+          "title": "Resources describes which resources shall be part of the sync",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncOperationResource"
           }
         },
         "revision": {
-          "description": "Revision is the revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
+          "description": "Revision is the revision (Git) or chart version (Helm) which to sync the application to\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
         "source": {
@@ -6278,14 +6317,14 @@
       "properties": {
         "resources": {
           "type": "array",
-          "title": "Resources holds the sync result of each individual resource",
+          "title": "Resources contains a list of sync result items for each individual resource in a sync operation",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceResult"
           }
         },
         "revision": {
           "type": "string",
-          "title": "Revision holds the revision of the sync"
+          "title": "Revision holds the revision this sync operation was performed to"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
@@ -6321,26 +6360,28 @@
         },
         "prune": {
           "type": "boolean",
-          "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+          "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
         },
         "selfHeal": {
           "type": "boolean",
-          "title": "SelfHeal enables auto-syncing if  (default: false)"
+          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
     },
     "v1alpha1SyncStatus": {
-      "description": "SyncStatus is a comparison result of application spec and deployed application.",
       "type": "object",
+      "title": "SyncStatus contains information about the currently observed live and desired states of an application",
       "properties": {
         "comparedTo": {
           "$ref": "#/definitions/v1alpha1ComparedTo"
         },
         "revision": {
-          "type": "string"
+          "type": "string",
+          "title": "Revision contains information about the revision the comparison has been performed to"
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "title": "Status is the sync state of the comparison"
         }
       }
     },
@@ -6433,7 +6474,7 @@
           "title": "CertData holds PEM-encoded bytes (typically read from a client certificate file).\nCertData takes precedence over CertFile"
         },
         "insecure": {
-          "description": "Server should be accessed without verifying the TLS certificate. For testing only.",
+          "description": "Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.",
           "type": "boolean"
         },
         "keyData": {

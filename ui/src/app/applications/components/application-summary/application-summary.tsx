@@ -412,7 +412,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 {ctx => (
                     <div className='white-box'>
                         <div className='white-box__details'>
-                            <p>Sync Policy</p>
+                            <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
@@ -511,7 +511,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} />
-            <EditablePanel save={props.updateApp} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
+            <EditablePanel save={props.updateApp} values={app} title='INFO' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
         </div>
     );
 };

@@ -7,7 +7,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.2.1-0.20210218233004-354817a103ee
+	github.com/argoproj/gitops-engine v0.2.1-0.20210222072927-aae8ded16113
 	github.com/argoproj/pkg v0.2.0
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1
@@ -78,7 +78,7 @@ require (
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/code-generator v0.20.1
 	k8s.io/component-base v0.20.1
-	k8s.io/klog v1.0.0
+	k8s.io/klog/v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/kubectl v0.20.1
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
