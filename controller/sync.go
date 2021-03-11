@@ -136,6 +136,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		})
 	}
 
+	prunePropagationPolicy := v1.DeletePropagationForeground
+	switch {
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=background"):
+		prunePropagationPolicy = v1.DeletePropagationBackground
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=foreground"):
+		prunePropagationPolicy = v1.DeletePropagationForeground
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
+		prunePropagationPolicy = v1.DeletePropagationOrphan
+	}
+
 	syncCtx, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -170,6 +180,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption("PruneLast=true")),
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
+		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
 	)
 
 	if err != nil {
