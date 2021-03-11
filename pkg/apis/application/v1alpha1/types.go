@@ -504,6 +504,18 @@ func (c *ApplicationSourcePlugin) AddEnvEntry(e *EnvEntry) {
 	}
 }
 
+// RemoveEnvEntry removes an EnvEntry if present, from a list of entries.
+func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
+	for i, ce := range c.Env {
+		if ce.Name == key {
+			c.Env[i] = c.Env[len(c.Env)-1]
+			c.Env = c.Env[:len(c.Env)-1]
+			return nil
+		}
+	}
+	return fmt.Errorf("unable to find env variable with key %q for plugin %q", key, c.Name)
+}
+
 // ApplicationDestination holds information about the application's destination
 type ApplicationDestination struct {
 	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
