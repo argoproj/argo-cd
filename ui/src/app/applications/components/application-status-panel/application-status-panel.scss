@@ -84,6 +84,10 @@
             @include responsive-widths();
         }
 
+        &:first-child {
+            margin-top: 7px;
+        }
+
         &:not(:first-child) {
             border-left: 1px solid $argo-color-gray-3;
         }
