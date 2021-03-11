@@ -703,6 +703,9 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if err != nil {
 			return err
 		}
+		sort.Slice(apps, func(i, j int) bool {
+			return apps[i].Name < apps[j].Name
+		})
 		for i := range apps {
 			sendIfPermitted(*apps[i], watch.Added)
 		}
