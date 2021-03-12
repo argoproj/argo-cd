@@ -146,10 +146,18 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			return nil, err
 		}
 	}
+
+	// Filter applications by name
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
+
+	// Filter applications by source repo URL
+	newItems = argoutil.FilterByRepo(newItems, q.Repo)
+
+	// Sort found applications by name
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
 	})
+
 	appList := appv1.ApplicationList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
