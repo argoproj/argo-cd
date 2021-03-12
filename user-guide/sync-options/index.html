@@ -1119,6 +1119,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#resources-prune-deletion-propagation-policy" class="md-nav__link">
+    Resources Prune Deletion Propagation Policy
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1617,6 +1624,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#resources-prune-deletion-propagation-policy" class="md-nav__link">
+    Resources Prune Deletion Propagation Policy
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1691,6 +1705,13 @@ Turning on selective sync option which will sync only out-of-sync resources. </p
 <p>2) Set sync option via argocd cli</p>
 <p>Example:</p>
 <div class="codehilite"><pre><span></span><code>$ argocd app <span class="nb">set</span> guestbook --sync-option <span class="nv">ApplyOutOfSyncOnly</span><span class="o">=</span><span class="nb">true</span>
+</code></pre></div>
+
+<h2 id="resources-prune-deletion-propagation-policy">Resources Prune Deletion Propagation Policy<a class="headerlink" href="#resources-prune-deletion-propagation-policy" title="Permanent link">&para;</a></h2>
+<p>By default, extraneous resources get pruned using foreground deletion policy. The propagation policy can be controlled
+using <code>PrunePropagationPolicy</code> sync option. Supported policies are background, foreground and orphan.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">syncOptions</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">PrunePropagationPolicy=foreground</span>
 </code></pre></div>
                 
               
