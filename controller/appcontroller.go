@@ -841,7 +841,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	filteredObjs := FilterObjectsForDeletion(objs)
 
-	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicy {
+	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
 		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, config)
 	}
 
@@ -926,7 +926,7 @@ func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
 }
 
 func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
-	app.SetCascadedDeletion(false)
+	app.UnSetCascadedDeletion()
 	var patch []byte
 	patch, _ = json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{

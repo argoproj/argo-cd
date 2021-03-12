@@ -2174,40 +2174,19 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	assert.False(t, src.AllowsConcurrentProcessing())
 }
 
-func TestSetPropagationPolicy(t *testing.T) {
-	app := Application{
+func TestUnSetCascadedDeletion(t *testing.T) {
+	a := &Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "fake",
+			Name: "test",
+			Finalizers: []string{
+				"alpha",
+				argocommon.ForegroundPropagationPolicyFinalizer,
+				"beta",
+				argocommon.BackgroundPropagationPolicyFinalizer,
+				"gamma",
+			},
 		},
 	}
-	t.Run("Background propagation policy", func(t *testing.T) {
-		err := app.SetPropagationPolicy(BackgroundPropagationPolicy)
-		assert.Nil(t, err)
-		assert.Equal(t, app.GetPropagationPolicy(), BackgroundPropagationPolicy)
-	})
-	t.Run("Foreground propagation policy", func(t *testing.T) {
-		err := app.SetPropagationPolicy(ForegroundPropagationPolicy)
-		assert.Nil(t, err)
-		assert.Equal(t, app.GetPropagationPolicy(), ForegroundPropagationPolicy)
-	})
-	t.Run("Invalid propagation policy", func(t *testing.T) {
-		err := app.SetPropagationPolicy("batman")
-		assert.EqualError(t, err, "invalid propagation policy: batman")
-	})
-	t.Run("Propagation policy already exists", func(t *testing.T) {
-		app.SetAnnotations(map[string]string{
-			argocommon.AnnotationPropagationPolicy: BackgroundPropagationPolicy,
-		})
-		err := app.SetPropagationPolicy(BackgroundPropagationPolicy)
-		assert.Nil(t, err)
-		assert.Equal(t, app.GetPropagationPolicy(), BackgroundPropagationPolicy)
-	})
-	t.Run("Override existing propagation policy", func(t *testing.T) {
-		app.SetAnnotations(map[string]string{
-			argocommon.AnnotationPropagationPolicy: BackgroundPropagationPolicy,
-		})
-		err := app.SetPropagationPolicy(ForegroundPropagationPolicy)
-		assert.Nil(t, err)
-		assert.Equal(t, app.GetPropagationPolicy(), ForegroundPropagationPolicy)
-	})
+	a.UnSetCascadedDeletion()
+	assert.ElementsMatch(t, []string{"alpha", "beta", "gamma"}, a.GetFinalizers())
 }

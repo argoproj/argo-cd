@@ -125,13 +125,14 @@ const (
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
-	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
+	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
 
-	// AnnotationPropagationPolicy is an annotation that indicates the propagation policy for appication deletion.
-	// By default, resources will be deleted in the foreground followed by application deletion.
-	// Accepted values: background/foreground
-	AnnotationPropagationPolicy = "argocd.argoproj.io/deletion-propagation-policy"
+	// ForegroundPropagationPolicyFinalizer is the finalizer we inject to delete application with foreground propagation policy
+	ForegroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/foreground"
+
+	// BackgroundPropagationPolicyFinalizer is the finalizer we inject to delete application with background propagation policy
+	BackgroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/background"
 
 	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
 	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
