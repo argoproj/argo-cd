@@ -34,7 +34,7 @@ func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, e
 
 		//Invalid semantic version ignored
 		if err == semver.ErrInvalidSemVer {
-			log.Debugf("Invalid sementic version: %s",entry.Version)
+			log.Debugf("Invalid sementic version: %s", entry.Version)
 			continue
 		}
 		if err != nil {
