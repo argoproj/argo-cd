@@ -178,7 +178,7 @@ Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD a
 ## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
-version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
+version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
