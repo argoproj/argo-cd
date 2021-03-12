@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/Masterminds/semver"
 )
 
@@ -30,6 +32,12 @@ func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, e
 	versions := semver.Collection{}
 	for _, entry := range e {
 		v, err := semver.NewVersion(entry.Version)
+
+		//Invalid semantic version ignored
+		if err == semver.ErrInvalidSemVer {
+			log.Debugf("Invalid sementic version: %s", entry.Version)
+			continue
+		}
 		if err != nil {
 			return nil, fmt.Errorf("invalid constraint in index: %v", err)
 		}
