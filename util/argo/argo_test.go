@@ -336,6 +336,40 @@ func TestFilterByProjects(t *testing.T) {
 	})
 }
 
+func TestFilterByRepo(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/repo.git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/otherrepo.git",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByRepo(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/repo.git")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
+		assert.Len(t, res, 0)
+	})
+}
+
 func TestValidatePermissions(t *testing.T) {
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{

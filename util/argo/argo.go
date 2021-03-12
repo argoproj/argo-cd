@@ -63,6 +63,20 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterByRepo returns an application
+func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
+	if repo == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Source.RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByName returns an application
 func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
 	if name == "" {
