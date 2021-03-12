@@ -30,7 +30,6 @@ type Entries []Entry
 func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, error) {
 	versions := semver.Collection{}
 	for _, entry := range e {
-
 		v, err := semver.NewVersion(entry.Version)
 
 		//Invalid semantic version ignored
