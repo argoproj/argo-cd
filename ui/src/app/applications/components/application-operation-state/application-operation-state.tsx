@@ -29,7 +29,7 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
                 </div>
             )}>
             {options.map(f => (
-                <div style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
+                <div key={f} style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
                     <Checkbox
                         checked={filters.includes(f)}
                         onChange={checked => {

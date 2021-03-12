@@ -70,9 +70,9 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
     } = props;
     const val = getValue() || false;
     return (
-        <React.Fragment>
+        <div style={optionStyle}>
             {Object.keys(ManualSyncFlags).map(flag => (
-                <div key={flag} style={optionStyle}>
+                <React.Fragment key={flag}>
                     <Checkbox
                         id={`sync-option-${flag}`}
                         checked={val[flag]}
@@ -83,10 +83,10 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
                             setValue(update);
                         }}
                     />
-                    <label htmlFor={`sync-option-${flag}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>
-                </div>
+                    <label htmlFor={`sync-option-${flag}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>{' '}
+                </React.Fragment>
             ))}
-        </React.Fragment>
+        </div>
     );
 });
 

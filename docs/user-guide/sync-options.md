@@ -83,3 +83,13 @@ Example:
 ```bash
 $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 ```
+
+## Resources Prune Deletion Propagation Policy
+
+By default, extraneous resources get pruned using foreground deletion policy. The propagation policy can be controlled
+using `PrunePropagationPolicy` sync option. Supported policies are background, foreground and orphan.
+
+```yaml
+syncOptions:
+- PrunePropagationPolicy=foreground
+```

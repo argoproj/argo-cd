@@ -347,7 +347,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 					break
 				}
 			}
-
 			assert.True(t, index > -1)
 
 			deployment := resources[index]
