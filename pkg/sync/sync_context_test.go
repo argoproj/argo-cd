@@ -1133,3 +1133,19 @@ func TestApplyOutOfSyncOnly(t *testing.T) {
 		assert.Len(t, tasks, 3)
 	})
 }
+
+func TestSyncContext_GetDeleteOptions_Default(t *testing.T) {
+	sc := syncContext{}
+	opts := sc.getDeleteOptions()
+	assert.Equal(t, v1.DeletePropagationForeground, *opts.PropagationPolicy)
+}
+
+func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
+	sc := syncContext{}
+
+	policy := v1.DeletePropagationBackground
+	WithPrunePropagationPolicy(&policy)(&sc)
+
+	opts := sc.getDeleteOptions()
+	assert.Equal(t, v1.DeletePropagationBackground, *opts.PropagationPolicy)
+}

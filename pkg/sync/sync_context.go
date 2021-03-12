@@ -59,6 +59,13 @@ type SyncContext interface {
 // SyncOpt is a callback that update sync operation settings
 type SyncOpt func(ctx *syncContext)
 
+// WithPrunePropagationPolicy sets specified permission validator
+func WithPrunePropagationPolicy(policy *metav1.DeletionPropagation) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.prunePropagationPolicy = policy
+	}
+}
+
 // WithPermissionValidator sets specified permission validator
 func WithPermissionValidator(validator common.PermissionValidator) SyncOpt {
 	return func(ctx *syncContext) {
@@ -292,13 +299,14 @@ type syncContext struct {
 	kubectl             kube.Kubectl
 	namespace           string
 
-	dryRun          bool
-	force           bool
-	validate        bool
-	skipHooks       bool
-	resourcesFilter func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
-	prune           bool
-	pruneLast       bool
+	dryRun                 bool
+	force                  bool
+	validate               bool
+	skipHooks              bool
+	resourcesFilter        func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
+	prune                  bool
+	pruneLast              bool
+	prunePropagationPolicy *metav1.DeletionPropagation
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -820,9 +828,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
 			deletionTimestamp := liveObj.GetDeletionTimestamp()
 			if deletionTimestamp == nil || deletionTimestamp.IsZero() {
-				propagationPolicy := metav1.DeletePropagationForeground
-				deleteOption := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
-				err := sc.kubectl.DeleteResource(context.TODO(), sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), deleteOption)
+				err := sc.kubectl.DeleteResource(context.TODO(), sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), sc.getDeleteOptions())
 				if err != nil {
 					return common.ResultCodeSyncFailed, err.Error()
 				}
@@ -830,6 +836,15 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			return common.ResultCodePruned, "pruned"
 		}
 	}
+}
+
+func (sc *syncContext) getDeleteOptions() metav1.DeleteOptions {
+	propagationPolicy := metav1.DeletePropagationForeground
+	if sc.prunePropagationPolicy != nil {
+		propagationPolicy = *sc.prunePropagationPolicy
+	}
+	deleteOption := metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	return deleteOption
 }
 
 func (sc *syncContext) targetObjs() []*unstructured.Unstructured {
@@ -907,8 +922,7 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 	if err != nil {
 		return err
 	}
-	propagationPolicy := metav1.DeletePropagationForeground
-	return resIf.Delete(context.TODO(), task.name(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	return resIf.Delete(context.TODO(), task.name(), sc.getDeleteOptions())
 }
 
 func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface, error) {
