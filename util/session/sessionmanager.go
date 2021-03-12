@@ -529,6 +529,10 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		if err != nil {
 			return claims, "", err
 		}
+		if idToken == nil {
+			return claims, "", fmt.Errorf("No audience found in the token")
+		}
+
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
 		return claims, "", err

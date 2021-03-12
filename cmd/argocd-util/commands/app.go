@@ -10,10 +10,6 @@ import (
 	"sort"
 	"time"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
@@ -24,6 +20,7 @@ import (
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/controller/cache"
@@ -33,6 +30,7 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/db"
