@@ -1938,7 +1938,7 @@ from.</p>
 <a href="/operator-manual/user-management/#2-configure-argo-cd-for-sso">the docs</a>.</p>
 <h2 id="why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state">Why are resources of type <code>SealedSecret</code> stuck in the <code>Progressing</code> state?<a class="headerlink" href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" title="Permanent link">&para;</a></h2>
 <p>The controller of the <code>SealedSecret</code> resource may expose the status condition on resource it provisioned. Since
-version <code>v1.9.0</code> ArgoCD picks up that status condition to derive a health status for the <code>SealedSecret</code>.</p>
+version <code>v2.0.0</code> ArgoCD picks up that status condition to derive a health status for the <code>SealedSecret</code>.</p>
 <p>Versions before <code>v0.15.0</code> of the <code>SealedSecret</code> controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
 enabled by starting the <code>SealedSecret</code> controller with the <code>--update-status</code> command line parameter or by setting
