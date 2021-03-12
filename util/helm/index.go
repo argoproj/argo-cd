@@ -2,8 +2,9 @@ package helm
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/Masterminds/semver"
 )
