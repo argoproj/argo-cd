@@ -26,6 +26,8 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 	// the selector to to restrict returned list to applications only with matched labels
 	optional string selector = 5 [(gogoproto.nullable) = false];
+	// the repoURL to restrict returned list applications
+	optional string repo = 6 [(gogoproto.nullable) = false];
 }
 
 message NodeQuery {
