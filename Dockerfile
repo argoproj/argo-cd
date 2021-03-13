@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /tmp
-
+ENV GOBIN=/go/bin
 ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
@@ -119,8 +119,9 @@ RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
+    make BIN_NAME=argocd-darwin-arm64 GOOS=darwin GOARCH=arm64 argocd-all && \
+    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin GOARCH=amd64 argocd-all && \
+    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows GOARCH=amd64 argocd-all \
     ; fi
 
 ####################################################################################################
