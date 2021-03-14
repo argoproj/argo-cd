@@ -90,6 +90,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Saildrone](https://www.saildrone.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
+1. [Schwarz IT](https://jobs.schwarz/it-mission)
 1. [Speee](https://speee.jp/)
 1. [Spendesk](https://spendesk.com/)
 1. [Sumo Logic](https://sumologic.com/)
