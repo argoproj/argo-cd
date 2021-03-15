@@ -20,7 +20,6 @@ import (
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
@@ -94,6 +93,7 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	"github.com/argoproj/argo-cd/util/io"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -620,13 +620,6 @@ func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error
 	if !a.Insecure {
 		flags = append(flags, "Secure")
 	}
-	if token != "" {
-		var err error
-		token, err = zjwt.ZJWT(token)
-		if err != nil {
-			return err
-		}
-	}
 	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
 	if err != nil {
 		return err
@@ -964,32 +957,25 @@ func getToken(md metadata.MD) string {
 		}
 	}
 
-	var tokens []string
-
-	// looks for the HTTP header `Authorization: Bearer ...`
-	for _, t := range md["authorization"] {
-		if strings.HasPrefix(t, "Bearer ") {
-			tokens = append(tokens, strings.TrimPrefix(t, "Bearer "))
-		}
-	}
-
 	// check the HTTP cookie
 	for _, t := range md["grpcgateway-cookie"] {
 		header := http.Header{}
 		header.Add("Cookie", t)
 		request := http.Request{Header: header}
 		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
-		if token != "" && err == nil {
-			tokens = append(tokens, token)
+		if err == nil && jwtutil.IsValid(token) {
+			return token
 		}
 	}
 
-	for _, t := range tokens {
-		value, err := zjwt.JWT(t)
-		if err == nil {
-			return value
+	// looks for the HTTP header `Authorization: Bearer ...`
+	for _, t := range md["authorization"] {
+		token := strings.TrimPrefix(t, "Bearer ")
+		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
+			return token
 		}
 	}
+
 	return ""
 }
 

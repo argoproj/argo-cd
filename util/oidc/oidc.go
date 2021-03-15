@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/jwt/zjwt"
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
@@ -325,11 +324,6 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if idTokenRAW != "" {
-		idTokenRAW, err = zjwt.ZJWT(idTokenRAW)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
