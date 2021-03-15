@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -841,18 +840,15 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	filteredObjs := FilterObjectsForDeletion(objs)
 
+	propagationPolicy := metav1.DeletePropagationForeground
 	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
-		return ctrl.backgroundDeletion(app, objs, filteredObjs, logCtx, config)
+		propagationPolicy = metav1.DeletePropagationBackground
 	}
-
-	logCtx.Info("Deleting application with foreground propagation policy")
+	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
 
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		var deleteOption metav1.DeleteOptions
-		propagationPolicy := metav1.DeletePropagationForeground
-		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), deleteOption)
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	})
 	if err != nil {
 		return objs, err
@@ -882,40 +878,6 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	err = ctrl.removeCascadeFinalizer(app)
-	if err != nil {
-		return objs, err
-	}
-
-	logCtx.Infof("Successfully deleted %d resources", len(objs))
-	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
-	return objs, nil
-}
-
-func (ctrl *ApplicationController) backgroundDeletion(app *appv1.Application,
-	objs []*unstructured.Unstructured,
-	filteredObjs []*unstructured.Unstructured,
-	logCtx *log.Entry,
-	config *rest.Config) ([]*unstructured.Unstructured, error) {
-	logCtx.Info("Deleting application with background propagation policy")
-	err := ctrl.cache.SetAppManagedResources(app.Name, nil)
-	if err != nil {
-		return objs, err
-	}
-	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
-	if err != nil {
-		return objs, err
-	}
-
-	err = ctrl.removeCascadeFinalizer(app)
-	if err != nil {
-		return objs, err
-	}
-
-	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
-		obj := filteredObjs[i]
-		propagationPolicy := metav1.DeletePropagationForeground
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-	})
 	if err != nil {
 		return objs, err
 	}

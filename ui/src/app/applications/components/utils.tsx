@@ -46,15 +46,15 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
     const propagationPolicies: {name: string; message: string}[] = [
         {
             name: 'Foreground',
-            message: 'Delete the cascading resources in the foreground followed by the application'
+            message: `Cascade delete the application's resources using foreground propagation policy`
         },
         {
             name: 'Background',
-            message: 'Delete the application followed by the cascading resources in the background'
+            message: `Cascade delete the application's resources using background propagation policy`
         },
         {
             name: 'Orphan',
-            message: 'Delete the application leaving the resources orphaned'
+            message: `Only delete the application, but do not cascade delete its resources`
         }
     ];
     await apis.popup.prompt(
