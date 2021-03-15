@@ -53,7 +53,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             message: `Cascade delete the application's resources using background propagation policy`
         },
         {
-            name: 'Orphan',
+            name: 'Non-cascading',
             message: `Only delete the application, but do not cascade delete its resources`
         }
     ];
