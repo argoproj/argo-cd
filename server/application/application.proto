@@ -72,6 +72,7 @@ message ApplicationUpdateRequest {
 message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
+	optional string propagationPolicy = 3;
 }
 
 message SyncOptions {

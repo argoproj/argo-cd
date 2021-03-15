@@ -57,7 +57,11 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-const maxPodLogsToRender = 10
+const (
+	maxPodLogsToRender                 = 10
+	backgroundPropagationPolicy string = "background"
+	foregroundPropagationPolicy string = "foreground"
+)
 
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
@@ -612,22 +616,31 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
+	if q.Cascade != nil && !*q.Cascade && q.GetPropagationPolicy() != "" {
+		return nil, status.Error(codes.InvalidArgument, "cannot set propagation policy when cascading is disabled")
+	}
+
 	patchFinalizer := false
 	if q.Cascade == nil || *q.Cascade {
-		if !a.CascadedDeletion() {
-			a.SetCascadedDeletion(true)
+		// validate the propgation policy
+		policyFinalizer := getPropagationPolicyFinalizer(q.GetPropagationPolicy())
+		if policyFinalizer == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
+		}
+		if !a.IsFinalizerPresent(policyFinalizer) {
+			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
 	} else {
 		if a.CascadedDeletion() {
-			a.SetCascadedDeletion(false)
+			a.UnSetCascadedDeletion()
 			patchFinalizer = true
 		}
 	}
 
 	if patchFinalizer {
-		// Although the cascaded deletion finalizer is not set when apps are created via API,
-		// they will often be set by the user as part of declarative config. As part of a delete
+		// Although the cascaded deletion/propagation policy finalizer is not set when apps are created via
+		// API, they will often be set by the user as part of declarative config. As part of a delete
 		// request, we always calculate the patch to see if we need to set/unset the finalizer.
 		patch, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
@@ -1738,4 +1751,17 @@ func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncW
 		}
 	}
 	return nil
+}
+
+func getPropagationPolicyFinalizer(policy string) string {
+	switch strings.ToLower(policy) {
+	case backgroundPropagationPolicy:
+		return argocommon.BackgroundPropagationPolicyFinalizer
+	case foregroundPropagationPolicy:
+		return argocommon.ForegroundPropagationPolicyFinalizer
+	case "":
+		return argocommon.ResourcesFinalizerName
+	default:
+		return ""
+	}
 }

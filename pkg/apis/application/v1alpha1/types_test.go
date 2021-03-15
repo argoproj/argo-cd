@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	argocommon "github.com/argoproj/argo-cd/common"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -2170,4 +2172,21 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	}}
 
 	assert.False(t, src.AllowsConcurrentProcessing())
+}
+
+func TestUnSetCascadedDeletion(t *testing.T) {
+	a := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			Finalizers: []string{
+				"alpha",
+				argocommon.ForegroundPropagationPolicyFinalizer,
+				"beta",
+				argocommon.BackgroundPropagationPolicyFinalizer,
+				"gamma",
+			},
+		},
+	}
+	a.UnSetCascadedDeletion()
+	assert.ElementsMatch(t, []string{"alpha", "beta", "gamma"}, a.GetFinalizers())
 }
