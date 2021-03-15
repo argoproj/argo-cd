@@ -362,7 +362,8 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 // CreateServerTLSConfig will provide a TLS configuration for a server. It will
 // either use a certificate and key provided at tlsCertPath and tlsKeyPath, or
 // if these are not given, will generate a self-signed certificate valid for
-// the specified list of hosts.
+// the specified list of hosts. If hosts is nil or empty, self-signed cert
+// creation will be disabled.
 func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls.Config, error) {
 	var cert *tls.Certificate
 	var err error
