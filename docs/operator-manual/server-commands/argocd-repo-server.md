@@ -14,6 +14,7 @@ argocd-repo-server [flags]
 
 ```
       --default-cache-expiration duration   Cache expiration default (default 24h0m0s)
+      --disable-tls                         Disable TLS on the gRPC endpoint
   -h, --help                                help for argocd-repo-server
       --logformat string                    Set the logging format. One of: text|json (default "text")
       --loglevel string                     Set the logging level. One of: debug|info|warn|error (default "info")
