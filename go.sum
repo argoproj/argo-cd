@@ -86,8 +86,8 @@ github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj/gitops-engine v0.2.1-0.20210312191401-380f7be5bf32 h1:5vPvZTSP6HhPOPiw15RZ2/3cTidBDF+MqfF4MsuWrYA=
-github.com/argoproj/gitops-engine v0.2.1-0.20210312191401-380f7be5bf32/go.mod h1:dmGvluybnmaSzsJA7PnrgCoSYQ5stFUNqS46F3gma+M=
+github.com/argoproj/gitops-engine v0.2.1-0.20210315215247-5d680d6b808b h1:aGJMo7zt5zd0YOGSXlXm1g5rgWOuryiLYsrXC09iiqU=
+github.com/argoproj/gitops-engine v0.2.1-0.20210315215247-5d680d6b808b/go.mod h1:IBHhAkqlC+3r/wBWUitWSidQhPzlLoSTWp2htq3dyQk=
 github.com/argoproj/pkg v0.2.0 h1:ETgC600kr8WcAi3MEVY5sA1H7H/u1/IysYOobwsZ8No=
 github.com/argoproj/pkg v0.2.0/go.mod h1:F4TZgInLUEjzsWFB/BTJBsewoEy0ucnKSq6vmQiD/yc=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -342,7 +342,7 @@ github.com/gomodule/redigo v2.0.0+incompatible/go.mod h1:B4C85qUVwatsJoIUNIfCRsp
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/btree v1.0.0 h1:0udJVsspx3VBr5FwtLhQQtuAsVc79tTq0ocGIPAU6qo=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
-github.com/google/cadvisor v0.38.6/go.mod h1:1OFB9sOOMkBdUBGCO/1SArawTnDscgMzTodacVDe8mA=
+github.com/google/cadvisor v0.38.7/go.mod h1:1OFB9sOOMkBdUBGCO/1SArawTnDscgMzTodacVDe8mA=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
@@ -1109,8 +1109,8 @@ k8s.io/kube-scheduler v0.20.4/go.mod h1:w1/IOIJ6q9K1TQ/9sQBvNDSvi9ylZgJaedkwWU5l
 k8s.io/kubectl v0.20.4 h1:Y1gUiigiZM+ulcrnWeqSHlTd0/7xWcQIXjuMnjtHyoo=
 k8s.io/kubectl v0.20.4/go.mod h1:yCC5lUQyXRmmtwyxfaakryh9ezzp/bT0O14LeoFLbGo=
 k8s.io/kubelet v0.20.4/go.mod h1:Jtubfqr/TlXcOMaUYWoGVkuY/iM5xmZiEukcJSJs0ns=
-k8s.io/kubernetes v1.20.1 h1:SHJ+Ua3v2nzKB6JEGJilKv/JIiVJFo+dCs707Z3H0nk=
-k8s.io/kubernetes v1.20.1/go.mod h1:v2E/T5A+ikBt81n9HZ8VVns5IXSsMHP1ITIFuHY3d5s=
+k8s.io/kubernetes v1.20.4 h1:gPeOspTx01shAQuFhae+O7ZfU0WKlD7RE5L0pooU0g8=
+k8s.io/kubernetes v1.20.4/go.mod h1:5oh+vhVyWep2o+IH61i3aU4e/Q77Yt96tcKwYOpVbvk=
 k8s.io/legacy-cloud-providers v0.20.4/go.mod h1:whukzxTjXr2SclI8TObPeCFqIyWJ0IfqTb9enRi8Bs8=
 k8s.io/metrics v0.20.4/go.mod h1:DDXS+Ls+2NAxRcVhXKghRPa3csljyJRjDRjPe6EOg/g=
 k8s.io/mount-utils v0.20.4/go.mod h1:Jv9NRZ5L2LF87A17GaGlArD+r3JAJdZFvo4XD1cG4Kc=
