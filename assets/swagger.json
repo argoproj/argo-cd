@@ -563,6 +563,11 @@
             "type": "boolean",
             "name": "cascade",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "propagationPolicy",
+            "in": "query"
           }
         ],
         "responses": {
