@@ -144,6 +144,8 @@ func isHealthy(condition *hpaCondition) bool {
 	healthy_states := []hpaCondition{
 		{Type: "AbleToScale", Reason: "SucceededRescale"},
 		{Type: "ScalingLimited", Reason: "DesiredWithinRange"},
+		{Type: "ScalingLimited", Reason: "TooFewReplicas"},
+		{Type: "ScalingLimited", Reason: "TooManyReplicas"},
 	}
 	for _, healthy_state := range healthy_states {
 		if condition.Type == healthy_state.Type && condition.Reason == healthy_state.Reason {
