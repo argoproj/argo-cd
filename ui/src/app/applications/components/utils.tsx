@@ -1,7 +1,8 @@
 import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Checkbox, Text} from 'react-form';
+import * as ReactForm from 'react-form';
+import {Text} from 'react-form';
 import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
 import {AppContext} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
@@ -10,6 +11,8 @@ import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+
+require('./utils.scss');
 
 export interface NodeId {
     kind: string;
@@ -40,6 +43,20 @@ export function helpTip(text: string) {
 }
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
+    const propagationPolicies: {name: string; message: string}[] = [
+        {
+            name: 'Foreground',
+            message: `Cascade delete the application's resources using foreground propagation policy`
+        },
+        {
+            name: 'Background',
+            message: `Cascade delete the application's resources using background propagation policy`
+        },
+        {
+            name: 'Non-cascading',
+            message: `Only delete the application, but do not cascade delete its resources`
+        }
+    ];
     await apis.popup.prompt(
         'Delete application',
         api => (
@@ -54,8 +71,22 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
                         component={Text}
                     />
                 </div>
-                <div className='argo-form-row'>
-                    <Checkbox id='cascade-checkbox-delete-confirmation' field='cascadeCheckbox' /> <label htmlFor='cascade-checkbox-delete-confirmation'>Cascade</label>
+                <p>Select propagation policy for application deletion</p>
+                <div className='propagation-policy-list'>
+                    {propagationPolicies.map(policy => {
+                        return (
+                            <FormField
+                                formApi={api}
+                                key={policy.name}
+                                field='propagationPolicy'
+                                component={PropagationPolicyOption}
+                                componentProps={{
+                                    policy: policy.name,
+                                    message: policy.message
+                                }}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         ),
@@ -65,7 +96,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.delete(appName, vals.cascadeCheckbox);
+                    await services.applications.delete(appName, vals.propagationPolicy);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -78,10 +109,33 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         },
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
-        {cascadeCheckbox: true}
+        {propagationPolicy: 'foreground'}
     );
     return confirmed;
 }
+
+const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policy: string; message: string}) => {
+    const {
+        fieldApi: {setValue}
+    } = props;
+    return (
+        <div className='propagation-policy-option'>
+            <input
+                className='radio-button'
+                key={props.policy}
+                type='radio'
+                name='propagation-policy'
+                value={props.policy}
+                id={props.policy}
+                defaultChecked={props.policy === 'Foreground'}
+                onChange={() => setValue(props.policy.toLowerCase())}
+            />
+            <label htmlFor={props.policy}>
+                {props.policy} {helpTip(props.message)}
+            </label>
+        </div>
+    );
+});
 
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);

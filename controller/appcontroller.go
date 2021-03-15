@@ -839,12 +839,16 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	filteredObjs := FilterObjectsForDeletion(objs)
+
+	propagationPolicy := metav1.DeletePropagationForeground
+	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
+		propagationPolicy = metav1.DeletePropagationBackground
+	}
+	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		var deleteOption metav1.DeleteOptions
-		propagationPolicy := metav1.DeletePropagationForeground
-		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), deleteOption)
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	})
 	if err != nil {
 		return objs, err
@@ -872,14 +876,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return objs, err
 	}
-	app.SetCascadedDeletion(false)
-	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"finalizers": app.Finalizers,
-		},
-	})
-	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	err = ctrl.removeCascadeFinalizer(app)
 	if err != nil {
 		return objs, err
 	}
@@ -887,6 +885,19 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
+}
+
+func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
+	app.UnSetCascadedDeletion()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": app.Finalizers,
+		},
+	})
+
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {

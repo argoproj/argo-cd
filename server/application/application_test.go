@@ -371,6 +371,49 @@ func TestDeleteApp(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
+
+	patched = false
+	deleted = false
+	revertValues := func() {
+		patched = false
+		deleted = false
+	}
+
+	t.Run("Delete with background propagation policy", func(t *testing.T) {
+		policy := backgroundPropagationPolicy
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, PropagationPolicy: &policy})
+		assert.Nil(t, err)
+		assert.True(t, patched)
+		assert.True(t, deleted)
+		t.Cleanup(revertValues)
+	})
+
+	t.Run("Delete with cascade disabled and background propagation policy", func(t *testing.T) {
+		policy := backgroundPropagationPolicy
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar, PropagationPolicy: &policy})
+		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = cannot set propagation policy when cascading is disabled")
+		assert.False(t, patched)
+		assert.False(t, deleted)
+		t.Cleanup(revertValues)
+	})
+
+	t.Run("Delete with invalid propagation policy", func(t *testing.T) {
+		invalidPolicy := "invalid"
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &invalidPolicy})
+		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = invalid propagation policy: invalid")
+		assert.False(t, patched)
+		assert.False(t, deleted)
+		t.Cleanup(revertValues)
+	})
+
+	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
+		policy := foregroundPropagationPolicy
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
+		assert.Nil(t, err)
+		assert.True(t, patched)
+		assert.True(t, deleted)
+		t.Cleanup(revertValues)
+	})
 }
 
 func TestDeleteApp_InvalidName(t *testing.T) {

@@ -111,10 +111,18 @@ export class ApplicationsService {
             .then(res => this.parseAppFields(res.body));
     }
 
-    public delete(name: string, cascade: boolean): Promise<boolean> {
+    public delete(name: string, propagationPolicy: string): Promise<boolean> {
+        let cascade = true;
+        if (propagationPolicy === 'orphan') {
+            propagationPolicy = '';
+            cascade = false;
+        }
         return requests
             .delete(`/applications/${name}`)
-            .query({cascade})
+            .query({
+                cascade,
+                propagationPolicy
+            })
             .send({})
             .then(() => true);
     }

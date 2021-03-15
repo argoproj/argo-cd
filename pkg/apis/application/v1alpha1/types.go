@@ -2519,9 +2519,14 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
-// CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
+// CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	return getFinalizerIndex(app.ObjectMeta, common.ResourcesFinalizerName) > -1
+	for _, finalizer := range app.ObjectMeta.Finalizers {
+		if isPropagationPolicyFinalizer(finalizer) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.
@@ -2544,14 +2549,51 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
-// SetCascadedDeletion sets or remove resources finalizer
-func (app *Application) SetCascadedDeletion(prune bool) {
-	setFinalizer(&app.ObjectMeta, common.ResourcesFinalizerName, prune)
+// SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
+func (app *Application) SetCascadedDeletion(finalizer string) {
+	setFinalizer(&app.ObjectMeta, finalizer, true)
 }
 
 // Expired returns true if the application needs to be reconciled
 func (status *ApplicationStatus) Expired(statusRefreshTimeout time.Duration) bool {
 	return status.ReconciledAt == nil || status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+}
+
+// UnSetCascadedDeletion will remove the propagation policy finalizers
+func (app *Application) UnSetCascadedDeletion() {
+	for _, f := range app.Finalizers {
+		if isPropagationPolicyFinalizer(f) {
+			setFinalizer(&app.ObjectMeta, f, false)
+		}
+	}
+}
+
+func isPropagationPolicyFinalizer(finalizer string) bool {
+	switch finalizer {
+	case common.ResourcesFinalizerName:
+		return true
+	case common.ForegroundPropagationPolicyFinalizer:
+		return true
+	case common.BackgroundPropagationPolicyFinalizer:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetPropagationPolicy returns the value of propagation policy finalizer
+func (app *Application) GetPropagationPolicy() string {
+	for _, finalizer := range app.ObjectMeta.Finalizers {
+		if isPropagationPolicyFinalizer(finalizer) {
+			return finalizer
+		}
+	}
+	return ""
+}
+
+// IsFinalizerPresent checks if the app has a given finalizer
+func (app *Application) IsFinalizerPresent(finalizer string) bool {
+	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
