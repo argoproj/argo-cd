@@ -59,6 +59,7 @@ func NewCommand() *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+			cli.SetLogOutput()
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
