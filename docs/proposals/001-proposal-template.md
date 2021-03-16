@@ -1,7 +1,9 @@
 ---
 title: Neat-enhancement-idea
 authors:
-  - "@sbose78" # # author github account here
+  - "@sbose78" # Authors' github accounts here.
+sponsors:
+  - TBD        # List all intereste parties here.
 reviewers:
   - "@alexmt"
   - TBD
@@ -52,13 +54,23 @@ progress.
 
 This is where we get down to details of what the proposal is about.
 
+### Use cases
+
+Add a list of detailed use cases this enhancement intends to take care of.
+
+## Use case 1: 
+As a user, I would like to understand the drift. (This is an example)
+
+## Use case 2: 
+As a user, I would like to take an action on the deviation/drift. (This is an example)
+
 ### Implementation Details/Notes/Constraints [optional]
 
 What are the caveats to the implementation? What are some important details that didn't come across
 above. Go in to as much detail as necessary here. This might be a good place to talk about core
 concepts and how they relate.
 
-You may have a work-in-progress Pull Request to demonstrate the functioning of what you are proposing.
+You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
 
 ### Detailed examples
 
