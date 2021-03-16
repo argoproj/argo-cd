@@ -6,7 +6,7 @@ import {CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 require('./application-sync-panel.scss');

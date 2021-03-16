@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import * as moment from 'moment';
-import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
 
@@ -227,11 +227,17 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'SYNC OPTIONS',
             view: (
                 <div style={{display: 'flex'}}>
-                    {((app.spec.syncPolicy || {}).syncOptions || []).map(opt => (
-                        <div style={{marginRight: '10px'}}>
-                            <i className={`fa fa-${opt.includes('=true') ? 'check-square' : 'times'}`} /> {opt.replace('=true', '').replace('=false', '')}
-                        </div>
-                    ))}
+                    {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
+                        opt.endsWith('=true') || opt.endsWith('=false') ? (
+                            <div key={opt} style={{marginRight: '10px'}}>
+                                <i className={`fa fa-${opt.includes('=true') ? 'check-square' : 'times'}`} /> {opt.replace('=true', '').replace('=false', '')}
+                            </div>
+                        ) : (
+                            <div key={opt} style={{marginRight: '10px'}}>
+                                {opt}
+                            </div>
+                        )
+                    )}
                 </div>
             ),
             edit: (formApi: FormApi) => (
