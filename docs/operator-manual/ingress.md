@@ -300,7 +300,7 @@ spec:
       containers:
       - name: argocd-server
         command:
-        - /argocd-server
+        - argocd-server
         - --staticassets
         - /shared/app
         - --repo-server
