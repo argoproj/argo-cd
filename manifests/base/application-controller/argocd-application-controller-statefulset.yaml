@@ -41,6 +41,11 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:

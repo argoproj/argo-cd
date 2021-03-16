@@ -41,6 +41,11 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
       volumes:
       - emptyDir: {}
         name: static-files
