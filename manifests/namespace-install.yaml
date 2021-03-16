@@ -2578,6 +2578,11 @@ spec:
             port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -2668,6 +2673,11 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -2755,6 +2765,11 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
