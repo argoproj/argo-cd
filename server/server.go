@@ -957,6 +957,15 @@ func getToken(md metadata.MD) string {
 		}
 	}
 
+	// looks for the HTTP header `Authorization: Bearer ...`
+	// argocd prefers bearer token over cookie
+	for _, t := range md["authorization"] {
+		token := strings.TrimPrefix(t, "Bearer ")
+		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
+			return token
+		}
+	}
+
 	// check the HTTP cookie
 	for _, t := range md["grpcgateway-cookie"] {
 		header := http.Header{}
@@ -964,14 +973,6 @@ func getToken(md metadata.MD) string {
 		request := http.Request{Header: header}
 		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
 		if err == nil && jwtutil.IsValid(token) {
-			return token
-		}
-	}
-
-	// looks for the HTTP header `Authorization: Bearer ...`
-	for _, t := range md["authorization"] {
-		token := strings.TrimPrefix(t, "Bearer ")
-		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
 			return token
 		}
 	}
