@@ -251,7 +251,7 @@ func NewReconcileCommand() *cobra.Command {
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60)
+				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60, apiclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
