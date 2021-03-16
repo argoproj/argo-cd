@@ -67,8 +67,10 @@ func NewCommand() *cobra.Command {
 		listenPort             int
 		metricsPort            int
 		cacheSrc               func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer    tls.ConfigCustomizer
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 		redisClient            *redis.Client
+		disableTLS             bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -79,8 +81,11 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
-			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
-			errors.CheckError(err)
+			if !disableTLS {
+				var err error
+				tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
+				errors.CheckError(err)
+			}
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
@@ -104,7 +109,7 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60)
+					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
 					if err != nil {
 						return err
 					}
@@ -152,6 +157,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", false, "Disable TLS on the gRPC endpoint")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

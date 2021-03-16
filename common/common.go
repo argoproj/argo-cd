@@ -53,6 +53,8 @@ const (
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
 	// Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
+	// Default path to repo server TLS endpoint config
+	DefaultAppConfigPath = "/app/config"
 )
 
 const (
@@ -196,6 +198,8 @@ const (
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
+	// EnvRepoServerConfigPath allows to override the configuration path for repo server
+	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 )
 
 const (
