@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	jwtgo "github.com/dgrijalva/jwt-go/v4"
@@ -140,4 +141,8 @@ func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
 
 func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
 	return GetScopeValues(mapClaims, scopes)
+}
+
+func IsValid(token string) bool {
+	return len(strings.SplitN(token, ".", 3)) == 3
 }

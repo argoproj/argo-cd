@@ -60,3 +60,11 @@ func TestIssuedAtTime_Error_Missing(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, time.Unix(0, 0), iat)
 }
+
+func TestIsValid(t *testing.T) {
+	assert.Equal(t, true, IsValid("foo.bar.foo"))
+	assert.Equal(t, true, IsValid("foo.bar.foo.bar"))
+	assert.Equal(t, false, IsValid("foo.bar"))
+	assert.Equal(t, false, IsValid("foo"))
+	assert.Equal(t, false, IsValid(""))
+}
