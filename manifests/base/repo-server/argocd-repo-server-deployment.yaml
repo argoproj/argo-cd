@@ -41,6 +41,11 @@ spec:
             port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
