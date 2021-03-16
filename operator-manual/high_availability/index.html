@@ -1843,7 +1843,7 @@ If the manifest generation has no side effects then requests are processed in pa
 </ul>
 <h3 id="webhook-and-manifest-paths-annotation">Webhook and Manifest Paths Annotation<a class="headerlink" href="#webhook-and-manifest-paths-annotation" title="Permanent link">&para;</a></h3>
 <p>Argo CD aggressively caches generated manifests and uses repository commit SHA as a cache key. A new commit to the Git repository invalidates cache for all applications configured in the repository
-that again negatively affect mono repositories with multiple applications. You might use <a href="https://github.com/argoproj/argo-cd/tree/master/docs/operator-manual/webhook">webhooks ⧉</a> and <code>argocd.argoproj.io/manifest-generate-paths</code> Application
+that again negatively affect mono repositories with multiple applications. You might use <a href="https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md">webhooks ⧉</a> and <code>argocd.argoproj.io/manifest-generate-paths</code> Application
 CRD annotation to solve this problem and improve performance.</p>
 <p>The <code>argocd.argoproj.io/manifest-generate-paths</code> contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation
 with the changed files specified in the webhook payload. If non of the changed files are located in the paths then webhook don't trigger application reconciliation and re-uses previously generated manifests cache for a new commit.</p>
