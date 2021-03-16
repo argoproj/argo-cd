@@ -2,6 +2,7 @@ package reposerver
 
 import (
 	"crypto/tls"
+	"fmt"
 	"os"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/metrics"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
+	"github.com/argoproj/argo-cd/util/env"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -34,24 +36,25 @@ type ArgoCDRepoServer struct {
 	initConstants repository.RepoServerInitConstants
 }
 
+// The hostnames to generate self-signed issues with
+var tlsHostList []string = []string{"localhost", "reposerver"}
+
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants) (*ArgoCDRepoServer, error) {
-	// generate TLS cert
-	hosts := []string{
-		"localhost",
-		"argocd-repo-server",
-	}
-	cert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
-		Hosts:        hosts,
-		Organization: "Argo CD",
-		IsCA:         true,
-	})
-	if err != nil {
-		return nil, err
-	}
+	var tlsConfig *tls.Config
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
-	tlsConfCustomizer(tlsConfig)
+	// Generate or load TLS server certificates to use with this instance of
+	// repository server.
+	if tlsConfCustomizer != nil {
+		var err error
+		certPath := fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
+		keyPath := fmt.Sprintf("%s/reposerver/tls/tls.key", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
+		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfCustomizer(tlsConfig)
+	}
 
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
 		grpc_prometheus.EnableHandlingTimeHistogram()
@@ -61,18 +64,25 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 
+	serverOpts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
+		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
+	}
+
+	// We do allow for non-TLS servers to be created, in case of mTLS will be
+	// implemented by e.g. a sidecar container.
+	if tlsConfig != nil {
+		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+	}
+
 	return &ArgoCDRepoServer{
 		log:           serverLog,
 		metricsServer: metricsServer,
 		cache:         cache,
 		initConstants: initConstants,
-		opts: []grpc.ServerOption{
-			grpc.Creds(credentials.NewTLS(tlsConfig)),
-			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
-			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
-			grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
-			grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
-		},
+		opts:          serverOpts,
 	}, nil
 }
 

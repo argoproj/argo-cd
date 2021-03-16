@@ -3338,6 +3338,8 @@ spec:
           name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3350,6 +3352,17 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3416,6 +3429,8 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
+        - mountPath: /app/config/server/tls
+          name: argocd-repo-server-tls
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -3426,6 +3441,17 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -3487,7 +3513,22 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+        volumeMounts:
+        - mountPath: /app/config/controller/tls
+          name: argocd-repo-server-tls
       serviceAccountName: argocd-application-controller
+      volumes:
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: StatefulSet

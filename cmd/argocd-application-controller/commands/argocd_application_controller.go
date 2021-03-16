@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -50,6 +52,8 @@ func NewCommand() *cobra.Command {
 		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*appstatecache.Cache, error)
 		redisClient              *redis.Client
+		repoServerPlaintext      bool
+		repoServerStrictTLS      bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -72,7 +76,26 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
+			tlsConfig := apiclient.TLSConfiguration{
+				DisableTLS:       repoServerPlaintext,
+				StrictValidation: repoServerStrictTLS,
+			}
+
+			// Load CA information to use for validating connections to the
+			// repository server, if strict TLS validation was requested.
+			if !repoServerPlaintext && repoServerStrictTLS {
+				pool, err := tls.LoadX509CertPool(
+					fmt.Sprintf("%s/controller/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/controller/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+				tlsConfig.Certificates = pool
+			}
+
+			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -126,6 +149,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&metricsCacheExpiration, "metrics-cache-expiration", 0*time.Second, "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
+	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", false, "Disable TLS on connections to repo server")
+	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", false, "Whether to use strict validation of the TLS cert presented by the repo server")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
