@@ -1,7 +1,7 @@
 ---
 title: Neat-enhancement-idea
 authors:
-  - "@sbose78"
+  - "@sbose78" # # author github account here
 reviewers:
   - "@alexmt"
   - TBD
@@ -30,8 +30,9 @@ design.
 The `Summary` is required for producing accurate user-focused documentation
 such as release notes or a development roadmap. It should be possible to collect this information
 before implementation begins in order to avoid requiring implementors to split their attention
-between writing release notes and implementing the feature itself.
-
+between writing release notes and implementing the feature itself. Before you get started with this document,
+please feel free to have a conversation on this with the maintainers/community on Github that would help
+drive a more organized thought process for the formal proposal here.
 
 ## Motivation
 
@@ -51,12 +52,13 @@ progress.
 
 This is where we get down to details of what the proposal is about.
 
-
 ### Implementation Details/Notes/Constraints [optional]
 
 What are the caveats to the implementation? What are some important details that didn't come across
 above. Go in to as much detail as necessary here. This might be a good place to talk about core
 concepts and how they relate.
+
+You may have a work-in-progress Pull Request to demonstrate the functioning of what you are proposing.
 
 ### Detailed examples
 
