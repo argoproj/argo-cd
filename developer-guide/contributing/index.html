@@ -1475,6 +1475,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contributing-to-argo-cd-ui" class="md-nav__link">
+    Contributing to Argo CD UI
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#setting-up-a-local-toolchain" class="md-nav__link">
     Setting up a local toolchain
   </a>
@@ -1936,6 +1943,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#contributing-to-argo-cd-ui" class="md-nav__link">
+    Contributing to Argo CD UI
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#setting-up-a-local-toolchain" class="md-nav__link">
     Setting up a local toolchain
   </a>
@@ -2195,6 +2209,42 @@ echo $IP</code></p>
 <li>Run <code>make lint-ui</code></li>
 <li>Fix any of the errors reported by it</li>
 </ul>
+<h2 id="contributing-to-argo-cd-ui">Contributing to Argo CD UI<a class="headerlink" href="#contributing-to-argo-cd-ui" title="Permanent link">&para;</a></h2>
+<p>Argo CD, along with Argo Workflows, uses shared React components from <a href="https://github.com/argoproj/argo-ui">Argo UI</a>. Examples of some of these components include buttons, containers, form controls, 
+and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. </p>
+<ol>
+<li>
+<p>Fork and clone the <a href="https://github.com/argoproj/argo-ui">Argo UI repository</a>.</p>
+</li>
+<li>
+<p><code>cd</code> into your <code>argo-ui</code> directory, and then run <code>yarn install</code>. </p>
+</li>
+<li>
+<p>Make your file changes.</p>
+</li>
+<li>
+<p>Run <code>yarn start</code> to start a <a href="https://storybook.js.org/">storybook</a> dev server and view the components in your browser. Make sure all your changes work as expected. </p>
+</li>
+<li>
+<p>Use <a href="https://classic.yarnpkg.com/en/docs/cli/link/">yarn link</a> to link Argo UI package to your Argo CD repository. (Commands below assume that <code>argo-ui</code> and <code>argo-cd</code> are both located within the same parent folder)</p>
+<ul>
+<li><code>cd argo-ui</code></li>
+<li><code>yarn link</code></li>
+<li><code>cd ../argo-cd</code></li>
+<li><code>yarn link argo-ui</code></li>
+</ul>
+<p>Once <code>argo-ui</code> package has been successfully linked, test out changes in your local development environment. </p>
+</li>
+<li>
+<p>Commit changes and open a PR to <a href="https://github.com/argoproj/argo-ui">Argo UI</a>. </p>
+</li>
+<li>
+<p>Once your PR has been merged in Argo UI, <code>cd</code> into your <code>argo-cd</code> folder and run <code>yarn add https://github.com/argoproj/argo-ui.git</code>. This will update the commit SHA in the <code>ui/yarn.lock</code> file to use the lastest master commit for argo-ui. </p>
+</li>
+<li>
+<p>Submit changes to <code>ui/yarn.lock</code>in a PR to Argo CD. </p>
+</li>
+</ol>
 <h2 id="setting-up-a-local-toolchain">Setting up a local toolchain<a class="headerlink" href="#setting-up-a-local-toolchain" title="Permanent link">&para;</a></h2>
 <p>For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.</p>
 <h3 id="install-required-dependencies-and-build-tools">Install required dependencies and build-tools<a class="headerlink" href="#install-required-dependencies-and-build-tools" title="Permanent link">&para;</a></h3>
