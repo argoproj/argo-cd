@@ -239,6 +239,34 @@ If you touched UI code, you should also run the Yarn linter on it:
 * Run `make lint-ui`
 * Fix any of the errors reported by it
 
+## Contributing to Argo CD UI
+
+Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls, 
+and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. 
+
+1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui).
+
+2. `cd` into your `argo-ui` directory, and then run `yarn install`. 
+
+3. Make your file changes.
+
+4. Run `yarn start` to start a [storybook](https://storybook.js.org/) dev server and view the components in your browser. Make sure all your changes work as expected. 
+
+5. Use [yarn link](https://classic.yarnpkg.com/en/docs/cli/link/) to link Argo UI package to your Argo CD repository. (Commands below assume that `argo-ui` and `argo-cd` are both located within the same parent folder)
+
+    * `cd argo-ui`
+    * `yarn link`
+    * `cd ../argo-cd`
+    * `yarn link argo-ui`
+
+    Once `argo-ui` package has been successfully linked, test out changes in your local development environment. 
+
+6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
+
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd` folder and run `yarn add https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+
+8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
+
 ## Setting up a local toolchain
 
 For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.
