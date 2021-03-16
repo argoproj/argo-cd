@@ -1372,13 +1372,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ci-set-up" class="md-nav__link">
-    CI Set-up
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#test-isolation" class="md-nav__link">
     Test Isolation
   </a>
@@ -1607,13 +1600,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ci-set-up" class="md-nav__link">
-    CI Set-up
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#test-isolation" class="md-nav__link">
     Test Isolation
   </a>
@@ -1665,9 +1651,6 @@ Git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
 <li><code>ARGOCD_E2E_YARN_CMD</code>: Command to use for starting the UI via Yarn (default: <code>yarn</code>)</li>
 </ul>
 <p>If you have changed the port for <code>argocd-server</code>, be sure to also set <code>ARGOCD_SERVER</code> environment variable to point to that port, e.g. <code>export ARGOCD_SERVER=localhost:8888</code> before running <code>make test-e2e</code> so that the test will communicate to the correct server component.</p>
-<h2 id="ci-set-up">CI Set-up<a class="headerlink" href="#ci-set-up" title="Permanent link">&para;</a></h2>
-<p>The tests are executed by Argo Workflow defined at <code>.argo-ci/ci.yaml</code>. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
-using k3s and run e2e tests against it.</p>
 <h2 id="test-isolation">Test Isolation<a class="headerlink" href="#test-isolation" title="Permanent link">&para;</a></h2>
 <p>Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:</p>
 <ul>
