@@ -1007,12 +1007,12 @@ func TestRevisionHistoryLimit(t *testing.T) {
 		})
 }
 
-func TestOrphanedResource(t *testing.T) {
+func TestUnmanagedResource(t *testing.T) {
 	Given(t).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			UnmanagedResources: &UnmanagedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -1025,54 +1025,38 @@ func TestOrphanedResource(t *testing.T) {
 		And(func() {
 			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
+					Name: "unmanaged-configmap",
 				},
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Expect(Condition(ApplicationConditionUnmanagedResourceWarning, "Application has 1 unmanaged resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
 			assert.NoError(t, err)
-			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "unmanaged-configmap")
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+			UnmanagedResources: &UnmanagedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []UnmanagedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Expect(Condition(ApplicationConditionUnmanagedResourceWarning, "Application has 1 unmanaged resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
 			assert.NoError(t, err)
-			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "unmanaged-configmap")
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(NoConditions()).
-		And(func(app *Application) {
-			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
-			assert.NotContains(t, output, "orphaned-configmap")
-		}).
-		Given().
-		ProjectSpec(AppProjectSpec{
-			SourceRepos:       []string{"*"},
-			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+			UnmanagedResources: &UnmanagedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []UnmanagedResourceKey{{Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1082,13 +1066,29 @@ func TestOrphanedResource(t *testing.T) {
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
 			assert.NoError(t, err)
-			assert.NotContains(t, output, "orphaned-configmap")
+			assert.NotContains(t, output, "unmanaged-configmap")
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: nil,
+			UnmanagedResources: &UnmanagedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []UnmanagedResourceKey{{Kind: "ConfigMap", Name: "unmanaged-configmap"}}},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			output, err := RunCli("app", "resources", app.Name)
+			assert.NoError(t, err)
+			assert.NotContains(t, output, "unmanaged-configmap")
+		}).
+		Given().
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:       []string{"*"},
+			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
+			UnmanagedResources: nil,
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1270,7 +1270,7 @@ func TestListResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			UnmanagedResources: &UnmanagedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -1283,36 +1283,36 @@ func TestListResource(t *testing.T) {
 		And(func() {
 			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
+					Name: "unmanaged-configmap",
 				},
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
+		Expect(Condition(ApplicationConditionUnmanagedResourceWarning, "Application has 1 unmanaged resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
 			assert.NoError(t, err)
-			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "unmanaged-configmap")
 			assert.Contains(t, output, "guestbook-ui")
 		}).
 		And(func(app *Application) {
-			output, err := RunCli("app", "resources", app.Name, "--orphaned=true")
+			output, err := RunCli("app", "resources", app.Name, "--unmanaged=true")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "orphaned-configmap")
+			assert.Contains(t, output, "unmanaged-configmap")
 			assert.NotContains(t, output, "guestbook-ui")
 		}).
 		And(func(app *Application) {
-			output, err := RunCli("app", "resources", app.Name, "--orphaned=false")
+			output, err := RunCli("app", "resources", app.Name, "--unmanaged=false")
 			assert.NoError(t, err)
-			assert.NotContains(t, output, "orphaned-configmap")
+			assert.NotContains(t, output, "unmanaged-configmap")
 			assert.Contains(t, output, "guestbook-ui")
 		}).
 		Given().
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: nil,
+			UnmanagedResources: nil,
 		}).
 		When().
 		Refresh(RefreshTypeNormal).

@@ -1,15 +1,15 @@
-## argocd proj remove-orphaned-ignore
+## argocd proj remove-unmanaged-ignore
 
-Remove a resource from orphaned ignore list
+Remove a resource from unmanaged ignore list
 
 ```
-argocd proj remove-orphaned-ignore PROJECT GROUP KIND NAME [flags]
+argocd proj remove-unmanaged-ignore PROJECT GROUP KIND NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help          help for remove-orphaned-ignore
+  -h, --help          help for remove-unmanaged-ignore
       --name string   Resource name pattern
 ```
 

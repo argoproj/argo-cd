@@ -65,8 +65,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Operation":                        schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationInitiator":               schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState":                   schema_pkg_apis_application_v1alpha1_OperationState(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourceKey":              schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourceKey":              schema_pkg_apis_application_v1alpha1_UnmanagedResourceKey(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourcesMonitorSettings": schema_pkg_apis_application_v1alpha1_UnmanagedResourcesMonitorSettings(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OverrideIgnoreDiff":               schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                      schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepoCreds":                        schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
@@ -316,10 +316,10 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
-					"orphanedResources": {
+					"unmanagedResources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OrphanedResources specifies if controller should monitor orphaned resources of apps in this project",
-							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings"),
+							Description: "UnmanagedResources specifies if controller should monitor unmanaged resources of apps in this project",
+							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourcesMonitorSettings"),
 						},
 					},
 					"syncWindows": {
@@ -381,7 +381,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourcesMonitorSettings", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -1240,9 +1240,9 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							},
 						},
 					},
-					"orphanedNodes": {
+					"unmanagedNodes": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
+							Description: "UnmanagedNodes contains if or unmanaged nodes: nodes which are not managed by the app but in the same namespace. List is populated only if unmanaged resources enabled in app project.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2503,11 +2503,11 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_application_v1alpha1_UnmanagedResourceKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "OrphanedResourceKey is a reference to a resource to be ignored from",
+				Description: "UnmanagedResourceKey is a reference to a resource to be ignored from",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
@@ -2534,29 +2534,29 @@ func schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref common.Referen
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_application_v1alpha1_UnmanagedResourcesMonitorSettings(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+				Description: "UnmanagedResourcesMonitorSettings holds settings of unmanaged resources monitoring",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"warn": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Warn indicates if warning condition should be created for apps which have orphaned resources",
+							Description: "Warn indicates if warning condition should be created for apps which have unmanaged resources",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"ignore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Ignore contains a list of resources that are to be excluded from orphaned resources monitoring",
+							Description: "Ignore contains a list of resources that are to be excluded from unmanaged resources monitoring",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourceKey"),
+										Ref:     ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourceKey"),
 									},
 								},
 							},
@@ -2566,7 +2566,7 @@ func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref c
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OrphanedResourceKey"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.UnmanagedResourceKey"},
 	}
 }
 

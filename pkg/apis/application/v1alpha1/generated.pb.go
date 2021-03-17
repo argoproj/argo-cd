@@ -1492,15 +1492,15 @@ func (m *OperationState) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_OperationState proto.InternalMessageInfo
 
-func (m *OrphanedResourceKey) Reset()      { *m = OrphanedResourceKey{} }
-func (*OrphanedResourceKey) ProtoMessage() {}
-func (*OrphanedResourceKey) Descriptor() ([]byte, []int) {
+func (m *UnmanagedResourceKey) Reset()      { *m = UnmanagedResourceKey{} }
+func (*UnmanagedResourceKey) ProtoMessage() {}
+func (*UnmanagedResourceKey) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7dc23c2911a1a00, []int{52}
 }
-func (m *OrphanedResourceKey) XXX_Unmarshal(b []byte) error {
+func (m *UnmanagedResourceKey) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *OrphanedResourceKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *UnmanagedResourceKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -1508,27 +1508,27 @@ func (m *OrphanedResourceKey) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 	}
 	return b[:n], nil
 }
-func (m *OrphanedResourceKey) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OrphanedResourceKey.Merge(m, src)
+func (m *UnmanagedResourceKey) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnmanagedResourceKey.Merge(m, src)
 }
-func (m *OrphanedResourceKey) XXX_Size() int {
+func (m *UnmanagedResourceKey) XXX_Size() int {
 	return m.Size()
 }
-func (m *OrphanedResourceKey) XXX_DiscardUnknown() {
-	xxx_messageInfo_OrphanedResourceKey.DiscardUnknown(m)
+func (m *UnmanagedResourceKey) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnmanagedResourceKey.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_OrphanedResourceKey proto.InternalMessageInfo
+var xxx_messageInfo_UnmanagedResourceKey proto.InternalMessageInfo
 
-func (m *OrphanedResourcesMonitorSettings) Reset()      { *m = OrphanedResourcesMonitorSettings{} }
-func (*OrphanedResourcesMonitorSettings) ProtoMessage() {}
-func (*OrphanedResourcesMonitorSettings) Descriptor() ([]byte, []int) {
+func (m *UnmanagedResourcesMonitorSettings) Reset()      { *m = UnmanagedResourcesMonitorSettings{} }
+func (*UnmanagedResourcesMonitorSettings) ProtoMessage() {}
+func (*UnmanagedResourcesMonitorSettings) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7dc23c2911a1a00, []int{53}
 }
-func (m *OrphanedResourcesMonitorSettings) XXX_Unmarshal(b []byte) error {
+func (m *UnmanagedResourcesMonitorSettings) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *OrphanedResourcesMonitorSettings) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *UnmanagedResourcesMonitorSettings) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -1536,17 +1536,17 @@ func (m *OrphanedResourcesMonitorSettings) XXX_Marshal(b []byte, deterministic b
 	}
 	return b[:n], nil
 }
-func (m *OrphanedResourcesMonitorSettings) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OrphanedResourcesMonitorSettings.Merge(m, src)
+func (m *UnmanagedResourcesMonitorSettings) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UnmanagedResourcesMonitorSettings.Merge(m, src)
 }
-func (m *OrphanedResourcesMonitorSettings) XXX_Size() int {
+func (m *UnmanagedResourcesMonitorSettings) XXX_Size() int {
 	return m.Size()
 }
-func (m *OrphanedResourcesMonitorSettings) XXX_DiscardUnknown() {
-	xxx_messageInfo_OrphanedResourcesMonitorSettings.DiscardUnknown(m)
+func (m *UnmanagedResourcesMonitorSettings) XXX_DiscardUnknown() {
+	xxx_messageInfo_UnmanagedResourcesMonitorSettings.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_OrphanedResourcesMonitorSettings proto.InternalMessageInfo
+var xxx_messageInfo_UnmanagedResourcesMonitorSettings proto.InternalMessageInfo
 
 func (m *OverrideIgnoreDiff) Reset()      { *m = OverrideIgnoreDiff{} }
 func (*OverrideIgnoreDiff) ProtoMessage() {}
@@ -2585,8 +2585,8 @@ func init() {
 	proto.RegisterType((*Operation)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Operation")
 	proto.RegisterType((*OperationInitiator)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.OperationInitiator")
 	proto.RegisterType((*OperationState)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.OperationState")
-	proto.RegisterType((*OrphanedResourceKey)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.OrphanedResourceKey")
-	proto.RegisterType((*OrphanedResourcesMonitorSettings)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.OrphanedResourcesMonitorSettings")
+	proto.RegisterType((*UnmanagedResourceKey)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.UnmanagedResourceKey")
+	proto.RegisterType((*UnmanagedResourcesMonitorSettings)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.UnmanagedResourcesMonitorSettings")
 	proto.RegisterType((*OverrideIgnoreDiff)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.OverrideIgnoreDiff")
 	proto.RegisterType((*ProjectRole)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ProjectRole")
 	proto.RegisterType((*RepoCreds)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepoCreds")
@@ -3247,9 +3247,9 @@ func (m *AppProjectSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x42
 		}
 	}
-	if m.OrphanedResources != nil {
+	if m.UnmanagedResources != nil {
 		{
-			size, err := m.OrphanedResources.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.UnmanagedResources.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -4351,10 +4351,10 @@ func (m *ApplicationTree) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x1a
 		}
 	}
-	if len(m.OrphanedNodes) > 0 {
-		for iNdEx := len(m.OrphanedNodes) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.UnmanagedNodes) > 0 {
+		for iNdEx := len(m.UnmanagedNodes) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.OrphanedNodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.UnmanagedNodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -5847,7 +5847,7 @@ func (m *OperationState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *OrphanedResourceKey) Marshal() (dAtA []byte, err error) {
+func (m *UnmanagedResourceKey) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -5857,12 +5857,12 @@ func (m *OrphanedResourceKey) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *OrphanedResourceKey) MarshalTo(dAtA []byte) (int, error) {
+func (m *UnmanagedResourceKey) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *OrphanedResourceKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *UnmanagedResourceKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -5885,7 +5885,7 @@ func (m *OrphanedResourceKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *OrphanedResourcesMonitorSettings) Marshal() (dAtA []byte, err error) {
+func (m *UnmanagedResourcesMonitorSettings) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -5895,12 +5895,12 @@ func (m *OrphanedResourcesMonitorSettings) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *OrphanedResourcesMonitorSettings) MarshalTo(dAtA []byte) (int, error) {
+func (m *UnmanagedResourcesMonitorSettings) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *OrphanedResourcesMonitorSettings) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *UnmanagedResourcesMonitorSettings) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -8078,8 +8078,8 @@ func (m *AppProjectSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	if m.OrphanedResources != nil {
-		l = m.OrphanedResources.Size()
+	if m.UnmanagedResources != nil {
+		l = m.UnmanagedResources.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	if len(m.SyncWindows) > 0 {
@@ -8493,8 +8493,8 @@ func (m *ApplicationTree) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	if len(m.OrphanedNodes) > 0 {
-		for _, e := range m.OrphanedNodes {
+	if len(m.UnmanagedNodes) > 0 {
+		for _, e := range m.UnmanagedNodes {
 			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
@@ -9050,7 +9050,7 @@ func (m *OperationState) Size() (n int) {
 	return n
 }
 
-func (m *OrphanedResourceKey) Size() (n int) {
+func (m *UnmanagedResourceKey) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -9065,7 +9065,7 @@ func (m *OrphanedResourceKey) Size() (n int) {
 	return n
 }
 
-func (m *OrphanedResourcesMonitorSettings) Size() (n int) {
+func (m *UnmanagedResourcesMonitorSettings) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -9954,7 +9954,7 @@ func (this *AppProjectSpec) String() string {
 		`Roles:` + repeatedStringForRoles + `,`,
 		`ClusterResourceWhitelist:` + repeatedStringForClusterResourceWhitelist + `,`,
 		`NamespaceResourceBlacklist:` + repeatedStringForNamespaceResourceBlacklist + `,`,
-		`OrphanedResources:` + strings.Replace(this.OrphanedResources.String(), "OrphanedResourcesMonitorSettings", "OrphanedResourcesMonitorSettings", 1) + `,`,
+		`UnmanagedResources:` + strings.Replace(this.UnmanagedResources.String(), "UnmanagedResourcesMonitorSettings", "UnmanagedResourcesMonitorSettings", 1) + `,`,
 		`SyncWindows:` + repeatedStringForSyncWindows + `,`,
 		`NamespaceResourceWhitelist:` + repeatedStringForNamespaceResourceWhitelist + `,`,
 		`SignatureKeys:` + repeatedStringForSignatureKeys + `,`,
@@ -10261,11 +10261,11 @@ func (this *ApplicationTree) String() string {
 		repeatedStringForNodes += strings.Replace(strings.Replace(f.String(), "ResourceNode", "ResourceNode", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForNodes += "}"
-	repeatedStringForOrphanedNodes := "[]ResourceNode{"
-	for _, f := range this.OrphanedNodes {
-		repeatedStringForOrphanedNodes += strings.Replace(strings.Replace(f.String(), "ResourceNode", "ResourceNode", 1), `&`, ``, 1) + ","
+	repeatedStringForUnmanagedNodes := "[]ResourceNode{"
+	for _, f := range this.UnmanagedNodes {
+		repeatedStringForUnmanagedNodes += strings.Replace(strings.Replace(f.String(), "ResourceNode", "ResourceNode", 1), `&`, ``, 1) + ","
 	}
-	repeatedStringForOrphanedNodes += "}"
+	repeatedStringForUnmanagedNodes += "}"
 	repeatedStringForHosts := "[]HostInfo{"
 	for _, f := range this.Hosts {
 		repeatedStringForHosts += strings.Replace(strings.Replace(f.String(), "HostInfo", "HostInfo", 1), `&`, ``, 1) + ","
@@ -10273,7 +10273,7 @@ func (this *ApplicationTree) String() string {
 	repeatedStringForHosts += "}"
 	s := strings.Join([]string{`&ApplicationTree{`,
 		`Nodes:` + repeatedStringForNodes + `,`,
-		`OrphanedNodes:` + repeatedStringForOrphanedNodes + `,`,
+		`UnmanagedNodes:` + repeatedStringForUnmanagedNodes + `,`,
 		`Hosts:` + repeatedStringForHosts + `,`,
 		`}`,
 	}, "")
@@ -10704,11 +10704,11 @@ func (this *OperationState) String() string {
 	}, "")
 	return s
 }
-func (this *OrphanedResourceKey) String() string {
+func (this *UnmanagedResourceKey) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&OrphanedResourceKey{`,
+	s := strings.Join([]string{`&UnmanagedResourceKey{`,
 		`Group:` + fmt.Sprintf("%v", this.Group) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
@@ -10716,16 +10716,16 @@ func (this *OrphanedResourceKey) String() string {
 	}, "")
 	return s
 }
-func (this *OrphanedResourcesMonitorSettings) String() string {
+func (this *UnmanagedResourcesMonitorSettings) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForIgnore := "[]OrphanedResourceKey{"
+	repeatedStringForIgnore := "[]UnmanagedResourceKey{"
 	for _, f := range this.Ignore {
-		repeatedStringForIgnore += strings.Replace(strings.Replace(f.String(), "OrphanedResourceKey", "OrphanedResourceKey", 1), `&`, ``, 1) + ","
+		repeatedStringForIgnore += strings.Replace(strings.Replace(f.String(), "UnmanagedResourceKey", "UnmanagedResourceKey", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForIgnore += "}"
-	s := strings.Join([]string{`&OrphanedResourcesMonitorSettings{`,
+	s := strings.Join([]string{`&UnmanagedResourcesMonitorSettings{`,
 		`Warn:` + valueToStringGenerated(this.Warn) + `,`,
 		`Ignore:` + repeatedStringForIgnore + `,`,
 		`}`,
@@ -11928,7 +11928,7 @@ func (m *AppProjectSpec) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OrphanedResources", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UnmanagedResources", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -11955,10 +11955,10 @@ func (m *AppProjectSpec) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.OrphanedResources == nil {
-				m.OrphanedResources = &OrphanedResourcesMonitorSettings{}
+			if m.UnmanagedResources == nil {
+				m.UnmanagedResources = &UnmanagedResourcesMonitorSettings{}
 			}
-			if err := m.OrphanedResources.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.UnmanagedResources.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -15371,7 +15371,7 @@ func (m *ApplicationTree) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OrphanedNodes", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UnmanagedNodes", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -15398,8 +15398,8 @@ func (m *ApplicationTree) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.OrphanedNodes = append(m.OrphanedNodes, ResourceNode{})
-			if err := m.OrphanedNodes[len(m.OrphanedNodes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.UnmanagedNodes = append(m.UnmanagedNodes, ResourceNode{})
+			if err := m.UnmanagedNodes[len(m.UnmanagedNodes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -20402,7 +20402,7 @@ func (m *OperationState) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *OrphanedResourceKey) Unmarshal(dAtA []byte) error {
+func (m *UnmanagedResourceKey) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -20425,10 +20425,10 @@ func (m *OrphanedResourceKey) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: OrphanedResourceKey: wiretype end group for non-group")
+			return fmt.Errorf("proto: UnmanagedResourceKey: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: OrphanedResourceKey: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: UnmanagedResourceKey: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -20551,7 +20551,7 @@ func (m *OrphanedResourceKey) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *OrphanedResourcesMonitorSettings) Unmarshal(dAtA []byte) error {
+func (m *UnmanagedResourcesMonitorSettings) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -20574,10 +20574,10 @@ func (m *OrphanedResourcesMonitorSettings) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: OrphanedResourcesMonitorSettings: wiretype end group for non-group")
+			return fmt.Errorf("proto: UnmanagedResourcesMonitorSettings: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: OrphanedResourcesMonitorSettings: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: UnmanagedResourcesMonitorSettings: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -20630,7 +20630,7 @@ func (m *OrphanedResourcesMonitorSettings) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Ignore = append(m.Ignore, OrphanedResourceKey{})
+			m.Ignore = append(m.Ignore, UnmanagedResourceKey{})
 			if err := m.Ignore[len(m.Ignore)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}

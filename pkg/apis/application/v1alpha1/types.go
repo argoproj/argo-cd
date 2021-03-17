@@ -985,8 +985,8 @@ const (
 	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
 	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
-	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
-	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
+	// ApplicationConditionUnmanagedResourceWarning indicates that application has unmanaged resources
+	ApplicationConditionUnmanagedResourceWarning = "UnmanagedResourceWarning"
 )
 
 // ApplicationCondition contains details about an application condition, which is usally an error or warning
@@ -1066,8 +1066,8 @@ type HostInfo struct {
 type ApplicationTree struct {
 	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
-	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
-	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
+	// UnmanagedNodes contains if or unmanaged nodes: nodes which are not managed by the app but in the same namespace. List is populated only if unmanaged resources enabled in app project.
+	UnmanagedNodes []ResourceNode `json:"unmanagedNodes,omitempty" protobuf:"bytes,2,rep,name=unmanagedNodes"`
 	// Hosts holds list of Kubernetes nodes that run application related pods
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
 }
@@ -1078,8 +1078,8 @@ func (t *ApplicationTree) Normalize() {
 	sort.Slice(t.Nodes, func(i, j int) bool {
 		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
 	})
-	sort.Slice(t.OrphanedNodes, func(i, j int) bool {
-		return t.OrphanedNodes[i].FullName() < t.OrphanedNodes[j].FullName()
+	sort.Slice(t.UnmanagedNodes, func(i, j int) bool {
+		return t.UnmanagedNodes[i].FullName() < t.UnmanagedNodes[j].FullName()
 	})
 	sort.Slice(t.Hosts, func(i, j int) bool {
 		return t.Hosts[i].Name < t.Hosts[j].Name
@@ -1096,7 +1096,7 @@ type ApplicationSummary struct {
 
 // TODO: Document purpose of this method
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
+	for _, n := range append(t.Nodes, t.UnmanagedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
 			return &n
 		}
@@ -2090,23 +2090,23 @@ func (p *AppProject) normalizePolicy(policy string) string {
 	return normalizedPolicy
 }
 
-// OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
-type OrphanedResourcesMonitorSettings struct {
-	// Warn indicates if warning condition should be created for apps which have orphaned resources
+// UnmanagedResourcesMonitorSettings holds settings of unmanaged resources monitoring
+type UnmanagedResourcesMonitorSettings struct {
+	// Warn indicates if warning condition should be created for apps which have unmanaged resources
 	Warn *bool `json:"warn,omitempty" protobuf:"bytes,1,name=warn"`
-	// Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
-	Ignore []OrphanedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
+	// Ignore contains a list of resources that are to be excluded from unmanaged resources monitoring
+	Ignore []UnmanagedResourceKey `json:"ignore,omitempty" protobuf:"bytes,2,opt,name=ignore"`
 }
 
-// OrphanedResourceKey is a reference to a resource to be ignored from
-type OrphanedResourceKey struct {
+// UnmanagedResourceKey is a reference to a resource to be ignored from
+type UnmanagedResourceKey struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // IsWarn returns true if warnings are enabled for orphan resources monitoring
-func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
+func (s *UnmanagedResourcesMonitorSettings) IsWarn() bool {
 	return s.Warn == nil || *s.Warn
 }
 
@@ -2130,8 +2130,8 @@ type AppProjectSpec struct {
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
-	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
-	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
+	// UnmanagedResources specifies if controller should monitor unmanaged resources of apps in this project
+	UnmanagedResources *UnmanagedResourcesMonitorSettings `json:"unmanagedResources,omitempty" protobuf:"bytes,7,opt,name=unmanagedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
 	SyncWindows SyncWindows `json:"syncWindows,omitempty" protobuf:"bytes,8,opt,name=syncWindows"`
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources

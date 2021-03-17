@@ -324,9 +324,9 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
 }
 
-func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
+func TestSetManagedResourcesWithUnmanagedResources(t *testing.T) {
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{
@@ -344,14 +344,14 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Equal(t, len(tree.OrphanedNodes), 1)
-	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
-	assert.Equal(t, app.Namespace, tree.OrphanedNodes[0].Namespace)
+	assert.Equal(t, len(tree.UnmanagedNodes), 1)
+	assert.Equal(t, "guestbook", tree.UnmanagedNodes[0].Name)
+	assert.Equal(t, app.Namespace, tree.UnmanagedNodes[0].Namespace)
 }
 
 func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	app1 := newFakeApp()
 	app1.Name = "app1"
@@ -373,12 +373,12 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Equal(t, len(tree.OrphanedNodes), 0)
+	assert.Equal(t, len(tree.UnmanagedNodes), 0)
 }
 
 func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	app := newFakeApp()
 
@@ -395,9 +395,9 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
-func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
+func TestSetManagedResourcesKnownUnmanagedResourceExceptions(t *testing.T) {
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	app := newFakeApp()
 	app.Namespace = "default"
@@ -420,8 +420,8 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Len(t, tree.OrphanedNodes, 1)
-	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
+	assert.Len(t, tree.UnmanagedNodes, 1)
+	assert.Equal(t, "guestbook", tree.UnmanagedNodes[0].Name)
 }
 
 func Test_appStateManager_persistRevisionHistory(t *testing.T) {

@@ -108,13 +108,13 @@ spec:
                   - kind
                   type: object
                 type: array
-              orphanedResources:
-                description: OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
+              unmanagedResources:
+                description: UnmanagedResources specifies if controller should monitor unmanaged resources of apps in this project
                 properties:
                   ignore:
-                    description: Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
+                    description: Ignore contains a list of resources that are to be excluded from unmanaged resources monitoring
                     items:
-                      description: OrphanedResourceKey is a reference to a resource to be ignored from
+                      description: UnmanagedResourceKey is a reference to a resource to be ignored from
                       properties:
                         group:
                           type: string
@@ -125,7 +125,7 @@ spec:
                       type: object
                     type: array
                   warn:
-                    description: Warn indicates if warning condition should be created for apps which have orphaned resources
+                    description: Warn indicates if warning condition should be created for apps which have unmanaged resources
                     type: boolean
                 type: object
               roles:

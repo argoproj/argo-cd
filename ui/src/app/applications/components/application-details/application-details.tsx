@@ -104,8 +104,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 if (params.get('view') != null) {
                                     pref.view = params.get('view') as AppsDetailsViewType;
                                 }
-                                if (params.get('orphaned') != null) {
-                                    pref.orphanedResources = params.get('orphaned') === 'true';
+                                if (params.get('unmanaged') != null) {
+                                    pref.unmanagedResources = params.get('unmanaged') === 'true';
                                 }
                                 return {...items[0], pref};
                             })
@@ -220,17 +220,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            {(tree.orphanedNodes || []).length > 0 && (
-                                                <div className='application-details__orphaned-filter'>
+                                            {(tree.unmanagedNodes || []).length > 0 && (
+                                                <div className='application-details__unmanaged-filter'>
                                                     <ArgoCheckbox
-                                                        checked={!!pref.orphanedResources}
-                                                        id='orphanedFilter'
+                                                        checked={!!pref.unmanagedResources}
+                                                        id='unmanagedFilter'
                                                         onChange={val => {
-                                                            this.appContext.apis.navigation.goto('.', {orphaned: val});
-                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                                                            this.appContext.apis.navigation.goto('.', {unmanaged: val});
+                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, unmanagedResources: val}});
                                                         }}
                                                     />{' '}
-                                                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                                                    <label htmlFor='unmanagedFilter'>SHOW UNMANAGED</label>
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
@@ -245,7 +245,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     }
                                                     tree={tree}
                                                     app={application}
-                                                    showOrphanedResources={pref.orphanedResources}
+                                                    showUnmanagedResources={pref.unmanagedResources}
                                                     useNetworkingHierarchy={pref.view === 'network'}
                                                     onClearFilter={() => {
                                                         this.appContext.apis.navigation.goto('.', {resource: ''});
@@ -603,7 +603,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             .flatMap(app => {
                 const fallbackTree = {
                     nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                    orphanedNodes: [],
+                    unmanagedNodes: [],
                     hosts: []
                 } as appModels.ApplicationTree;
                 return Observable.combineLatest(
@@ -655,7 +655,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
+        tree.nodes.concat(tree.unmanagedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
         nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }

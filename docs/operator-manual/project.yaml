@@ -40,8 +40,8 @@ spec:
   - group: 'apps'
     kind: StatefulSet
 
-  # Enables namespace orphaned resource monitoring.
-  orphanedResources:
+  # Enables namespace unmanaged resource monitoring.
+  unmanagedResources:
     warn: false
 
   roles:

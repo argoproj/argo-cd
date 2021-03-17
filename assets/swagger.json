@@ -4611,8 +4611,8 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
-        "orphanedResources": {
-          "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
+        "unmanagedResources": {
+          "$ref": "#/definitions/v1alpha1UnmanagedResourcesMonitorSettings"
         },
         "roles": {
           "type": "array",
@@ -5045,8 +5045,8 @@
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         },
-        "orphanedNodes": {
-          "description": "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
+        "unmanagedNodes": {
+          "description": "UnmanagedNodes contains if or unmanaged nodes: nodes which are not managed by the app but in the same namespace. List is populated only if unmanaged resources enabled in app project.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
@@ -5609,9 +5609,9 @@
         }
       }
     },
-    "v1alpha1OrphanedResourceKey": {
+    "v1alpha1UnmanagedResourceKey": {
       "type": "object",
-      "title": "OrphanedResourceKey is a reference to a resource to be ignored from",
+      "title": "UnmanagedResourceKey is a reference to a resource to be ignored from",
       "properties": {
         "group": {
           "type": "string"
@@ -5624,20 +5624,20 @@
         }
       }
     },
-    "v1alpha1OrphanedResourcesMonitorSettings": {
+    "v1alpha1UnmanagedResourcesMonitorSettings": {
       "type": "object",
-      "title": "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+      "title": "UnmanagedResourcesMonitorSettings holds settings of unmanaged resources monitoring",
       "properties": {
         "ignore": {
           "type": "array",
-          "title": "Ignore contains a list of resources that are to be excluded from orphaned resources monitoring",
+          "title": "Ignore contains a list of resources that are to be excluded from unmanaged resources monitoring",
           "items": {
-            "$ref": "#/definitions/v1alpha1OrphanedResourceKey"
+            "$ref": "#/definitions/v1alpha1UnmanagedResourceKey"
           }
         },
         "warn": {
           "type": "boolean",
-          "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
+          "title": "Warn indicates if warning condition should be created for apps which have unmanaged resources"
         }
       }
     },

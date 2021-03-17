@@ -163,9 +163,9 @@ application destination exists in the destination cluster.
 * **Failed Sync Retry** This feature enables retrying of failed synchronization attempts during both manually-triggered
 and automated synchronization.
 
-### Orphaned Resources Monitoring Enhancement
+### Unmanaged Resources Monitoring Enhancement
 
-The enhancement allows configuring an exception list in Orphaned Resources settings to avoid false alarms.
+The enhancement allows configuring an exception list in Unmanaged Resources settings to avoid false alarms.
 
 ## v1.6.2 (2020-08-01)
 
@@ -688,9 +688,9 @@ On top of that, we've improved support for Helm apps. The most common types of H
 
 https://youtu.be/GP7xtrnNznw
 
-##### Orphan Resources
+##### Unmanaged Resources
 
-Some users would like to make sure that resources in a namespace are managed only by Argo CD. So we've introduced the concept of an "orphan resource" - any resource that is in namespace associated with an app, but not managed by Argo CD. This is enabled in the project settings. Once enabled, Argo CD will show in the app view any resources in the app's namespace that is not managed by Argo CD. 
+Some users would like to make sure that resources in a namespace are managed only by Argo CD. So we've introduced the concept of an "unmanaged resource" - any resource that is in namespace associated with an app, but not managed by Argo CD. This is enabled in the project settings. Once enabled, Argo CD will show in the app view any resources in the app's namespace that is not managed by Argo CD. 
 
 https://youtu.be/9ZoTevVQf5I
 
@@ -1236,7 +1236,7 @@ Once the new deployments are ready, the older replicasets can be deleted. Use th
 instructions to upgrade from v0.11 to v0.12 without introducing downtime:
 
 ```
-# delete the deployments with cascade=false. this orphan the replicasets, but leaves the pods running
+# delete the deployments with `cascade=false` this orphans the replicasets, but leaves the pods running
 kubectl delete deploy --cascade=false argocd-server argocd-repo-server argocd-application-controller
 
 # apply the new manifests and wait for them to finish rolling out

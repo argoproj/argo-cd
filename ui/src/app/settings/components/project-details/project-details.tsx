@@ -733,7 +733,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     values={proj}
                     title={<React.Fragment>RESOURCE MONITORING {helpTip('Enables monitoring of top level resources in the application target namespace')}</React.Fragment>}
                     view={
-                        proj.spec.orphanedResources ? (
+                        proj.spec.unmanagedResources ? (
                             <React.Fragment>
                                 <p>
                                     <i className={'fa fa-toggle-on'} /> Enabled
@@ -741,13 +741,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <p>
                                     <i
                                         className={classNames('fa', {
-                                            'fa-toggle-off': !proj.spec.orphanedResources.warn,
-                                            'fa-toggle-on': proj.spec.orphanedResources.warn
+                                            'fa-toggle-off': !proj.spec.unmanagedResources.warn,
+                                            'fa-toggle-on': proj.spec.unmanagedResources.warn
                                         })}
                                     />{' '}
-                                    Application warning conditions are {proj.spec.orphanedResources.warn ? 'enabled' : 'disabled'}.
+                                    Application warning conditions
                                 </p>
-                                {(proj.spec.orphanedResources.ignore || []).length > 0 ? (
+                                {(proj.spec.unmanagedResources.ignore || []).length > 0 ? (
                                     <React.Fragment>
                                         <p>Resources Ignore List</p>
                                         <div className='row white-box__details-row'>
@@ -755,7 +755,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='columns small-4'>Kind</div>
                                             <div className='columns small-4'>Name</div>
                                         </div>
-                                        {(proj.spec.orphanedResources.ignore || []).map((resource, i) => (
+                                        {(proj.spec.unmanagedResources.ignore || []).map((resource, i) => (
                                             <div className='row white-box__details-row' key={i}>
                                                 <div className='columns small-4'>{resource.group}</div>
                                                 <div className='columns small-4'>{resource.kind}</div>
@@ -774,37 +774,37 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         )
                     }
                     edit={formApi =>
-                        formApi.values.spec.orphanedResources ? (
+                        formApi.values.spec.unmanagedResources ? (
                             <React.Fragment>
-                                <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.orphanedResources', null)}>
+                                <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.unmanagedResources', null)}>
                                     DISABLE
                                 </button>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-4'>
                                         Enable application warning conditions?
-                                        <HelpIcon title='If checked, Application will have a warning condition when orphaned resources detected' />
+                                        <HelpIcon title='If checked, Application will have a warning condition when unmanaged resources detected' />
                                     </div>
                                     <div className='columns small-8'>
-                                        <FormField formApi={formApi} field='spec.orphanedResources.warn' component={CheckboxField} />
+                                        <FormField formApi={formApi} field='spec.unmanagedResources.warn' component={CheckboxField} />
                                     </div>
                                 </div>
 
                                 <div>
                                     Resources Ignore List
-                                    <HelpIcon title='Define resources that ArgoCD should not report as orphaned' />
+                                    <HelpIcon title='Define resources that ArgoCD should not report as unmanaged' />
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-4'>Group</div>
                                     <div className='columns small-4'>Kind</div>
                                     <div className='columns small-4'>Name</div>
                                 </div>
-                                {((formApi.values.spec.orphanedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
-                                    formApi.values.spec.orphanedResources.ignore.map((_: Project, i: number) => (
+                                {((formApi.values.spec.unmanagedResources.ignore || []).length === 0 && <div>Ignore list is empty</div>) ||
+                                    formApi.values.spec.unmanagedResources.ignore.map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>
                                                 <FormField
                                                     formApi={formApi}
-                                                    field={`spec.orphanedResources.ignore[${i}].group`}
+                                                    field={`spec.unmanagedResources.ignore[${i}].group`}
                                                     component={AutocompleteField}
                                                     componentProps={{items: Groups, filterSuggestions: true}}
                                                 />
@@ -812,17 +812,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='columns small-4'>
                                                 <FormField
                                                     formApi={formApi}
-                                                    field={`spec.orphanedResources.ignore[${i}].kind`}
+                                                    field={`spec.unmanagedResources.ignore[${i}].kind`}
                                                     component={AutocompleteField}
                                                     componentProps={{items: ResourceKinds, filterSuggestions: true}}
                                                 />
                                             </div>
                                             <div className='columns small-4'>
-                                                <FormField formApi={formApi} field={`spec.orphanedResources.ignore[${i}].name`} component={AutocompleteField} />
+                                                <FormField formApi={formApi} field={`spec.unmanagedResources.ignore[${i}].name`} component={AutocompleteField} />
                                             </div>
                                             <i
                                                 className='fa fa-times'
-                                                onClick={() => formApi.setValue('spec.orphanedResources.ignore', removeEl(formApi.values.spec.orphanedResources.ignore, i))}
+                                                onClick={() => formApi.setValue('spec.unmanagedResources.ignore', removeEl(formApi.values.spec.unmanagedResources.ignore, i))}
                                             />
                                         </div>
                                     ))}
@@ -831,8 +831,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     className='argo-button argo-button--base'
                                     onClick={() =>
                                         formApi.setValue(
-                                            'spec.orphanedResources.ignore',
-                                            (formApi.values.spec.orphanedResources ? formApi.values.spec.orphanedResources.ignore || [] : []).concat({
+                                            'spec.unmanagedResources.ignore',
+                                            (formApi.values.spec.unmanagedResources ? formApi.values.spec.unmanagedResources.ignore || [] : []).concat({
                                                 keyID: ''
                                             })
                                         )
@@ -841,7 +841,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 </button>
                             </React.Fragment>
                         ) : (
-                            <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.orphanedResources.ignore', [])}>
+                            <button className='argo-button argo-button--base' onClick={() => formApi.setValue('spec.unmanagedResources.ignore', [])}>
                                 ENABLE
                             </button>
                         )
