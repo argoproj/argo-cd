@@ -110,3 +110,4 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: PruneLast=true
 ```
+
