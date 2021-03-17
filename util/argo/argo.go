@@ -222,7 +222,14 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
+
+	log.Infof("Calling TestRepository in ValidateRepo")
+	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo:      repo,
+		IsHelm:    app.Spec.Source.IsHelm(),
+		IsHelmOci: app.Spec.Source.IsHelmOci(),
+	})
+	//err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
