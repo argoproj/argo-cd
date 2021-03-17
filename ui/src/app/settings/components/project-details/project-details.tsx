@@ -781,8 +781,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 </button>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-4'>
-                                        Enable application warning conditions?
-                                        <HelpIcon title='If checked, Application will have a warning condition when unmanaged resources detected' />
+                                        Report application warning conditions
+                                        <HelpIcon title='If checked, Application will have a warning condition when unmanaged resources are detected' />
                                     </div>
                                     <div className='columns small-8'>
                                         <FormField formApi={formApi} field='spec.unmanagedResources.warn' component={CheckboxField} />
