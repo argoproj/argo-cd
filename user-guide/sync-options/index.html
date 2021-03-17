@@ -1122,6 +1122,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#prune-last" class="md-nav__link">
+    Prune Last
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1627,6 +1634,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#prune-last" class="md-nav__link">
+    Prune Last
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1708,6 +1722,19 @@ Turning on selective sync option which will sync only out-of-sync resources. </p
 using <code>PrunePropagationPolicy</code> sync option. Supported policies are background, foreground and orphan.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">syncOptions</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">PrunePropagationPolicy=foreground</span>
+</code></pre></div>
+
+<h2 id="prune-last">Prune Last<a class="headerlink" href="#prune-last" title="Permanent link">&para;</a></h2>
+<p>This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation, 
+after the other resources have been deployed and become healthy, and after all other waves completed successfully. </p>
+<div class="codehilite"><pre><span></span><code><span class="nt">syncOptions</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">PruneLast=true</span>
+</code></pre></div>
+
+<p>This can also be configured at individual resource level.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PruneLast=true</span>
 </code></pre></div>
                 
               
