@@ -177,6 +177,103 @@ func (m *ManifestRequest) GetVerifySignature() bool {
 	return false
 }
 
+// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+type TestRepositoryRequest struct {
+	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *TestRepositoryRequest) Reset()         { *m = TestRepositoryRequest{} }
+func (m *TestRepositoryRequest) String() string { return proto.CompactTextString(m) }
+func (*TestRepositoryRequest) ProtoMessage()    {}
+func (*TestRepositoryRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dd8723cfcc820480, []int{1}
+}
+func (m *TestRepositoryRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TestRepositoryRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TestRepositoryRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TestRepositoryRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TestRepositoryRequest.Merge(m, src)
+}
+func (m *TestRepositoryRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *TestRepositoryRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TestRepositoryRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TestRepositoryRequest proto.InternalMessageInfo
+
+func (m *TestRepositoryRequest) GetRepo() *v1alpha1.Repository {
+	if m != nil {
+		return m.Repo
+	}
+	return nil
+}
+
+// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+type TestRepositoryResponse struct {
+	// Request to verify the signature when generating the manifests (only for Git repositories)
+	VerifiedRepository   bool     `protobuf:"varint,1,opt,name=verifiedRepository,proto3" json:"verifiedRepository,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TestRepositoryResponse) Reset()         { *m = TestRepositoryResponse{} }
+func (m *TestRepositoryResponse) String() string { return proto.CompactTextString(m) }
+func (*TestRepositoryResponse) ProtoMessage()    {}
+func (*TestRepositoryResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dd8723cfcc820480, []int{2}
+}
+func (m *TestRepositoryResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TestRepositoryResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TestRepositoryResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TestRepositoryResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TestRepositoryResponse.Merge(m, src)
+}
+func (m *TestRepositoryResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *TestRepositoryResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TestRepositoryResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TestRepositoryResponse proto.InternalMessageInfo
+
+func (m *TestRepositoryResponse) GetVerifiedRepository() bool {
+	if m != nil {
+		return m.VerifiedRepository
+	}
+	return false
+}
+
 type ManifestResponse struct {
 	Manifests []string `protobuf:"bytes,1,rep,name=manifests,proto3" json:"manifests,omitempty"`
 	Namespace string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
@@ -195,7 +292,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{1}
+	return fileDescriptor_dd8723cfcc820480, []int{3}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -277,7 +374,7 @@ func (m *ListRefsRequest) Reset()         { *m = ListRefsRequest{} }
 func (m *ListRefsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListRefsRequest) ProtoMessage()    {}
 func (*ListRefsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{2}
+	return fileDescriptor_dd8723cfcc820480, []int{4}
 }
 func (m *ListRefsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -326,7 +423,7 @@ func (m *Refs) Reset()         { *m = Refs{} }
 func (m *Refs) String() string { return proto.CompactTextString(m) }
 func (*Refs) ProtoMessage()    {}
 func (*Refs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{3}
+	return fileDescriptor_dd8723cfcc820480, []int{5}
 }
 func (m *Refs) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -382,7 +479,7 @@ func (m *ListAppsRequest) Reset()         { *m = ListAppsRequest{} }
 func (m *ListAppsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListAppsRequest) ProtoMessage()    {}
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{4}
+	return fileDescriptor_dd8723cfcc820480, []int{6}
 }
 func (m *ListAppsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -437,7 +534,7 @@ func (m *AppList) Reset()         { *m = AppList{} }
 func (m *AppList) String() string { return proto.CompactTextString(m) }
 func (*AppList) ProtoMessage()    {}
 func (*AppList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{5}
+	return fileDescriptor_dd8723cfcc820480, []int{7}
 }
 func (m *AppList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -489,7 +586,7 @@ func (m *RepoServerAppDetailsQuery) Reset()         { *m = RepoServerAppDetailsQ
 func (m *RepoServerAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoServerAppDetailsQuery) ProtoMessage()    {}
 func (*RepoServerAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{6}
+	return fileDescriptor_dd8723cfcc820480, []int{8}
 }
 func (m *RepoServerAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -569,7 +666,7 @@ func (m *RepoAppDetailsResponse) Reset()         { *m = RepoAppDetailsResponse{}
 func (m *RepoAppDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsResponse) ProtoMessage()    {}
 func (*RepoAppDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{7}
+	return fileDescriptor_dd8723cfcc820480, []int{9}
 }
 func (m *RepoAppDetailsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -649,7 +746,7 @@ func (m *RepoServerRevisionMetadataRequest) Reset()         { *m = RepoServerRev
 func (m *RepoServerRevisionMetadataRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoServerRevisionMetadataRequest) ProtoMessage()    {}
 func (*RepoServerRevisionMetadataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{8}
+	return fileDescriptor_dd8723cfcc820480, []int{10}
 }
 func (m *RepoServerRevisionMetadataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -714,7 +811,7 @@ func (m *KsonnetAppSpec) Reset()         { *m = KsonnetAppSpec{} }
 func (m *KsonnetAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KsonnetAppSpec) ProtoMessage()    {}
 func (*KsonnetAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{9}
+	return fileDescriptor_dd8723cfcc820480, []int{11}
 }
 func (m *KsonnetAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -783,7 +880,7 @@ func (m *HelmAppSpec) Reset()         { *m = HelmAppSpec{} }
 func (m *HelmAppSpec) String() string { return proto.CompactTextString(m) }
 func (*HelmAppSpec) ProtoMessage()    {}
 func (*HelmAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{10}
+	return fileDescriptor_dd8723cfcc820480, []int{12}
 }
 func (m *HelmAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -860,7 +957,7 @@ func (m *KustomizeAppSpec) Reset()         { *m = KustomizeAppSpec{} }
 func (m *KustomizeAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KustomizeAppSpec) ProtoMessage()    {}
 func (*KustomizeAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{11}
+	return fileDescriptor_dd8723cfcc820480, []int{13}
 }
 func (m *KustomizeAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -912,7 +1009,7 @@ func (m *KsonnetEnvironment) Reset()         { *m = KsonnetEnvironment{} }
 func (m *KsonnetEnvironment) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironment) ProtoMessage()    {}
 func (*KsonnetEnvironment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{12}
+	return fileDescriptor_dd8723cfcc820480, []int{14}
 }
 func (m *KsonnetEnvironment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -976,7 +1073,7 @@ func (m *KsonnetEnvironmentDestination) Reset()         { *m = KsonnetEnvironmen
 func (m *KsonnetEnvironmentDestination) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironmentDestination) ProtoMessage()    {}
 func (*KsonnetEnvironmentDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{13}
+	return fileDescriptor_dd8723cfcc820480, []int{15}
 }
 func (m *KsonnetEnvironmentDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1030,7 +1127,7 @@ func (m *DirectoryAppSpec) Reset()         { *m = DirectoryAppSpec{} }
 func (m *DirectoryAppSpec) String() string { return proto.CompactTextString(m) }
 func (*DirectoryAppSpec) ProtoMessage()    {}
 func (*DirectoryAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{14}
+	return fileDescriptor_dd8723cfcc820480, []int{16}
 }
 func (m *DirectoryAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1070,7 +1167,7 @@ func (m *HelmChartsRequest) Reset()         { *m = HelmChartsRequest{} }
 func (m *HelmChartsRequest) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsRequest) ProtoMessage()    {}
 func (*HelmChartsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{15}
+	return fileDescriptor_dd8723cfcc820480, []int{17}
 }
 func (m *HelmChartsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1118,7 +1215,7 @@ func (m *HelmChart) Reset()         { *m = HelmChart{} }
 func (m *HelmChart) String() string { return proto.CompactTextString(m) }
 func (*HelmChart) ProtoMessage()    {}
 func (*HelmChart) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{16}
+	return fileDescriptor_dd8723cfcc820480, []int{18}
 }
 func (m *HelmChart) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1172,7 +1269,7 @@ func (m *HelmChartsResponse) Reset()         { *m = HelmChartsResponse{} }
 func (m *HelmChartsResponse) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsResponse) ProtoMessage()    {}
 func (*HelmChartsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{17}
+	return fileDescriptor_dd8723cfcc820480, []int{19}
 }
 func (m *HelmChartsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1210,6 +1307,8 @@ func (m *HelmChartsResponse) GetItems() []*HelmChart {
 
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "repository.ManifestRequest")
+	proto.RegisterType((*TestRepositoryRequest)(nil), "repository.TestRepositoryRequest")
+	proto.RegisterType((*TestRepositoryResponse)(nil), "repository.TestRepositoryResponse")
 	proto.RegisterType((*ManifestResponse)(nil), "repository.ManifestResponse")
 	proto.RegisterType((*ListRefsRequest)(nil), "repository.ListRefsRequest")
 	proto.RegisterType((*Refs)(nil), "repository.Refs")
@@ -1335,6 +1434,8 @@ const _ = grpc.SupportPackageIsVersion4
 type RepoServerServiceClient interface {
 	// GenerateManifest generates manifest for application in specified repo name and revision
 	GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error)
+	// Returns a bool val if the repository is valid and has proper access
+	TestRepository(ctx context.Context, in *TestRepositoryRequest, opts ...grpc.CallOption) (*TestRepositoryResponse, error)
 	// Returns a list of refs (eg. branches and tags) in the repo
 	ListRefs(ctx context.Context, in *ListRefsRequest, opts ...grpc.CallOption) (*Refs, error)
 	// ListApps returns a list of apps in the repo
@@ -1358,6 +1459,15 @@ func NewRepoServerServiceClient(cc *grpc.ClientConn) RepoServerServiceClient {
 func (c *repoServerServiceClient) GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error) {
 	out := new(ManifestResponse)
 	err := c.cc.Invoke(ctx, "/repository.RepoServerService/GenerateManifest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *repoServerServiceClient) TestRepository(ctx context.Context, in *TestRepositoryRequest, opts ...grpc.CallOption) (*TestRepositoryResponse, error) {
+	out := new(TestRepositoryResponse)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/TestRepository", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1413,6 +1523,8 @@ func (c *repoServerServiceClient) GetHelmCharts(ctx context.Context, in *HelmCha
 type RepoServerServiceServer interface {
 	// GenerateManifest generates manifest for application in specified repo name and revision
 	GenerateManifest(context.Context, *ManifestRequest) (*ManifestResponse, error)
+	// Returns a bool val if the repository is valid and has proper access
+	TestRepository(context.Context, *TestRepositoryRequest) (*TestRepositoryResponse, error)
 	// Returns a list of refs (eg. branches and tags) in the repo
 	ListRefs(context.Context, *ListRefsRequest) (*Refs, error)
 	// ListApps returns a list of apps in the repo
@@ -1431,6 +1543,9 @@ type UnimplementedRepoServerServiceServer struct {
 
 func (*UnimplementedRepoServerServiceServer) GenerateManifest(ctx context.Context, req *ManifestRequest) (*ManifestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateManifest not implemented")
+}
+func (*UnimplementedRepoServerServiceServer) TestRepository(ctx context.Context, req *TestRepositoryRequest) (*TestRepositoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestRepository not implemented")
 }
 func (*UnimplementedRepoServerServiceServer) ListRefs(ctx context.Context, req *ListRefsRequest) (*Refs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRefs not implemented")
@@ -1466,6 +1581,24 @@ func _RepoServerService_GenerateManifest_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepoServerServiceServer).GenerateManifest(ctx, req.(*ManifestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RepoServerService_TestRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TestRepositoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoServerServiceServer).TestRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repository.RepoServerService/TestRepository",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoServerServiceServer).TestRepository(ctx, req.(*TestRepositoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1567,6 +1700,10 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateManifest",
 			Handler:    _RepoServerService_GenerateManifest_Handler,
+		},
+		{
+			MethodName: "TestRepository",
+			Handler:    _RepoServerService_TestRepository_Handler,
 		},
 		{
 			MethodName: "ListRefs",
@@ -1746,6 +1883,82 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TestRepositoryRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TestRepositoryRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TestRepositoryRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Repo != nil {
+		{
+			size, err := m.Repo.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TestRepositoryResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TestRepositoryResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TestRepositoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.VerifiedRepository {
+		i--
+		if m.VerifiedRepository {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -2730,6 +2943,37 @@ func (m *ManifestRequest) Size() (n int) {
 	return n
 }
 
+func (m *TestRepositoryRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Repo != nil {
+		l = m.Repo.Size()
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TestRepositoryResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.VerifiedRepository {
+		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *ManifestResponse) Size() (n int) {
 	if m == nil {
 		return 0
@@ -3583,6 +3827,170 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.VerifySignature = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepository(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TestRepositoryRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepository
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TestRepositoryRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TestRepositoryRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Repo == nil {
+				m.Repo = &v1alpha1.Repository{}
+			}
+			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepository(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TestRepositoryResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepository
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TestRepositoryResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TestRepositoryResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifiedRepository", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.VerifiedRepository = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])

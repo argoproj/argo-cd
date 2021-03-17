@@ -1372,3 +1372,56 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 	}
 	return &res, nil
 }
+
+func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+	repo := q.Repo
+	checks := map[string]func() error{
+		"git": func() error {
+			return s.TestRepo(repo)
+		},
+		"helm": func() error {
+			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
+				return err
+			} else {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
+				return err
+			}
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return &apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil
+		}
+	}
+	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
+}
+
+// TestRepo tests if a repo exists and is accessible with the given credentials
+func (s *Service) TestRepo(repo *v1alpha1.Repository) error {
+	clnt, err := s.newClient(repo)
+	if err != nil {
+		return err
+	}
+	revision := "HEAD"
+	closer, err := s.repoLock.Lock(clnt.Root(), revision, true, func() error {
+		err = clnt.Init()
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		}
+		_, err = clnt.LsRemote(revision)
+		return err
+	})
+
+	defer io.Close(closer)
+
+	return err
+}

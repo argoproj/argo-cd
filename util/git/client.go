@@ -271,15 +271,15 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) Fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+		_, err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
 	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+		_, err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	}
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
+			_, err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -332,7 +332,7 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			if _, err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
 				return err
 			}
 		}
@@ -515,16 +515,16 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
-func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
+func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { _ = closer.Close() }()
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd)
-	return err
+	out, err := m.runCmdOutput(cmd)
+	return out, err
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
