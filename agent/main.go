@@ -68,7 +68,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			if info.IsDir() {
 				return nil
 			}
-			if ext := filepath.Ext(info.Name()); ext != ".json" && ext != ".yml" && ext != ".yaml" {
+			if ext := strings.ToLower(filepath.Ext(info.Name())); ext != ".json" && ext != ".yml" && ext != ".yaml" {
 				return nil
 			}
 			data, err := ioutil.ReadFile(path)
