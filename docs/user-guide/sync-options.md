@@ -93,3 +93,21 @@ using `PrunePropagationPolicy` sync option. Supported policies are background, f
 syncOptions:
 - PrunePropagationPolicy=foreground
 ```
+
+## Prune Last
+
+This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation, 
+after the other resources have been deployed and become healthy, and after all other waves completed successfully. 
+
+```yaml
+syncOptions:
+- PruneLast=true
+```
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: PruneLast=true
+```
+
