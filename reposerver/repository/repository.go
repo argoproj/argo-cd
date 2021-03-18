@@ -1117,7 +1117,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					continue
 				}
 				fName := f.Name()
-				if strings.Contains(fName, "values") && (filepath.Ext(fName) == ".yaml" || filepath.Ext(fName) == ".yml") {
+				fileNameExt := strings.ToLower(filepath.Ext(fName))
+				if strings.Contains(fName, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
