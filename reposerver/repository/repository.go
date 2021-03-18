@@ -1379,18 +1379,7 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 }
 
 func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
-	repo := q.Repo
-
-	if q.IsHelm {
-		repo.Type = "helm"
-	} else {
-		repo.Type = "git"
-	}
-	repo.EnableOCI = repo.EnableOCI || q.IsHelmOci
-	return TestRepo(q)
-}
-
-func TestRepo(q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+	log.Infof("Inside reposerver TestRepository")
 	repo := q.Repo
 	checks := map[string]func() error{
 		"git": func() error {

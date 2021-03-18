@@ -153,7 +153,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
@@ -162,7 +162,14 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	return TestRepo(repo)
+	log.Infof("Calling TestRepository in ValidateRepo")
+	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo:      repo,
+		IsHelm:    isHelm,
+		IsHelmOci: isHelmOci,
+	})
+
+	return err
 }
 
 func TestRepo(repo *argoappv1.Repository) error {
@@ -223,13 +230,7 @@ func ValidateRepo(
 
 	repoAccessible := false
 
-	log.Infof("Calling TestRepository in ValidateRepo")
-	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-		Repo:      repo,
-		IsHelm:    app.Spec.Source.IsHelm(),
-		IsHelmOci: app.Spec.Source.IsHelmOci(),
-	})
-	//err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
+	err = TestRepoWithKnownType(ctx, repoClient, repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

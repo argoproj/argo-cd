@@ -172,6 +172,7 @@ service RepoServerService {
     // Returns a bool val if the repository is valid and has proper access
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
     }
+    
     // Returns a list of refs (eg. branches and tags) in the repo
     rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
