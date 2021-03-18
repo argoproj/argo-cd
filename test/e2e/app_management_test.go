@@ -1566,3 +1566,24 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 			errors.CheckError(err)
 		})
 }
+
+func TestSyncOptionReplace(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "ConfigMap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+		})
+}

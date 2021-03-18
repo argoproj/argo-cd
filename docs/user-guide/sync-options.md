@@ -111,3 +111,17 @@ metadata:
     argocd.argoproj.io/sync-options: PruneLast=true
 ```
 
+## Replace Resource Instead Of Applying Changes
+
+By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
+`kubectl apply` is not suitable. For example, resource spec might be too big and won't fit into
+`kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
+might use `Replace=true` sync option:
+
+
+```yaml
+syncOptions:
+- Replace=true
+```
+
+If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
