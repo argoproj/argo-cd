@@ -251,10 +251,30 @@ const (
 )
 
 func (a *ArgoCDServer) healthCheck(r *http.Request) error {
+	full := false
+	extended := false
+
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+		full = true
+	}
+
+	if val, ok := r.URL.Query()["extended"]; ok && len(val) > 0 && val[0] == "true" {
+		full = true
+		extended = true
+	}
+
+	// full health check is used by liveness probe and verifies issues that can be fixed by restart
+	if full {
 		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 		_, err := argoDB.ListClusters(r.Context())
 		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
+			return err
+		}
+	}
+
+	// extended health check verifies dependencies and should be used for alerting only
+	if extended {
+		if err := a.RedisClient.Set(context.Background(), "__argocd_write_test", time.Now().Format(time.RFC3339), time.Minute).Err(); err != nil {
 			return err
 		}
 	}
