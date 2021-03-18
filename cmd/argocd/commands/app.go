@@ -1088,7 +1088,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
-	command.Flags().StringVarP(&selector, "repo", "r", "", "List apps by source repo URL")
+	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	return command
 }
 
