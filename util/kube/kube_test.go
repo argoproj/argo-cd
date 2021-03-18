@@ -155,3 +155,10 @@ func TestSetSvcLabel(t *testing.T) {
 	log.Println(s.ObjectMeta)
 	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelKeyAppInstance])
 }
+
+func TestIsValidResourceName(t *testing.T) {
+	assert.True(t, IsValidResourceName("guestbook-ui"))
+	assert.True(t, IsValidResourceName("guestbook-ui1"))
+	assert.False(t, IsValidResourceName("Guestbook-ui"))
+	assert.False(t, IsValidResourceName("-guestbook-ui"))
+}
