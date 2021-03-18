@@ -1,9 +1,11 @@
-import {Checkbox, Select} from 'argo-ui';
+import {Checkbox, Select, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
 require('./application-sync-options.scss');
+
+const REPLACE_WARNING = `The resource will be synced using 'kubectl replace/create' command that is a potentially destructive action.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
@@ -36,7 +38,7 @@ function selectOption(name: string, label: string, defaultVal: string, values: s
     );
 }
 
-function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean) {
+function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean, warning: string = null) {
     const options = [...(props.options || [])];
     const prefix = `${name}=`;
     const index = options.findIndex(item => item.startsWith(prefix));
@@ -55,7 +57,12 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
                     }
                 }}
             />
-            <label htmlFor={`sync-option-${name}`}>{label}</label>
+            <label htmlFor={`sync-option-${name}`}>{label}</label>{' '}
+            {warning && (
+                <Tooltip content={warning}>
+                    <i className='fa fa-exclamation-triangle' />
+                </Tooltip>
+            )}
         </React.Fragment>
     );
 }
@@ -79,13 +86,14 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
     props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
+    props => booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
 const optionStyle = {marginTop: '0.5em'};
 
 export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
-    <div className='row'>
+    <div className='row application-sync-options'>
         {syncOptions.map((render, i) => (
             <div
                 key={i}
