@@ -177,6 +177,12 @@ export class ApplicationsService {
             .then(() => true);
     }
 
+    public getDownloadLogsURL(applicationName: string, namespace: string, podName: string, resource: {group: string; kind: string; name: string}, containerName: string): string {
+        const search = this.getLogsQuery(namespace, podName, resource, containerName, null, false);
+        search.set('download', 'true');
+        return `/api/v1/applications/${applicationName}/logs?${search.toString()}`;
+    }
+
     public getContainerLogs(
         applicationName: string,
         namespace: string,
@@ -188,31 +194,7 @@ export class ApplicationsService {
         untilTime?: string,
         filter?: string
     ): Observable<models.LogEntry> {
-        if (follow === undefined || follow === null) {
-            follow = true;
-        }
-        const search = new URLSearchParams();
-        search.set('container', containerName);
-        search.set('namespace', namespace);
-        if (follow) {
-            search.set('follow', follow.toString());
-        }
-        if (podName) {
-            search.set('podName', podName);
-        } else {
-            search.set('group', resource.group);
-            search.set('kind', resource.kind);
-            search.set('resourceName', resource.name);
-        }
-        if (tail) {
-            search.set('tailLines', tail.toString());
-        }
-        if (untilTime) {
-            search.set('untilTime', untilTime);
-        }
-        if (filter) {
-            search.set('filter', filter);
-        }
+        const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter);
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
         let first = true;
         return new Observable(observer => {
@@ -347,6 +329,44 @@ export class ApplicationsService {
             .delete(`/applications/${applicationName}/operation`)
             .send()
             .then(() => true);
+    }
+
+    private getLogsQuery(
+        namespace: string,
+        podName: string,
+        resource: {group: string; kind: string; name: string},
+        containerName: string,
+        tail?: number,
+        follow?: boolean,
+        untilTime?: string,
+        filter?: string
+    ): URLSearchParams {
+        if (follow === undefined || follow === null) {
+            follow = true;
+        }
+        const search = new URLSearchParams();
+        search.set('container', containerName);
+        search.set('namespace', namespace);
+        if (follow) {
+            search.set('follow', follow.toString());
+        }
+        if (podName) {
+            search.set('podName', podName);
+        } else {
+            search.set('group', resource.group);
+            search.set('kind', resource.kind);
+            search.set('resourceName', resource.name);
+        }
+        if (tail) {
+            search.set('tailLines', tail.toString());
+        }
+        if (untilTime) {
+            search.set('untilTime', untilTime);
+        }
+        if (filter) {
+            search.set('filter', filter);
+        }
+        return search;
     }
 
     private parseAppFields(data: any): models.Application {
