@@ -1129,6 +1129,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replace-resource-instead-of-applying-changes" class="md-nav__link">
+    Replace Resource Instead Of Applying Changes
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1641,6 +1648,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replace-resource-instead-of-applying-changes" class="md-nav__link">
+    Replace Resource Instead Of Applying Changes
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1736,6 +1750,17 @@ after the other resources have been deployed and become healthy, and after all o
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PruneLast=true</span>
 </code></pre></div>
+
+<h2 id="replace-resource-instead-of-applying-changes">Replace Resource Instead Of Applying Changes<a class="headerlink" href="#replace-resource-instead-of-applying-changes" title="Permanent link">&para;</a></h2>
+<p>By default, Argo CD executes <code>kubectl apply</code> operation to apply the configuration stored in Git. In some cases
+<code>kubectl apply</code> is not suitable. For example, resource spec might be too big and won't fit into
+<code>kubectl.kubernetes.io/last-applied-configuration</code> annotation that is added by <code>kubectl apply</code>. In such cases you
+might use <code>Replace=true</code> sync option:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">syncOptions</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Replace=true</span>
+</code></pre></div>
+
+<p>If the <code>Replace=true</code> sync option is set the Argo CD will use <code>kubectl replace</code> or <code>kubectl create</code> command to apply changes.</p>
                 
               
               
