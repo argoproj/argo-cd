@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/auth"
+	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -38,6 +40,8 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
 	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
+	ReplaceResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error)
+	CreateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -214,13 +218,9 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
-// ApplyResource performs an apply of a unstructured resource
-func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
-	span := k.Tracer.StartSpan("ApplyResource")
-	span.SetBaggageItem("kind", obj.GetKind())
-	span.SetBaggageItem("name", obj.GetName())
-	defer span.Finish()
-	k.Log.Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace))
+type commandExecutor func(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, dryRunStrategy cmdutil.DryRunStrategy) error
+
+func (k *KubectlCmd) runResourceCommand(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, executor commandExecutor) (string, error) {
 	f, err := ioutil.TempFile(io.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
@@ -287,19 +287,9 @@ func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj
 		// last-applied-configuration annotation in the object.
 	}
 
-	cleanup, err := k.processKubectlRun("apply")
-	if err != nil {
-		return "", err
-	}
-	defer cleanup()
-
 	// Run kubectl apply
 	fact, ioStreams := kubeCmdFactory(f.Name(), namespace)
-	applyOpts, err := newApplyOptions(config, fact, ioStreams, manifestFile.Name(), namespace, validate, force, dryRunStrategy)
-	if err != nil {
-		return "", err
-	}
-	err = applyOpts.Run()
+	err = executor(config, fact, ioStreams, manifestFile.Name(), namespace, dryRunStrategy)
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
 	}
@@ -326,6 +316,78 @@ func kubeCmdFactory(kubeconfig, ns string) (cmdutil.Factory, genericclioptions.I
 		ErrOut: &bytes.Buffer{},
 	}
 	return f, ioStreams
+}
+
+func (k *KubectlCmd) ReplaceResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error) {
+	span := k.Tracer.StartSpan("ReplaceResource")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
+	k.Log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace))
+	return k.runResourceCommand(ctx, config, obj, namespace, dryRunStrategy, func(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, dryRunStrategy cmdutil.DryRunStrategy) error {
+		cleanup, err := k.processKubectlRun("replace")
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		replaceOptions, err := newReplaceOptions(config, f, ioStreams, fileName, namespace, force, dryRunStrategy)
+		if err != nil {
+			return err
+		}
+		return replaceOptions.Run(f)
+	})
+}
+
+func (k *KubectlCmd) CreateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+	gvk := obj.GroupVersionKind()
+	span := k.Tracer.StartSpan("CreateResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+
+	createOptions := metav1.CreateOptions{}
+	switch dryRunStrategy {
+	case cmdutil.DryRunClient, cmdutil.DryRunServer:
+		createOptions.DryRun = []string{metav1.DryRunAll}
+	}
+	return resourceIf.Create(ctx, obj, createOptions)
+}
+
+// ApplyResource performs an apply of a unstructured resource
+func (k *KubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
+	span := k.Tracer.StartSpan("ApplyResource")
+	span.SetBaggageItem("kind", obj.GetKind())
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
+	k.Log.Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace))
+	return k.runResourceCommand(ctx, config, obj, namespace, dryRunStrategy, func(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, dryRunStrategy cmdutil.DryRunStrategy) error {
+		cleanup, err := k.processKubectlRun("apply")
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		applyOpts, err := newApplyOptions(config, f, ioStreams, fileName, namespace, validate, force, dryRunStrategy)
+		if err != nil {
+			return err
+		}
+		return applyOpts.Run()
+	})
 }
 
 func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, validate bool, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*apply.ApplyOptions, error) {
@@ -378,6 +440,61 @@ func newApplyOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericcl
 	o.Namespace = namespace
 	o.DeleteOptions.ForceDeletion = force
 	o.DryRunStrategy = dryRunStrategy
+	return o, nil
+}
+
+func newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
+	o := replace.NewReplaceOptions(ioStreams)
+
+	recorder, err := o.RecordFlags.ToRecorder()
+	if err != nil {
+		return nil, err
+	}
+	o.Recorder = recorder
+
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	o.DeleteOptions, err = o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
+	if err != nil {
+		return nil, err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
+	o.Builder = func() *resource.Builder {
+		return f.NewBuilder()
+	}
+
+	switch dryRunStrategy {
+	case cmdutil.DryRunClient:
+		err = o.PrintFlags.Complete("%s (dry run)")
+		if err != nil {
+			return nil, err
+		}
+	case cmdutil.DryRunServer:
+		err = o.PrintFlags.Complete("%s (server dry run)")
+		if err != nil {
+			return nil, err
+		}
+	}
+	o.DryRunStrategy = dryRunStrategy
+
+	printer, err := o.PrintFlags.ToPrinter()
+	if err != nil {
+		return nil, err
+	}
+	o.PrintObj = func(obj runtime.Object) error {
+		return printer.PrintObj(obj, o.Out)
+	}
+
+	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
+	o.Namespace = namespace
+	o.DeleteOptions.ForceDeletion = force
 	return o, nil
 }
 

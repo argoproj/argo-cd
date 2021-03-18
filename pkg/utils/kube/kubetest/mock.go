@@ -22,26 +22,46 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	APIResources     []kube.APIResourceInfo
-	Commands         map[string]KubectlOutput
-	Events           chan watch.Event
-	lastValidate     bool
-	Version          string
-	DynamicClient    dynamic.Interface
-	APIGroups        []metav1.APIGroup
-	lastValidateLock sync.RWMutex
+	APIResources  []kube.APIResourceInfo
+	Commands      map[string]KubectlOutput
+	Events        chan watch.Event
+	Version       string
+	DynamicClient dynamic.Interface
+	APIGroups     []metav1.APIGroup
+
+	lastCommandPerResource map[kube.ResourceKey]string
+	lastValidate           bool
+	recordLock             sync.RWMutex
+}
+
+func (k *MockKubectlCmd) GetLastResourceCommand(key kube.ResourceKey) string {
+	k.recordLock.Lock()
+	defer k.recordLock.Unlock()
+	if k.lastCommandPerResource == nil {
+		return ""
+	}
+	return k.lastCommandPerResource[key]
+}
+
+func (k *MockKubectlCmd) SetLastResourceCommand(key kube.ResourceKey, cmd string) {
+	k.recordLock.Lock()
+	if k.lastCommandPerResource == nil {
+		k.lastCommandPerResource = map[kube.ResourceKey]string{}
+	}
+	k.lastCommandPerResource[key] = cmd
+	k.recordLock.Unlock()
 }
 
 func (k *MockKubectlCmd) SetLastValidate(validate bool) {
-	k.lastValidateLock.Lock()
+	k.recordLock.Lock()
 	k.lastValidate = validate
-	k.lastValidateLock.Unlock()
+	k.recordLock.Unlock()
 }
 
 func (k *MockKubectlCmd) GetLastValidate() bool {
-	k.lastValidateLock.RLock()
+	k.recordLock.RLock()
 	validate := k.lastValidate
-	k.lastValidateLock.RUnlock()
+	k.recordLock.RUnlock()
 	return validate
 }
 
@@ -69,9 +89,28 @@ func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config
 	return command.Err
 }
 
+func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+	k.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
+	command, ok := k.Commands[obj.GetName()]
+	if !ok {
+		return obj, nil
+	}
+	return obj, command.Err
+}
+
 func (k *MockKubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
 	k.SetLastValidate(validate)
+	k.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")
 	command, ok := k.Commands[obj.GetName()]
+	if !ok {
+		return "", nil
+	}
+	return command.Output, command.Err
+}
+
+func (k *MockKubectlCmd) ReplaceResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error) {
+	command, ok := k.Commands[obj.GetName()]
+	k.SetLastResourceCommand(kube.GetResourceKey(obj), "replace")
 	if !ok {
 		return "", nil
 	}

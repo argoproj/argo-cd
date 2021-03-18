@@ -172,6 +172,12 @@ func WithSyncWaveHook(syncWaveHook common.SyncWaveHook) SyncOpt {
 	}
 }
 
+func WithReplace(replace bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.replace = replace
+	}
+}
+
 //  NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -305,6 +311,7 @@ type syncContext struct {
 	skipHooks              bool
 	resourcesFilter        func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
 	prune                  bool
+	replace                bool
 	pruneLast              bool
 	prunePropagationPolicy *metav1.DeletionPropagation
 
@@ -800,17 +807,35 @@ func (sc *syncContext) ensureCRDReady(name string) {
 	})
 }
 
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool, validate bool) (common.ResultCode, string) {
+func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
 		dryRunStrategy = cmdutil.DryRunClient
 	}
-	message, err := sc.kubectl.ApplyResource(context.TODO(), sc.rawConfig, targetObj, targetObj.GetNamespace(), dryRunStrategy, force, validate)
+
+	var err error
+	var message string
+	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
+	// always use 'kubectl apply' for CRDs since 'replace' might recreate resource and so delete all CRD instances
+	if shouldReplace && !kube.IsCRD(t.targetObj) {
+		if t.liveObj != nil {
+			message, err = sc.kubectl.ReplaceResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force)
+		} else {
+			_, err = sc.kubectl.CreateResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy)
+			if err == nil {
+				message = fmt.Sprintf("%s/%s created", t.targetObj.GetKind(), t.targetObj.GetName())
+			} else {
+				message = fmt.Sprintf("error when creating: %v", err.Error())
+			}
+		}
+	} else {
+		message, err = sc.kubectl.ApplyResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force, validate)
+	}
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
 	}
-	if kube.IsCRD(targetObj) && !dryRun {
-		sc.ensureCRDReady(targetObj.GetName())
+	if kube.IsCRD(t.targetObj) && !dryRun {
+		sc.ensureCRDReady(t.targetObj.GetName())
 	}
 	return common.ResultCodeSynced, message
 }
@@ -1054,7 +1079,7 @@ func (sc *syncContext) processCreateTasks(state runState, tasks syncTasks, dryRu
 			logCtx := sc.log.WithValues("dryRun", dryRun, "task", t)
 			logCtx.V(1).Info("Applying")
 			validate := sc.validate && !resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionsDisableValidation)
-			result, message := sc.applyObject(t.targetObj, dryRun, sc.force, validate)
+			result, message := sc.applyObject(t, dryRun, sc.force, validate)
 			if result == common.ResultCodeSyncFailed {
 				logCtx.WithValues("message", message).Info("Apply failed")
 				state = failed
