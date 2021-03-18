@@ -117,6 +117,21 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </button>
+                        <button
+                            className='argo-button argo-button--base'
+                            style={{width: '100px'}}
+                            onClick={async () => {
+                                const downloadURL = services.applications.getDownloadLogsURL(
+                                    props.applicationName,
+                                    props.namespace,
+                                    props.podName,
+                                    {group: props.group, kind: props.kind, name: props.name},
+                                    props.containerName
+                                );
+                                window.open(downloadURL, '_blank');
+                            }}>
+                            DOWNLOAD
+                        </button>
                         {!props.fullscreen && (
                             <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
                                 <i className='fa fa-external-link-alt' />
