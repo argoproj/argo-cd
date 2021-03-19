@@ -3170,9 +3170,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-          runAsGroup: 1001
           runAsNonRoot: true
-          runAsUser: 1001
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -3188,10 +3186,14 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
         name: static-files
+      - emptyDir: {}
+        name: dexconfig
 ---
 apiVersion: apps/v1
 kind: Deployment
