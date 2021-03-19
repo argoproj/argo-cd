@@ -2,6 +2,8 @@
 
 ## v2.0.0 (Unreleased)
 
+> [Upgrade instructions](./docs/operator-manual/upgrading/1.8-2.0.md)
+
 ### Pods View
 
 Pods View is particularly useful for applications that have hundreds of pods. Instead of visualizing all Kubernetes
@@ -27,8 +29,8 @@ Want to notify your Argo CD users of upcoming changes? Just specify the notifica
 
 ### Core Features
 
-* The new sync option `PrunePropagationPolicy=background` allows using foreground deletion during syncing
-* New application finalizer `resources-finalizer.argocd.argoproj.io:background` allows using foreground deletion when the application is deleted
+* The new sync option `PrunePropagationPolicy=background` allows using background deletion during syncing
+* New application finalizer `resources-finalizer.argocd.argoproj.io:background` allows using background deletion when the application is deleted
 * The new sync option `ApplyOutOfSyncOnly=true` allows skipping syncing resources that are already in the desired state.
 * The new sync option `PruneLast=true` allows deferring resource pruning until the last synchronization phase after all other resources are synced and healthy.
 
