@@ -1,6 +1,111 @@
 # Changelog
 
-## v1.8.0 (Unreleased)
+## v2.0.0 (Unreleased)
+
+> [Upgrade instructions](./docs/operator-manual/upgrading/1.8-2.0.md)
+
+### Pods View
+
+Pods View is particularly useful for applications that have hundreds of pods. Instead of visualizing all Kubernetes
+resources for the application, it only shows Kubernetes pods and closely related resources. The Pods View supports
+grouping related resources by Parent Resource, Top Level Parent, or by Node. Each way of grouping solves a particular
+use case. For example grouping by Top Level Parent allows you to quickly find how many pods your application is running
+and which resources created them. Grouping by Node allows to see how Pods are spread across the nodes and how many
+resources they requested.
+
+
+### Logs Viewer
+
+Argo CD provides a way to see live logs of pods, which is very useful for debugging and troubleshooting. In the v2.0
+release, the log visualization has been rewritten to support pagination, filtering, the ability to disable/enable log
+streaming, and even a dark mode for terminal lovers. Do you want to see aggregated logs of multiple deployment pods?
+Not a problem! Just click on the parent resource such as Deployment, ReplicaSet, or StatefulSet and navigate
+to the Logs tab.
+
+### Banner Feature
+
+Want to notify your Argo CD users of upcoming changes? Just specify the notification message and optional URL using the
+`ui.bannercontent` and `ui.bannerurl` attributes in the `argocd-cm` ConfigMap. 
+
+### Core Features
+
+* The new sync option `PrunePropagationPolicy=background` allows using background deletion during syncing
+* New application finalizer `resources-finalizer.argocd.argoproj.io:background` allows using background deletion when the application is deleted
+* The new sync option `ApplyOutOfSyncOnly=true` allows skipping syncing resources that are already in the desired state.
+* The new sync option `PruneLast=true` allows deferring resource pruning until the last synchronization phase after all other resources are synced and healthy.
+
+### The argocd-util CLI
+
+Argo CD Util is a CLI tool that contains useful commands for operators who manage Argo CD. Starting from this release
+the Argo CD Utility is published with every Argo CD release as a Homebrew installation.
+
+## v1.8.7 (2021-02-26)
+
+### Important note
+This release fixed a regression regarding which cluster resources are permitted on the AppProject level.
+Previous to this fix, after #3960 has been merged, all cluster resources were allowed on project level when neither of
+the allow or deny lists was defined. However, the correct behavior is to block all resources in this case.
+
+If you have Projects with empty allow and deny lists, but want the associated applications be able to sync cluster
+resources, you will have to adapt your cluster resources allow lists to explicitly allow the resources.
+
+- fix: redact sensitive data in logs (#5662)
+- fix: Properly escape HTML for error message from CLI SSO (#5563)
+- fix: Empty resource whitelist allowed all resources (#5540) (#5551)
+
+## v1.8.6 (2021-02-26)
+
+- fix: Properly escape HTML for error message from CLI SSO (#5563)
+- fix: API server should not print resource body when resource update fails (#5617)
+- fix: fix memory leak in application controller (#5604)
+
+## v1.8.5 (2021-02-19)
+
+- fix: 'argocd app wait --suspended' stuck if operation is in progress (#5511)
+- fix: Presync hooks stop working after namespace resource is added in a Helm chart #5522
+- docs: add the missing rbac resources to the documentation (#5476)
+- refactor: optimize argocd-application-controller redis usage (#5345)
+
+## v1.8.4 (2021-02-05)
+
+- feat: set X-XSS-Protection while serving static content (#5412)
+- fix: version info should be avaialble if anonymous access is enabled (#5422)
+- fix: disable jwt claim audience validation #5381 (#5413)
+- fix: /api/version should not return tools version for unauthenticated requests (#5415)
+- fix: account tokens should be rejected if required capability is disabled (#5414)
+- fix: tokens keep working after account is deactivated (#5402)
+- fix: a request which was using a revoked project token, would still be allowed to perform requests allowed by default policy (#5378)
+
+## v1.8.3 (2021-01-21)
+
+- fix: make sure JWT token time fields contain only integer values (#5228)
+
+## v1.8.2 (2021-01-09)
+
+### Bug Fixes
+
+- fix: updating cluster drops secret (#5220)
+- fix: remove invalid assumption about OCI helm chart path (#5179)
+- fix: Possible nil pointer dereference in repository API (#5128)
+- fix: Possible nil pointer dereference in repocreds API (#5130)
+- fix: use json serialization to store cache instead of github.com/vmihailenco/msgpack (#4965)
+- fix: add liveness probe to restart repo server if it fails to server tls requests (#5110) (#5119)
+- fix: Allow correct SSO redirect URL for CLI static client (#5098)
+- fix: add grpc health check (#5060)
+- fix: setting 'revision history limit' errors in UI (#5035)
+- fix: add api-server liveness probe that catches bad data in informer (#5026)
+
+### Refactoring
+
+- chore: Update Dex to v2.27.0 (#5058)
+- chore: Upgrade gorilla/handlers and gorilla/websocket (#5186)
+- chore: Upgrade jwt-go to 4.0.0-preview1 (#5184)
+
+## v1.8.1 (2020-12-09)
+
+- fix: sync retry is broken for multi-phase syncs (#5017)
+
+## v1.8.0 (2020-12-09)
 
 ### Mono-Repository Improvements
 
