@@ -3082,6 +3082,12 @@ spec:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1001
+          runAsNonRoot: true
+          runAsUser: 1001
         volumeMounts:
         - mountPath: /shared
           name: static-files
