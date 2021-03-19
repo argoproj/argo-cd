@@ -2668,9 +2668,7 @@ spec:
           capabilities:
             drop:
             - all
-          readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 999
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -2766,9 +2764,7 @@ spec:
           capabilities:
             drop:
             - all
-          readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 999
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -2861,9 +2857,7 @@ spec:
           capabilities:
             drop:
             - all
-          readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 999
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
