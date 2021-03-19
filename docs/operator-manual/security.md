@@ -37,6 +37,7 @@ permits access to the API request.
 All network communication is performed over TLS including service-to-service communication between
 the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
+Communication with Redis is performed over plain HTTP by default. TLS can be setup with command line arguments.
 
 ## Sensitive Information
 
