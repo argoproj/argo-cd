@@ -766,6 +766,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#redis-upgraded-to-v621" class="md-nav__link">
+    Redis Upgraded to v6.2.1
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-variables-expansion" class="md-nav__link">
     Environment variables expansion
   </a>
@@ -1623,6 +1630,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#redis-upgraded-to-v621" class="md-nav__link">
+    Redis Upgraded to v6.2.1
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-variables-expansion" class="md-nav__link">
     Environment variables expansion
   </a>
@@ -1703,6 +1717,11 @@
                 
                 
                 <h1 id="v18-to-v20">v1.8 to v2.0<a class="headerlink" href="#v18-to-v20" title="Permanent link">&para;</a></h1>
+<h2 id="redis-upgraded-to-v621">Redis Upgraded to v6.2.1<a class="headerlink" href="#redis-upgraded-to-v621" title="Permanent link">&para;</a></h2>
+<p>The bundled Redis version has been upgraded to v6.2.1.</p>
+<p>The Redis itself should be able to upgrade with no downtime, as well as Argo CD does not use it as a persistent store.
+However, if you are running Argo CD in production with multiple users it is recommended to upgrade during off-peak
+hours to avoid user-visible failures.</p>
 <h2 id="environment-variables-expansion">Environment variables expansion<a class="headerlink" href="#environment-variables-expansion" title="Permanent link">&para;</a></h2>
 <p>Argo CD supports using <a href="../../../user-guide/build-environment/">environment variables</a> in
 config management tools parameters. The expansion logic has been improved and now expands missing environment variables
