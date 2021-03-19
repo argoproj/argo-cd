@@ -3249,6 +3249,7 @@ spec:
           capabilities:
             drop:
             - all
+          readOnlyRootFilesystem: true
           runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
@@ -3261,8 +3262,8 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
-        - mountPath: /home/argocd
-          name: plugins-home
+        - mountPath: /tmp
+          name: tmp
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3276,7 +3277,7 @@ spec:
       - emptyDir: {}
         name: gpg-keyring
       - emptyDir: {}
-        name: plugins-home
+        name: tmp
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3354,8 +3355,6 @@ spec:
           capabilities:
             drop:
             - all
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
