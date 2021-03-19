@@ -1379,11 +1379,10 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 }
 
 func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
-	log.Infof("Inside reposerver TestRepository")
 	repo := q.Repo
 	checks := map[string]func() error{
 		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+			return s.TestRepo(repo)
 		},
 		"helm": func() error {
 			if repo.EnableOCI {
@@ -1406,4 +1405,18 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		}
 	}
 	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
+}
+
+// TestRepo tests if a repo exists and is accessible with the given credentials
+func (s *Service) TestRepo(repo *v1alpha1.Repository) error {
+	clnt, err := s.newClient(repo)
+	if err != nil {
+		return err
+	}
+	err = clnt.Init()
+	if err != nil {
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+	}
+	_, err = clnt.LsRemoteGitCLI("HEAD")
+	return err
 }

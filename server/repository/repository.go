@@ -68,21 +68,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		// err = argo.TestRepo(repo)
-		log.Infof("Calling TestRepository in CreateRepository")
-		conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-		if err != nil {
-			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
-			return connectionState
-		}
-		defer io.Close(conn)
-
-		log.Infof("Calling TestRepository in ValidateRepo")
-		_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-			Repo:      repo,
-			IsHelm:    false,
-			IsHelmOci: false,
-		})
+		err = s.testRepo(ctx, repo)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -307,21 +293,9 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			}
 			repo.CopyCredentialsFrom(creds)
 		}
-		// err = argo.TestRepo(repo)
-		log.Infof("Calling TestRepository in CreateRepository")
-		conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-		if err != nil {
-			return nil, err
-		}
-		defer io.Close(conn)
-		var verifiedRepo *apiclient.TestRepositoryResponse
-		verifiedRepo, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-			Repo:      repo,
-			IsHelm:    false,
-			IsHelmOci: false,
-		})
 
-		if err != nil || verifiedRepo.VerifiedRepository {
+		err = s.testRepo(ctx, repo)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -430,22 +404,26 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	// err = argo.TestRepo(repo)
-	log.Infof("Calling TestRepository in CreateRepository")
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return nil, err
-	}
-	defer io.Close(conn)
-
-	log.Infof("Calling TestRepository in ValidateRepo")
-	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-		Repo:      repo,
-		IsHelm:    false,
-		IsHelmOci: false,
-	})
+	err = s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 	return &repositorypkg.RepoResponse{}, nil
+}
+
+func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return err
+	}
+	defer io.Close(conn)
+
+	log.Infof("Calling TestRepository in ValidateAccess")
+	isHelm := repo.Type == "helm"
+	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo:      repo,
+		IsHelm:    isHelm,
+		IsHelmOci: repo.EnableOCI,
+	})
+	return err
 }

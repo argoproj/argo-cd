@@ -38,6 +38,17 @@ func (w *gitClientWrapper) LsRefs() (*git.Refs, error) {
 	return w.client.LsRefs()
 }
 
+func (w *gitClientWrapper) LsRemoteGitCLI(revision string) (string, error) {
+	startTime := time.Now()
+	sha, err := w.client.LsRemoteGitCLI(revision)
+	if sha != revision {
+		// This is true only if specified revision is a tag, branch or HEAD and client had to use 'ls-remote'
+		w.metricsServer.IncGitRequest(w.repo, GitRequestTypeLsRemote)
+		defer w.metricsServer.ObserveGitRequestDuration(w.repo, GitRequestTypeLsRemote, time.Since(startTime))
+	}
+	return sha, err
+}
+
 func (w *gitClientWrapper) LsFiles(path string) ([]string, error) {
 	return w.client.LsFiles(path)
 }

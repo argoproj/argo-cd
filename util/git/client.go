@@ -52,6 +52,7 @@ type Client interface {
 	Checkout(revision string) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
+	LsRemoteGitCLI(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
@@ -405,6 +406,43 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
+// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
+// does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
+// Otherwise, it returns an error indicating that the revision could not be resolved. This method
+// runs with in-memory storage and is safe to run concurrently, or to be run without a git
+// repository locally cloned.
+func (m *nativeGitClient) LsRemoteGitCLI(revision string) (res string, err error) {
+	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+		if res, err = m.lsremoteGitCLI(revision); err == nil {
+			return
+		}
+	}
+	return
+}
+
+// ls-remote using git cli
+func (m *nativeGitClient) lsremoteGitCLI(revision string) (string, error) {
+	if revision == "" {
+		revision = "HEAD"
+	}
+	out, err := m.runCredentialedCmdWithOutput("git", "ls-remote", "origin", revision)
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+	if out != "" {
+		rev := strings.Fields(out)
+		if !strings.Contains(revision, rev[len(rev)-1]) {
+			log.Error(err)
+			return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+		} else {
+			return out, nil
+		}
+	}
+	// we were unable to resolve revision to a commit SHA.
+	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+}
+
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
@@ -527,6 +565,21 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 	return err
 }
 
+// runCredentialedCmd is a convenience function to run a git command with username/password credentials
+// nolint:unparam
+func (m *nativeGitClient) runCredentialedCmdWithOutput(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+	closer, environ, err := m.creds.Environ()
+	if err != nil {
+		return "", err
+	}
+	var out string
+	defer func() { _ = closer.Close() }()
+	cmd.Env = append(cmd.Env, environ...)
+	out, err = m.runCmdOutput(cmd)
+	return out, err
+}
+
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(cmd.Env, os.Environ()...)
@@ -550,6 +603,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 				log.Warnf("runCmdOutput: Could not parse repo URL '%s'", m.repoURL)
 			} else {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+				log.Infof("caPath %s", caPath)
+				log.Infof("err %s", err)
 				if err == nil && caPath != "" {
 					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
 				}

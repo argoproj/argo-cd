@@ -24,8 +24,6 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -169,34 +167,6 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 		IsHelmOci: isHelmOci,
 	})
 
-	return err
-}
-
-func TestRepo(repo *argoappv1.Repository) error {
-	checks := map[string]func() error{
-		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-		},
-		"helm": func() error {
-			if repo.EnableOCI {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
-				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
-				return err
-			}
-		},
-	}
-	if check, ok := checks[repo.Type]; ok {
-		return check()
-	}
-	var err error
-	for _, check := range checks {
-		err = check()
-		if err == nil {
-			return nil
-		}
-	}
 	return err
 }
 

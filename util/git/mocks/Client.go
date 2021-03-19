@@ -165,6 +165,27 @@ func (_m *Client) LsRemote(revision string) (string, error) {
 	return r0, r1
 }
 
+// LsRemoteGitCLI provides a mock function with given fields: revision
+func (_m *Client) LsRemoteGitCLI(revision string) (string, error) {
+	ret := _m.Called(revision)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(revision)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(revision)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RevisionMetadata provides a mock function with given fields: revision
 func (_m *Client) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	ret := _m.Called(revision)
