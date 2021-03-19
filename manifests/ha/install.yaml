@@ -3174,6 +3174,8 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       initContainers:
       - command:
         - cp
