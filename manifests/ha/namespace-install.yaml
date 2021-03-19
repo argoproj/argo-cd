@@ -3443,6 +3443,8 @@ spec:
           capabilities:
             drop:
             - all
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
