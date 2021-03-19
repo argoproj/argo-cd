@@ -28,6 +28,10 @@ spec:
           mountPath: /app/config/tls
         - name: argocd-repo-server-tls
           mountPath: /app/config/server/tls
+        - mountPath: /home/argocd
+          name: plugins-home
+        - mountPath: /tmp
+          name: tmp
         ports:
         - containerPort: 8080
         - containerPort: 8083
@@ -45,10 +49,16 @@ spec:
           periodSeconds: 30
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
           capabilities:
             drop:
               - all
       volumes:
+      - emptyDir: {}
+        name: plugins-home
+      - emptyDir: {}
+        name: tmp
       - emptyDir: {}
         name: static-files
       - name: ssh-known-hosts
