@@ -2595,6 +2595,8 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd
+          name: plugins-home
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -2607,6 +2609,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: plugins-home
       - name: argocd-repo-server-tls
         secret:
           items:

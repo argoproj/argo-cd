@@ -58,6 +58,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: plugins-home
+          mountPath: /home/argocd
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -69,6 +71,8 @@ spec:
           configMap:
             name: argocd-gpg-keys-cm
         - name: gpg-keyring
+          emptyDir: {}
+        - name: plugins-home
           emptyDir: {}
         - name: argocd-repo-server-tls
           secret:
