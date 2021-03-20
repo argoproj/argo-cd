@@ -208,8 +208,13 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if git.IsMutableRef(revision) {
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
+		if err != nil {
+			return err
+		}
+	} else {
+		gitClient, err = s.newClient(repo)
 		if err != nil {
 			return err
 		}
@@ -1308,8 +1313,8 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
-		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
+	if git.IsMutableRef(q.Revision) {
+		return nil, fmt.Errorf("revision %s should not be a mutable ref", q.Revision)
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
@@ -1335,7 +1340,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	}
 
-	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -1353,7 +1358,12 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 	defer io.Close(closer)
 
-	m, err := gitClient.RevisionMetadata(q.Revision)
+	commitSHA, err := gitClient.CommitSHA()
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := gitClient.RevisionMetadata(commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -1361,9 +1371,9 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	// Run gpg verify-commit on the revision
 	signatureInfo := ""
 	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(q.Revision)
+		cs, err := gitClient.VerifyCommitSignature(commitSHA)
 		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", commitSHA, q.Repo.Repo, err)
 			return nil, err
 		}
 
@@ -1437,7 +1447,6 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
-// Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
 func checkoutRevision(gitClient git.Client, revision string) error {
 	err := gitClient.Init()

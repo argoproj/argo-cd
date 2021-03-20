@@ -40,6 +40,18 @@ func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
+var gerritChangeRefRegex = regexp.MustCompile(`refs/changes/\d{2}/\d+/\d+`)
+
+// IsGerritChangeRef returns whether or not a string is a gerrit change ref
+func IsGerritChangeRef(ref string) bool {
+	return gerritChangeRefRegex.MatchString(ref)
+}
+
+// IsMutableRef returns whether or not a ref is mutable
+func IsMutableRef(ref string) bool {
+	return !(IsGerritChangeRef(ref) || IsCommitSHA(ref) || IsTruncatedCommitSHA(ref))
+}
+
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
 	normalLeft := NormalizeGitURL(leftRepo)
