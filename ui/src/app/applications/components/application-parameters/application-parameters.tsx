@@ -352,6 +352,9 @@ export const ApplicationParameters = (props: {
                     function isDefined(item: any) {
                         return item !== null && item !== undefined;
                     }
+                    function isDefinedWithVersion(item: any) {
+                        return item !== null && item !== undefined && item.match(/:/);
+                    }
 
                     if (input.spec.source.helm && input.spec.source.helm.parameters) {
                         input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter(isDefined);
@@ -360,7 +363,7 @@ export const ApplicationParameters = (props: {
                         input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter(isDefined);
                     }
                     if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
-                        input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefined);
+                        input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefinedWithVersion);
                     }
                     await props.save(input);
                     setRemovedOverrides(new Array<boolean>());
