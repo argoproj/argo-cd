@@ -259,6 +259,7 @@ jobs:
           yarn build
         env:
           NODE_ENV: production
+          NODE_ONLINE_ENV: online
         working-directory: ui/
       - name: Run ESLint
         run: yarn lint
