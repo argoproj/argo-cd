@@ -202,7 +202,7 @@ jobs:
           # Remove the following when Docker Hub is gone
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
           docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} argoproj/argocd:v${TARGET_VERSION}
-          docker push quay.io/${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          docker push argoproj/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
