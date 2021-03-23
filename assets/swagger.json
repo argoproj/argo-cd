@@ -3948,6 +3948,9 @@
       "type": "object",
       "title": "RepoAppDetailsQuery contains query information for app details request",
       "properties": {
+        "appName": {
+          "type": "string"
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
