@@ -246,6 +246,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Source:           q.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		AppName:          q.AppName,
 	})
 }
 
