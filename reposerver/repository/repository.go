@@ -1413,10 +1413,17 @@ func (s *Service) TestRepo(repo *v1alpha1.Repository) error {
 	if err != nil {
 		return err
 	}
-	err = clnt.Init()
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
-	}
-	_, err = clnt.LsRemoteGitCLI("HEAD")
+	revision := "HEAD"
+	closer, err := s.repoLock.Lock(clnt.Root(), revision, true, func() error {
+		err = clnt.Init()
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		}
+		_, err = clnt.LsRemoteGitCLI(revision)
+		return err
+	})
+
+	defer io.Close(closer)
+
 	return err
 }

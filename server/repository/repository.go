@@ -418,12 +418,8 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 	}
 	defer io.Close(conn)
 
-	log.Infof("Calling TestRepository in ValidateAccess")
-	isHelm := repo.Type == "helm"
 	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-		Repo:      repo,
-		IsHelm:    isHelm,
-		IsHelmOci: repo.EnableOCI,
+		Repo: repo,
 	})
 	return err
 }

@@ -160,11 +160,8 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	log.Infof("Calling TestRepository in ValidateRepo")
 	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
-		Repo:      repo,
-		IsHelm:    isHelm,
-		IsHelmOci: isHelmOci,
+		Repo: repo,
 	})
 
 	return err
