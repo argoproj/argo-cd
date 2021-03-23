@@ -28,6 +28,7 @@ message AppInfo {
 // RepoAppDetailsQuery contains query information for app details request
 message RepoAppDetailsQuery {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
+	string appName = 2;
 }
 
 // RepoAppsResponse contains applications of specified repository
