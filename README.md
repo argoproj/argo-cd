@@ -1,9 +1,4 @@
 # GitOps Engine
-<div align="center">
-
-![image](https://user-images.githubusercontent.com/426437/82109570-f6c7ed80-96eb-11ea-849c-2bd5fe89b571.png)
-
-</div>
 
 Various GitOps operators address different use-cases and provide different user experiences but all have similar set of core features. The team behind
 [Argo CD](https://github.com/argoproj/argo-cd) has implemented a reusable library that implements core GitOps features:
@@ -40,12 +35,6 @@ Find us on the [#gitops channel][gitops-slack] on Kubernetes Slack (get an [invi
 
 [gitops-slack]: https://kubernetes.slack.com/archives/CBT6N1ASG
 [kube-slack]: https://slack.k8s.io/
-
-### Meetings
-
-The developer team meets regularly, every 1st and 3rd Tuesday of the month, [16:00 UTC](http://time.unitarium.com/utc/16). Instructions, agenda and minutes can be found in [the meeting doc](https://docs.google.com/document/d/17AEZgv6yVuD4HS7_oNPiMKmS7Q6vjkhk6jH0YCELpRk/edit#). The meetings will be recorded and added to this [Youtube playlist](https://www.youtube.com/playlist?list=PLbx4FZ4kOKnvSQP394o5UdF9wL7FaQd-R).
-
-We look forward to seeing you at our meetings and hearing about your feedback and ideas there!
 
 ### Contributing to the effort
 
