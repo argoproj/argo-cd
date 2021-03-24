@@ -55,8 +55,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
-				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
-				tokenString = passwordLogin(acdClient, claims.Subject, password)
+				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
+				tokenString = passwordLogin(acdClient, localconfig.GetUsername(claims.Subject), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
