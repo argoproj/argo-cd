@@ -8,7 +8,7 @@ ArgoCD.
 
 ArgoCD supports pulling the manifests from two distinct types of repositories:
 
-* Git repositories, such as GitHub, GitLab or privately hostes ones
+* Git repositories, such as GitHub, GitLab or privately hosted ones
 * Helm repositories, such as Helm's stable charts, Harbor or Chart museum
 
 Git repositories can hold any kind of manifests or sources that ArgoCD
@@ -56,7 +56,7 @@ Using a repository that requires further configuration as the source for an
 Application requires the repository to be configured, or *connected* first.
 For further information on how to connect a repository, please see below.
 
-It is suggested that you configure each repository that you will use as an
+It is suggested that each repository that you will use as an
 application's source is configured in ArgoCD first.
 
 ## Specifying repository URLs
