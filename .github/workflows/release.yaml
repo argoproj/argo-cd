@@ -18,7 +18,7 @@ jobs:
       # The name of the tag as supplied by the GitHub event
       SOURCE_TAG: ${{ github.ref }}
       # The image namespace where Docker image will be published to
-      IMAGE_NAMESPACE: argoproj
+      IMAGE_NAMESPACE: quay.io/argoproj
       # Whether to create & push image and release assets
       DRY_RUN: false
       # Whether a draft release should be created, instead of public one
@@ -197,11 +197,12 @@ jobs:
           QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
         run: |
           set -ue
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-          docker push ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
-          docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} quay.io/${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
-          docker push quay.io/${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          docker push ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+          docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} argoproj/argocd:v${TARGET_VERSION}
+          docker push argoproj/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
