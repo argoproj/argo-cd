@@ -819,10 +819,21 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
-	// always use 'kubectl apply' for CRDs since 'replace' might recreate resource and so delete all CRD instances
-	if shouldReplace && !kube.IsCRD(t.targetObj) {
+	if shouldReplace {
 		if t.liveObj != nil {
-			message, err = sc.kubectl.ReplaceResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force)
+			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances
+			if kube.IsCRD(t.targetObj) {
+				update := t.targetObj.DeepCopy()
+				update.SetResourceVersion(t.liveObj.GetResourceVersion())
+				_, err = sc.kubectl.UpdateResource(context.TODO(), sc.rawConfig, update, t.targetObj.GetNamespace(), dryRunStrategy)
+				if err == nil {
+					message = fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName())
+				} else {
+					message = fmt.Sprintf("error when updating: %v", err.Error())
+				}
+			} else {
+				message, err = sc.kubectl.ReplaceResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force)
+			}
 		} else {
 			_, err = sc.kubectl.CreateResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy)
 			if err == nil {

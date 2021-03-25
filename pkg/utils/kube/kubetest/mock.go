@@ -98,6 +98,15 @@ func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config
 	return obj, command.Err
 }
 
+func (k *MockKubectlCmd) UpdateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+	k.SetLastResourceCommand(kube.GetResourceKey(obj), "update")
+	command, ok := k.Commands[obj.GetName()]
+	if !ok {
+		return obj, nil
+	}
+	return obj, command.Err
+}
+
 func (k *MockKubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
 	k.SetLastValidate(validate)
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")

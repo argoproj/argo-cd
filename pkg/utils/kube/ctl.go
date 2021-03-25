@@ -42,6 +42,7 @@ type Kubectl interface {
 	ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
 	ReplaceResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error)
 	CreateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
+	UpdateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -366,6 +367,35 @@ func (k *KubectlCmd) CreateResource(ctx context.Context, config *rest.Config, ob
 		createOptions.DryRun = []string{metav1.DryRunAll}
 	}
 	return resourceIf.Create(ctx, obj, createOptions)
+}
+
+func (k *KubectlCmd) UpdateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+	gvk := obj.GroupVersionKind()
+	span := k.Tracer.StartSpan("UpdateResource")
+	span.SetBaggageItem("kind", gvk.Kind)
+	span.SetBaggageItem("name", obj.GetName())
+	defer span.Finish()
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+
+	updateOptions := metav1.UpdateOptions{}
+	switch dryRunStrategy {
+	case cmdutil.DryRunClient, cmdutil.DryRunServer:
+		updateOptions.DryRun = []string{metav1.DryRunAll}
+	}
+	return resourceIf.Update(ctx, obj, updateOptions)
 }
 
 // ApplyResource performs an apply of a unstructured resource
