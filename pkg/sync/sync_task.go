@@ -143,3 +143,7 @@ func (t *syncTask) deleteOnPhaseSuccessful() bool {
 func (t *syncTask) deleteOnPhaseFailed() bool {
 	return t.liveObj != nil && t.hasHookDeletePolicy(common.HookDeletePolicyHookFailed)
 }
+
+func (t *syncTask) resourceKey() kube.ResourceKey {
+	return kube.GetResourceKey(t.obj())
+}

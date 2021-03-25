@@ -447,6 +447,16 @@ func (sc *syncContext) Sync() {
 	// remove tasks that are completed, we can assume that there are no running tasks
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.pending() })
 
+	if sc.applyOutOfSyncOnly {
+		tasks = tasks.Filter(func(t *syncTask) bool {
+			if modified, ok := sc.modificationResult[t.resourceKey()]; !modified && ok && t.targetObj != nil && t.liveObj != nil {
+				sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified")
+				return false
+			}
+			return true
+		})
+	}
+
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// the sync operation is successful.
 	if len(tasks) == 0 {
@@ -566,13 +576,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		if hook.IsHook(obj) {
 			sc.log.WithValues("group", obj.GroupVersionKind().Group, "kind", obj.GetKind(), "namespace", obj.GetNamespace(), "name", obj.GetName()).V(1).Info("Skipping hook")
 			continue
-		}
-
-		if sc.applyOutOfSyncOnly {
-			if modified, ok := sc.modificationResult[k]; !modified && ok && resource.Target != nil {
-				sc.log.WithValues("resource key", k).V(1).Info("Skipping as resource was not modified")
-				continue
-			}
 		}
 
 		for _, phase := range syncPhases(obj) {
