@@ -245,6 +245,13 @@ func TestValidateRepo(t *testing.T) {
 		KustomizeOptions: kustomizeOptions,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
+	repo.Type = "git"
+	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	}).Return(&apiclient.TestRepositoryResponse{
+		VerifiedRepository: true,
+	}, nil)
+
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
