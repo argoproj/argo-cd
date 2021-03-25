@@ -242,6 +242,29 @@ func (c *clusterCache) GetAPIGroups() []metav1.APIGroup {
 	return c.apiGroups
 }
 
+func (c *clusterCache) AppendAPIGroups(apiGroup metav1.APIGroup) {
+	exists := false
+	for i := range c.apiGroups {
+		if c.apiGroups[i].Name == apiGroup.Name {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		c.apiGroups = append(c.apiGroups, apiGroup)
+	}
+}
+
+func (c *clusterCache) DeleteAPIGroup(apiGroup metav1.APIGroup) {
+	for i := range c.apiGroups {
+		if c.apiGroups[i].Name == apiGroup.Name {
+			c.apiGroups[i] = c.apiGroups[len(c.apiGroups)-1]
+			c.apiGroups = c.apiGroups[:len(c.apiGroups)-1]
+			break
+		}
+	}
+}
+
 func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, resources []*Resource, ns string) {
 	objByKey := make(map[kube.ResourceKey]*Resource)
 	for i := range resources {
@@ -504,15 +527,38 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 				c.processEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
-					if event.Type == watch.Deleted {
-						group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
-						kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
+					var apiGroup metav1.APIGroup
+					name, nameOK, nameErr := unstructured.NestedString(obj.Object, "metadata", "name")
+					group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
+					version, versionOK, versionErr := unstructured.NestedString(obj.Object, "spec", "version")
+					if nameOK && nameErr == nil {
+						apiGroup.Name = name
+						var groupVersions []metav1.GroupVersionForDiscovery
+						if groupOk && groupErr == nil && versionOK && versionErr == nil {
+							groupVersion := metav1.GroupVersionForDiscovery{
+								GroupVersion: group + "/" + version,
+								Version:      version,
+							}
+							groupVersions = append(groupVersions, groupVersion)
+						}
+						apiGroup.Versions = groupVersions
+					}
 
+					if event.Type == watch.Deleted {
+						kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
 						if groupOk && groupErr == nil && kindOk && kindErr == nil {
 							gk := schema.GroupKind{Group: group, Kind: kind}
 							c.stopWatching(gk, ns)
 						}
+						// remove CRD's groupkind from c.apigroups
+						if nameOK && nameErr == nil {
+							c.DeleteAPIGroup(apiGroup)
+						}
 					} else {
+						// add new CRD's groupkind to c.apigroups
+						if event.Type == watch.Added && nameOK && nameErr == nil {
+							c.AppendAPIGroups(apiGroup)
+						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
 						})
