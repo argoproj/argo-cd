@@ -113,7 +113,7 @@ export class ApplicationsService {
 
     public delete(name: string, propagationPolicy: string): Promise<boolean> {
         let cascade = true;
-        if (propagationPolicy === 'orphan') {
+        if (propagationPolicy === 'non-cascading') {
             propagationPolicy = '';
             cascade = false;
         }
