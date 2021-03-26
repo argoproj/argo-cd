@@ -743,3 +743,9 @@ func TestFilterByName(t *testing.T) {
 		assert.Len(t, res, 0)
 	})
 }
+
+func TestTestRepoOCI(t *testing.T) {
+	err := TestRepo(&argoappv1.Repository{Repo: "https://demo.goharbor.io", Type: "helm", EnableOCI: true})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+}

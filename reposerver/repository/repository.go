@@ -232,17 +232,13 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		version, err := semver.NewVersion(revision)
-		if err != nil {
-			return nil, err
-		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, version)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return nil, err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
 		if err != nil {
 			return nil, err
 		}
@@ -1301,12 +1297,11 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noCache bool) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
-	if helm.IsVersion(revision) {
+	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI)
+	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
+	if helm.IsVersion(revision) || enableOCI {
 		return helmClient, revision, nil
-	}
-	if repo.EnableOCI {
-		return nil, "", errors.New("OCI helm registers don't support semver ranges. Exact revision must be specified.")
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {

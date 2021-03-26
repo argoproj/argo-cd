@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -172,6 +173,9 @@ func TestRepo(repo *argoappv1.Repository) error {
 		},
 		"helm": func() error {
 			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
 				return err
 			} else {
