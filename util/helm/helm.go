@@ -70,14 +70,13 @@ func (h *helm) DependencyBuild() error {
 	for _, repo := range h.repos {
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-
 			_, err := h.cmd.Login(repo.Repo, repo.Creds)
-			
 			h.cmd.IsHelmOci = false
 
 			defer func() {
 				h.cmd.IsHelmOci = true
 				_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+				h.cmd.IsHelmOci = false
 			}()
 
 			if err != nil {
