@@ -58,10 +58,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd repo add https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
   # Add a public Helm repository named 'stable' via HTTPS
-  argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable  
+  argocd repo add https://charts.helm.sh/stable --type helm --name stable  
 
   # Add a private Helm repository named 'stable' via HTTPS
-  argocd repo add https://kubernetes-charts.storage.googleapis.com --type helm --name stable --username test --password test
+  argocd repo add https://charts.helm.sh/stable --type helm --name stable --username test --password test
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
