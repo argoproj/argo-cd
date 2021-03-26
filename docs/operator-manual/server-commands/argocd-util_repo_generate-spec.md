@@ -23,10 +23,10 @@ argocd-util repo generate-spec REPOURL [flags]
   argocd-util repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
   # Add a public Helm repository named 'stable' via HTTPS
-  argocd-util repo generate-spec https://kubernetes-charts.storage.googleapis.com --type helm --name stable  
+  argocd-util repo generate-spec https://charts.helm.sh/stable --type helm --name stable  
 
   # Add a private Helm repository named 'stable' via HTTPS
-  argocd-util repo generate-spec https://kubernetes-charts.storage.googleapis.com --type helm --name stable --username test --password test
+  argocd-util repo generate-spec https://charts.helm.sh/stable --type helm --name stable --username test --password test
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd-util repo generate-spec helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
