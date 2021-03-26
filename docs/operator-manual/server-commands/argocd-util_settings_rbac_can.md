@@ -19,19 +19,19 @@ argocd-util settings rbac can ROLE/SUBJECT ACTION RESOURCE [SUB-RESOURCE] [flags
 
 # Check whether role some:role has permissions to create an application in the
 # 'default' project, using a local policy.csv file
-argocd-util rbac can some:role create application 'default/app' --policy-file policy.csv
+argocd-util settings rbac can some:role create application 'default/app' --policy-file policy.csv
 
 # Policy file can also be K8s config map with data keys like argocd-rbac-cm,
 # i.e. 'policy.csv' and (optionally) 'policy.default'
-argocd-util rbac can some:role create application 'default/app' --policy-file argocd-rbac-cm.yaml
+argocd-util settings rbac can some:role create application 'default/app' --policy-file argocd-rbac-cm.yaml
 
 # If --policy-file is not given, the ConfigMap 'argocd-rbac-cm' from K8s is
 # used. You need to specify the argocd namespace, and make sure that your
 # current Kubernetes context is pointing to the cluster Argo CD is running in
-argocd-util rbac can some:role create application 'default/app' --namespace argocd
+argocd-util settings rbac can some:role create application 'default/app' --namespace argocd
 
 # You can override a possibly configured default role
-argocd-util rbac can someuser create application 'default/app' --default-role role:readonly
+argocd-util settings rbac can someuser create application 'default/app' --default-role role:readonly
 
 
 ```
