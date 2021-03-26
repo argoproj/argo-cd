@@ -191,7 +191,7 @@ func (a *ApplicationSource) IsHelmOci() bool {
 	if a.Chart == "" {
 		return false
 	}
-	return helm.IsHelmOciChart(a.Chart)
+	return helm.IsHelmOciRepo(a.RepoURL)
 }
 
 // IsZero returns true if the application source is considered empty

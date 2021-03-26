@@ -16,16 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-
-	"github.com/argoproj/argo-cd/util/env"
-
-	"github.com/Masterminds/semver"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/env"
 	executil "github.com/argoproj/argo-cd/util/exec"
 	"github.com/argoproj/argo-cd/util/io"
 )
@@ -47,8 +44,8 @@ type Creds struct {
 }
 
 type Client interface {
-	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
+	CleanChartCache(chart string, version string) error
+	ExtractChart(chart string, version string) (string, io.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
 	TestHelmOCI() (bool, error)
 }
@@ -97,11 +94,11 @@ func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
 	return nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version) error {
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(c.getCachedChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -158,13 +155,13 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 			}
 
 			// 'helm chart pull' ensures that chart is downloaded into local repository cache
-			_, err = helmCmd.ChartPull(c.repoURL, chart, version.String())
+			_, err = helmCmd.ChartPull(c.repoURL, chart, version)
 			if err != nil {
 				return "", nil, err
 			}
 
 			// 'helm chart export' copies cached chart into temp directory
-			_, err = helmCmd.ChartExport(c.repoURL, chart, version.String(), tempDest)
+			_, err = helmCmd.ChartExport(c.repoURL, chart, version, tempDest)
 			if err != nil {
 				return "", nil, err
 			}
@@ -177,7 +174,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 				return "", nil, err
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
 			if err != nil {
 				return "", nil, err
 			}
@@ -352,11 +349,16 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version *semver.Version) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", strings.ReplaceAll(chart, "/", "_"), version))
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) string {
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", strings.ReplaceAll(chart, "/", "_"), version))
 }
 
-// Only OCI registries support storing charts under sub-directories.
-func IsHelmOciChart(chart string) bool {
-	return strings.Contains(chart, "/")
+// Ensures that given OCI registries URL does not have protocol
+func IsHelmOciRepo(repoURL string) bool {
+	if repoURL == "" {
+		return false
+	}
+	parsed, err := url.Parse(repoURL)
+	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
+	return err == nil && parsed.Host == ""
 }
