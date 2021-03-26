@@ -169,6 +169,6 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.True(t, f.spec.SyncPolicy.Retry.Limit == 5)
 
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
-		assert.Nil(t, f.spec.SyncPolicy)
+		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
 }
