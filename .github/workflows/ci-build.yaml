@@ -230,6 +230,8 @@ jobs:
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Check nothing has changed
         run: |
+          git --no-pager log -n 3
+          git status
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
