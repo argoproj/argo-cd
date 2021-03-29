@@ -20,7 +20,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/term"
 	"sigs.k8s.io/yaml"
 

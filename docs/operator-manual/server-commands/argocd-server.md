@@ -43,6 +43,8 @@ argocd-server [flags]
       --redis string                                  Redis server hostname and port (e.g. argocd-redis:6379). 
       --redisdb int                                   Redis database.
       --repo-server string                            Repo server address (default "argocd-repo-server:8081")
+      --repo-server-plaintext                         Use a plaintext client (non-TLS) to connect to repository server
+      --repo-server-strict-tls                        Perform strict validation of TLS certificates when connecting to repo server
       --repo-server-timeout-seconds int               Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                        The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --rootpath string                               Used if Argo CD is running behind reverse proxy under subpath different from /

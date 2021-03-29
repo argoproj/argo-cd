@@ -19,9 +19,8 @@ jobs:
           python-version: 3.x
       - name: build
         run: |
-          pip install mkdocs==1.0.4 mkdocs_material==4.1.1
+          pip install -r docs/requirements.txt
           mkdocs build
-          mkdir ./site/.circleci && echo '{version: 2, jobs: {build: {branches: {ignore: gh-pages}}}}' > ./site/.circleci/config.yml
       - name: deploy
         if: ${{ github.event_name == 'push' }}
         uses: peaceiris/actions-gh-pages@v2.5.0

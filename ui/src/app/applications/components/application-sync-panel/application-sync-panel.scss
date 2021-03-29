@@ -1,0 +1,12 @@
+.application-sync-panel__resource {
+    margin-top: 0.5em;
+    white-space: nowrap;
+
+    label {
+        max-width: 38em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        vertical-align: middle;
+    }
+}

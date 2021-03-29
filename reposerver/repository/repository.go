@@ -202,7 +202,7 @@ func (s *Service) runRepoOperation(
 	var err error
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache)
 		if err != nil {
 			return nil, err
 		}
@@ -232,17 +232,13 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		version, err := semver.NewVersion(revision)
-		if err != nil {
-			return nil, err
-		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, version)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return nil, err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
 		if err != nil {
 			return nil, err
 		}
@@ -458,7 +454,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	repos := make([]helm.HelmRepository, 0)
 	for _, repo := range repositories {
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
 	}
 	return repos
 }
@@ -1117,7 +1113,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 					continue
 				}
 				fName := f.Name()
-				if strings.Contains(fName, "values") && (filepath.Ext(fName) == ".yaml" || filepath.Ext(fName) == ".yml") {
+				fileNameExt := strings.ToLower(filepath.Ext(fName))
+				if strings.Contains(fName, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
 					res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
 				}
 			}
@@ -1242,17 +1239,17 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if gpg.IsGPGEnabled() && q.CheckSignature {
 		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
-			log.Debugf("Could not verify commit signature: %v", err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
 			return nil, err
 		}
 
 		if cs != "" {
-			vr, err := gpg.ParseGitCommitVerification(cs)
-			if err != nil {
-				log.Debugf("Could not parse commit verification: %v", err)
-				return nil, err
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}
-			signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 		} else {
 			signatureInfo = "Revision is not signed."
 		}
@@ -1299,19 +1296,18 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
-	if helm.IsVersion(revision) {
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noCache bool) (helm.Client, string, error) {
+	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI)
+	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
+	if helm.IsVersion(revision) || enableOCI {
 		return helmClient, revision, nil
-	}
-	if repo.EnableOCI {
-		return nil, "", errors.New("OCI helm registers don't support semver ranges. Exact revision must be specified.")
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
-	index, err := helmClient.GetIndex()
+	index, err := helmClient.GetIndex(noCache)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1360,7 +1356,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex(true)
 	if err != nil {
 		return nil, err
 	}

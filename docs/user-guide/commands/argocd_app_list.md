@@ -22,6 +22,7 @@ argocd app list [flags]
   -h, --help                  help for list
   -o, --output string         Output format. One of: wide|name|json|yaml (default "wide")
   -p, --project stringArray   Filter by project name
+  -r, --repo string           List apps by source repo URL
   -l, --selector string       List apps by label
 ```
 

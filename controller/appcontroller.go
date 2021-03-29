@@ -125,6 +125,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
+	metricsCacheExpiration time.Duration,
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
@@ -181,6 +182,12 @@ func NewApplicationController(
 	})
 	if err != nil {
 		return nil, err
+	}
+	if metricsCacheExpiration.Seconds() != 0 {
+		err = ctrl.metricsServer.SetExpiration(metricsCacheExpiration)
+		if err != nil {
+			return nil, err
+		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout)
@@ -287,6 +294,9 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 		return true
 	}
 	if key.Group == "" && key.Kind == kube.ServiceAccountKind && key.Name == "default" {
+		return true
+	}
+	if key.Group == "" && key.Kind == "ConfigMap" && key.Name == "kube-root-ca.crt" {
 		return true
 	}
 	list := proj.Spec.OrphanedResources.Ignore
@@ -829,9 +839,16 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	filteredObjs := FilterObjectsForDeletion(objs)
+
+	propagationPolicy := metav1.DeletePropagationForeground
+	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
+		propagationPolicy = metav1.DeletePropagationBackground
+	}
+	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	})
 	if err != nil {
 		return objs, err
@@ -859,14 +876,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return objs, err
 	}
-	app.SetCascadedDeletion(false)
-	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"finalizers": app.Finalizers,
-		},
-	})
-	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	err = ctrl.removeCascadeFinalizer(app)
 	if err != nil {
 		return objs, err
 	}
@@ -874,6 +885,19 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
+}
+
+func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
+	app.UnSetCascadedDeletion()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": app.Finalizers,
+		},
+	})
+
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go/v4"
 
@@ -64,7 +65,7 @@ type User struct {
 // Claims returns the standard claims from the JWT claims
 func (u *User) Claims() (*jwt.StandardClaims, error) {
 	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
+		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
 	}
 	claims := jwt.StandardClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
@@ -261,4 +262,13 @@ func DefaultLocalConfigPath() (string, error) {
 		return "", err
 	}
 	return path.Join(dir, "config"), nil
+}
+
+// Get username from subject in a claim
+func GetUsername(subject string) string {
+	parts := strings.Split(subject, ":")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return subject
 }

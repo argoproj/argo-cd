@@ -120,7 +120,7 @@ export interface Application {
     operation?: Operation;
 }
 
-type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
+export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 
 export interface ApplicationWatchEvent {
     type: WatchType;
@@ -392,8 +392,11 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    // first field is inferred on the fly and indicats first log line received from backend
+    first?: boolean;
     last: boolean;
     timeStampStr: string;
+    podName: string;
 }
 
 // describes plugin settings

@@ -9,7 +9,9 @@ const webpack = require('webpack');
 const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
-console.log(`Bundling in ${isProd ? 'production' : 'development'} mode...`);
+const isOnline = process.env.NODE_ONLINE_ENV === 'online';
+
+console.log(`Bundling in ${isProd ? 'production' : 'development'} mode ${isOnline ? 'online' : 'offline'}...`);
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
@@ -67,9 +69,10 @@ const config = {
         new ForkTsCheckerWebpackPlugin(),
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-            'SYSTEM_INFO': JSON.stringify({
-                version: process.env.ARGO_VERSION || 'latest'
-            })
+            'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
+            SYSTEM_INFO: JSON.stringify({
+                version: process.env.ARGO_VERSION || 'latest',
+            }),
         }),
         new HtmlWebpackPlugin({template: 'src/app/index.html'}),
         new CopyWebpackPlugin({
@@ -111,7 +114,7 @@ const config = {
             filename: 'fonts.css',
             // local: false in dev prevents pulling fonts on each code change
             // https://github.com/gabiseabra/google-fonts-webpack-plugin/issues/2
-            local: isProd,
+            local: isOnline,
             path: 'assets/fonts/google-fonts'
         })
     ],

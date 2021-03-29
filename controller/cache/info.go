@@ -9,8 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	resourcehelper "k8s.io/kubernetes/pkg/api/v1/resource"
-	k8snode "k8s.io/kubernetes/pkg/util/node"
+	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -133,6 +132,9 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					}] = true
 				}
 
+				if host == nil || host == "" {
+					continue
+				}
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
@@ -306,7 +308,12 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		}
 	}
 
-	if pod.DeletionTimestamp != nil && pod.Status.Reason == k8snode.NodeUnreachablePodReason {
+	// "NodeLost" = https://github.com/kubernetes/kubernetes/blob/cb8ad64243d48d9a3c26b11b2e0945c098457282/pkg/util/node/node.go#L46
+	// But depending on the k8s.io/kubernetes package just for a constant
+	// is not worth it.
+	// See https://github.com/argoproj/argo-cd/issues/5173
+	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
+	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
 	} else if pod.DeletionTimestamp != nil {
 		reason = "Terminating"

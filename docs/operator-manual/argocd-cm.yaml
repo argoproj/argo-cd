@@ -15,6 +15,8 @@ data:
 
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
+  # Specifies token expiration duration
+  users.session.duration: "24h"
 
   # Enables google analytics tracking is specified
   ga.trackingid: "UA-12345-1"
@@ -28,7 +30,7 @@ data:
 
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
-  # https://github.com/dexidp/dex/tree/master/Documentation/connectors
+  # https://dexidp.io/docs/connectors/
   dex.config: |
     connectors:
       # GitHub example

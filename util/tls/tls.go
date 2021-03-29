@@ -10,7 +10,9 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -328,4 +330,88 @@ func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
 func EncodeX509KeyPairString(cert tls.Certificate) (string, string) {
 	certpem, keypem := EncodeX509KeyPair(cert)
 	return string(certpem), string(keypem)
+}
+
+// LoadX509CertPool loads PEM data from a list of files, adds them to a CertPool
+// and returns the resulting CertPool
+func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
+	pool := x509.NewCertPool()
+	for _, path := range paths {
+		log.Infof("Loading CA information from %s and appending it to cert pool", path)
+		_, err := os.Stat(path)
+		if err != nil {
+			// We just ignore non-existing paths...
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			// ...but everything else is considered an error
+			return nil, fmt.Errorf("could not load TLS certificate: %v", err)
+		} else {
+			f, err := ioutil.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("failure to load TLS certificates from %s: %v", path, err)
+			}
+			if ok := pool.AppendCertsFromPEM(f); !ok {
+				return nil, fmt.Errorf("invalid cert data in %s", path)
+			}
+		}
+	}
+	return pool, nil
+}
+
+// CreateServerTLSConfig will provide a TLS configuration for a server. It will
+// either use a certificate and key provided at tlsCertPath and tlsKeyPath, or
+// if these are not given, will generate a self-signed certificate valid for
+// the specified list of hosts. If hosts is nil or empty, self-signed cert
+// creation will be disabled.
+func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls.Config, error) {
+	var cert *tls.Certificate
+	var err error
+
+	tlsCertExists := false
+	tlsKeyExists := false
+
+	// If cert and key paths were specified, ensure they exist
+	if tlsCertPath != "" && tlsKeyPath != "" {
+		_, err = os.Stat(tlsCertPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Warnf("could not read TLS cert from %s: %v", tlsCertPath, err)
+			}
+		} else {
+			tlsCertExists = true
+		}
+
+		_, err = os.Stat(tlsKeyPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Warnf("could not read TLS cert from %s: %v", tlsKeyPath, err)
+			}
+		} else {
+			tlsKeyExists = true
+		}
+	}
+
+	if !tlsCertExists || !tlsKeyExists {
+		log.Infof("Generating self-signed gRPC TLS certificate for this session")
+		c, err := GenerateX509KeyPair(CertOptions{
+			Hosts:        hosts,
+			Organization: "Argo CD",
+			IsCA:         true,
+		})
+		if err != nil {
+			return nil, err
+		}
+		cert = c
+	} else {
+		log.Infof("Loading gRPC TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
+		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to initalize gRPC TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+		}
+		cert = &c
+	}
+
+	return &tls.Config{Certificates: []tls.Certificate{*cert}}, nil
+
 }

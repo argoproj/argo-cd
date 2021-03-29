@@ -99,7 +99,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				errors.CheckError(err)
 				claims, err := configCtx.User.Claims()
 				errors.CheckError(err)
-				tokenString := passwordLogin(acdClient, claims.Subject, newPassword)
+				tokenString := passwordLogin(acdClient, localconfig.GetUsername(claims.Subject), newPassword)
 				localCfg.UpsertUser(localconfig.User{
 					Name:      localCfg.CurrentContext,
 					AuthToken: tokenString,

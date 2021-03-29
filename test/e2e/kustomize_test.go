@@ -65,7 +65,7 @@ func TestKustomize2AppSource(t *testing.T) {
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
 func TestSyncStatusOptionIgnore(t *testing.T) {
-	var mapName string
+	var oldMap string
 	Given(t).
 		Path("kustomize-cm-gen").
 		When().
@@ -80,7 +80,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 			assert.Contains(t, resourceStatus.Name, "my-map-")
 			assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
 
-			mapName = resourceStatus.Name
+			oldMap = resourceStatus.Name
 		}).
 		When().
 		// we now force generation of a second CM
@@ -98,19 +98,16 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			assert.Equal(t, 2, len(app.Status.Resources))
-			// new map in-sync
-			{
-				resourceStatus := app.Status.Resources[0]
-				assert.Contains(t, resourceStatus.Name, "my-map-")
-				// make sure we've a new map with changed name
-				assert.NotEqual(t, mapName, resourceStatus.Name)
-				assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
-			}
-			// old map is out of sync
-			{
-				resourceStatus := app.Status.Resources[1]
-				assert.Equal(t, mapName, resourceStatus.Name)
-				assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+			for _, resourceStatus := range app.Status.Resources {
+				// new map in-sync
+				if resourceStatus.Name != oldMap {
+					assert.Contains(t, resourceStatus.Name, "my-map-")
+					// make sure we've a new map with changed name
+					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+
+				} else {
+					assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+				}
 			}
 		})
 }

@@ -26,6 +26,8 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 	// the selector to to restrict returned list to applications only with matched labels
 	optional string selector = 5 [(gogoproto.nullable) = false];
+	// the repoURL to restrict returned list applications
+	optional string repo = 6 [(gogoproto.nullable) = false];
 }
 
 message NodeQuery {
@@ -70,6 +72,11 @@ message ApplicationUpdateRequest {
 message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
+	optional string propagationPolicy = 3;
+}
+
+message SyncOptions {
+	repeated string items = 1;
 }
 
 // ApplicationSyncRequest is a request to apply the config state to live state
@@ -83,6 +90,7 @@ message ApplicationSyncRequest {
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Info infos = 9;
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
+	optional SyncOptions syncOptions = 11;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
@@ -134,6 +142,7 @@ message ApplicationResourceDeleteRequest {
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
 	optional bool force = 7 [(gogoproto.nullable) = true];
+	optional bool orphan = 8 [(gogoproto.nullable) = true];
 }
 
 message ResourceActionRunRequest {
@@ -157,7 +166,7 @@ message ApplicationResourceResponse {
 message ApplicationPodLogsQuery {
 	required string name = 1;
 	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string podName = 3;
+	optional string podName = 3;
 	required string container = 4 [(gogoproto.nullable) = false];
 	required int64 sinceSeconds = 5 [(gogoproto.nullable) = false];
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
@@ -165,6 +174,9 @@ message ApplicationPodLogsQuery {
 	required bool follow = 8 [(gogoproto.nullable) = false];
 	optional string untilTime = 9;
 	optional string filter = 10;
+	optional string kind = 11;
+	optional string group = 12;
+	optional string resourceName = 13 ;
 }
 
 message LogEntry {
@@ -173,6 +185,7 @@ message LogEntry {
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false, deprecated=true];
 	required bool last = 3 [(gogoproto.nullable) = false];
 	required string timeStampStr = 4 [(gogoproto.nullable) = false];
+	required string podName = 5 [(gogoproto.nullable) = false];
 }
 
 message OperationTerminateRequest {
@@ -360,6 +373,11 @@ service ApplicationService {
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
-		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
+		option (google.api.http) = {
+			get: "/api/v1/applications/{name}/pods/{podName}/logs"
+			additional_bindings {
+				get: "/api/v1/applications/{name}/logs"
+			}
+		};
 	}
 }

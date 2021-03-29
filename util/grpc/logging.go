@@ -1,9 +1,11 @@
 package grpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
@@ -29,11 +31,13 @@ type jsonpbMarshalleble struct {
 }
 
 func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
-	b, err := proto.Marshal(j.Message)
+	var b bytes.Buffer
+	m := &jsonpb.Marshaler{}
+	err := m.Marshal(&b, j.Message)
 	if err != nil {
 		return nil, fmt.Errorf("jsonpb serializer failed: %v", err)
 	}
-	return b, nil
+	return b.Bytes(), nil
 }
 
 type loggingServerStream struct {

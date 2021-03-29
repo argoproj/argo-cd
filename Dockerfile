@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=ubuntu:20.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:20.10
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.14.12 as builder
+FROM docker.io/library/golang:1.16.2 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -86,7 +86,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM node:12.18.4 as argocd-ui
+FROM docker.io/library/node:12.18.4 as argocd-ui
 
 WORKDIR /src
 
@@ -101,12 +101,12 @@ ADD ["ui/tsconfig.json", "./"]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' yarn build
+RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.14.12 as argocd-build
+FROM golang:1.16.0 as argocd-build
 
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 

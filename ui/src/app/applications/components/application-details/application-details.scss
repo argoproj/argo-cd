@@ -1,5 +1,7 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+$header: 120px;
+
 .application-details {
     &__status-panel {
         position: fixed;
@@ -20,10 +22,10 @@
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 100px;
+        margin-top: 115px;
         min-height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            margin-top: 150px;
+            margin-top: 165px;
         }
     }
 
@@ -33,13 +35,13 @@
     }
     &__orphaned-filter {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         right: 60px;
     }
 
     &__refreshing-label {
         position: fixed;
-        top: 100px + 100px;
+        top: $header + 100px;
         left: 60px;
         background-color: $argo-color-gray-4;
         border: 1px solid $argo-color-gray-5;
@@ -85,7 +87,7 @@
         top: 10px;
         width: 60px;
         line-height: 1;
-        color: $argo-color-gray-5;
+        color: $argo-color-gray-7;
         font-size: 0.8em;
     }
 
@@ -100,7 +102,7 @@
         white-space: nowrap;
         i {
             cursor: pointer;
-            color: $argo-color-gray-4;
+            color: $argo-color-gray-5;
             margin: 0 0.5em;
             &::before {
                 font-size: 1.5em;
@@ -108,7 +110,7 @@
         }
         i.selected {
             cursor: default;
-            color: $argo-color-gray-5;
+            color: $argo-color-gray-7;
         }
     }
 

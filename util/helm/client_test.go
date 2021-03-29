@@ -3,8 +3,8 @@ package helm
 import (
 	"os"
 	"testing"
+	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/util/io"
@@ -13,12 +13,12 @@ import (
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", Creds{}, false)
-		_, err := client.GetIndex()
+		_, err := client.GetIndex(false)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
-		index, err := client.GetIndex()
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -27,15 +27,29 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false)
-		index, err := client.GetIndex()
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
+
+	t.Run("Cached", func(t *testing.T) {
+		var prev time.Duration
+		indexDuration, prev = time.Minute, indexDuration
+		defer func() {
+			indexDuration = prev
+		}()
+
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
+		index, err := client.GetIndex(false)
+		assert.NoError(t, err)
+		assert.NotNil(t, index)
+	})
+
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
-	path, closer, err := client.ExtractChart("argo-cd", semver.MustParse("0.7.1"))
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -72,4 +86,11 @@ func Test_normalizeChartName(t *testing.T) {
 		n := normalizeChartName("myorg/..")
 		assert.Equal(t, n, "myorg/..")
 	})
+}
+
+func TestIsHelmOciRepo(t *testing.T) {
+	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
+	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
+	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
+	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
 }

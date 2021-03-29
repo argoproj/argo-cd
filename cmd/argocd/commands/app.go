@@ -23,6 +23,8 @@ import (
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -93,6 +95,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
+	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	return command
 }
 
@@ -261,6 +264,90 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
+// NewApplicationLogsCommand returns logs of application pods
+func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		group        string
+		kind         string
+		namespace    string
+		resourceName string
+		follow       bool
+		tail         int64
+		sinceSeconds int64
+		untilTime    string
+		filter       string
+	)
+	var command = &cobra.Command{
+		Use:   "logs APPNAME",
+		Short: "Get logs of application pods",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+			appName := args[0]
+
+			retry := true
+			for retry {
+				retry = false
+				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+					Name:         &appName,
+					Group:        &group,
+					Namespace:    namespace,
+					Kind:         &kind,
+					ResourceName: &resourceName,
+					Follow:       follow,
+					TailLines:    tail,
+					SinceSeconds: sinceSeconds,
+					UntilTime:    &untilTime,
+					Filter:       &filter,
+				})
+				if err != nil {
+					log.Fatalf("failed to get pod logs: %v", err)
+				}
+				for {
+					msg, err := stream.Recv()
+					if err == io.EOF {
+						return
+					}
+					if err != nil {
+						st, ok := status.FromError(err)
+						if !ok {
+							log.Fatalf("stream read failed: %v", err)
+						}
+						if st.Code() == codes.Unavailable && follow {
+							retry = true
+							sinceSeconds = 1
+							break
+						}
+						log.Fatalf("stream read failed: %v", err)
+					}
+					if !msg.Last {
+						fmt.Println(msg.Content)
+					} else {
+						return
+					}
+				} //Done with receive message
+			} //Done with retry
+		},
+	}
+
+	command.Flags().StringVar(&group, "group", "", "Resource group")
+	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
+	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
+	command.Flags().StringVar(&resourceName, "name", "", "Resource name")
+	command.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed")
+	command.Flags().Int64Var(&tail, "tail", 0, "The number of lines from the end of the logs to show")
+	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
+	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
+	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
+
+	return command
+}
+
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
@@ -359,8 +446,8 @@ func printAppConditions(w io.Writer, app *argoappv1.Application) {
 	}
 }
 
-// appURL returns the URL of an application
-func appURL(acdClient argocdclient.Client, appName string) string {
+// appURLDefault returns the default URL of an application
+func appURLDefault(acdClient argocdclient.Client, appName string) string {
 	var scheme string
 	opts := acdClient.ClientOptions()
 	server := opts.ServerAddr
@@ -373,6 +460,19 @@ func appURL(acdClient argocdclient.Client, appName string) string {
 		}
 	}
 	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
+}
+
+// appURL returns the URL of an application
+func appURL(acdClient argocdclient.Client, appName string) string {
+	conn, settingsIf := acdClient.NewSettingsClientOrDie()
+	defer argoio.Close(conn)
+	argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+	errors.CheckError(err)
+
+	if argoSettings.URL != "" {
+		return fmt.Sprintf("%s/applications/%s", argoSettings.URL, appName)
+	}
+	return appURLDefault(acdClient, appName)
 }
 
 func truncateString(str string, num int) string {
@@ -456,6 +556,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		namePrefix       bool
 		kustomizeVersion bool
 		kustomizeImages  []string
+		pluginEnvs       []string
 		appOpts          cmdutil.AppOptions
 	)
 	var command = &cobra.Command{
@@ -561,9 +662,22 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if !updated {
-					return
+			}
+
+			if app.Spec.Source.Plugin != nil {
+				if len(pluginEnvs) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
 				}
+				for _, env := range pluginEnvs {
+					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
+					errors.CheckError(err)
+				}
+				updated = true
+			}
+
+			if !updated {
+				return
 			}
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
@@ -582,6 +696,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
+	command.Flags().StringArrayVar(&pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	return command
 }
 
@@ -683,6 +798,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		refresh       bool
 		hardRefresh   bool
+		exitCode      bool
 		local         string
 		revision      string
 		localRepoRoot string
@@ -786,7 +902,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					_ = cli.PrintDiff(item.key.Name, live, target)
 				}
 			}
-			if foundDiffs {
+			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
 
@@ -794,6 +910,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
+	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
@@ -836,8 +953,9 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		cascade  bool
-		noPrompt bool
+		cascade           bool
+		noPrompt          bool
+		propagationPolicy string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -862,6 +980,9 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
+				}
+				if c.Flag("propagation-policy").Changed {
+					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
 				if cascade && isTerminal && !noPrompt {
 					var confirmAnswer string = "n"
@@ -897,6 +1018,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	return command
 }
@@ -945,6 +1067,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		output   string
 		selector string
 		projects []string
+		repo     string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -963,6 +1086,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
+			if repo != "" {
+				appList = argo.FilterByRepo(appList, repo)
+			}
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -979,6 +1105,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
+	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	return command
 }
 
@@ -1139,8 +1266,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force                   bool
 		async                   bool
 		retryLimit              int64
-		retryBackoffDuration    string
-		retryBackoffMaxDuration string
+		retryBackoffDuration    time.Duration
+		retryBackoffMaxDuration time.Duration
 		retryBackoffFactor      int64
 		local                   string
 		localRepoRoot           string
@@ -1270,8 +1397,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
 						Limit: retryLimit,
 						Backoff: &argoappv1.Backoff{
-							Duration:    retryBackoffDuration,
-							MaxDuration: retryBackoffMaxDuration,
+							Duration:    retryBackoffDuration.String(),
+							MaxDuration: retryBackoffMaxDuration.String(),
 							Factor:      pointer.Int64Ptr(retryBackoffFactor),
 						},
 					}
@@ -1307,8 +1434,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
-	command.Flags().StringVar(&retryBackoffDuration, "retry-backoff-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryDuration/time.Second), "Retry backoff base duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
-	command.Flags().StringVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryMaxDuration/time.Second), "Max retry backoff duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", common.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", common.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
@@ -1533,7 +1660,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
 
-		if selectedResourcesAreReady && !operationInProgress {
+		if selectedResourcesAreReady && (!operationInProgress || !watchOperation) {
 			app = printFinalStatus(app)
 			return app, nil
 		}

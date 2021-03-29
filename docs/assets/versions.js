@@ -3,7 +3,7 @@ setTimeout(function() {
   window[callbackName] = function (response) {
   const div = document.createElement('div');
   div.innerHTML = response.html;
-  document.querySelector(".md-header-nav > .md-header-nav__title").appendChild(div);
+  document.querySelector(".md-header__inner > .md-header__title").appendChild(div);
   const container = div.querySelector('.rst-versions');
   var caret = document.createElement('div');
   caret.innerHTML = "<i class='fa fa-caret-down dropdown-caret'></i>"
@@ -34,10 +34,11 @@ setTimeout(function() {
 
 // VERSION WARNINGS
 window.addEventListener("DOMContentLoaded", function() {
-  if ((window['READTHEDOCS_DATA']).version === "latest") {
+  var rtdData = window['READTHEDOCS_DATA'] || { version: 'latest' };
+  if (rtdData.version === "latest") {
     document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
   }
-  else if ((window['READTHEDOCS_DATA']).version !== "stable") {
+  else if (rtdData.version !== "stable") {
     document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>"
   }
-}); 
+});

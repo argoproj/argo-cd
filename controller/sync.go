@@ -136,6 +136,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		})
 	}
 
+	prunePropagationPolicy := v1.DeletePropagationForeground
+	switch {
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=background"):
+		prunePropagationPolicy = v1.DeletePropagationBackground
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=foreground"):
+		prunePropagationPolicy = v1.DeletePropagationForeground
+	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
+		prunePropagationPolicy = v1.DeletePropagationOrphan
+	}
+
 	syncCtx, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -159,7 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 		}),
-		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption("Validate=false")),
+		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
 			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
 				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
@@ -168,8 +178,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return false
 		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
-		sync.WithPruneLast(syncOp.SyncOptions.HasOption("PruneLast=true")),
+		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
+		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
+		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 	)
 
 	if err != nil {
