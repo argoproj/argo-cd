@@ -39,7 +39,6 @@ import (
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
-	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application"
@@ -841,7 +840,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	filteredObjs := FilterObjectsForDeletion(objs)
 
 	propagationPolicy := metav1.DeletePropagationForeground
-	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
 		propagationPolicy = metav1.DeletePropagationBackground
 	}
 	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
@@ -1355,7 +1354,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		for k, v := range orig.GetAnnotations() {
 			newAnnotations[k] = v
 		}
-		delete(newAnnotations, common.AnnotationKeyRefresh)
+		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},

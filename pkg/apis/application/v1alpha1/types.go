@@ -6,7 +6,6 @@ import (
 	math "math"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,7 +20,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -34,8 +32,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/cert"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/glob"
 	"github.com/argoproj/argo-cd/util/helm"
@@ -560,12 +556,6 @@ type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
 }
 
-// AppProjectStatus contains status information for AppProject CRs
-type AppProjectStatus struct {
-	// JWTTokensByRole contains a list of JWT tokens issued for a given role
-	JWTTokensByRole map[string]JWTTokens `json:"jwtTokensByRole,omitempty" protobuf:"bytes,1,opt,name=jwtTokensByRole"`
-}
-
 // OperationInitiator contains information about the initiator of an operation
 type OperationInitiator struct {
 	// Username contains the name of a user who started operation
@@ -749,9 +739,9 @@ func parseStringToDuration(durationString string) (time.Duration, error) {
 
 // NextRetryAt calculates the earliest time the next retry should be performed on a failing sync
 func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (time.Time, error) {
-	maxDuration := common.DefaultSyncRetryMaxDuration
-	duration := common.DefaultSyncRetryDuration
-	factor := common.DefaultSyncRetryFactor
+	maxDuration := DefaultSyncRetryMaxDuration
+	duration := DefaultSyncRetryDuration
+	factor := DefaultSyncRetryFactor
 	var err error
 	if r.Backoff != nil {
 		if r.Backoff.Duration != "" {
@@ -1495,474 +1485,6 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// RepoCreds holds the definition for repository credentials
-type RepoCreds struct {
-	// URL is the URL that this credentials matches to
-	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
-	// Username for authenticating at the repo server
-	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	// Password for authenticating at the repo server
-	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	// SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)
-	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// TLSClientCertData specifies the TLS client cert data for authenticating at the repo server
-	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,5,opt,name=tlsClientCertData"`
-	// TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server
-	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
-	// GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
-	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
-	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
-	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
-}
-
-// Repository is a repository holding application configurations
-type Repository struct {
-	// Repo contains the URL to the remote repository
-	Repo string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	// Username contains the user name used for authenticating at the remote repository
-	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	// Password contains the password or PAT used for authenticating at the remote repository
-	Password string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	// SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.
-	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	// ConnectionState contains information about the current state of connection to the repository server
-	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	// InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
-	// Used only for Git repos
-	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
-	// Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
-	Insecure bool `json:"insecure,omitempty" protobuf:"bytes,7,opt,name=insecure"`
-	// EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
-	EnableLFS bool `json:"enableLfs,omitempty" protobuf:"bytes,8,opt,name=enableLfs"`
-	// TLSClientCertData contains a certificate in PEM format for authenticating at the repo server
-	TLSClientCertData string `json:"tlsClientCertData,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertData"`
-	// TLSClientCertKey contains a private key in PEM format for authenticating at the repo server
-	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,10,opt,name=tlsClientCertKey"`
-	// Type specifies the type of the repo. Can be either "git" or "helm. "git" is assumed if empty or absent.
-	Type string `json:"type,omitempty" protobuf:"bytes,11,opt,name=type"`
-	// Name specifies a name to be used for this repo. Only used with Helm repos
-	Name string `json:"name,omitempty" protobuf:"bytes,12,opt,name=name"`
-	// Whether credentials were inherited from a credential set
-	InheritedCreds bool `json:"inheritedCreds,omitempty" protobuf:"bytes,13,opt,name=inheritedCreds"`
-	// EnableOCI specifies whether helm-oci support should be enabled for this repo
-	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
-	// Github App Private Key PEM data
-	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the ID of the GitHub app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
-	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
-	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
-}
-
-// IsInsecure returns true if the repository has been configured to skip server verification
-func (repo *Repository) IsInsecure() bool {
-	return repo.InsecureIgnoreHostKey || repo.Insecure
-}
-
-// IsLFSEnabled returns true if LFS support is enabled on repository
-func (repo *Repository) IsLFSEnabled() bool {
-	return repo.EnableLFS
-}
-
-// HasCredentials returns true when the repository has been configured with any credentials
-func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != "" || m.GithubAppPrivateKey != ""
-}
-
-// CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
-func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
-	if source != nil {
-		if repo.Username == "" {
-			repo.Username = source.Username
-		}
-		if repo.Password == "" {
-			repo.Password = source.Password
-		}
-		if repo.SSHPrivateKey == "" {
-			repo.SSHPrivateKey = source.SSHPrivateKey
-		}
-		if repo.TLSClientCertData == "" {
-			repo.TLSClientCertData = source.TLSClientCertData
-		}
-		if repo.TLSClientCertKey == "" {
-			repo.TLSClientCertKey = source.TLSClientCertKey
-		}
-		if repo.GithubAppPrivateKey == "" {
-			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
-		}
-		if repo.GithubAppId == 0 {
-			repo.GithubAppId = source.GithubAppId
-		}
-		if repo.GithubAppInstallationId == 0 {
-			repo.GithubAppInstallationId = source.GithubAppInstallationId
-		}
-		if repo.GitHubAppEnterpriseBaseURL == "" {
-			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
-		}
-	}
-}
-
-// CopyCredentialsFrom copies credentials from given credential template to receiving repository
-func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
-	if source != nil {
-		if repo.Username == "" {
-			repo.Username = source.Username
-		}
-		if repo.Password == "" {
-			repo.Password = source.Password
-		}
-		if repo.SSHPrivateKey == "" {
-			repo.SSHPrivateKey = source.SSHPrivateKey
-		}
-		if repo.TLSClientCertData == "" {
-			repo.TLSClientCertData = source.TLSClientCertData
-		}
-		if repo.TLSClientCertKey == "" {
-			repo.TLSClientCertKey = source.TLSClientCertKey
-		}
-		if repo.GithubAppPrivateKey == "" {
-			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
-		}
-		if repo.GithubAppId == 0 {
-			repo.GithubAppId = source.GithubAppId
-		}
-		if repo.GithubAppInstallationId == 0 {
-			repo.GithubAppInstallationId = source.GithubAppInstallationId
-		}
-		if repo.GitHubAppEnterpriseBaseURL == "" {
-			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
-		}
-	}
-}
-
-// GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds() git.Creds {
-	if repo == nil {
-		return git.NopCreds{}
-	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
-	}
-	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
-	}
-	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
-	}
-	return git.NopCreds{}
-}
-
-// GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
-func (repo *Repository) GetHelmCreds() helm.Creds {
-	return helm.Creds{
-		Username:           repo.Username,
-		Password:           repo.Password,
-		CAPath:             getCAPath(repo.Repo),
-		CertData:           []byte(repo.TLSClientCertData),
-		KeyData:            []byte(repo.TLSClientCertKey),
-		InsecureSkipVerify: repo.Insecure,
-	}
-}
-
-func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
-	}
-	return ""
-}
-
-// CopySettingsFrom copies all repository settings from source to receiver
-func (m *Repository) CopySettingsFrom(source *Repository) {
-	if source != nil {
-		m.EnableLFS = source.EnableLFS
-		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
-		m.Insecure = source.Insecure
-		m.InheritedCreds = source.InheritedCreds
-	}
-}
-
-// Repositories defines a list of Repository configurations
-type Repositories []*Repository
-
-// Filter returns a list of repositories, which only contain items matched by the supplied predicate method
-func (r Repositories) Filter(predicate func(r *Repository) bool) Repositories {
-	var res Repositories
-	for i := range r {
-		repo := r[i]
-		if predicate(repo) {
-			res = append(res, repo)
-		}
-	}
-	return res
-}
-
-// RepositoryList is a collection of Repositories.
-type RepositoryList struct {
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           Repositories `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// RepositoryList is a collection of Repositories.
-type RepoCredsList struct {
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []RepoCreds `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// A RepositoryCertificate is either SSH known hosts entry or TLS certificate
-type RepositoryCertificate struct {
-	// ServerName specifies the DNS name of the server this certificate is intended for
-	ServerName string `json:"serverName" protobuf:"bytes,1,opt,name=serverName"`
-	// CertType specifies the type of the certificate - currently one of "https" or "ssh"
-	CertType string `json:"certType" protobuf:"bytes,2,opt,name=certType"`
-	// CertSubType specifies the sub type of the cert, i.e. "ssh-rsa"
-	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
-	// CertData contains the actual certificate data, dependent on the certificate type
-	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
-	// CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
-	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
-}
-
-// RepositoryCertificateList is a collection of RepositoryCertificates
-type RepositoryCertificateList struct {
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	// List of certificates to be processed
-	Items []RepositoryCertificate `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// GnuPGPublicKey is a representation of a GnuPG public key
-type GnuPGPublicKey struct {
-	// KeyID specifies the key ID, in hexadecimal string format
-	KeyID string `json:"keyID" protobuf:"bytes,1,opt,name=keyID"`
-	// Fingerprint is the fingerprint of the key
-	Fingerprint string `json:"fingerprint,omitempty" protobuf:"bytes,2,opt,name=fingerprint"`
-	// Owner holds the owner identification, e.g. a name and e-mail address
-	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
-	// Trust holds the level of trust assigned to this key
-	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
-	// SubType holds the key's sub type (e.g. rsa4096)
-	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
-	// KeyData holds the raw key data, in base64 encoded format
-	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
-}
-
-// GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
-type GnuPGPublicKeyList struct {
-	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// AppProjectList is list of AppProject resources
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type AppProjectList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
-}
-
-// AppProject provides a logical grouping of applications, providing controls for:
-// * where the apps may deploy to (cluster whitelist)
-// * what may be deployed (repository whitelist, resource whitelist/blacklist)
-// * who can access these applications (roles, OIDC group claims bindings)
-// * and what they can do (RBAC policies)
-// * automation access to these roles (JWT tokens)
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
-type AppProject struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              AppProjectSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-}
-
-// GetRoleByName returns the role in a project by the name with its index
-func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
-	for i, role := range p.Spec.Roles {
-		if name == role.Name {
-			return &role, i, nil
-		}
-	}
-	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
-}
-
-// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
-	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
-	role, _, err := p.GetRoleByName(roleName)
-	if err != nil {
-		return nil, -1, err
-	}
-
-	if id != "" {
-		for i, token := range role.JWTTokens {
-			if id == token.ID {
-				return &token, i, nil
-			}
-		}
-	}
-
-	if issuedAt != -1 {
-		for i, token := range role.JWTTokens {
-			if issuedAt == token.IssuedAt {
-				return &token, i, nil
-			}
-		}
-	}
-
-	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
-}
-
-// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
-	// This is for newer version, JWTTokens are stored under status
-	if id != "" {
-		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
-			if id == token.ID {
-				return &token, i, nil
-			}
-		}
-
-	}
-
-	if issuedAt != -1 {
-		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
-			if issuedAt == token.IssuedAt {
-				return &token, i, nil
-			}
-		}
-	}
-
-	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
-}
-
-// RemoveJWTToken removes the specified JWT from an AppProject
-func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
-	roleName := p.Spec.Roles[roleIndex].Name
-	// For backward compatibility
-	_, jwtTokenIndex, err1 := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
-	if err1 == nil {
-		p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
-		p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
-	}
-
-	// New location for storing JWTToken
-	_, jwtTokenIndex, err2 := p.GetJWTToken(roleName, issuedAt, id)
-	if err2 == nil {
-		p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
-		p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
-	}
-
-	if err1 == nil || err2 == nil {
-		//If we find this token from either places, we can say there are no error
-		return nil
-	} else {
-		//If we could not locate this taken from either places, we can return any of the errors
-		return err2
-	}
-}
-
-// TODO: document this method
-func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
-	role, _, err := p.GetRoleByName(roleName)
-	if err != nil {
-		return err
-	}
-	if id == "" {
-		return nil
-	}
-	for _, token := range role.JWTTokens {
-		if id == token.ID {
-			return status.Errorf(codes.InvalidArgument, "Token id '%s' has been used. ", id)
-		}
-	}
-	return nil
-}
-
-func (p *AppProject) ValidateProject() error {
-	destKeys := make(map[string]bool)
-	for _, dest := range p.Spec.Destinations {
-		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
-		if _, ok := destKeys[key]; ok {
-			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
-		}
-		destKeys[key] = true
-	}
-	srcRepos := make(map[string]bool)
-	for _, src := range p.Spec.SourceRepos {
-		if _, ok := srcRepos[src]; ok {
-			return status.Errorf(codes.InvalidArgument, "source repository '%s' already added", src)
-		}
-		srcRepos[src] = true
-	}
-
-	roleNames := make(map[string]bool)
-	for _, role := range p.Spec.Roles {
-		if _, ok := roleNames[role.Name]; ok {
-			return status.Errorf(codes.AlreadyExists, "role '%s' already exists", role.Name)
-		}
-		if err := validateRoleName(role.Name); err != nil {
-			return err
-		}
-		existingPolicies := make(map[string]bool)
-		for _, policy := range role.Policies {
-			if _, ok := existingPolicies[policy]; ok {
-				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
-			}
-			if err := validatePolicy(p.Name, role.Name, policy); err != nil {
-				return err
-			}
-			existingPolicies[policy] = true
-		}
-		existingGroups := make(map[string]bool)
-		for _, group := range role.Groups {
-			if _, ok := existingGroups[group]; ok {
-				return status.Errorf(codes.AlreadyExists, "group '%s' already exists for role '%s'", group, role.Name)
-			}
-			if err := validateGroupName(group); err != nil {
-				return err
-			}
-			existingGroups[group] = true
-		}
-		roleNames[role.Name] = true
-	}
-
-	if p.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
-		for _, window := range p.Spec.SyncWindows {
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
-			}
-			err := window.Validate()
-			if err != nil {
-				return err
-			}
-			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
-				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
-			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
-		}
-	}
-
-	return nil
-}
-
 // TODO: refactor to use rbacpolicy.ActionGet, rbacpolicy.ActionCreate, without import cycle
 var validActions = map[string]bool{
 	"get":      true,
@@ -2044,62 +1566,6 @@ func validateGroupName(name string) error {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
 	}
 	return nil
-}
-
-// AddGroupToRole adds an OIDC group to a role
-func (p *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
-	role, roleIndex, err := p.GetRoleByName(roleName)
-	if err != nil {
-		return false, err
-	}
-	for _, roleGroup := range role.Groups {
-		if group == roleGroup {
-			return false, nil
-		}
-	}
-	role.Groups = append(role.Groups, group)
-	p.Spec.Roles[roleIndex] = *role
-	return true, nil
-}
-
-// RemoveGroupFromRole removes an OIDC group from a role
-func (p *AppProject) RemoveGroupFromRole(roleName, group string) (bool, error) {
-	role, roleIndex, err := p.GetRoleByName(roleName)
-	if err != nil {
-		return false, err
-	}
-	for i, roleGroup := range role.Groups {
-		if group == roleGroup {
-			role.Groups = append(role.Groups[:i], role.Groups[i+1:]...)
-			p.Spec.Roles[roleIndex] = *role
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// NormalizePolicies normalizes the policies in the project
-func (p *AppProject) NormalizePolicies() {
-	for i, role := range p.Spec.Roles {
-		var normalizedPolicies []string
-		for _, policy := range role.Policies {
-			normalizedPolicies = append(normalizedPolicies, p.normalizePolicy(policy))
-		}
-		p.Spec.Roles[i].Policies = normalizedPolicies
-	}
-}
-
-func (p *AppProject) normalizePolicy(policy string) string {
-	policyComponents := strings.Split(policy, ",")
-	normalizedPolicy := ""
-	for _, component := range policyComponents {
-		if normalizedPolicy == "" {
-			normalizedPolicy = component
-		} else {
-			normalizedPolicy = fmt.Sprintf("%s, %s", normalizedPolicy, strings.Trim(component, " "))
-		}
-	}
-	return normalizedPolicy
 }
 
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
@@ -2549,7 +2015,7 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		return refreshType, false
 	}
 
-	typeStr, ok := annotations[common.AnnotationKeyRefresh]
+	typeStr, ok := annotations[AnnotationKeyRefresh]
 	if !ok {
 		return refreshType, false
 	}
@@ -2582,11 +2048,11 @@ func (app *Application) UnSetCascadedDeletion() {
 
 func isPropagationPolicyFinalizer(finalizer string) bool {
 	switch finalizer {
-	case common.ResourcesFinalizerName:
+	case ResourcesFinalizerName:
 		return true
-	case common.ForegroundPropagationPolicyFinalizer:
+	case ForegroundPropagationPolicyFinalizer:
 		return true
-	case common.BackgroundPropagationPolicyFinalizer:
+	case BackgroundPropagationPolicyFinalizer:
 		return true
 	default:
 		return false
@@ -2729,7 +2195,7 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
 func (spec ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
-		return common.DefaultAppProjectName
+		return DefaultAppProjectName
 	}
 	return spec.Project
 }
@@ -2739,7 +2205,7 @@ func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
 	if spec.RevisionHistoryLimit != nil {
 		return int(*spec.RevisionHistoryLimit)
 	}
-	return common.RevisionHistoryLimit
+	return RevisionHistoryLimit
 }
 
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
@@ -2813,12 +2279,12 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
 func (proj AppProject) HasFinalizer() bool {
-	return getFinalizerIndex(proj.ObjectMeta, common.ResourcesFinalizerName) > -1
+	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1
 }
 
 // RemoveFinalizer removes a resource finalizer from an AppProject
 func (proj *AppProject) RemoveFinalizer() {
-	setFinalizer(&proj.ObjectMeta, common.ResourcesFinalizerName, false)
+	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
 }
 
 func globMatch(pattern string, val string, separators ...rune) bool {
@@ -2852,8 +2318,8 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
-	config.QPS = common.K8sClientConfigQPS
-	config.Burst = common.K8sClientConfigBurst
+	config.QPS = K8sClientConfigQPS
+	config.Burst = K8sClientConfigBurst
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -2867,9 +2333,9 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     tlsConfig,
-		MaxIdleConns:        common.K8sMaxIdleConnections,
-		MaxIdleConnsPerHost: common.K8sMaxIdleConnections,
-		MaxConnsPerHost:     common.K8sMaxIdleConnections,
+		MaxIdleConns:        K8sMaxIdleConnections,
+		MaxIdleConnsPerHost: K8sMaxIdleConnections,
+		MaxConnsPerHost:     K8sMaxIdleConnections,
 		DialContext:         dial,
 		DisableCompression:  config.DisableCompression,
 	})
@@ -2891,14 +2357,14 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+	if c.Server == KubernetesInternalAPIServerAddr && os.Getenv(EnvVarFakeInClusterConfig) == "true" {
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
 		} else {
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 		}
-	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
 	} else {
 		tlsClientConfig := rest.TLSClientConfig{

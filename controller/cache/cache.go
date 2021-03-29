@@ -3,8 +3,10 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"sync"
+	"time"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -18,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -27,6 +28,25 @@ import (
 	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/settings"
 )
+
+const (
+	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
+	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
+)
+
+var (
+	// K8SClusterResyncDuration controls the duration of cluster cache refresh
+	K8SClusterResyncDuration = 12 * time.Hour
+)
+
+func init() {
+
+	if clusterResyncDurationStr := os.Getenv(EnvClusterCacheResyncDuration); clusterResyncDurationStr != "" {
+		if duration, err := time.ParseDuration(clusterResyncDurationStr); err == nil {
+			K8SClusterResyncDuration = duration
+		}
+	}
+}
 
 type LiveStateCache interface {
 	// Returns k8s server version
@@ -266,7 +286,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
-		clustercache.SetResyncTimeout(common.K8SClusterResyncDuration),
+		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {

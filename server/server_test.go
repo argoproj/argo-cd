@@ -225,7 +225,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
@@ -239,10 +239,10 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -260,10 +260,10 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -501,7 +501,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return
@@ -517,7 +517,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultAppProjectName,
+			Name:      v1alpha1.DefaultAppProjectName,
 			Namespace: test.FakeArgoCDNamespace,
 		},
 		Spec: v1alpha1.AppProjectSpec{
@@ -538,7 +538,7 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return

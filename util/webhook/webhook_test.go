@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/cache"
@@ -161,7 +160,7 @@ func getApp(annotation string, sourcePath string) *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				common.AnnotationKeyManifestGeneratePaths: annotation,
+				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{

@@ -31,6 +31,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -731,7 +732,7 @@ func TestNormalizeApplication(t *testing.T) {
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
 	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
@@ -749,12 +750,12 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app1.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app1.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
 
 	app2 := newFakeApp()
 	app2.Name = "app2"
 	app2.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app2.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
 
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
@@ -875,7 +876,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
 		app.Annotations = map[string]string{
-			common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+			v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
 		}
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 		assert.True(t, needRefresh)
