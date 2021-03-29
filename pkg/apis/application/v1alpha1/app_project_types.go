@@ -2,11 +2,18 @@ package v1alpha1
 
 import (
 	fmt "fmt"
+	"sort"
+	"strconv"
 	strings "strings"
 
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/glob"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // AppProjectList is list of AppProject resources
@@ -265,4 +272,174 @@ func (p *AppProject) normalizePolicy(policy string) string {
 		}
 	}
 	return normalizedPolicy
+}
+
+// ProjectPoliciesString returns a Casbin formated string of a project's policies for each role
+func (proj *AppProject) ProjectPoliciesString() string {
+	var policies []string
+	for _, role := range proj.Spec.Roles {
+		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
+		policies = append(policies, projectPolicy)
+		policies = append(policies, role.Policies...)
+		for _, groupName := range role.Groups {
+			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.ObjectMeta.Name, role.Name))
+		}
+	}
+	return strings.Join(policies, "\n")
+}
+
+// IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+	var isWhiteListed, isBlackListed bool
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
+	if namespaced {
+		namespaceWhitelist := proj.Spec.NamespaceResourceWhitelist
+		namespaceBlacklist := proj.Spec.NamespaceResourceBlacklist
+
+		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
+		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
+		return isWhiteListed && !isBlackListed
+	}
+
+	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
+	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
+
+	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
+	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
+	return isWhiteListed && !isBlackListed
+}
+
+// IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
+		return false
+	}
+	if un.GetNamespace() != "" {
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+	}
+	return true
+}
+
+// HasFinalizer returns true if a resource finalizer is set on an AppProject
+func (proj AppProject) HasFinalizer() bool {
+	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1
+}
+
+// RemoveFinalizer removes a resource finalizer from an AppProject
+func (proj *AppProject) RemoveFinalizer() {
+	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
+}
+
+func globMatch(pattern string, val string, separators ...rune) bool {
+	if pattern == "*" {
+		return true
+	}
+	return glob.Match(pattern, val, separators...)
+}
+
+// IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
+func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+	srcNormalized := git.NormalizeGitURL(src.RepoURL)
+	for _, repoURL := range proj.Spec.SourceRepos {
+		normalized := git.NormalizeGitURL(repoURL)
+		if globMatch(normalized, srcNormalized, '/') {
+			return true
+		}
+	}
+	return false
+}
+
+// IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+	for _, item := range proj.Spec.Destinations {
+		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO: document this method
+func (proj *AppProject) NormalizeJWTTokens() bool {
+	needNormalize := false
+	for i, role := range proj.Spec.Roles {
+		for j, token := range role.JWTTokens {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				role.JWTTokens[j] = token
+				needNormalize = true
+			}
+		}
+		proj.Spec.Roles[i] = role
+	}
+	for _, roleTokenEntry := range proj.Status.JWTTokensByRole {
+		for j, token := range roleTokenEntry.Items {
+			if token.ID == "" {
+				token.ID = strconv.FormatInt(token.IssuedAt, 10)
+				roleTokenEntry.Items[j] = token
+				needNormalize = true
+			}
+		}
+	}
+	needSync := syncJWTTokenBetweenStatusAndSpec(proj)
+	return needNormalize || needSync
+}
+
+func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
+	existingRole := map[string]bool{}
+	needSync := false
+	for roleIndex, role := range proj.Spec.Roles {
+		existingRole[role.Name] = true
+
+		tokensInSpec := role.JWTTokens
+		tokensInStatus := []JWTToken{}
+		if proj.Status.JWTTokensByRole == nil {
+			tokensByRole := make(map[string]JWTTokens)
+			proj.Status.JWTTokensByRole = tokensByRole
+		} else {
+			tokensInStatus = proj.Status.JWTTokensByRole[role.Name].Items
+		}
+		tokens := jwtTokensCombine(tokensInStatus, tokensInSpec)
+
+		sort.Slice(proj.Spec.Roles[roleIndex].JWTTokens, func(i, j int) bool {
+			return proj.Spec.Roles[roleIndex].JWTTokens[i].IssuedAt > proj.Spec.Roles[roleIndex].JWTTokens[j].IssuedAt
+		})
+		sort.Slice(proj.Status.JWTTokensByRole[role.Name].Items, func(i, j int) bool {
+			return proj.Status.JWTTokensByRole[role.Name].Items[i].IssuedAt > proj.Status.JWTTokensByRole[role.Name].Items[j].IssuedAt
+		})
+		if !cmp.Equal(tokens, proj.Spec.Roles[roleIndex].JWTTokens) || !cmp.Equal(tokens, proj.Status.JWTTokensByRole[role.Name].Items) {
+			needSync = true
+		}
+
+		proj.Spec.Roles[roleIndex].JWTTokens = tokens
+		proj.Status.JWTTokensByRole[role.Name] = JWTTokens{Items: tokens}
+	}
+	if proj.Status.JWTTokensByRole != nil {
+		for role := range proj.Status.JWTTokensByRole {
+			if !existingRole[role] {
+				delete(proj.Status.JWTTokensByRole, role)
+				needSync = true
+			}
+		}
+	}
+
+	return needSync
+}
+
+func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
+	tokensMap := make(map[string]JWTToken)
+	for _, token := range append(tokens1, tokens2...) {
+		tokensMap[token.ID] = token
+	}
+
+	var tokens []JWTToken
+	for _, v := range tokensMap {
+		tokens = append(tokens, v)
+	}
+
+	sort.Slice(tokens, func(i, j int) bool {
+		return tokens[i].IssuedAt > tokens[j].IssuedAt
+	})
+	return tokens
 }
