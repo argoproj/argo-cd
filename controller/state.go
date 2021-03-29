@@ -348,9 +348,11 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 			}
 			dr = res
 		}
-		diffResultList.Diffs[i] = *dr
-		if dr != nil && dr.Modified {
-			diffResultList.Modified = true
+		if dr != nil {
+			diffResultList.Diffs[i] = *dr
+			if dr.Modified {
+				diffResultList.Modified = true
+			}
 		}
 	}
 
