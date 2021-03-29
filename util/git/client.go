@@ -503,7 +503,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=c")
 	return m.runCmdOutput(cmd)
 }
 

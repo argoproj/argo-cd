@@ -81,6 +81,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 }
 
 func TestSyncWithSkipHook(t *testing.T) {
+	fixture.SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path(guestbookPath).
 		When().

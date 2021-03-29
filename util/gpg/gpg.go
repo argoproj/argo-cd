@@ -149,7 +149,7 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=c")
 }
 
 // Helper function to write some data to a temp file and return its path

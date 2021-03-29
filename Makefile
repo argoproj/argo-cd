@@ -47,6 +47,8 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
+ARGOCD_E2E_TEST_TIMEOUT?=20m
+
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 
@@ -399,7 +401,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/e2e
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
