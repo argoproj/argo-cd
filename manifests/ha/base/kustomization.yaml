@@ -10,8 +10,8 @@ patchesStrategicMerge:
 
 images:
 - name: quay.io/argoproj/argocd
-  newName: argoproj/argocd
-  newTag: v2.0.0-rc1
+  newName: quay.io/argoproj/argocd
+  newTag: latest
 resources:
 - ../../base/application-controller
 - ../../base/dex
