@@ -51,6 +51,8 @@ type helm struct {
 	repos []HelmRepository
 }
 
+var _ Helm = &helm{}
+
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
 func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts") ||

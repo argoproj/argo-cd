@@ -23,6 +23,8 @@ type Cache struct {
 	loginAttemptsExpiration         time.Duration
 }
 
+var _ oidc.OIDCStateStorage = &Cache{}
+
 func NewCache(
 	cache *appstatecache.Cache,
 	connectionStatusCacheExpiration time.Duration,

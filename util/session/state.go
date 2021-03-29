@@ -25,6 +25,8 @@ type userStateStorage struct {
 	resyncDuration time.Duration
 }
 
+var _ UserStateStorage = &userStateStorage{}
+
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{
 		attempts:       map[string]LoginAttempts{},
