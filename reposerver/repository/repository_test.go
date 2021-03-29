@@ -348,11 +348,11 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
 					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
-					assert.True(t, !isCachedError)
+					require.False(t, isCachedError)
 
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
@@ -366,9 +366,9 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
