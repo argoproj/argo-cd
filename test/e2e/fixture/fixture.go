@@ -119,10 +119,7 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // is running in a remote cluster.
 func IsRemote() bool {
 	r := os.Getenv("ARGOCD_E2E_REMOTE")
-	if r == "true" {
-		return true
-	}
-	return false
+	return r == "true"
 }
 
 // IsLocal returns when the tests are being run against a local workload
