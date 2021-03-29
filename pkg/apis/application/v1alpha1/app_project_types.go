@@ -8,6 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/glob"
+
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
