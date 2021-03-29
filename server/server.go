@@ -903,7 +903,30 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	claims, newToken, claimsErr := a.getClaims(ctx)
+
+	// Extract the token from the calling context (if present)
+	tokenString, ok, tokenErr := a.getTokenString(ctx)
+	if !ok {
+		// Failed to find a token.
+		// We may still be fine if the settings allow anonymous access though
+		argoCDSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+		}
+		if argoCDSettings.AnonymousUserEnabled {
+			return ctx, nil
+		} else {
+			return ctx, tokenErr
+		}
+	}
+
+	// Extract and verify the claims in the token
+	claims, newToken, claimsErr := a.getClaims(tokenString)
+	if claimsErr != nil {
+		// Failed to validate token
+		return ctx, claimsErr
+	}
+
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
@@ -918,28 +941,22 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		}
 	}
 
-	if claimsErr != nil {
-		argoCDSettings, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
-		}
-		if !argoCDSettings.AnonymousUserEnabled {
-			return ctx, claimsErr
-		}
-	}
-
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+func (a *ArgoCDServer) getTokenString(ctx context.Context) (string, bool, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, "", ErrNoSession
+		return "", false, ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return nil, "", ErrNoSession
+		return "", false, ErrNoSession
 	}
+	return tokenString, true, nil
+}
+
+func (a *ArgoCDServer) getClaims(tokenString string) (jwt.Claims, string, error) {
 	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
