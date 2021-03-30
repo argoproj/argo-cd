@@ -290,6 +290,9 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 			appName := args[0]
 
+			lastTimeStampReceived := ""
+			userInputSinceSeconds := sinceSeconds
+
 			retry := true
 			for retry {
 				retry = false
@@ -320,11 +323,23 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 						if st.Code() == codes.Unavailable && follow {
 							retry = true
-							sinceSeconds = 1
+							sinceSeconds = getNewSinceSeconds(lastTimeStampReceived, userInputSinceSeconds)
+							break
+						}
+
+						if strings.Contains(err.Error(), "grpc: failed to unmarshal the received message proto: required field \"content\" not set") {
+							retry = true
+							sinceSeconds = getNewSinceSeconds(lastTimeStampReceived, userInputSinceSeconds)
+							break
+						}
+						if strings.Contains(err.Error(), "grpc: failed to unmarshal the received message proto: LogEntry: wiretype end group for non-group") {
+							retry = true
+							sinceSeconds = getNewSinceSeconds(lastTimeStampReceived, userInputSinceSeconds)
 							break
 						}
 						log.Fatalf("stream read failed: %v", err)
 					}
+					lastTimeStampReceived = msg.TimeStampStr
 					if !msg.Last {
 						fmt.Println(msg.Content)
 					} else {
@@ -348,6 +363,18 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
+// This is used in failure retry - calculate new sinceSeconds based on lastTimeSteampReceived
+func getNewSinceSeconds(lastTimeStampReceived string, sinceScondsDefault int64) int64 {
+	if lastTimeStampReceived == "" {
+		return sinceScondsDefault
+	} else {
+		lastTimeReceived, err := time.Parse(time.RFC3339, lastTimeStampReceived)
+		if err != nil {
+			return sinceScondsDefault
+		}
+		return int64(time.Now().Sub(lastTimeReceived).Seconds())
+	}
+}
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
 	fmt.Printf(printOpFmtStr, "Name:", app.Name)
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
