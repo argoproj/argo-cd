@@ -2018,15 +2018,15 @@ local sources (i.e. <code>argocd app sync --local</code>) anymore.</p>
 <p>The appropriate resource notation for Argo CD's RBAC implementation to allow
 the managing of GnuPG keys is <code>gpgkeys</code>.</p>
 <p>To allow listing of keys for a role named <code>role:myrole</code>, use:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">myrole</span><span class="p">,</span> <span class="n">gpgkeys</span><span class="p">,</span> <span class="k">get</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">allow</span>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, get, *, allow</span>
 </code></pre></div>
 
 <p>To allow adding keys for a role named <code>role:myrole</code>, use:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">myrole</span><span class="p">,</span> <span class="n">gpgkeys</span><span class="p">,</span> <span class="k">create</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">allow</span>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, create, *, allow</span>
 </code></pre></div>
 
 <p>And finally, to allow deletion of keys for a role named <code>role:myrole</code>, use:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">myrole</span><span class="p">,</span> <span class="n">gpgkeys</span><span class="p">,</span> <span class="k">delete</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">allow</span>
+<div class="codehilite"><pre><span></span><code><span class="err">p, role:myrole, gpgkeys, delete, *, allow</span>
 </code></pre></div>
 
 <h2 id="importing-gnupg-public-keys">Importing GnuPG public keys<a class="headerlink" href="#importing-gnupg-public-keys" title="Permanent link">&para;</a></h2>

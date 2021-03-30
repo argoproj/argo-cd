@@ -1919,7 +1919,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <p>v1.2 and later</p>
 </blockquote>
 <p>If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> switches to the <code>argocd repo add</code> command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span> <span class="n">repo</span> <span class="k">add</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">repo</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="p">.</span><span class="n">git</span> <span class="c1">--tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key</span>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key</span>
 </code></pre></div>
 
 <p>Of course, you can also use this in combination with the <code>--username</code> and <code>--password</code> switches, if your repository server should require this. The options <code>--tls-client-cert-path</code> and <code>--tls-client-cert-key-path</code> must always be specified together.</p>
@@ -1939,7 +1939,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 </blockquote>
 <p>You can configure your Git repository using HTTPS either using the CLI or the UI.</p>
 <p>Using the CLI:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa</span>
 </code></pre></div>
 
 <p>Using the UI:</p>
@@ -1968,7 +1968,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 <p>earlier than v1.2</p>
 </blockquote>
 <p>The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span><span class="w"> </span><span class="n">repo</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">git</span><span class="nv">@github</span><span class="p">.</span><span class="nl">com</span><span class="p">:</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span><span class="w"> </span><span class="c1">--ssh-private-key-path ~/.ssh/id_rsa</span>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa</span>
 </code></pre></div>
 
 <h3 id="github-app-credential">GitHub App Credential<a class="headerlink" href="#github-app-credential" title="Permanent link">&para;</a></h3>
@@ -1986,7 +1986,7 @@ adapt your repository URL to be suffixed with <code>.git</code>.</p>
 </blockquote>
 <p>You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.</p>
 <p>Using the CLI:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argocd</span> <span class="n">repo</span> <span class="k">add</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">argoproj</span><span class="o">/</span><span class="n">argocd</span><span class="o">-</span><span class="n">example</span><span class="o">-</span><span class="n">apps</span><span class="p">.</span><span class="n">git</span> <span class="c1">--github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem</span>
+<div class="codehilite"><pre><span></span><code><span class="err">argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem</span>
 </code></pre></div>
 
 <p>Using the UI:</p>

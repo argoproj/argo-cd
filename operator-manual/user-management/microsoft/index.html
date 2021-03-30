@@ -1731,16 +1731,16 @@
 </li>
 <li>See <a href="../../rbac/">RBAC Configurations</a> for more detailed scenarios.</li>
 </ol>
-<div class="codehilite"><pre><span></span><code><span class="o">#</span> <span class="n">example</span> <span class="n">policy</span>
-<span class="n">policy</span><span class="p">.</span><span class="k">default</span><span class="p">:</span> <span class="k">role</span><span class="p">:</span><span class="n">readonly</span>
-  <span class="n">policy</span><span class="p">.</span><span class="n">csv</span><span class="p">:</span> <span class="o">|</span>
-    <span class="n">p</span><span class="p">,</span> <span class="k">role</span><span class="p">:</span><span class="n">org</span><span class="o">-</span><span class="k">admin</span><span class="p">,</span> <span class="n">applications</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="o">*</span><span class="cm">/*, allow</span>
-<span class="cm">    p, role:org-admin, clusters, get, *, allow</span>
-<span class="cm">    p, role:org-admin, repositories, get, *, allow</span>
-<span class="cm">    p, role:org-admin, repositories, create, *, allow</span>
-<span class="cm">    p, role:org-admin, repositories, update, *, allow</span>
-<span class="cm">    p, role:org-admin, repositories, delete, *, allow</span>
-<span class="cm">    g, &quot;84ce98d1-e359-4f3b-85af-985b458de3c6&quot;, role:org-admin # (azure group assigned to role)</span>
+<div class="codehilite"><pre><span></span><code><span class="err"># example policy</span>
+<span class="err">policy.default: role:readonly</span>
+<span class="err">  policy.csv: |</span>
+<span class="err">    p, role:org-admin, applications, *, */*, allow</span>
+<span class="err">    p, role:org-admin, clusters, get, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, get, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, create, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, update, *, allow</span>
+<span class="err">    p, role:org-admin, repositories, delete, *, allow</span>
+<span class="err">    g, &quot;84ce98d1-e359-4f3b-85af-985b458de3c6&quot;, role:org-admin # (azure group assigned to role)</span>
 </code></pre></div>
 
 <h2 id="azure-ad-app-registration-auth-using-oidc">Azure AD App Registration Auth using OIDC<a class="headerlink" href="#azure-ad-app-registration-auth-using-oidc" title="Permanent link">&para;</a></h2>
@@ -1748,12 +1748,12 @@
 <li>
 <p>Register a new Azure AD Application</p>
 <p><a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app">Quickstart: Register an application</a></p>
-<div class="codehilite"><pre><span></span><code><span class="n">App</span> <span class="n">Registrations</span> <span class="n">Inputs</span>
-    <span class="n">Redirect</span> <span class="n">URI</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">argocd</span><span class="p">.</span><span class="n">example</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">callback</span>
-<span class="n">Outputs</span>
-    <span class="n">Application</span> <span class="p">(</span><span class="n">client</span><span class="p">)</span> <span class="n">ID</span><span class="p">:</span> <span class="n">aaaaaaaa</span><span class="o">-</span><span class="mi">1111</span><span class="o">-</span><span class="n">bbbb</span><span class="o">-</span><span class="mi">2222</span><span class="o">-</span><span class="n">cccccccccccc</span>
-    <span class="n">Directory</span> <span class="p">(</span><span class="n">tenant</span><span class="p">)</span> <span class="n">ID</span><span class="p">:</span> <span class="mi">33333333</span><span class="o">-</span><span class="n">dddd</span><span class="o">-</span><span class="mi">4444</span><span class="o">-</span><span class="n">eeee</span><span class="o">-</span><span class="mi">555555555555</span>
-    <span class="n">Secret</span><span class="p">:</span> <span class="n">some_secret</span>
+<div class="codehilite"><pre><span></span><code><span class="err">App Registrations Inputs</span>
+<span class="err">    Redirect URI: https://argocd.example.com/auth/callback</span>
+<span class="err">Outputs</span>
+<span class="err">    Application (client) ID: aaaaaaaa-1111-bbbb-2222-cccccccccccc</span>
+<span class="err">    Directory (tenant) ID: 33333333-dddd-4444-eeee-555555555555</span>
+<span class="err">    Secret: some_secret</span>
 </code></pre></div>
 
 </li>
@@ -1814,7 +1814,7 @@
 <li>
 <p>Mapping role from jwt token to argo</p>
 <p>If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.</p>
-<div class="codehilite"><pre><span></span><code><span class="n">scopes</span><span class="p">:</span> <span class="s1">&#39;[roles, email]&#39;</span>
+<div class="codehilite"><pre><span></span><code><span class="c">scopes: &#39;[roles, email]&#39;</span>
 </code></pre></div>
 
 </li>

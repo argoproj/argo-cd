@@ -1773,13 +1773,13 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 <p>NOTE: as a security measure you don't have access to most of the standard Lua libraries.</p>
 <h3 id="way-2-contribute-a-custom-health-check">Way 2. Contribute a Custom Health Check<a class="headerlink" href="#way-2-contribute-a-custom-health-check" title="Permanent link">&para;</a></h3>
 <p>A health check can be bundled into Argo CD. Custom health check scripts are located in the <code>resource_customizations</code> directory of <a href="https://github.com/argoproj/argo-cd">https://github.com/argoproj/argo-cd</a>. This must have the following directory structure:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">argo</span><span class="o">-</span><span class="n">cd</span>
-<span class="o">|</span><span class="c1">-- resource_customizations</span>
-<span class="o">|</span>    <span class="o">|</span><span class="c1">-- your.crd.group.io               # CRD group</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- MyKind                     # Resource kind</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- health.lua            # Health check</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span><span class="c1">-- health_test.yaml      # Test inputs and expected results</span>
-<span class="o">|</span>    <span class="o">|</span>    <span class="o">|</span>    <span class="o">+</span><span class="c1">-- testdata              # Directory with test resource YAML definitions</span>
+<div class="codehilite"><pre><span></span><code><span class="err">argo-cd</span>
+<span class="err">|-- resource_customizations</span>
+<span class="err">|    |-- your.crd.group.io               # CRD group</span>
+<span class="err">|    |    |-- MyKind                     # Resource kind</span>
+<span class="err">|    |    |    |-- health.lua            # Health check</span>
+<span class="err">|    |    |    |-- health_test.yaml      # Test inputs and expected results</span>
+<span class="err">|    |    |    +-- testdata              # Directory with test resource YAML definitions</span>
 </code></pre></div>
 
 <p>Each health check must have tests defined in <code>health_test.yaml</code> file. The <code>health_test.yaml</code> is a YAML file with the following structure:</p>

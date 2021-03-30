@@ -1623,13 +1623,13 @@
 <h3 id="helm-example">Helm Example<a class="headerlink" href="#helm-example" title="Permanent link">&para;</a></h3>
 <p>This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.</p>
 <p>A typical layout of your Git repository for this might be:</p>
-<div class="codehilite"><pre><span></span><code><span class="err">├──</span> <span class="n">Chart</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">├──</span> <span class="n">templates</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">helm</span><span class="o">-</span><span class="n">dependency</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">├──</span> <span class="n">helm</span><span class="o">-</span><span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">│</span>   <span class="err">└──</span> <span class="n">kustomize</span><span class="o">-</span><span class="n">guestbook</span><span class="p">.</span><span class="n">yaml</span>
-<span class="err">└──</span> <span class="k">values</span><span class="p">.</span><span class="n">yaml</span>
+<div class="codehilite"><pre><span></span><code><span class="err">├── Chart.yaml</span>
+<span class="err">├── templates</span>
+<span class="err">│   ├── guestbook.yaml</span>
+<span class="err">│   ├── helm-dependency.yaml</span>
+<span class="err">│   ├── helm-guestbook.yaml</span>
+<span class="err">│   └── kustomize-guestbook.yaml</span>
+<span class="err">└── values.yaml</span>
 </code></pre></div>
 
 <p><code>Chart.yaml</code> is boiler-plate.</p>

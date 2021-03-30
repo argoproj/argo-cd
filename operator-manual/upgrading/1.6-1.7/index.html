@@ -1645,7 +1645,7 @@ strings might become out-of-sync after upgrading and you might have to trigger t
 RBAC resource in Argo CD, <code>gpgkeys</code>.</p>
 <p>Please adapt your RBAC rules with the appropriate permissions. The least set of
 permissions every role should have is:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">p</span><span class="p">,</span> <span class="o">&lt;</span><span class="n">your</span><span class="o">-</span><span class="k">role</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">gpgkeys</span><span class="p">,</span> <span class="k">get</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">allow</span>
+<div class="codehilite"><pre><span></span><code><span class="err">p, &lt;your-role&gt;, gpgkeys, get, *, allow</span>
 </code></pre></div>
 
 <p>More information can be found in the

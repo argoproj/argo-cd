@@ -2231,29 +2231,29 @@ To do this, add the <code>--rootpath</code> flag into the <code>argocd-server</c
 
 <p>NOTE: The flag <code>--rootpath</code> changes both API Server and UI base URL. 
 Example nginx.conf:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">worker_processes</span> <span class="mi">1</span><span class="c1">;</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">worker_processes</span> <span class="nt">1</span><span class="o">;</span>
 
-<span class="nv">events</span> { <span class="nv">worker_connections</span> <span class="mi">1024</span><span class="c1">; }</span>
+<span class="nt">events</span> <span class="p">{</span> <span class="err">worker_connections</span> <span class="err">1024</span><span class="p">;</span> <span class="p">}</span>
 
-<span class="nv">http</span> {
+<span class="nt">http</span> <span class="p">{</span>
 
-    <span class="k">sendfile</span> <span class="nv">on</span><span class="c1">;</span>
+    <span class="err">sendfile</span> <span class="err">on</span><span class="p">;</span>
 
-    <span class="nv">server</span> {
-        <span class="nv">listen</span> <span class="mi">443</span><span class="c1">;</span>
+    <span class="err">server</span> <span class="err">{</span>
+        <span class="err">listen</span> <span class="err">443</span><span class="p">;</span>
 
-        <span class="nv">location</span> <span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span><span class="o">/</span> {
-            <span class="nv">proxy_pass</span>         <span class="nv">https</span>:<span class="o">//</span><span class="nv">localhost</span>:<span class="mi">8080</span><span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span><span class="o">/</span><span class="c1">;</span>
-            <span class="nv">proxy_redirect</span>     <span class="nv">off</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">Host</span> $<span class="nv">host</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Real</span><span class="o">-</span><span class="nv">IP</span> $<span class="nv">remote_addr</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="k">For</span> $<span class="nv">proxy_add_x_forwarded_for</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="nv">Host</span> $<span class="nv">server_name</span><span class="c1">;</span>
-            # <span class="nv">buffering</span> <span class="nv">should</span> <span class="nv">be</span> <span class="nv">disabled</span> <span class="k">for</span> <span class="nv">api</span><span class="o">/</span><span class="nv">v1</span><span class="o">/</span><span class="nv">stream</span><span class="o">/</span><span class="nv">applications</span> <span class="nv">to</span> <span class="nv">support</span> <span class="nv">chunked</span> <span class="nv">response</span>
-            <span class="nv">proxy_buffering</span> <span class="nv">off</span><span class="c1">;</span>
-        }
-    }
-}
+        <span class="err">location</span> <span class="err">/argo-cd/</span> <span class="err">{</span>
+            <span class="err">proxy_pass</span>         <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">:</span><span class="mi">8080</span><span class="o">/</span><span class="n">argo-cd</span><span class="o">/</span><span class="p">;</span>
+            <span class="err">proxy_redirect</span>     <span class="err">off</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">Host</span> <span class="err">$host</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Real-IP</span> <span class="err">$remote_addr</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-For</span> <span class="err">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-Host</span> <span class="err">$server_name</span><span class="p">;</span>
+            <span class="err">#</span> <span class="err">buffering</span> <span class="err">should</span> <span class="err">be</span> <span class="err">disabled</span> <span class="err">for</span> <span class="err">api/v1/stream/applications</span> <span class="err">to</span> <span class="err">support</span> <span class="err">chunked</span> <span class="err">response</span>
+            <span class="err">proxy_buffering</span> <span class="err">off</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="err">}</span>
+<span class="err">}</span>
 </code></pre></div>
 
 <p>Flag <code>--grpc-web-root-path</code> is used to provide a non-root path (e.g. /argo-cd)</p>
@@ -2280,30 +2280,30 @@ To configure the UI path add the <code>--basehref</code> flag into the <code>arg
 
 <p>NOTE: The flag <code>--basehref</code> only changes the UI base URL. The API server will keep using the <code>/</code> path so you need to add a URL rewrite rule to the proxy config.
 Example nginx.conf with URL rewrite:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">worker_processes</span> <span class="mi">1</span><span class="c1">;</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">worker_processes</span> <span class="nt">1</span><span class="o">;</span>
 
-<span class="nv">events</span> { <span class="nv">worker_connections</span> <span class="mi">1024</span><span class="c1">; }</span>
+<span class="nt">events</span> <span class="p">{</span> <span class="err">worker_connections</span> <span class="err">1024</span><span class="p">;</span> <span class="p">}</span>
 
-<span class="nv">http</span> {
+<span class="nt">http</span> <span class="p">{</span>
 
-    <span class="k">sendfile</span> <span class="nv">on</span><span class="c1">;</span>
+    <span class="err">sendfile</span> <span class="err">on</span><span class="p">;</span>
 
-    <span class="nv">server</span> {
-        <span class="nv">listen</span> <span class="mi">443</span><span class="c1">;</span>
+    <span class="err">server</span> <span class="err">{</span>
+        <span class="err">listen</span> <span class="err">443</span><span class="p">;</span>
 
-        <span class="nv">location</span> <span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span> {
-            <span class="nv">rewrite</span> <span class="o">/</span><span class="nv">argo</span><span class="o">-</span><span class="nv">cd</span><span class="o">/</span><span class="ss">(</span>.<span class="o">*</span><span class="ss">)</span> <span class="o">/</span><span class="mh">$1</span>  <span class="k">break</span><span class="c1">;</span>
-            <span class="nv">proxy_pass</span>         <span class="nv">https</span>:<span class="o">//</span><span class="nv">localhost</span>:<span class="mi">8080</span><span class="c1">;</span>
-            <span class="nv">proxy_redirect</span>     <span class="nv">off</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">Host</span> $<span class="nv">host</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Real</span><span class="o">-</span><span class="nv">IP</span> $<span class="nv">remote_addr</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="k">For</span> $<span class="nv">proxy_add_x_forwarded_for</span><span class="c1">;</span>
-            <span class="nv">proxy_set_header</span>   <span class="nv">X</span><span class="o">-</span><span class="nv">Forwarded</span><span class="o">-</span><span class="nv">Host</span> $<span class="nv">server_name</span><span class="c1">;</span>
-            # <span class="nv">buffering</span> <span class="nv">should</span> <span class="nv">be</span> <span class="nv">disabled</span> <span class="k">for</span> <span class="nv">api</span><span class="o">/</span><span class="nv">v1</span><span class="o">/</span><span class="nv">stream</span><span class="o">/</span><span class="nv">applications</span> <span class="nv">to</span> <span class="nv">support</span> <span class="nv">chunked</span> <span class="nv">response</span>
-            <span class="nv">proxy_buffering</span> <span class="nv">off</span><span class="c1">;</span>
-        }
-    }
-}
+        <span class="err">location</span> <span class="err">/argo-cd</span> <span class="err">{</span>
+            <span class="err">rewrite</span> <span class="err">/argo-cd/(.*)</span> <span class="err">/$1</span>  <span class="err">break</span><span class="p">;</span>
+            <span class="err">proxy_pass</span>         <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="o">:</span><span class="mi">8080</span><span class="p">;</span>
+            <span class="err">proxy_redirect</span>     <span class="err">off</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">Host</span> <span class="err">$host</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Real-IP</span> <span class="err">$remote_addr</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-For</span> <span class="err">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+            <span class="err">proxy_set_header</span>   <span class="err">X-Forwarded-Host</span> <span class="err">$server_name</span><span class="p">;</span>
+            <span class="err">#</span> <span class="err">buffering</span> <span class="err">should</span> <span class="err">be</span> <span class="err">disabled</span> <span class="err">for</span> <span class="err">api/v1/stream/applications</span> <span class="err">to</span> <span class="err">support</span> <span class="err">chunked</span> <span class="err">response</span>
+            <span class="err">proxy_buffering</span> <span class="err">off</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="err">}</span>
+<span class="err">}</span>
 </code></pre></div>
                 
               

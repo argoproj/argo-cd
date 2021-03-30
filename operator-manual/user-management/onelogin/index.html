@@ -1595,11 +1595,11 @@
 </ol>
 <p>When a user attempts to login to Argo with OneLogin, the User roles in OneLogin, say, Manager, ProductTeam, and TestEngineering, will be included in the Groups field in the token. These are the values needed for Argo to assign permissions.</p>
 <p>The groups field in the token will look similar to the following:</p>
-<div class="codehilite"><pre><span></span><code><span class="ss">&quot;groups&quot;</span><span class="p">:</span> <span class="p">[</span>
-    <span class="ss">&quot;Manager&quot;</span><span class="p">,</span>
-    <span class="ss">&quot;ProductTeam&quot;</span><span class="p">,</span>
-    <span class="ss">&quot;TestEngineering&quot;</span><span class="p">,</span>
-  <span class="p">],</span>
+<div class="codehilite"><pre><span></span><code><span class="err">&quot;groups&quot;: [</span>
+<span class="err">    &quot;Manager&quot;,</span>
+<span class="err">    &quot;ProductTeam&quot;,</span>
+<span class="err">    &quot;TestEngineering&quot;,</span>
+<span class="err">  ],</span>
 </code></pre></div>
 
 <h4 id="rules-tab">Rules Tab<a class="headerlink" href="#rules-tab" title="Permanent link">&para;</a></h4>
@@ -1621,20 +1621,20 @@
 <p>Now that the OIDC application is configured in OneLogin, you can update Argo configuration to communicate with OneLogin, as well as control permissions for those users that authenticate via OneLogin.</p>
 <h3 id="tell-argo-where-onelogin-is">Tell Argo where OneLogin is<a class="headerlink" href="#tell-argo-where-onelogin-is" title="Permanent link">&para;</a></h3>
 <p>Argo needs to have its config map (argocd-cm) updated in order to communicate with OneLogin. Consider the following yaml:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">apiVersion</span>: <span class="nv">v1</span>
-<span class="nv">kind</span>: <span class="nv">ConfigMap</span>
-<span class="nv">metadata</span>:
-  <span class="nv">name</span>: <span class="nv">argocd</span><span class="o">-</span><span class="nv">cm</span>
-<span class="nv">data</span>:
-  <span class="nv">url</span>: <span class="nv">https</span>:<span class="o">//&lt;</span><span class="nv">argocd</span>.<span class="nv">myproject</span>.<span class="nv">com</span><span class="o">&gt;</span>
-  <span class="nv">oidc</span>.<span class="nv">config</span>: <span class="o">|</span>
-    <span class="nv">name</span>: <span class="nv">OneLogin</span>
-    <span class="nv">issuer</span>: <span class="nv">https</span>:<span class="o">//</span><span class="nv">openid</span><span class="o">-</span><span class="k">connect</span>.<span class="nv">onelogin</span>.<span class="nv">com</span><span class="o">/</span><span class="nv">oidc</span>
-    <span class="nv">clientID</span>: <span class="nv">aaaaaaaa</span><span class="o">-</span><span class="nv">aaaa</span><span class="o">-</span><span class="nv">aaaa</span><span class="o">-</span><span class="nv">aaaa</span><span class="o">-</span><span class="nv">aaaaaaaaaaaaaaaaaa</span>
-    <span class="nv">clientSecret</span>: <span class="nv">abcdef123456</span>
+<div class="codehilite"><pre><span></span><code><span class="n">apiVersion</span><span class="o">:</span> <span class="n">v1</span>
+<span class="n">kind</span><span class="o">:</span> <span class="n">ConfigMap</span>
+<span class="n">metadata</span><span class="o">:</span>
+  <span class="n">name</span><span class="o">:</span> <span class="n">argocd</span><span class="o">-</span><span class="n">cm</span>
+<span class="n">data</span><span class="o">:</span>
+  <span class="n">url</span><span class="o">:</span> <span class="n">https</span><span class="o">://&lt;</span><span class="n">argocd</span><span class="o">.</span><span class="na">myproject</span><span class="o">.</span><span class="na">com</span><span class="o">&gt;</span>
+  <span class="n">oidc</span><span class="o">.</span><span class="na">config</span><span class="o">:</span> <span class="o">|</span>
+    <span class="n">name</span><span class="o">:</span> <span class="n">OneLogin</span>
+    <span class="n">issuer</span><span class="o">:</span> <span class="n">https</span><span class="o">://</span><span class="n">openid</span><span class="o">-</span><span class="n">connect</span><span class="o">.</span><span class="na">onelogin</span><span class="o">.</span><span class="na">com</span><span class="o">/</span><span class="n">oidc</span>
+    <span class="n">clientID</span><span class="o">:</span> <span class="n">aaaaaaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaa</span><span class="o">-</span><span class="n">aaaaaaaaaaaaaaaaaa</span>
+    <span class="n">clientSecret</span><span class="o">:</span> <span class="n">abcdef123456</span>
 
-    # <span class="nv">Optional</span> <span class="nv">set</span> <span class="nv">of</span> <span class="nv">OIDC</span> <span class="nv">scopes</span> <span class="nv">to</span> <span class="nv">request</span>. <span class="k">If</span> <span class="nv">omitted</span>, <span class="nv">defaults</span> <span class="nv">to</span>: [<span class="s2">&quot;</span><span class="s">openid</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">profile</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">email</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">groups</span><span class="s2">&quot;</span>]
-    <span class="nv">requestedScopes</span>: [<span class="s2">&quot;</span><span class="s">openid</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">profile</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">email</span><span class="s2">&quot;</span>, <span class="s2">&quot;</span><span class="s">groups</span><span class="s2">&quot;</span>]
+    <span class="err">#</span> <span class="n">Optional</span> <span class="kd">set</span> <span class="n">of</span> <span class="n">OIDC</span> <span class="n">scopes</span> <span class="n">to</span> <span class="n">request</span><span class="o">.</span> <span class="n">If</span> <span class="n">omitted</span><span class="o">,</span> <span class="n">defaults</span> <span class="n">to</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
+    <span class="n">requestedScopes</span><span class="o">:</span> <span class="o">[</span><span class="s2">&quot;openid&quot;</span><span class="o">,</span> <span class="s2">&quot;profile&quot;</span><span class="o">,</span> <span class="s2">&quot;email&quot;</span><span class="o">,</span> <span class="s2">&quot;groups&quot;</span><span class="o">]</span>
 </code></pre></div>
 
 <p>The "url" key should have a value of the hostname of your Argo project.</p>

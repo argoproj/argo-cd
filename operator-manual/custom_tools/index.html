@@ -1647,7 +1647,7 @@ the helm binary with a different version than what is bundled in Argo CD:</p>
 <p>Sometimes replacing a binary isn't sufficient and you need to install other dependencies. The
 following example builds an entirely customized repo-server from a Dockerfile, installing extra
 dependencies that may be needed for generating manifests.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">FROM</span><span class="s"> argoproj/argocd:latest</span>
+<div class="codehilite"><pre><span></span><code><span class="k">FROM</span> <span class="s">argoproj/argocd:latest</span>
 
 <span class="c"># Switch to root for the ability to perform install</span>
 <span class="k">USER</span><span class="s"> root</span>
