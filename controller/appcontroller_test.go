@@ -745,7 +745,7 @@ func TestHandleAppUpdated(t *testing.T) {
 	assert.Equal(t, CompareWithRecent, level)
 }
 
-func TestHandleOrphanedResourceUpdated(t *testing.T) {
+func TestHandleUnmanagedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
@@ -757,7 +757,7 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app1, app2, proj}})
 
@@ -772,18 +772,18 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	assert.Equal(t, ComparisonWithNothing, level)
 }
 
-func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
+func TestGetResourceTree_HasUnmanagedResources(t *testing.T) {
 	app := newFakeApp()
 	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.UnmanagedResources = &argoappv1.UnmanagedResourcesMonitorSettings{}
 
 	managedDeploy := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
 	}
-	orphanedDeploy1 := argoappv1.ResourceNode{
+	unmanagedDeploy1 := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
 	}
-	orphanedDeploy2 := argoappv1.ResourceNode{
+	unmanagedDeploy2 := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy2"},
 	}
 
@@ -791,8 +791,8 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 		apps: []runtime.Object{app, proj},
 		namespacedResources: map[kube.ResourceKey]namespacedResource{
 			kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment"): {ResourceNode: managedDeploy},
-			kube.NewResourceKey("apps", "Deployment", "default", "deploy1"):          {ResourceNode: orphanedDeploy1},
-			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: orphanedDeploy2},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy1"):          {ResourceNode: unmanagedDeploy1},
+			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: unmanagedDeploy2},
 		},
 	})
 	tree, err := ctrl.getResourceTree(app, []*argoappv1.ResourceDiff{{
@@ -806,7 +806,7 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, tree.Nodes, []argoappv1.ResourceNode{managedDeploy})
-	assert.Equal(t, tree.OrphanedNodes, []argoappv1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
+	assert.Equal(t, tree.UnmanagedNodes, []argoappv1.ResourceNode{unmanagedDeploy1, unmanagedDeploy2})
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {

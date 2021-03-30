@@ -59,8 +59,8 @@ import (
 
 const (
 	updateOperationStateTimeout = 1 * time.Second
-	// orphanedIndex contains application which monitor orphaned resources by namespace
-	orphanedIndex = "orphaned"
+	// unmanagedIndex contains application which monitor unmanaged resources by namespace
+	unmanagedIndex = "unmanaged"
 )
 
 type CompareWith int
@@ -234,10 +234,10 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 }
 
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
-	// if namespaced resource is not managed by any app it might be orphaned resource of some other apps
+	// if namespaced resource is not managed by any app it might be unmanaged resource of some other apps
 	if len(managedByApp) == 0 && ref.Namespace != "" {
-		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is denied in app project
-		if objs, err := ctrl.appInformer.GetIndexer().ByIndex(orphanedIndex, ref.Namespace); err == nil {
+		// retrieve applications which monitor unmanaged resources in the same namespace and refresh them unless resource is denied in app project
+		if objs, err := ctrl.appInformer.GetIndexer().ByIndex(unmanagedIndex, ref.Namespace); err == nil {
 			for i := range objs {
 				app, ok := objs[i].(*appv1.Application)
 				if !ok {
@@ -245,7 +245,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 				}
 				// exclude resource unless it is permitted in the app project. If project is not permitted then it is not controlled by the user and there is no point showing the warning.
 				if proj, err := ctrl.getAppProj(app); err == nil && proj.IsGroupKindPermitted(ref.GroupVersionKind().GroupKind(), true) &&
-					!isKnownOrphanedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name), proj) {
+					!isKnownUnmanagedResourceExclusion(kube.NewResourceKey(ref.GroupVersionKind().Group, ref.GroupVersionKind().Kind, ref.Namespace, ref.Name), proj) {
 
 					managedByApp[app.Name] = false
 				}
@@ -289,7 +289,7 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 }
 
 // returns true of given resources exist in the namespace by default and not managed by the user
-func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProject) bool {
+func isKnownUnmanagedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProject) bool {
 	if key.Namespace == "default" && key.Group == "" && key.Kind == kube.ServiceKind && key.Name == "kubernetes" {
 		return true
 	}
@@ -299,7 +299,7 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 	if key.Group == "" && key.Kind == "ConfigMap" && key.Name == "kube-root-ca.crt" {
 		return true
 	}
-	list := proj.Spec.OrphanedResources.Ignore
+	list := proj.Spec.UnmanagedResources.Ignore
 	for _, item := range list {
 		if item.Kind == "" || glob.Match(item.Kind, key.Kind) {
 			if glob.Match(item.Group, key.Group) {
@@ -319,19 +319,19 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	if err != nil {
 		return nil, err
 	}
-	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
-	warnOrphaned := true
-	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+	unmanagedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
+	warnUnmanaged := true
+	if proj.Spec.UnmanagedResources != nil {
+		unmanagedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
+		warnUnmanaged = proj.Spec.UnmanagedResources.IsWarn()
 	}
 
 	for i := range managedResources {
 		managedResource := managedResources[i]
-		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
+		delete(unmanagedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
 		var live = &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
 		if err != nil {
@@ -362,9 +362,9 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			}
 		}
 	}
-	orphanedNodes := make([]appv1.ResourceNode, 0)
-	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
+	unmanagedNodes := make([]appv1.ResourceNode, 0)
+	for k := range unmanagedNodesMap {
+		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownUnmanagedResourceExclusion(k, proj) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
@@ -373,7 +373,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 					}
 				}
 				if !belongToAnotherApp {
-					orphanedNodes = append(orphanedNodes, child)
+					unmanagedNodes = append(unmanagedNodes, child)
 				}
 			})
 			if err != nil {
@@ -382,15 +382,15 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}
 	}
 	var conditions []appv1.ApplicationCondition
-	if len(orphanedNodes) > 0 && warnOrphaned {
+	if len(unmanagedNodes) > 0 && warnUnmanaged {
 		conditions = []appv1.ApplicationCondition{{
-			Type:    appv1.ApplicationConditionOrphanedResourceWarning,
-			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
+			Type:    appv1.ApplicationConditionUnmanagedResourceWarning,
+			Message: fmt.Sprintf("Application has %d unmanaged resources", len(unmanagedNodes)),
 		}}
 	}
-	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
-	sort.Slice(orphanedNodes, func(i, j int) bool {
-		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
+	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionUnmanagedResourceWarning: true})
+	sort.Slice(unmanagedNodes, func(i, j int) bool {
+		return unmanagedNodes[i].ResourceRef.String() < unmanagedNodes[j].ResourceRef.String()
 	})
 
 	hosts, err := ctrl.getAppHosts(a, nodes)
@@ -398,7 +398,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		return nil, err
 	}
 
-	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
+	return &appv1.ApplicationTree{Nodes: nodes, UnmanagedNodes: unmanagedNodes, Hosts: hosts}, nil
 }
 
 func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
@@ -1557,7 +1557,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				return cache.MetaNamespaceIndexFunc(obj)
 			},
-			orphanedIndex: func(obj interface{}) (i []string, e error) {
+			unmanagedIndex: func(obj interface{}) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
 					return nil, nil
@@ -1567,7 +1567,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err != nil {
 					return nil, nil
 				}
-				if proj.Spec.OrphanedResources != nil {
+				if proj.Spec.UnmanagedResources != nil {
 					return []string{app.Spec.Destination.Namespace}, nil
 				}
 				return nil, nil

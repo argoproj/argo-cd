@@ -49,7 +49,7 @@ func TestProjectCreation(t *testing.T) {
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git",
-		"--orphaned-resources")
+		"--unmanaged-resources")
 	assert.Nil(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
@@ -66,8 +66,8 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
-	assert.NotNil(t, proj.Spec.OrphanedResources)
-	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
+	assert.NotNil(t, proj.Spec.UnmanagedResources)
+	assert.True(t, proj.Spec.UnmanagedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
 
@@ -121,7 +121,7 @@ func TestSetProject(t *testing.T) {
 		"--description", "updated description",
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
-		"--orphaned-resources-warn=false")
+		"--unmanaged-resources-warn=false")
 	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
@@ -135,8 +135,8 @@ func TestSetProject(t *testing.T) {
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
 
-	assert.NotNil(t, proj.Spec.OrphanedResources)
-	assert.False(t, proj.Spec.OrphanedResources.IsWarn())
+	assert.NotNil(t, proj.Spec.UnmanagedResources)
+	assert.False(t, proj.Spec.UnmanagedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
@@ -344,7 +344,7 @@ func TestUseJWTToken(t *testing.T) {
 
 }
 
-func TestAddOrphanedIgnore(t *testing.T) {
+func TestAddUnmanagedIgnore(t *testing.T) {
 	fixture.EnsureCleanState(t)
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
@@ -354,7 +354,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to create project %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "add-orphaned-ignore", projectName,
+	_, err = fixture.RunCli("proj", "add-unmanaged-ignore", projectName,
 		"group",
 		"kind",
 		"--name",
@@ -362,10 +362,10 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	)
 
 	if err != nil {
-		t.Fatalf("Unable to add resource to orphaned ignore %v", err)
+		t.Fatalf("Unable to add resource to unmanaged ignore %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "add-orphaned-ignore", projectName,
+	_, err = fixture.RunCli("proj", "add-unmanaged-ignore", projectName,
 		"group",
 		"kind",
 		"--name",
@@ -377,24 +377,24 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Equal(t, 1, len(proj.Spec.UnmanagedResources.Ignore))
 
-	assert.Equal(t, "group", proj.Spec.OrphanedResources.Ignore[0].Group)
-	assert.Equal(t, "kind", proj.Spec.OrphanedResources.Ignore[0].Kind)
-	assert.Equal(t, "name", proj.Spec.OrphanedResources.Ignore[0].Name)
+	assert.Equal(t, "group", proj.Spec.UnmanagedResources.Ignore[0].Group)
+	assert.Equal(t, "kind", proj.Spec.UnmanagedResources.Ignore[0].Kind)
+	assert.Equal(t, "name", proj.Spec.UnmanagedResources.Ignore[0].Name)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
-func TestRemoveOrphanedIgnore(t *testing.T) {
+func TestRemoveUnmanagedIgnore(t *testing.T) {
 	fixture.EnsureCleanState(t)
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(context.Background(), &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: projectName},
 		Spec: v1alpha1.AppProjectSpec{
-			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{
+			UnmanagedResources: &v1alpha1.UnmanagedResourcesMonitorSettings{
 				Warn:   pointer.BoolPtr(true),
-				Ignore: []v1alpha1.OrphanedResourceKey{{Group: "group", Kind: "kind", Name: "name"}},
+				Ignore: []v1alpha1.UnmanagedResourceKey{{Group: "group", Kind: "kind", Name: "name"}},
 			},
 		},
 	}, metav1.CreateOptions{})
@@ -403,7 +403,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to create project %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "remove-orphaned-ignore", projectName,
+	_, err = fixture.RunCli("proj", "remove-unmanaged-ignore", projectName,
 		"group",
 		"kind",
 		"--name",
@@ -411,10 +411,10 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	)
 
 	if err != nil {
-		t.Fatalf("Unable to remove resource from orphaned ignore list %v", err)
+		t.Fatalf("Unable to remove resource from unmanaged ignore list %v", err)
 	}
 
-	_, err = fixture.RunCli("proj", "remove-orphaned-ignore", projectName,
+	_, err = fixture.RunCli("proj", "remove-unmanaged-ignore", projectName,
 		"group",
 		"kind",
 		"--name",
@@ -428,7 +428,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Equal(t, 0, len(proj.Spec.UnmanagedResources.Ignore))
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -440,7 +440,7 @@ func createAndConfigGlobalProject() error {
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git",
-		"--orphaned-resources")
+		"--unmanaged-resources")
 	if err != nil {
 		return err
 	}
@@ -509,7 +509,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 		"--description", "Test description",
 		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
 		"-s", "*",
-		"--orphaned-resources")
+		"--unmanaged-resources")
 	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
@@ -541,7 +541,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--description", "Test description",
 		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
 		"-s", "*",
-		"--orphaned-resources")
+		"--unmanaged-resources")
 	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})

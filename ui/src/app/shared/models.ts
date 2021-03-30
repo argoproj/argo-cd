@@ -148,7 +148,7 @@ export interface ApplicationDestination {
     name: string;
 }
 
-export interface OrphanedResource {
+export interface UnmanagedResource {
     group: string;
     kind: string;
     name: string;
@@ -335,7 +335,7 @@ export interface ResourceNode extends ResourceRef {
 
 export interface ApplicationTree {
     nodes: ResourceNode[];
-    orphanedNodes: ResourceNode[];
+    unmanagedNodes: ResourceNode[];
     hosts: Node[];
 }
 
@@ -658,7 +658,7 @@ export interface ProjectSpec {
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
-    orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
+    unmanagedResources?: {warn?: boolean; ignore: UnmanagedResource[]};
     syncWindows?: SyncWindows;
 }
 

@@ -34,7 +34,7 @@ test("compareNodes", () => {
         }],
       } as ResourceTreeNode,
       {
-        orphaned: false,
+        unmanaged: false,
         resourceVersion: "1",
         name: "a",
         info: [{
@@ -43,7 +43,7 @@ test("compareNodes", () => {
         }],
       } as ResourceTreeNode,
       {
-        orphaned: false,
+        unmanaged: false,
         resourceVersion: "1",
         name: "b",
         info: [{
@@ -52,7 +52,7 @@ test("compareNodes", () => {
         }],
       } as ResourceTreeNode,
       {
-        orphaned: false,
+        unmanaged: false,
         resourceVersion: "2",
         name: "a",
         info: [{
@@ -61,7 +61,7 @@ test("compareNodes", () => {
         }],
       } as ResourceTreeNode,
       {
-        orphaned: false,
+        unmanaged: false,
         resourceVersion: "2",
         name: "b",
         info: [{
@@ -70,7 +70,7 @@ test("compareNodes", () => {
         }],
       } as ResourceTreeNode,
       {
-        orphaned: true,
+        unmanaged: true,
         resourceVersion: "1",
         name: "a",
         info: [{

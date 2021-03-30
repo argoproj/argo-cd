@@ -68,8 +68,8 @@ message AppProjectSpec {
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
 
-  // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
-  optional OrphanedResourcesMonitorSettings orphanedResources = 7;
+  // UnmanagedResources specifies if controller should monitor unmanaged resources of apps in this project
+  optional UnmanagedResourcesMonitorSettings unmanagedResources = 7;
 
   // SyncWindows controls when syncs can be run for apps in this project
   repeated SyncWindow syncWindows = 8;
@@ -336,8 +336,8 @@ message ApplicationTree {
   // Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
   repeated ResourceNode nodes = 1;
 
-  // OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
-  repeated ResourceNode orphanedNodes = 2;
+  // UnmanagedNodes contains if or unmanaged nodes: nodes which are not managed by the app but in the same namespace. List is populated only if unmanaged resources enabled in app project.
+  repeated ResourceNode unmanagedNodes = 2;
 
   // Hosts holds list of Kubernetes nodes that run application related pods
   repeated HostInfo hosts = 3;
@@ -723,8 +723,8 @@ message OperationState {
   optional int64 retryCount = 8;
 }
 
-// OrphanedResourceKey is a reference to a resource to be ignored from
-message OrphanedResourceKey {
+// UnmanagedResourceKey is a reference to a resource to be ignored from
+message UnmanagedResourceKey {
   optional string group = 1;
 
   optional string kind = 2;
@@ -732,13 +732,13 @@ message OrphanedResourceKey {
   optional string name = 3;
 }
 
-// OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
-message OrphanedResourcesMonitorSettings {
-  // Warn indicates if warning condition should be created for apps which have orphaned resources
+// UnmanagedResourcesMonitorSettings holds settings of unmanaged resources monitoring
+message UnmanagedResourcesMonitorSettings {
+  // Warn indicates if warning condition should be created for apps which have unmanaged resources
   optional bool warn = 1;
 
-  // Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
-  repeated OrphanedResourceKey ignore = 2;
+  // Ignore contains a list of resources that are to be excluded from unmanaged resources monitoring
+  repeated UnmanagedResourceKey ignore = 2;
 }
 
 // TODO: describe this type

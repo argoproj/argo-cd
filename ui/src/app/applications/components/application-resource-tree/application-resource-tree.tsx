@@ -28,7 +28,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
     hook?: boolean;
     root?: ResourceTreeNode;
     requiresPruning?: boolean;
-    orphaned?: boolean;
+    unmanaged?: boolean;
 }
 
 export interface ApplicationResourceTreeProps {
@@ -40,7 +40,7 @@ export interface ApplicationResourceTreeProps {
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     onClearFilter: () => any;
-    showOrphanedResources: boolean;
+    showUnmanagedResources: boolean;
 }
 
 interface Line {
@@ -107,8 +107,8 @@ function filterGraph(app: models.Application, filteredIndicatorParent: string, g
 }
 
 export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) {
-    function orphanedToInt(orphaned?: boolean) {
-        return (orphaned && 1) || 0;
+    function unmanagedToInt(unmanaged?: boolean) {
+        return (unmanaged && 1) || 0;
     }
     function compareRevision(a: string, b: string) {
         const numberA = Number(a);
@@ -130,7 +130,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return value.replace(/^Rev:/, '');
     }
     return (
-        orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
+        unmanagedToInt(first.unmanaged) - unmanagedToInt(second.unmanaged) ||
         nodeKey(first).localeCompare(nodeKey(second)) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
@@ -224,7 +224,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
+                'application-resource-tree__node--unmanaged': node.unmanaged
             })}
             title={describeNode(node)}
             style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
@@ -350,8 +350,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
-        .map(node => ({...node, orphaned: false}))
-        .concat(((props.showOrphanedResources && props.tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+        .map(node => ({...node, unmanaged: false}))
+        .concat(((props.showUnmanagedResources && props.tree.unmanagedNodes) || []).map(node => ({...node, unmanaged: true})))
         .forEach(node => {
             const status = statusByKey.get(nodeKey(node));
             const resourceNode: ResourceTreeNode = {...node};
@@ -429,12 +429,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     } else {
         // Tree view
         const managedKeys = new Set(props.app.status.resources.map(nodeKey));
-        const orphans: ResourceTreeNode[] = [];
+        const unmanaged: ResourceTreeNode[] = [];
         nodes.forEach(node => {
             if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
                 roots.push(node);
             } else {
-                orphans.push(node);
+                unmanaged.push(node);
                 node.parentRefs.forEach(parent => {
                     const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                     children.push(node);
@@ -446,7 +446,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             processNode(node, node);
             graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
         });
-        orphans.sort(compareNodes).forEach(node => {
+        unmanaged.sort(compareNodes).forEach(node => {
             processNode(node, node);
         });
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});

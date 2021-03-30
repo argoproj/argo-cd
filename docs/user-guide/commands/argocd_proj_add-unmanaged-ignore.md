@@ -1,15 +1,15 @@
-## argocd proj add-orphaned-ignore
+## argocd proj add-unmanaged-ignore
 
-Add a resource to orphaned ignore list
+Add a resource to unmanaged ignore list
 
 ```
-argocd proj add-orphaned-ignore PROJECT GROUP KIND [flags]
+argocd proj add-unmanaged-ignore PROJECT GROUP KIND [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help          help for add-orphaned-ignore
+  -h, --help          help for add-unmanaged-ignore
       --name string   Resource name pattern
 ```
 

@@ -33,7 +33,7 @@ $header: 120px;
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
     }
-    &__orphaned-filter {
+    &__unmanaged-filter {
         position: fixed;
         top: $header + 100px;
         right: 60px;

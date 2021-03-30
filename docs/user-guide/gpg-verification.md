@@ -217,7 +217,7 @@ Repositories:                *
 Allowed Cluster Resources:   */*
 Denied Namespaced Resources: <none>
 Signature keys:              4AEE18F83AFDEB23, 07E34825A909B250
-Orphaned Resources:          disabled
+Unmanaged Resources:          disabled
 ```
 
 #### Override list of key IDs

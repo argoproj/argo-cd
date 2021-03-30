@@ -25,8 +25,8 @@ type ProjectOpts struct {
 	Sources       []string
 	SignatureKeys []string
 
-	orphanedResourcesEnabled   bool
-	orphanedResourcesWarn      bool
+	unmanagedResourcesEnabled   bool
+	unmanagedResourcesWarn      bool
 	allowedClusterResources    []string
 	deniedClusterResources     []string
 	allowedNamespacedResources []string
@@ -39,8 +39,8 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 		"Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)")
 	command.Flags().StringArrayVarP(&opts.Sources, "src", "s", []string{}, "Permitted source repository URL")
 	command.Flags().StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
-	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
-	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should have a warning condition when orphaned resources detected")
+	command.Flags().BoolVar(&opts.unmanagedResourcesEnabled, "unmanaged-resources", false, "Enables unmanaged resources monitoring")
+	command.Flags().BoolVar(&opts.unmanagedResourcesWarn, "unmanaged-resources-warn", false, "Specifies if applications should have a warning condition when unmanaged resources detected")
 	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources")
 	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
@@ -104,12 +104,12 @@ func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	return signatureKeys
 }
 
-func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
-	warnChanged := flagSet.Changed("orphaned-resources-warn")
-	if opts.orphanedResourcesEnabled || warnChanged {
-		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
+func GetUnmanagedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.UnmanagedResourcesMonitorSettings {
+	warnChanged := flagSet.Changed("unmanaged-resources-warn")
+	if opts.unmanagedResourcesEnabled || warnChanged {
+		settings := v1alpha1.UnmanagedResourcesMonitorSettings{}
 		if warnChanged {
-			settings.Warn = pointer.BoolPtr(opts.orphanedResourcesWarn)
+			settings.Warn = pointer.BoolPtr(opts.unmanagedResourcesWarn)
 		}
 		return &settings
 	}
@@ -158,8 +158,8 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
 		}
 	})
-	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {
-		spec.OrphanedResources = GetOrphanedResourcesSettings(flags, *projOpts)
+	if flags.Changed("unmanaged-resources") || flags.Changed("unmanaged-resources-warn") {
+		spec.UnmanagedResources = GetUnmanagedResourcesSettings(flags, *projOpts)
 		visited++
 	}
 	return visited

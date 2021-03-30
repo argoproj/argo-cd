@@ -16,8 +16,8 @@ argocd proj set PROJECT [flags]
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
   -h, --help                                    help for set
-      --orphaned-resources                      Enables orphaned resources monitoring
-      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
+      --unmanaged-resources                      Enables unmanaged resources monitoring
+      --unmanaged-resources-warn                 Specifies if applications should have a warning condition when unmanaged resources detected
       --signature-keys strings                  GnuPG public key IDs for commit signature verification
   -s, --src stringArray                         Permitted source repository URL
 ```

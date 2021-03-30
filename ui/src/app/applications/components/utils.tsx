@@ -203,11 +203,11 @@ export function showDeploy(resource: string, appContext: AppContext) {
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
     const key = nodeKey(node);
 
-    const allNodes = tree.nodes.concat(tree.orphanedNodes || []);
+    const allNodes = tree.nodes.concat(tree.unmanagedNodes || []);
     const nodeByKey = new Map<string, appModels.ResourceNode>();
     allNodes.forEach(item => nodeByKey.set(nodeKey(item), item));
 
-    const pods = tree.nodes.concat(tree.orphanedNodes || []).filter(item => item.kind === 'Pod');
+    const pods = tree.nodes.concat(tree.unmanagedNodes || []).filter(item => item.kind === 'Pod');
     return pods.find(pod => {
         const items: Array<appModels.ResourceNode> = [pod];
         while (items.length > 0) {

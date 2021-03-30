@@ -10,7 +10,7 @@ argocd app resources APPNAME [flags]
 
 ```
   -h, --help       help for resources
-      --orphaned   Lists only orphaned resources
+      --unmanaged   Lists only unmanaged resources
 ```
 
 ### Options inherited from parent commands

@@ -62,8 +62,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectAllowNamespaceResourceCommand(clientOpts))
 	command.AddCommand(NewProjectDenyNamespaceResourceCommand(clientOpts))
 	command.AddCommand(NewProjectWindowsCommand(clientOpts))
-	command.AddCommand(NewProjectAddOrphanedIgnoreCommand(clientOpts))
-	command.AddCommand(NewProjectRemoveOrphanedIgnoreCommand(clientOpts))
+	command.AddCommand(NewProjectAddUnmanagedIgnoreCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveUnmanagedIgnoreCommand(clientOpts))
 	return command
 }
 
@@ -288,14 +288,14 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 	return command
 }
 
-// NewProjectAddOrphanedIgnoreCommand returns a new instance of an `argocd proj add-orphaned-ignore` command
-func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewProjectAddUnmanagedIgnoreCommand returns a new instance of an `argocd proj add-unmanaged-ignore` command
+func NewProjectAddUnmanagedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		name string
 	)
 	var command = &cobra.Command{
-		Use:   "add-orphaned-ignore PROJECT GROUP KIND",
-		Short: "Add a resource to orphaned ignore list",
+		Use:   "add-unmanaged-ignore PROJECT GROUP KIND",
+		Short: "Add a resource to unmanaged ignore list",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
@@ -310,18 +310,18 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			if proj.Spec.OrphanedResources == nil {
-				settings := v1alpha1.OrphanedResourcesMonitorSettings{}
-				settings.Ignore = []v1alpha1.OrphanedResourceKey{{Group: group, Kind: kind, Name: name}}
-				proj.Spec.OrphanedResources = &settings
+			if proj.Spec.UnmanagedResources == nil {
+				settings := v1alpha1.UnmanagedResourcesMonitorSettings{}
+				settings.Ignore = []v1alpha1.UnmanagedResourceKey{{Group: group, Kind: kind, Name: name}}
+				proj.Spec.UnmanagedResources = &settings
 			} else {
-				for _, ignore := range proj.Spec.OrphanedResources.Ignore {
+				for _, ignore := range proj.Spec.UnmanagedResources.Ignore {
 					if ignore.Group == group && ignore.Kind == kind && ignore.Name == name {
-						log.Fatal("Specified resource is already defined in the orphaned ignore list of project")
+						log.Fatal("Specified resource is already defined in the unmanaged ignore list of project")
 						return
 					}
 				}
-				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore, v1alpha1.OrphanedResourceKey{Group: group, Kind: kind, Name: name})
+				proj.Spec.UnmanagedResources.Ignore = append(proj.Spec.UnmanagedResources.Ignore, v1alpha1.UnmanagedResourceKey{Group: group, Kind: kind, Name: name})
 			}
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
@@ -331,14 +331,14 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 	return command
 }
 
-// NewProjectRemoveOrphanedIgnoreCommand returns a new instance of an `argocd proj remove-orphaned-ignore` command
-func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewProjectRemoveUnmanagedIgnoreCommand returns a new instance of an `argocd proj remove-unmanaged-ignore` command
+func NewProjectRemoveUnmanagedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		name string
 	)
 	var command = &cobra.Command{
-		Use:   "remove-orphaned-ignore PROJECT GROUP KIND NAME",
-		Short: "Remove a resource from orphaned ignore list",
+		Use:   "remove-unmanaged-ignore PROJECT GROUP KIND NAME",
+		Short: "Remove a resource from unmanaged ignore list",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
@@ -353,22 +353,22 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			if proj.Spec.OrphanedResources == nil {
-				log.Fatal("Specified resource does not exist in the orphaned ignore list of project")
+			if proj.Spec.UnmanagedResources == nil {
+				log.Fatal("Specified resource does not exist in the unmanaged ignore list of project")
 				return
 			}
 
 			index := -1
-			for i, ignore := range proj.Spec.OrphanedResources.Ignore {
+			for i, ignore := range proj.Spec.UnmanagedResources.Ignore {
 				if ignore.Group == group && ignore.Kind == kind && ignore.Name == name {
 					index = i
 					break
 				}
 			}
 			if index == -1 {
-				log.Fatal("Specified resource does not exist in the orphaned ignore of project")
+				log.Fatal("Specified resource does not exist in the unmanaged ignore of project")
 			} else {
-				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
+				proj.Spec.UnmanagedResources.Ignore = append(proj.Spec.UnmanagedResources.Ignore[:index], proj.Spec.UnmanagedResources.Ignore[index+1:]...)
 				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
@@ -595,7 +595,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tUNMANAGED-RESOURCES\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -632,13 +632,13 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return command
 }
 
-func formatOrphanedResources(p *v1alpha1.AppProject) string {
-	if p.Spec.OrphanedResources == nil {
+func formatUnmanagedResources(p *v1alpha1.AppProject) string {
+	if p.Spec.UnmanagedResources == nil {
 		return "disabled"
 	}
-	details := fmt.Sprintf("warn=%v", p.Spec.OrphanedResources.IsWarn())
-	if len(p.Spec.OrphanedResources.Ignore) > 0 {
-		details = fmt.Sprintf("%s, ignored %d", details, len(p.Spec.OrphanedResources.Ignore))
+	details := fmt.Sprintf("warn=%v", p.Spec.UnmanagedResources.IsWarn())
+	if len(p.Spec.UnmanagedResources.Ignore) > 0 {
+		details = fmt.Sprintf("%s, ignored %d", details, len(p.Spec.UnmanagedResources.Ignore))
 	}
 	return fmt.Sprintf("enabled (%s)", details)
 }
@@ -681,7 +681,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p))
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatUnmanagedResources(p))
 }
 
 func printProject(p *v1alpha1.AppProject) {
@@ -741,7 +741,7 @@ func printProject(p *v1alpha1.AppProject) {
 	}
 	fmt.Printf(printProjFmtStr, "Signature keys:", signatureKeysStr)
 
-	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
+	fmt.Printf(printProjFmtStr, "Unmanaged Resources:", formatUnmanagedResources(p))
 
 }
 

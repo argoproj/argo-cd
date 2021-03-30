@@ -86,7 +86,7 @@ nav:
     - GnuPG verification: user-guide/gpg-verification.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
-    - user-guide/orphaned-resources.md
+    - user-guide/unmanaged-resources.md
     - user-guide/compare-options.md
     - user-guide/sync-options.md
     - user-guide/parameters.md
