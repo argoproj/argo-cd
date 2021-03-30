@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -29,6 +28,11 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	ioutil "github.com/argoproj/argo-cd/util/io"
 	"github.com/argoproj/argo-cd/util/tls"
+)
+
+var (
+	LogFormat string
+	LogLevel  string
 )
 
 const (
@@ -78,8 +82,8 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			cli.SetLogFormat(cmdutil.LogFormat)
-			cli.SetLogLevel(cmdutil.LogLevel)
+			cli.SetLogFormat(LogFormat)
+			cli.SetLogLevel(LogLevel)
 
 			if !disableTLS {
 				var err error
@@ -152,8 +156,8 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
