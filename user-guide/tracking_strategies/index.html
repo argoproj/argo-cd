@@ -1736,7 +1736,7 @@ is detected.</p>
 <p>If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
 resolved commit of the symbolic reference.</p>
-<p>To redeploy an app,  makes a changes to your manifests, commit/push to the branch/symbolic reference. They will then detected by Argo CD.</p>
+<p>To redeploy an app, make a change to (at least) one of your manifests, commit and push to the tracked branch/symbolic reference. The change will then be detected by Argo CD.</p>
 <h3 id="tag-tracking">Tag Tracking<a class="headerlink" href="#tag-tracking" title="Permanent link">&para;</a></h3>
 <p>If a tag is specified, the manifests at the specified Git tag will be used to perform the sync
 comparison. This provides some advantages over branch tracking in that a tag is generally considered
