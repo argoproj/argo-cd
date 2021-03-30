@@ -7,7 +7,7 @@ FROM golang:1.16.0 as golang
 FROM ubuntu:20.10
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN  apt-get update && apt-get install -y \
+RUN  apt-get update && apt-get install --fix-missing -y \
         ca-certificates \
         curl \
         openssh-server \
