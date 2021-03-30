@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
 	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
@@ -112,6 +113,7 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	KubeOverrides        *clientcmd.ConfigOverrides
 }
 
 type client struct {
@@ -191,7 +193,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
+		if opts.KubeOverrides == nil {
+			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
+		}
+		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace, opts.KubeOverrides)
 		if err != nil {
 			return nil, err
 		}
