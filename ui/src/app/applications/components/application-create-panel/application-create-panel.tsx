@@ -6,7 +6,7 @@ import {RevisionHelpIcon, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ApplicationSyncOptionsField} from '../application-sync-options';
+import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -414,11 +414,12 @@ export const ApplicationCreatePanel = (props: {
                                                     repoURL: app.spec.source.repoURL,
                                                     path: app.spec.source.path,
                                                     chart: app.spec.source.chart,
-                                                    targetRevision: app.spec.source.targetRevision
+                                                    targetRevision: app.spec.source.targetRevision,
+                                                    appName: app.metadata.name
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));

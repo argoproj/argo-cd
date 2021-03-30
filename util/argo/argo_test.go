@@ -151,7 +151,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 
 func TestValidateChartWithoutRevision(t *testing.T) {
 	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{RepoURL: "https://kubernetes-charts-incubator.storage.googleapis.com/", Chart: "myChart", TargetRevision: ""},
+		Source: argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
 			Server: "https://kubernetes.default.svc", Namespace: "default",
 		},
@@ -333,6 +333,40 @@ func TestFilterByProjects(t *testing.T) {
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
 		res := FilterByProjects(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
+	})
+}
+
+func TestFilterByRepo(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/repo.git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/otherrepo.git",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByRepo(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/repo.git")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
+		assert.Len(t, res, 0)
 	})
 }
 
@@ -708,4 +742,10 @@ func TestFilterByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, res, 0)
 	})
+}
+
+func TestTestRepoOCI(t *testing.T) {
+	err := TestRepo(&argoappv1.Repository{Repo: "https://demo.goharbor.io", Type: "helm", EnableOCI: true})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
 }

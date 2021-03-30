@@ -28,6 +28,7 @@ argocd app unset APPNAME parameters [flags]
       --nameprefix                    Kustomize nameprefix
       --namesuffix                    Kustomize namesuffix
   -p, --parameter stringArray         Unset a parameter override (e.g. -p guestbook=image)
+      --plugin-env stringArray        Unset plugin env variables (e.g --plugin-env name)
       --values stringArray            Unset one or more Helm values files
       --values-literal                Unset literal Helm values block
 ```

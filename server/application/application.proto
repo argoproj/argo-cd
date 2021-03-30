@@ -26,6 +26,8 @@ message ApplicationQuery {
 	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
 	// the selector to to restrict returned list to applications only with matched labels
 	optional string selector = 5 [(gogoproto.nullable) = false];
+	// the repoURL to restrict returned list applications
+	optional string repo = 6 [(gogoproto.nullable) = false];
 }
 
 message NodeQuery {
@@ -70,6 +72,7 @@ message ApplicationUpdateRequest {
 message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
+	optional string propagationPolicy = 3;
 }
 
 message SyncOptions {
@@ -139,6 +142,7 @@ message ApplicationResourceDeleteRequest {
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
 	optional bool force = 7 [(gogoproto.nullable) = true];
+	optional bool orphan = 8 [(gogoproto.nullable) = true];
 }
 
 message ResourceActionRunRequest {

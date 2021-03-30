@@ -347,7 +347,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 					break
 				}
 			}
-
 			assert.True(t, index > -1)
 
 			deployment := resources[index]
@@ -1232,18 +1231,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1260,18 +1253,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Path(guestbookWithNamespace).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1577,5 +1564,26 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		And(func() {
 			_, err := RunCli("app", "wait", Name(), "--suspended")
 			errors.CheckError(err)
+		})
+}
+
+func TestSyncOptionReplace(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "ConfigMap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
 		})
 }

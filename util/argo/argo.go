@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -61,6 +62,20 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	}
 	return items
 
+}
+
+// FilterByRepo returns an application
+func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
+	if repo == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Source.RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
 }
 
 // FilterByName returns an application
@@ -158,6 +173,9 @@ func TestRepo(repo *argoappv1.Repository) error {
 		},
 		"helm": func() error {
 			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
 				return err
 			} else {

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	argocommon "github.com/argoproj/argo-cd/common"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -2170,4 +2172,61 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	}}
 
 	assert.False(t, src.AllowsConcurrentProcessing())
+}
+
+func TestUnSetCascadedDeletion(t *testing.T) {
+	a := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			Finalizers: []string{
+				"alpha",
+				argocommon.ForegroundPropagationPolicyFinalizer,
+				"beta",
+				argocommon.BackgroundPropagationPolicyFinalizer,
+				"gamma",
+			},
+		},
+	}
+	a.UnSetCascadedDeletion()
+	assert.ElementsMatch(t, []string{"alpha", "beta", "gamma"}, a.GetFinalizers())
+}
+
+func TestRemoveEnvEntry(t *testing.T) {
+	t.Run("Remove element from the list", func(t *testing.T) {
+		plugins := &ApplicationSourcePlugin{
+			Name: "test",
+			Env: Env{
+				&EnvEntry{"foo", "bar"},
+				&EnvEntry{"alpha", "beta"},
+				&EnvEntry{"gamma", "delta"},
+			},
+		}
+		assert.NoError(t, plugins.RemoveEnvEntry("alpha"))
+		want := Env{&EnvEntry{"foo", "bar"}, &EnvEntry{"gamma", "delta"}}
+		assert.Equal(t, want, plugins.Env)
+	})
+	t.Run("Remove only element from the list", func(t *testing.T) {
+		plugins := &ApplicationSourcePlugin{
+			Name: "test",
+			Env:  Env{&EnvEntry{"foo", "bar"}},
+		}
+		assert.NoError(t, plugins.RemoveEnvEntry("foo"))
+		assert.Equal(t, Env{}, plugins.Env)
+	})
+	t.Run("Remove unknown element from the list", func(t *testing.T) {
+		plugins := &ApplicationSourcePlugin{
+			Name: "test",
+			Env:  Env{&EnvEntry{"foo", "bar"}},
+		}
+		err := plugins.RemoveEnvEntry("key")
+		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+		err = plugins.RemoveEnvEntry("bar")
+		assert.EqualError(t, err, `unable to find env variable with key "bar" for plugin "test"`)
+		assert.Equal(t, Env{&EnvEntry{"foo", "bar"}}, plugins.Env)
+	})
+	t.Run("Remove element from an empty list", func(t *testing.T) {
+		plugins := &ApplicationSourcePlugin{Name: "test"}
+		err := plugins.RemoveEnvEntry("key")
+		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+	})
 }

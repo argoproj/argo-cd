@@ -53,6 +53,8 @@ const (
 	DefaultSSHKnownHostsName = "ssh_known_hosts"
 	// Default path to GnuPG home directory
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
+	// Default path to repo server TLS endpoint config
+	DefaultAppConfigPath = "/app/config"
 )
 
 const (
@@ -125,8 +127,14 @@ const (
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
-	// ResourcesFinalizerName the finalizer value which we inject to finalize deletion of an application
+	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
+
+	// ForegroundPropagationPolicyFinalizer is the finalizer we inject to delete application with foreground propagation policy
+	ForegroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/foreground"
+
+	// BackgroundPropagationPolicyFinalizer is the finalizer we inject to delete application with background propagation policy
+	BackgroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/background"
 
 	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
 	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
@@ -190,6 +198,8 @@ const (
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
+	// EnvRepoServerConfigPath allows to override the configuration path for repo server
+	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 )
 
 const (

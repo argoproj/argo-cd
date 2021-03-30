@@ -10,8 +10,6 @@ import (
 	"sort"
 	"time"
 
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
@@ -22,6 +20,7 @@ import (
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/controller/cache"
@@ -31,6 +30,7 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/db"
@@ -39,17 +39,76 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
-func NewAppsCommand() *cobra.Command {
+func NewAppCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "apps",
-		Short: "Utility commands operate on ArgoCD applications",
+		Use:   "app",
+		Short: "Manage applications configuration",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
 
+	command.AddCommand(NewGenAppSpecCommand())
 	command.AddCommand(NewReconcileCommand())
 	command.AddCommand(NewDiffReconcileResults())
+	return command
+}
+
+// NewGenAppSpecCommand generates declarative configuration file for given application
+func NewGenAppSpecCommand() *cobra.Command {
+	var (
+		appOpts      cmdutil.AppOptions
+		fileURL      string
+		appName      string
+		labels       []string
+		outputFormat string
+	)
+	var command = &cobra.Command{
+		Use:   "generate-spec APPNAME",
+		Short: "Generate declarative config for an application",
+		Example: `
+	# Generate declarative config for a directory app
+	argocd-util app generate-spec guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
+
+	# Generate declarative config for a Jsonnet app
+	argocd-util app generate-spec jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
+
+	# Generate declarative config for a Helm app
+	argocd-util app generate-spec helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
+
+	# Generate declarative config for a Helm app from a Helm repo
+	argocd-util app generate-spec nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+
+	# Generate declarative config for a Kustomize app
+	argocd-util app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+
+	# Generate declarative config for a app using a custom tool:
+	argocd-util app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+`,
+		Run: func(c *cobra.Command, args []string) {
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			errors.CheckError(err)
+
+			if app.Name == "" {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			var printResources []interface{}
+			printResources = append(printResources, app)
+			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
+		},
+	}
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
+
+	// Only complete files with appropriate extension.
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	errors.CheckError(err)
+
+	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
 
@@ -192,7 +251,7 @@ func NewReconcileCommand() *cobra.Command {
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60)
+				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60, apiclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)

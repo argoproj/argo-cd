@@ -259,6 +259,12 @@
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the repoURL to restrict returned list applications.",
+            "name": "repo",
+            "in": "query"
           }
         ],
         "responses": {
@@ -517,6 +523,12 @@
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the repoURL to restrict returned list applications.",
+            "name": "repo",
+            "in": "query"
           }
         ],
         "responses": {
@@ -550,6 +562,11 @@
           {
             "type": "boolean",
             "name": "cascade",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "propagationPolicy",
             "in": "query"
           }
         ],
@@ -1105,6 +1122,11 @@
           {
             "type": "boolean",
             "name": "force",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "orphan",
             "in": "query"
           }
         ],
@@ -3034,6 +3056,12 @@
             "description": "the selector to to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the repoURL to restrict returned list applications.",
+            "name": "repo",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3920,6 +3948,9 @@
       "type": "object",
       "title": "RepoAppDetailsQuery contains query information for app details request",
       "properties": {
+        "appName": {
+          "type": "string"
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
