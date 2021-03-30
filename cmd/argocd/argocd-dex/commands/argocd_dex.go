@@ -14,11 +14,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/errors"
 	"github.com/argoproj/argo-cd/util/settings"
+)
+
+var (
+	LogFormat string
+	LogLevel  string
 )
 
 const (
@@ -39,8 +43,8 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
 
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }
 
