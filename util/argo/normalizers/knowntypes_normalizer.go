@@ -15,7 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-//go:generate go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
+//go:generate go run github.com/argoproj/argo-cd/v2/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
 var knownTypes = map[string]func() interface{}{}
 
 type knownTypeField struct {
