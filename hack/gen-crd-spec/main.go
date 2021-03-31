@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
