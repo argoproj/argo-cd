@@ -372,7 +372,7 @@ func getNewSinceSeconds(lastTimeStampReceived string, sinceScondsDefault int64) 
 		if err != nil {
 			return sinceScondsDefault
 		}
-		return int64(time.Now().Sub(lastTimeReceived).Seconds())
+		return int64(time.Since(lastTimeReceived).Seconds())
 	}
 }
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
