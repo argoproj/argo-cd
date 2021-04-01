@@ -6,8 +6,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/lua"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison

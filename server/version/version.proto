@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/version";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/version";
 
 // Version Service
 //

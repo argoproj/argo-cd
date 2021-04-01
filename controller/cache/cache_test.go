@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/stretchr/testify/mock"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestHandleModEvent_HasChanges(t *testing.T) {

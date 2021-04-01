@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	appcontroller "github.com/argoproj/argo-cd/cmd/argocd-application-controller/commands"
-	dex "github.com/argoproj/argo-cd/cmd/argocd-dex/commands"
-	reposerver "github.com/argoproj/argo-cd/cmd/argocd-repo-server/commands"
-	apiserver "github.com/argoproj/argo-cd/cmd/argocd-server/commands"
-	util "github.com/argoproj/argo-cd/cmd/argocd-util/commands"
-	cli "github.com/argoproj/argo-cd/cmd/argocd/commands"
+	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
+	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
+	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
+	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
+	util "github.com/argoproj/argo-cd/v2/cmd/argocd-util/commands"
+	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
 )
 
 const (

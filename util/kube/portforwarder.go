@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
-	"github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 func PortForward(podSelector string, targetPort int, namespace string) (int, error) {

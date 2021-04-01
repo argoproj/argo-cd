@@ -3,8 +3,8 @@
 package application
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	internalinterfaces "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	internalinterfaces "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.
