@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/util/io"
@@ -50,7 +49,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false)
-	path, closer, err := client.ExtractChart("argo-cd", semver.MustParse("0.7.1"))
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -87,4 +86,11 @@ func Test_normalizeChartName(t *testing.T) {
 		n := normalizeChartName("myorg/..")
 		assert.Equal(t, n, "myorg/..")
 	})
+}
+
+func TestIsHelmOciRepo(t *testing.T) {
+	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
+	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
+	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
+	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
 }

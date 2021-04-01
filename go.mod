@@ -1,13 +1,13 @@
 module github.com/argoproj/argo-cd
 
-go 1.14
+go 1.16
 
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.3.0
+	github.com/argoproj/gitops-engine v0.3.1-0.20210325215106-1ce2acc845d2
 	github.com/argoproj/pkg v0.2.0
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1

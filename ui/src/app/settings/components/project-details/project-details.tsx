@@ -50,6 +50,26 @@ function loadGlobal(name: string) {
                 merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
                 merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
                 merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+                merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
+                merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
+
+                merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.sourceRepos.findIndex(obj => {
+                            return obj === item;
+                        })
+                    );
+                });
+
+                merged.destinations = merged.destinations.filter((item, index) => {
+                    return (
+                        index ===
+                        merged.destinations.findIndex(obj => {
+                            return obj.server === item.server && obj.namespace === item.namespace;
+                        })
+                    );
+                });
 
                 merged.clusterResourceBlacklist = merged.clusterResourceBlacklist.filter((item, index) => {
                     return (

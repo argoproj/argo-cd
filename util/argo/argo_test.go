@@ -151,7 +151,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 
 func TestValidateChartWithoutRevision(t *testing.T) {
 	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{RepoURL: "https://kubernetes-charts-incubator.storage.googleapis.com/", Chart: "myChart", TargetRevision: ""},
+		Source: argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
 			Server: "https://kubernetes.default.svc", Namespace: "default",
 		},
@@ -742,4 +742,10 @@ func TestFilterByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, res, 0)
 	})
+}
+
+func TestTestRepoOCI(t *testing.T) {
+	err := TestRepo(&argoappv1.Repository{Repo: "https://demo.goharbor.io", Type: "helm", EnableOCI: true})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
 }

@@ -17,8 +17,9 @@ import (
 
 type HelmRepository struct {
 	Creds
-	Name string
-	Repo string
+	Name      string
+	Repo      string
+	EnableOci bool
 }
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -66,11 +67,30 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 }
 
 func (h *helm) DependencyBuild() error {
-	for _, repo := range h.repos {
-		_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+	isHelmOci := h.cmd.IsHelmOci
+	defer func() {
+		h.cmd.IsHelmOci = isHelmOci
+	}()
 
-		if err != nil {
-			return err
+	for i := range h.repos {
+		repo := h.repos[i]
+		if repo.EnableOci {
+			h.cmd.IsHelmOci = true
+			_, err := h.cmd.Login(repo.Repo, repo.Creds)
+
+			defer func() {
+				_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+			}()
+
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 	h.repos = nil

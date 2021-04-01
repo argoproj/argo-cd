@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -64,10 +63,6 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 }
 
 func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
-	// root, err := filepath.Abs(root)
-	// if err != nil {
-	// 	panic(err)
-	// }
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	cf(gitClient)
@@ -77,9 +72,9 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
-	version := semver.MustParse("1.1.0")
+	version := "1.1.0"
 	helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
-		chart: {{Version: "1.0.0"}, {Version: version.String()}},
+		chart: {{Version: "1.0.0"}, {Version: version}},
 	}}, nil)
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
@@ -353,11 +348,11 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
 					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
-					assert.True(t, !isCachedError)
+					require.False(t, isCachedError)
 
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
@@ -371,9 +366,9 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
