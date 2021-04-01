@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	util "github.com/argoproj/argo-cd/util/io"
+	util "github.com/argoproj/argo-cd/v2/util/io"
 
 	"github.com/stretchr/testify/assert"
 )

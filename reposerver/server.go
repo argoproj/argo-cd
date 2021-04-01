@@ -15,16 +15,16 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/argoproj/argo-cd/common"
-	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util/env"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 // ArgoCDRepoServer is the repo server implementation

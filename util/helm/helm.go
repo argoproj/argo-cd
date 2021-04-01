@@ -11,8 +11,8 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/argoproj/argo-cd/util/config"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type HelmRepository struct {
