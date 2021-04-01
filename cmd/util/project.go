@@ -13,10 +13,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/gpg"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 type ProjectOpts struct {

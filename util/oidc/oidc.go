@@ -18,13 +18,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/server/settings/oidc"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/dex"
-	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/rand"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (

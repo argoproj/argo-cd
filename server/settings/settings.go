@@ -4,11 +4,11 @@ import (
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
 
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Settings service

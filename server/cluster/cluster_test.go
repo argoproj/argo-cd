@@ -12,15 +12,15 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/common"
-	clusterapi "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/server/cache"
-	"github.com/argoproj/argo-cd/test"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	clusterapi "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/test"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 func newServerInMemoryCache() *servercache.Cache {

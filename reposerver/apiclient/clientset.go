@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	argogrpc "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/io"
+	argogrpc "github.com/argoproj/argo-cd/v2/util/grpc"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 const (

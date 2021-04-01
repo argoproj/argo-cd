@@ -6,7 +6,7 @@ which godepgraph || go get github.com/kisielk/godepgraph
 which go-junit-report || go get github.com/jstemmer/go-junit-report
 
 export GO111MODULE=off
-if godepgraph -s github.com/argoproj/argo-cd/pkg/apiclient | grep packr; then
+if godepgraph -s github.com/argoproj/argo-cd/v2/pkg/apiclient | grep packr; then
   echo apiclient package should not depend on packr
   exit 1
 fi

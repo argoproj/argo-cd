@@ -12,10 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type DisplayedAction struct {
