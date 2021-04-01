@@ -319,3 +319,9 @@ The final step is running the End-to-End testsuite, which makes sure that your K
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).
+
+
+## Enhancement proposals
+
+If you are proposing a major feature, change in design or process refactor, please help define how it would look like with a new enhancement proposal as described in the enhancement proposal [template](/docs/proposals/001-proposal-template.md).
+
