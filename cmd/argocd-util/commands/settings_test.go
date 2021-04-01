@@ -9,9 +9,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
-	utils "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	utils "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"

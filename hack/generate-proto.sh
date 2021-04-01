@@ -32,7 +32,7 @@ go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-pro
 # --apimachinery-packages= option so that go-to-protobuf can locate the types, but prefixed with a
 # '-' so that go-to-protobuf will not generate .proto files for it.
 PACKAGES=(
-    github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1
+    github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1
 )
 APIMACHINERY_PKGS=(
     +k8s.io/apimachinery/pkg/util/intstr
@@ -42,6 +42,9 @@ APIMACHINERY_PKGS=(
     k8s.io/apimachinery/pkg/apis/meta/v1
     k8s.io/api/core/v1
 )
+
+export GO111MODULE=on
+[ -e ./v2 ] || ln -s . v2
 
 ${PROJECT_ROOT}/dist/go-to-protobuf \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
@@ -85,6 +88,7 @@ for i in ${PROTO_FILES}; do
         --swagger_out=logtostderr=true:. \
         $i
 done
+[ -e ./v2 ] && rm -rf v2
 
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
