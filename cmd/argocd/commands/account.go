@@ -16,15 +16,15 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/localconfig"
-	sessionutil "github.com/argoproj/argo-cd/util/session"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {

@@ -13,13 +13,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (

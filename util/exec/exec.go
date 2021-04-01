@@ -8,7 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/util/log"
+	"github.com/argoproj/argo-cd/v2/util/log"
 
 	argoexec "github.com/argoproj/pkg/exec"
 

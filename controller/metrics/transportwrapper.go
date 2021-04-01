@@ -6,7 +6,7 @@ import (
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // AddMetricsTransportWrapper adds a transport wrapper which increments 'argocd_app_k8s_request_total' counter on each kubernetes request
