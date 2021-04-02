@@ -16,16 +16,16 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/controller/sharding"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/errors"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func NewClusterCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {

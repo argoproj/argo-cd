@@ -4,12 +4,12 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/localconfig"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
 func init() {

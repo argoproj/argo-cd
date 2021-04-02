@@ -25,9 +25,9 @@ import (
 	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 
-	"github.com/argoproj/argo-cd/common"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type RevisionMetadata struct {

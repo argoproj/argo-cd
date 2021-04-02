@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)

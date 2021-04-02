@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .page-wrapper {
     .page {
         $single-toolbar-height: 50px;
@@ -9,3 +11,17 @@
         }
     }
 }
+
+.login-logout-button {
+    border-radius: 3px;
+    color: $argo-color-teal-7;
+    padding: 3px;
+
+    &:focus {
+        color: $argo-color-teal-5;
+        box-shadow: 0 0 0 .1em $argo-color-teal-5;
+    };
+    &:hover {
+        color: $argo-color-teal-5;
+    }
+} 

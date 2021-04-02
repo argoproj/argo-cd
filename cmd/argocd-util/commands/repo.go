@@ -13,13 +13,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -61,10 +61,10 @@ func NewGenRepoSpecCommand() *cobra.Command {
   argocd-util repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
   # Add a public Helm repository named 'stable' via HTTPS
-  argocd-util repo generate-spec https://kubernetes-charts.storage.googleapis.com --type helm --name stable  
+  argocd-util repo generate-spec https://charts.helm.sh/stable --type helm --name stable  
 
   # Add a private Helm repository named 'stable' via HTTPS
-  argocd-util repo generate-spec https://kubernetes-charts.storage.googleapis.com --type helm --name stable --username test --password test
+  argocd-util repo generate-spec https://charts.helm.sh/stable --type helm --name stable --username test --password test
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd-util repo generate-spec helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test

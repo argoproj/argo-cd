@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	argocderrors "github.com/argoproj/argo-cd/util/errors"
-	argoio "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/rand"
+	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
 const (

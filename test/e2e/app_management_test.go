@@ -29,17 +29,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/common"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/util/argo"
-	. "github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/util/argo"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -803,7 +802,7 @@ func TestPermissions(t *testing.T) {
 
 	// make sure app cannot be created without permissions in project
 	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+		"--path", guestbookPath, "--project", "test", "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
 	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", KubernetesInternalAPIServerAddr, DeploymentNamespace())

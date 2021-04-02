@@ -1,6 +1,6 @@
 package settings
 
-import "github.com/argoproj/argo-cd/util/glob"
+import "github.com/argoproj/argo-cd/v2/util/glob"
 
 type FilteredResource struct {
 	APIGroups []string `json:"apiGroups,omitempty"`
