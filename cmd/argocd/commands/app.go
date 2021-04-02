@@ -364,13 +364,13 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // This is used in failure retry - calculate new sinceSeconds based on lastTimeSteampReceived
-func getNewSinceSeconds(lastTimeStampReceived string, sinceScondsDefault int64) int64 {
+func getNewSinceSeconds(lastTimeStampReceived string, sinceSecondsDefault int64) int64 {
 	if lastTimeStampReceived == "" {
-		return sinceScondsDefault
+		return sinceSecondsDefault
 	} else {
 		lastTimeReceived, err := time.Parse(time.RFC3339, lastTimeStampReceived)
 		if err != nil {
-			return sinceScondsDefault
+			return sinceSecondsDefault
 		}
 		return int64(time.Since(lastTimeReceived).Seconds())
 	}
