@@ -6,8 +6,8 @@ import (
 	"strconv"
 	strings "strings"
 
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
