@@ -1740,13 +1740,13 @@ git push origin &lt;yourbranch&gt;
 </code></pre></div>
 
 <h2 id="public-cd">Public CD<a class="headerlink" href="#public-cd" title="Permanent link">&para;</a></h2>
-<p>Every commit to master is built and published to <code>ghcr.io/argoproj/argo-cd:&lt;version&gt;-&lt;short-sha&gt;</code>. The list of images is available at
+<p>Every commit to master is built and published to <code>ghcr.io/argoproj/argocd:&lt;version&gt;-&lt;short-sha&gt;</code>. The list of images is available at
 https://github.com/argoproj/argo-cd/packages.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Github docker registry <a href="https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294">requires</a> authentication to read
 even publicly available packages. Follow the steps from Kubernetes <a href="https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry">documentation</a>
-to configure image pull secret if you want to use <code>ghcr.io/argoproj/argo-cd</code> image.</p>
+to configure image pull secret if you want to use <code>ghcr.io/argoproj/argocd</code> image.</p>
 </div>
 <p>The image is automatically deployed to the dev Argo CD instance: <a href="https://cd.apps.argoproj.io/">https://cd.apps.argoproj.io/</a></p>
                 
