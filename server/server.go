@@ -915,9 +915,8 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		}
 		if argoCDSettings.AnonymousUserEnabled {
 			return ctx, nil
-		} else {
-			return ctx, tokenErr
 		}
+		return ctx, tokenErr
 	}
 
 	// Extract and verify the claims in the token
