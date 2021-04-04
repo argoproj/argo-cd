@@ -207,7 +207,7 @@ requires that the `--enable-ssl-passthrough` flag be added to the command line a
 #### SSL-Passthrough with cert-manager and Let's Encrypt
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
@@ -220,16 +220,19 @@ metadata:
     # If you encounter a redirect loop or are getting a 307 response code 
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
-    # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
   - host: argocd.example.com
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
-        path: /
+      - path: /
+        pathType: Prefix
+        backend:
+          service: 
+            name: argocd-server
+            port:
+              name: https
   tls:
   - hosts:
     - argocd.example.com
