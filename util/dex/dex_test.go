@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	// "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const invalidURL = ":://localhost/foo/bar"

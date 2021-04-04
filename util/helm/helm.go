@@ -11,8 +11,8 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/argoproj/argo-cd/util/config"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type HelmRepository struct {
@@ -67,16 +67,19 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 }
 
 func (h *helm) DependencyBuild() error {
-	for _, repo := range h.repos {
+	isHelmOci := h.cmd.IsHelmOci
+	defer func() {
+		h.cmd.IsHelmOci = isHelmOci
+	}()
+
+	for i := range h.repos {
+		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
 			_, err := h.cmd.Login(repo.Repo, repo.Creds)
-			h.cmd.IsHelmOci = false
 
 			defer func() {
-				h.cmd.IsHelmOci = true
 				_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
-				h.cmd.IsHelmOci = false
 			}()
 
 			if err != nil {

@@ -1,16 +1,16 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/reposerver/apiclient";
+option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 
 package repository;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     // revision, potentially un-resolved
     string revision = 2;
     bool noCache = 3;
@@ -18,10 +18,10 @@ message ManifestRequest {
     // Name of the application for which the request is triggered
     string appName = 5;
     string namespace = 8;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 11;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
     string kubeVersion = 14;
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
@@ -40,7 +40,7 @@ message ManifestResponse {
 }
 
 message ListRefsRequest {
-  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 // A subset of the repository's named refs
@@ -51,7 +51,7 @@ message Refs {
 
 // ListAppsRequest requests a repository directory structure
 message ListAppsRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
 }
 
@@ -62,10 +62,10 @@ message AppList {
 
 // RepoServerAppDetailsQuery contains query information for app details request
 message RepoServerAppDetailsQuery {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 3;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 3;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
     string appName = 5;
 }
 
@@ -80,7 +80,7 @@ message RepoAppDetailsResponse {
 
 message RepoServerRevisionMetadataRequest {
     // the repo
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     // the revision within the repo
     string revision = 2;
     // whether to check signature on revision
@@ -92,7 +92,7 @@ message RepoServerRevisionMetadataRequest {
 message KsonnetAppSpec {
 	string name = 1;
 	map<string, KsonnetEnvironment> environments = 3;
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
 }
 
 // HelmAppSpec contains helm app name  in source repo
@@ -100,11 +100,11 @@ message HelmAppSpec {
 	string name = 1;
 	repeated string valueFiles = 3;
 	// the output of `helm inspect values`
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
 	// the contents of values.yaml
 	string values = 5;
     // helm file parameters
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
 }
 
 // KustomizeAppSpec contains kustomize images
@@ -135,7 +135,7 @@ message DirectoryAppSpec {
 
 
 message HelmChartsRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 message HelmChart {
@@ -167,7 +167,7 @@ service RepoServerService {
     }
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
-    rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionMetadata) {
+    rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
 
     // GetHelmCharts returns list of helm charts in the specified repository
