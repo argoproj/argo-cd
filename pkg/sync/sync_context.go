@@ -374,8 +374,14 @@ func (sc *syncContext) Sync() {
 		// to perform the sync. we only wish to do this once per operation, performing additional dry-runs
 		// is harmless, but redundant. The indicator we use to detect if we have already performed
 		// the dry-run for this operation, is if the resource or hook list is empty.
-		sc.log.WithValues("tasks", tasks).Info("Tasks (dry-run)")
-		if sc.runTasks(tasks, true) == failed {
+
+		dryRunTasks := tasks
+		if sc.applyOutOfSyncOnly {
+			dryRunTasks = sc.filterOutOfSyncTasks(tasks)
+		}
+
+		sc.log.WithValues("tasks", dryRunTasks).Info("Tasks (dry-run)")
+		if sc.runTasks(dryRunTasks, true) == failed {
 			sc.setOperationPhase(common.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
@@ -448,13 +454,7 @@ func (sc *syncContext) Sync() {
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.pending() })
 
 	if sc.applyOutOfSyncOnly {
-		tasks = tasks.Filter(func(t *syncTask) bool {
-			if modified, ok := sc.modificationResult[t.resourceKey()]; !modified && ok && t.targetObj != nil && t.liveObj != nil {
-				sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified")
-				return false
-			}
-			return true
-		})
+		tasks = sc.filterOutOfSyncTasks(tasks)
 	}
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
@@ -511,6 +511,21 @@ func (sc *syncContext) Sync() {
 			return task.deleteOnPhaseCompletion()
 		}), true)
 	}
+}
+
+// filter out out-of-sync tasks
+func (sc *syncContext) filterOutOfSyncTasks(tasks syncTasks) syncTasks {
+	return tasks.Filter(func(t *syncTask) bool {
+		if t.isHook() {
+			return true
+		}
+
+		if modified, ok := sc.modificationResult[t.resourceKey()]; !modified && ok && t.targetObj != nil && t.liveObj != nil {
+			sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified")
+			return false
+		}
+		return true
+	})
 }
 
 func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
