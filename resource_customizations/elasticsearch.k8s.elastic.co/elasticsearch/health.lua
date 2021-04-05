@@ -30,5 +30,5 @@ if obj.status ~= nil then
 end
 
 hs.status = "Unknown"
-hs.message = "Elasticsearch Cluster status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues""
+hs.message = "Elasticsearch Cluster status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
 return hs
