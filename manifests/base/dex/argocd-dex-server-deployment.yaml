@@ -24,11 +24,17 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       containers:
       - name: dex
         image: ghcr.io/dexidp/dex:v2.27.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -36,9 +42,13 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       volumes:
       - emptyDir: {}
         name: static-files
+      - emptyDir: {}
+        name: dexconfig
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
