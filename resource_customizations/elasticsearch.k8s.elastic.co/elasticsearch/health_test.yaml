@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: 'Elasticsearch Cluster status is Green'
+  inputPath: testdata/ready_green.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Elasticsearch Cluster status is Yellow'
+  inputPath: testdata/ready_yellow.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Elasticsearch Cluster status is Red'
+  inputPath: testdata/ready_red.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Elasticsearch phase is ApplyingChanges'
+  inputPath: testdata/applyingchanges.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Elasticsearch phase is MigratingData'
+  inputPath: testdata/migratingdata.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Elasticsearch phase is Invalid'
+  inputPath: testdata/invalid.yaml
