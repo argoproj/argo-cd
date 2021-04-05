@@ -548,3 +548,6 @@ dep-ui: test-tools-image
 
 dep-ui-local:
 	cd ui && yarn install
+
+start-test-k8s:
+	go run ./hack/k8s
