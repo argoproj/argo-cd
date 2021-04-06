@@ -30,7 +30,7 @@ message ManifestRequest {
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
 message TestRepositoryRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
