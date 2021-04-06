@@ -14,6 +14,9 @@ import (
 func AddCustomCACert() {
 	caCertPath, err := filepath.Abs("../fixture/certs/argocd-test-ca.crt")
 	errors.CheckError(err)
+	// We need to setup TLS certs according to whether we are running tests
+	// against a local workload (repositories available as localhost) and
+	// against remote workloads (repositories available as argocd-e2e-server)
 	if fixture.IsLocal() {
 		args := []string{"cert", "add-tls", "localhost", "--from", caCertPath}
 		errors.FailOnErr(fixture.RunCli(args...))
