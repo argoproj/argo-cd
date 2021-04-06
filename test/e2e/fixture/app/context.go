@@ -110,6 +110,16 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmOCIRepoAdded(name string) *Context {
+	repos.AddHelmOCIRepo(name)
+	return c
+}
+
+func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	return c
+}
+
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	repos.AddHTTPSCredentialsUserPass()
 	return c

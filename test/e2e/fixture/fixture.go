@@ -74,10 +74,13 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 )
+
+const HelmOCIRegistryURL = "localhost:5000/myrepo"
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
 func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
@@ -173,6 +176,8 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return "https://localhost:9444/argo-e2e/testdata.git/helm-repo"
+	case RepoURLTypeHelmOCI:
+		return HelmOCIRegistryURL
 	default:
 		return fmt.Sprintf("file://%s", repoDirectory())
 	}
