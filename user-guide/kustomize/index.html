@@ -1661,7 +1661,7 @@
 <p>This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.</p>
 <p>Read more about <a href="../private-repositories/">private repos</a>.</p>
 <h2 id="kustomize-build-optionsparameters"><code>kustomize build</code> Options/Parameters<a class="headerlink" href="#kustomize-build-optionsparameters" title="Permanent link">&para;</a></h2>
-<p>To provide build options to <code>kustomize build</code> add a property to the ArgoCD CM under data:</p>
+<p>To provide build options to <code>kustomize build</code> of default kustomize version, use <code>kustomize.buildOptions</code> field of <code>argocd-cm</code> ConfigMap. Use <code>kustomize.buildOptions.&lt;version&gt;</code> to register version specific build options.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1672,12 +1672,13 @@
     <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
     <span class="nt">kustomize.buildOptions</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">--load_restrictor none</span>
+    <span class="nt">kustomize.buildOptions.v3.9.1</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">--output /tmp</span>
 </code></pre></div>
 
 <h2 id="custom-kustomize-versions">Custom Kustomize versions<a class="headerlink" href="#custom-kustomize-versions" title="Permanent link">&para;</a></h2>
 <p>Argo CD supports using multiple kustomize versions simultaneously and specifies required version per application.
 To add additional versions make sure required versions are <a href="../../operator-manual/custom_tools/">bundled</a> and then
-use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</code> ConfigMap to register bundled additional versions.   </p>
+use <code>kustomize.path.&lt;version&gt;</code> fields of <code>argocd-cm</code> ConfigMap to register bundled additional versions. </p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1687,8 +1688,8 @@ use <code>kustomize.version.&lt;version&gt;</code> fields of <code>argocd-cm</co
     <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
     <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
 <span class="nt">data</span><span class="p">:</span>
-    <span class="nt">kustomize.version.v3.5.1</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_1</span>
-    <span class="nt">kustomize.version.v3.5.4</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_4</span>
+    <span class="nt">kustomize.path.v3.5.1</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_1</span>
+    <span class="nt">kustomize.path.v3.5.4</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/custom-tools/kustomize_3_5_4</span>
 </code></pre></div>
 
 <p>Once a new version is configured you can reference it in Application spec as following:</p>
