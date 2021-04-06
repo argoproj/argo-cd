@@ -13,6 +13,7 @@ test-results
 .scannerwork
 .scratch
 node_modules/
+.kube/
 
 # ignore built binaries
 cmd/argocd/argocd
