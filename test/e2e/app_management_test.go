@@ -218,6 +218,34 @@ func TestAppDeletion(t *testing.T) {
 	assert.NotContains(t, output, Name())
 }
 
+// TestDeleteOptionSkip test that resources with the annotation argocd.argoproj.io/delete-options: Skip
+// are not deleted when the parrent application is deleted and cascade is true
+func TestDeleteOptionSkip(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/delete-options": "Skip"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		Expect(Event(EventReasonResourceDeleted, "delete")).
+		When().
+		And(func() {
+			_, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).Get(context.Background(), "pod-1", metav1.GetOptions{})
+			assert.NoError(t, err)
+		})
+
+	output, err := RunCli("app", "list")
+	assert.NoError(t, err)
+	assert.NotContains(t, output, Name())
+}
+
 func TestAppLabels(t *testing.T) {
 	Given(t).
 		Path("config-map").

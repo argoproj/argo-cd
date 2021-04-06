@@ -119,6 +119,8 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+	// AnnotationDeleteOptions is a comma-separated list of options for deletion of resources
+	AnnotationDeleteOptions = "argocd.argoproj.io/delete-options"
 
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
 	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.

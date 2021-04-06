@@ -1,6 +1,6 @@
 # App Deletion
 
-Apps can be deleted with or without a cascade option. A **cascade delete**, deletes both the app and its resources, rather than only the app. 
+Apps can be deleted with or without a cascade option. A **cascade delete**, deletes both the app and its resources, rather than only the app.
 
 ## Deletion Using `argocd`
 
@@ -39,7 +39,7 @@ kubectl delete app APPNAME
 
 # About The Deletion Finalizer
 
-For the technical amongst you, the Argo CD application controller watches for this finalizer:  
+For the technical amongst you, the Argo CD application controller watches for this finalizer:
 
 ```yaml
 metadata:
@@ -49,4 +49,16 @@ metadata:
 
 Argo CD's app controller watches for this and will then delete both the app and its resources.
 
-When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically. 
+When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically.
+
+# Skiping resources during deletion
+
+By adding the following annotation to resources owned by an application:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/delete-options: Skip
+```
+
+It's possible to skip the deletion of such resources even when cascade deletion is enabled.

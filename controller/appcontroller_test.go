@@ -252,6 +252,19 @@ metadata:
 data:
 `
 
+var fakeResourceWithSkipAnnotation = `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  namespace: ` + test.FakeArgoCDNamespace + `
+  annotations:
+    argocd.argoproj.io/delete-options: Skip
+  labels:
+    app.kubernetes.io/instance: my-app
+data:
+`
+
 func newFakeApp() *argoappv1.Application {
 	return createFakeApp(fakeApp)
 }
@@ -276,6 +289,15 @@ func createFakeApp(testApp string) *argoappv1.Application {
 func newFakeCM() map[string]interface{} {
 	var cm map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+	if err != nil {
+		panic(err)
+	}
+	return cm
+}
+
+func newFakeCMWithSkipAnnotation() map[string]interface{} {
+	var cm map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeResourceWithSkipAnnotation), &cm)
 	if err != nil {
 		panic(err)
 	}
@@ -581,6 +603,63 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(appObj):   appObj,
 				kube.GetResourceKey(strayObj): strayObj,
+			},
+		})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, nil, nil
+		})
+		objs, err := ctrl.finalizeApplicationDeletion(app)
+		assert.NoError(t, err)
+		assert.True(t, patched)
+		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+		if err != nil {
+			assert.NoError(t, err)
+		}
+		// Managed objects must be empty
+		assert.Empty(t, objsMap)
+		// Loop through all deleted objects, ensure that test-cm is none of them
+		for _, o := range objs {
+			assert.NotEqual(t, "test-cm", o.GetName())
+		}
+	})
+
+	// Ensure that any project with Skip deletion annotation option are skiped during app deletion
+	t.Run("ResourcesWithSkipAnnotationAreSkiped", func(*testing.T) {
+		restrictedProj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: argoappv1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "my-app",
+					},
+				},
+			},
+		}
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Spec.Project = "restricted"
+		appObj := kube.MustToUnstructured(&app)
+		cm := newFakeCMWithSkipAnnotation()
+		objToBeSkipped := kube.MustToUnstructured(&cm)
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj, &restrictedProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj):         appObj,
+				kube.GetResourceKey(objToBeSkipped): objToBeSkipped,
 			},
 		})
 
