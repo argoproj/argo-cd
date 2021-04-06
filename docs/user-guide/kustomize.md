@@ -23,7 +23,7 @@ Read more about [private repos](private-repositories.md).
 
 ## `kustomize build` Options/Parameters
 
-To provide build options to `kustomize build` add a property to the ArgoCD CM under data:
+To provide build options to `kustomize build` of default kustomize version, use `kustomize.buildOptions` field of `argocd-cm` ConfigMap. Use `kustomize.buildOptions.<version>` to register version specific build options.
 
 ```yaml
 apiVersion: v1
@@ -36,12 +36,13 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
     kustomize.buildOptions: --load_restrictor none
+    kustomize.buildOptions.v3.9.1: --output /tmp
 ```
 ## Custom Kustomize versions
 
 Argo CD supports using multiple kustomize versions simultaneously and specifies required version per application.
 To add additional versions make sure required versions are [bundled](../operator-manual/custom_tools.md) and then
-use `kustomize.version.<version>` fields of `argocd-cm` ConfigMap to register bundled additional versions.   
+use `kustomize.path.<version>` fields of `argocd-cm` ConfigMap to register bundled additional versions. 
 
 ```yaml
 apiVersion: v1
@@ -53,8 +54,8 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-    kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
-    kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
+    kustomize.path.v3.5.1: /custom-tools/kustomize_3_5_1
+    kustomize.path.v3.5.4: /custom-tools/kustomize_3_5_4
 ```
 
 Once a new version is configured you can reference it in Application spec as following:
