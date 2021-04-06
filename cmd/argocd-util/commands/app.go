@@ -20,23 +20,23 @@ import (
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/errors"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/controller"
+	"github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func NewAppCommand() *cobra.Command {
@@ -77,7 +77,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd-util app generate-spec helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
 
 	# Generate declarative config for a Helm app from a Helm repo
-	argocd-util app generate-spec nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+	argocd-util app generate-spec nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Generate declarative config for a Kustomize app
 	argocd-util app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1

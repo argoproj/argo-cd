@@ -17,13 +17,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	. "github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/settings"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {

@@ -135,11 +135,11 @@ Run the tests
 
 ### On remote OpenShift cluster
 
-You should first scale down GitOps Operator, since it will revert changes made
+You should first scale down Argo CD Operator, since it will revert changes made
 during the tests instantly:
 
 ```shell
-oc -n openshift-operators scale deployment --replicas=0 gitops-operator
+oc -n openshift-operators scale deployment --replicas=0 argocd-operator
 ```
 
 Set the endpoint by using the route created by the operator:
@@ -191,13 +191,13 @@ Some environment variables can control the behavior of the tests:
 Furthermore, you can skip various classes of tests by setting the following to true:
 
 ```
-# GnuPG features not yet available with GitOps Operator
+# If you disabled GPG feature, set to true to skip related tests
 export ARGOCD_E2E_SKIP_GPG=${ARGOCD_E2E_SKIP_GPG:-false}
 # Some tests do not work OOTB with OpenShift
 export ARGOCD_E2E_SKIP_OPENSHIFT=${ARGOCD_E2E_SKIP_OPENSHIFT:-false}
-# Skip Helm tests
+# Skip all Helm tests
 export ARGOCD_E2E_SKIP_HELM=${ARGOCD_E2E_SKIP_HELM:-false}
-# Skip Helm v2 related tests
+# Skip only Helm v2 related tests
 export ARGOCD_E2E_SKIP_HELM2=${ARGOCD_E2E_SKIP_HELM2:-false}
 # Skip Ksonnet tests
 export ARGOCD_E2E_SKIP_KSONNET=${ARGOCD_E2E_SKIP_KSONNET:-false}

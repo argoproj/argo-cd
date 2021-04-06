@@ -14,20 +14,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	ssh2 "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/memory"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 
-	"github.com/argoproj/argo-cd/common"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type RevisionMetadata struct {

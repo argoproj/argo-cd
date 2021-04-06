@@ -11,21 +11,7 @@ patchesJson6902:
     kind: ConfigMap
     name: argocd-redis-ha-configmap
     namespace: argocd
-  path: overlays/remove-namespace.yaml
-- target:
-    group: rbac.authorization.k8s.io
-    version: v1
-    kind: Role
-    name: argocd-redis-ha
-    namespace: argocd
-  path: overlays/add-openshift-nonroot-scc.yaml  
-- target:
-    group: rbac.authorization.k8s.io
-    version: v1
-    kind: Role
-    name: argocd-redis-ha-haproxy
-    namespace: argocd
-  path: overlays/add-openshift-nonroot-scc.yaml     
+  path: overlays/remove-namespace.yaml  
 - target:
     version: v1
     group: ""

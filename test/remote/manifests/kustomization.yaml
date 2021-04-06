@@ -5,6 +5,5 @@ resources:
 - e2e-repositories.yaml
 
 images:
-- name: quay.io/jfischer-redhat/argocd-e2e-cluster
-  newName: argocd-e2e-cluster
+- name: argocd-e2e-cluster 
   newTag: latest

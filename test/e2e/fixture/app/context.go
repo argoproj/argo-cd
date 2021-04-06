@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util/env"
-	"github.com/argoproj/argo-cd/util/settings"
+	. "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // this implements the "given" part of given/when/then

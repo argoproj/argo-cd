@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // Add a custom CA certificate to the test and also create the certificate file

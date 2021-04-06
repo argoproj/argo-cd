@@ -2136,14 +2136,6 @@ rules:
   - endpoints
   verbs:
   - get
-- apiGroups:
-  - security.openshift.io
-  resourceNames:
-  - nonroot
-  resources:
-  - securitycontextconstraints
-  verbs:
-  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2162,14 +2154,6 @@ rules:
   - endpoints
   verbs:
   - get
-- apiGroups:
-  - security.openshift.io
-  resourceNames:
-  - nonroot
-  resources:
-  - securitycontextconstraints
-  verbs:
-  - use
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -3082,9 +3066,15 @@ spec:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       initContainers:
       - command:
         - cp
@@ -3097,10 +3087,14 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
         name: static-files
+      - emptyDir: {}
+        name: dexconfig
 ---
 apiVersion: apps/v1
 kind: Deployment

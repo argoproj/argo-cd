@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: argocd-e2e-server
-        image: quay.io/jfischer-redhat/argocd-e2e-cluster:latest
+        image: argocd-e2e-cluster:latest
         imagePullPolicy: Always
         command:
         - goreman

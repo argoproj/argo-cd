@@ -1,4 +1,4 @@
-module github.com/argoproj/argo-cd
+module github.com/argoproj/argo-cd/v2
 
 go 1.16
 
@@ -7,7 +7,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.3.1-0.20210325215106-1ce2acc845d2
+	github.com/argoproj/gitops-engine v0.3.1-0.20210405221516-2a9c1448b292
 	github.com/argoproj/pkg v0.2.0
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1
@@ -20,6 +20,7 @@ require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-git/go-git/v5 v5.2.0
 	github.com/go-logr/logr v0.3.0
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/runtime v0.19.4
@@ -70,7 +71,6 @@ require (
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
-	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver v0.20.4
