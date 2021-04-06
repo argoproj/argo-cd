@@ -437,6 +437,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 			assert.Empty(t, diffOutput)
 		})
 }
+
 func TestHelmOCIRegistry(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
