@@ -1,7 +1,6 @@
 #!/bin/sh
 
-CMD=$(readlink -f $0)
-BASEPATH=$(dirname $CMD)
+BASEPATH=$(dirname $0)
 PERMFILE=${BASEPATH}/argocd-remote-permissions.yaml
 if ! test -f ${PERMFILE}; then
 	echo "ERROR: $PERMFILE does not exist." >&2
