@@ -79,7 +79,8 @@ func NewClusterStatsCommand() *cobra.Command {
 			errors.CheckError(err)
 			var cache *appstatecache.Cache
 			if portForwardRedis {
-				port, err := kubeutil.PortForward("app.kubernetes.io/name=argocd-redis-ha-haproxy", 6379, namespace)
+				overrides := clientcmd.ConfigOverrides{}
+				port, err := kubeutil.PortForward("app.kubernetes.io/name=argocd-redis-ha-haproxy", 6379, namespace, &overrides)
 				errors.CheckError(err)
 				client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port)})
 				cache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Hour)), time.Hour)
