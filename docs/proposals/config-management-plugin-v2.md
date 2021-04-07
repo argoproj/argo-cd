@@ -85,9 +85,8 @@ a customized argocd-repo-server in order to install required dependencies.
 
 ### Use cases
 
-* UC1: As an Argo CD user, I would like to use additional tools to generate and manage deployable kubernetes manifests
-* UC2: As an Argo CD operator, I want to have smooth experience while using additional tools such as  cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc.
-Also, I don't want to go through the pain of building customized argocd-repo-server in order to install required dependencies.
+* UC1: As an Argo CD user, I would like to use first-class support provided for additional tools to generate and manage deployable kubernetes manifests
+* UC2: As an Argo CD operator, I want to have smooth experience while installing additional tools such as  cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc.
 * UC3: As a plugin owner, I want to have some control over the execution environment as I want to package whatever dependent binaries required. 
 
 ### Implementation Details
@@ -194,7 +193,7 @@ shared volume between repo-server and cmp-server. e.g.:
 ```
 
 The name of the socket file will indicate the plugin name. To discover the available plugins, the repo-server will list 
-the shared plugins directory to discover the available plugin cmp-servers running as sidecars.
+the shared plugins directory to discover the available plugins.
 
 To communicate with a plugin, the repo-server will simply need to connect to the socket and make gRPC calls against the 
 cmp-server listening on the other side. 
@@ -204,8 +203,6 @@ cmp-server listening on the other side.
 - The plugin discovery will run in the main repo-server container.
 - Argo CD repo-server lists the shared plugins directory and runs `discover` command from the specification file, 
 whichever plugin provides a positive response first will be selected.
-- In case of multiple plugins, repo-server will decide based on the plugin priority list set by argocd-server. 
-This priority list can be set in the Argo CD config map. 
 
 #### Versioning
 There will be one sidecar container per version. Hence, for two different versions users will have to configure two different sidecars.
@@ -237,7 +234,7 @@ This would ensure that the command could not read or write anything out-of-tree 
 ### Upgrade / Downgrade Strategy
 
 The argocd-repo-server manifest will change in order to populate the argocd-cmp-server binary inside the plugin container 
-via an init container, which will pre-populate a volume shared between plugins and the repo-server.
+via an init container.
 
 ```bash
 # An init container will copy the argocd static binary into the shared volume
