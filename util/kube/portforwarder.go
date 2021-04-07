@@ -19,11 +19,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-func PortForward(podSelector string, targetPort int, namespace string) (int, error) {
+func PortForward(podSelector string, targetPort int, namespace string, overrides *clientcmd.ConfigOverrides) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
 		return -1, err
