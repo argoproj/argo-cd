@@ -380,7 +380,7 @@ spec:
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
 
 ```yaml
-  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.14 and older 
+  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.18 and older
   kind: Ingress
   metadata:
     annotations:
