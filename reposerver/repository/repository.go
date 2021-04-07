@@ -1377,7 +1377,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	repo := q.Repo
 	checks := map[string]func() error{
 		"git": func() error {
-			return s.TestRepo(repo)
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
 		},
 		"helm": func() error {
 			if repo.EnableOCI {
@@ -1403,25 +1403,4 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		}
 	}
 	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
-}
-
-// TestRepo tests if a repo exists and is accessible with the given credentials
-func (s *Service) TestRepo(repo *v1alpha1.Repository) error {
-	clnt, err := s.newClient(repo)
-	if err != nil {
-		return err
-	}
-	revision := "HEAD"
-	closer, err := s.repoLock.Lock(clnt.Root(), revision, true, func() error {
-		err = clnt.Init()
-		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
-		}
-		_, err = clnt.LsRemote(revision)
-		return err
-	})
-
-	defer io.Close(closer)
-
-	return err
 }
