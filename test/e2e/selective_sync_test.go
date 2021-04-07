@@ -53,7 +53,9 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		if !t.Skipped() {
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		}
 	}()
 	Given(t).
 		Prune(true).
@@ -81,7 +83,9 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		if !t.Skipped() {
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		}
 	}()
 	Given(t).
 		Prune(true).

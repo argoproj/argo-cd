@@ -49,6 +49,7 @@ const (
 )
 
 func TestSyncToUnsignedCommit(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -63,6 +64,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 }
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -78,6 +80,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 }
 
 func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -140,6 +143,7 @@ func TestAppCreation(t *testing.T) {
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
@@ -600,6 +604,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 }
 
 func TestKsonnetApp(t *testing.T) {
+	SkipOnEnv(t, "KSONNET")
 	Given(t).
 		Path("ksonnet").
 		Env("prod").
@@ -1008,6 +1013,7 @@ func TestRevisionHistoryLimit(t *testing.T) {
 }
 
 func TestOrphanedResource(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1266,6 +1272,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 }
 
 func TestListResource(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1327,10 +1334,13 @@ func TestListResource(t *testing.T) {
 //        application sync successful
 //        when application is deleted, --dest-namespace is not deleted
 func TestNamespaceAutoCreation(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
 	defer func() {
-		_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
-		assert.NoError(t, err)
+		if !t.Skipped() {
+			_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
+			assert.NoError(t, err)
+		}
 	}()
 	Given(t).
 		Timeout(30).
@@ -1516,6 +1526,7 @@ definitions:
 }
 
 func TestAppLogs(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path("guestbook-logs").
 		When().

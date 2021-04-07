@@ -17,15 +17,22 @@ func AddGPGPublicKey() {
 	args := []string{"gpg", "add", "--from", keyPath}
 	errors.FailOnErr(fixture.RunCli(args...))
 
-	keyData, err := ioutil.ReadFile(keyPath)
-	errors.CheckError(err)
-	err = ioutil.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0644)
-	errors.CheckError(err)
+	if fixture.IsLocal() {
+		keyData, err := ioutil.ReadFile(keyPath)
+		errors.CheckError(err)
+		err = ioutil.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0644)
+		errors.CheckError(err)
+	} else {
+		fixture.RestartRepoServer()
+	}
 }
 
 func DeleteGPGPublicKey() {
 	args := []string{"gpg", "rm", fixture.GpgGoodKeyID}
 	errors.FailOnErr(fixture.RunCli(args...))
-
-	errors.CheckError(os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
+	if fixture.IsLocal() {
+		errors.CheckError(os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
+	} else {
+		fixture.RestartRepoServer()
+	}
 }

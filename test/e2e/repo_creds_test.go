@@ -37,7 +37,7 @@ func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path("https-kustomize-base").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			// I use CLI, but you could also modify the settings, we get a free test of the CLI here
 			FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
@@ -53,7 +53,7 @@ func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).
 		CustomCACertAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path("https-kustomize-base").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
@@ -79,7 +79,7 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 		HTTPSCredentialsUserPassAdded().
 		HTTPSRepoURLAdded(false).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path("https-kustomize-base").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
@@ -104,7 +104,7 @@ func TestCanAddAppFromClientCertRepoWithCredCfg(t *testing.T) {
 		CustomCACertAdded().
 		HTTPSRepoURLWithClientCertAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPSClientCert).
-		Path("https-kustomize-base").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
