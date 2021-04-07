@@ -216,16 +216,6 @@ The use of the plugin as sidecars separate from the repo-server is already a sec
 config management plugin mechanism, since the plugin tooling will no longer have access to the files of the argocd-repo-server image. 
 However additional improvements can be made to increase security.
 
-Currently, nothing prevents a command from traversing outside of the git repository, and reading/writing files outside 
-the repository path, including other git repositories which were cloned next to the working directory of the generate command. 
-Although the generate commands which are executed are determined by an operator, they are still affected by end user input. 
-For example, an  end-user might try to exploit the reposerver by specifying `HEAD && rm -rf /` as a git targetRevision, 
-which they might expect to execute as:
-
-`git clone HEAD && rm -rf /`
-
-(Note that this is just used as an example and the repo-server is not actually exploitable in this way)
-
 ### Risks and Mitigations
 
 One issue is that currently when repositories are cloned, the repo is cloned using the same UID of the repo-server user, 
