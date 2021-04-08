@@ -14,7 +14,7 @@ to ignore fields when differences are expected.
 
 ## Why is my application stuck in `Progressing` state?
 
-Argo CD provides health for several standard Kubernetes types. The `Ingress` and `StatefulSet` types have known issues
+Argo CD provides health for several standard Kubernetes types. The `Ingress`, `StatefulSet` and `SealedSecret` types have known issues
 which might cause health check to return `Progressing` state instead of `Healthy`.
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
@@ -31,6 +31,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
   in `Progressing` state.
 * Your `StatefulSet` or `DaemonSet` is using `OnDelete` instead of `RollingUpdate` strategy.
   See [#1881](https://github.com/argoproj/argo-cd/issues/1881).
+* For `SealedSecret`, see [Why are resources of type `SealedSecret` stuck in the `Progressing` state?](#sealed-secret-stuck-progressing)
 
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
 behavior.
@@ -183,7 +184,7 @@ be exposed (on k8s `1.16+`). If your Kubernetes deployment is [modern](
 https://www.openshift.com/blog/a-look-into-the-technical-details-of-kubernetes-1-16), ensure you're using a
 fixed CRD if you want this feature to work at all.
 
-## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
+## <a name="sealed-secret-stuck-progressing"></a>Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
