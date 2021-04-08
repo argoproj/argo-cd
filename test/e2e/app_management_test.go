@@ -1598,3 +1598,18 @@ func TestSyncOptionReplace(t *testing.T) {
 			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
 		})
 }
+
+func TestSyncToUnsignedCommit2(t *testing.T) {
+	SkipOnEnv(t, "GPG")
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		When().
+		IgnoreErrors().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
+}
