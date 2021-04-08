@@ -132,4 +132,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.FailOnErr(fixture.Run("", "helm", "chart", "save", chartAbsPath, fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+	errors.FailOnErr(fixture.Run("", "helm", "chart", "push", fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+
 }
