@@ -17,4 +17,5 @@ redis-ha:
   image:
     tag: 6.2.1-alpine
   sentinel:
-    bind: "0.0.0.0"
+    config:
+      bind: "0.0.0.0"
