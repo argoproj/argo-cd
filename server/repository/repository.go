@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -69,7 +68,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 	var err error
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = argo.TestRepo(repo)
+		err = s.testRepo(ctx, repo)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -295,7 +294,8 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			}
 			repo.CopyCredentialsFrom(creds)
 		}
-		err = argo.TestRepo(repo)
+
+		err = s.testRepo(ctx, repo)
 		if err != nil {
 			return nil, err
 		}
@@ -405,9 +405,22 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	err = argo.TestRepo(repo)
+	err = s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 	return &repositorypkg.RepoResponse{}, nil
+}
+
+func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return err
+	}
+	defer io.Close(conn)
+
+	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	})
+	return err
 }
