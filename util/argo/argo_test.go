@@ -245,6 +245,13 @@ func TestValidateRepo(t *testing.T) {
 		KustomizeOptions: kustomizeOptions,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
+	repo.Type = "git"
+	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	}).Return(&apiclient.TestRepositoryResponse{
+		VerifiedRepository: true,
+	}, nil)
+
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
@@ -742,10 +749,4 @@ func TestFilterByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, res, 0)
 	})
-}
-
-func TestTestRepoOCI(t *testing.T) {
-	err := TestRepo(&argoappv1.Repository{Repo: "https://demo.goharbor.io", Type: "helm", EnableOCI: true})
-	assert.Error(t, err)
-	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
 }
