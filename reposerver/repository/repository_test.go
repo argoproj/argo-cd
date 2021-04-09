@@ -1467,3 +1467,16 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	assert.ElementsMatch(t,
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }
+
+func TestTestRepoOCI(t *testing.T) {
+	service := newService(".")
+	_, err := service.TestRepository(context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: &argoappv1.Repository{
+			Repo:      "https://demo.goharbor.io",
+			Type:      "helm",
+			EnableOCI: true,
+		},
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+}

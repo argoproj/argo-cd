@@ -3,7 +3,6 @@ package argo
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -25,8 +24,6 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -154,7 +151,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
@@ -163,37 +160,10 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	return TestRepo(repo)
-}
+	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	})
 
-func TestRepo(repo *argoappv1.Repository) error {
-	checks := map[string]func() error{
-		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-		},
-		"helm": func() error {
-			if repo.EnableOCI {
-				if !helm.IsHelmOciRepo(repo.Repo) {
-					return errors.New("OCI Helm repository URL should include hostname and port only")
-				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
-				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
-				return err
-			}
-		},
-	}
-	if check, ok := checks[repo.Type]; ok {
-		return check()
-	}
-	var err error
-	for _, check := range checks {
-		err = check()
-		if err == nil {
-			return nil
-		}
-	}
 	return err
 }
 
@@ -226,7 +196,8 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
+
+	err = TestRepoWithKnownType(ctx, repoClient, repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
