@@ -18,4 +18,4 @@ redis-ha:
     tag: 6.2.1-alpine
   sentinel:
     config:
-      replaceme: "0.0.0.0"
+      bind: "0.0.0.0"
