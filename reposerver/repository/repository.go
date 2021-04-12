@@ -480,14 +480,25 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		repo := &v1alpha1.Repository{
-			Repo: r.Repository,
-			Name: strings.TrimPrefix(r.Repository, "https://"),
+		if u, err := url.Parse(r.Repository); err == nil && u.Scheme == "https" {
+			repo := &v1alpha1.Repository{
+				Repo: r.Repository,
+				Name: u.Host,
+			}
+			repos = append(repos, repo)
 		}
-		repos = append(repos, repo)
 	}
 
 	return repos, nil
+}
+
+func repoExists(repo string, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if repo == r.Repo {
+			return true
+		}
+	}
+	return false
 }
 
 func isConcurrencyAllowed(appPath string) bool {
@@ -623,8 +634,10 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		return nil, err
 	}
 
-	if len(repos) > 0 {
-		q.Repos = append(q.Repos, repos...)
+	for _, r := range repos {
+		if !repoExists(r.Repo, q.Repos) {
+			q.Repos = append(q.Repos, repos...)
+		}
 	}
 
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
