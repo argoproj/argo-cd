@@ -624,7 +624,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	if len(repos) > 0 {
-		q.Repos = append(q.Repos, repos ...)
+		q.Repos = append(q.Repos, repos...)
 	}
 
 	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
