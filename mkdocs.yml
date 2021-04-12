@@ -75,7 +75,8 @@ nav:
   - Operations & Maintenance:
     - Architectural Overview: operations/index.md
     - Backup & Restore: operations/backup_restore.md
-    - High-Availability: operations/ha.md
+    - Scaling Up: operations/scaling.md
+    - Metrics: operations/metrics.md
     - Ingress configuration:
       - Overview: operations/ingress/index.md
       - Ambassador: operations/ingress/ambassador.md
