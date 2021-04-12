@@ -1,6 +1,8 @@
 package repos
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -77,6 +79,18 @@ func AddHelmRepo(name string) {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
+func AddHelmOCIRepo(name string) {
+	args := []string{
+		"repo",
+		"add",
+		fixture.HelmOCIRegistryURL,
+		"--type", "helm",
+		"--name", name,
+		"--enable-oci",
+	}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
 func AddHTTPSCredentialsUserPass() {
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHTTPS
@@ -109,4 +123,15 @@ func AddSSHCredentials() {
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
 	errors.FailOnErr(fixture.RunCli(args...))
+}
+
+// PushChartToOCIRegistry adds a helm chart to helm OCI registry
+func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
+	chartAbsPath, err := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
+	errors.CheckError(err)
+
+	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
+	errors.FailOnErr(fixture.Run("", "helm", "chart", "save", chartAbsPath, fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+	errors.FailOnErr(fixture.Run("", "helm", "chart", "push", fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+
 }

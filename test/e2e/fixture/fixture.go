@@ -85,9 +85,11 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
+	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -243,6 +245,8 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	case RepoURLTypeHelmOCI:
+		return HelmOCIRegistryURL
 	default:
 		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
