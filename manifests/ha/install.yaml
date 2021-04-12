@@ -2834,6 +2834,7 @@ data:
   redis.conf: |
     dir "/data"
     port 6379
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -2849,6 +2850,7 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    bind 0.0.0.0
 kind: ConfigMap
 metadata:
   labels:
@@ -3558,7 +3560,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: f967dc53802e37a7bd0a7097785686e65cefc3002881b7c2a1936b3988698c11
+        checksum/init-config: 7128bfbb51eafaffe3c33b1b463e15f0cf6514cec570f9d9c4f2396f28c724ac
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
