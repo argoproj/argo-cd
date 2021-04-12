@@ -5,4 +5,5 @@ redis: bash -c "if [ $ARGOCD_REDIS_LOCAL == 'true' ]; then redis-server --save '
 repo-server: sh -c "FORCE_LOG_COLORS=1 ARGOCD_FAKE_IN_CLUSTER=true ARGOCD_GNUPGHOME=${ARGOCD_GNUPGHOME:-/tmp/argocd-local/gpg/keys} ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} ARGOCD_BINARY_NAME=argocd-repo-server go run ./cmd/main.go --loglevel debug --port ${ARGOCD_E2E_REPOSERVER_PORT:-8081} --redis localhost:${ARGOCD_E2E_REDIS_PORT:-6379}"
 ui: sh -c 'cd ui && ${ARGOCD_E2E_YARN_CMD:-yarn} start'
 git-server: test/fixture/testrepos/start-git.sh
+helm-registry: test/fixture/testrepos/start-helm-registry.sh
 dev-mounter: [[ "$ARGOCD_E2E_TEST" != "true" ]] && go run hack/dev-mounter/main.go --configmap argocd-ssh-known-hosts-cm=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} --configmap argocd-tls-certs-cm=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} --configmap argocd-gpg-keys-cm=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source}
