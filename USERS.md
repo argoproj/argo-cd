@@ -10,6 +10,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adventure](https://jp.adventurekk.com/)
 1. [Ambassador Labs](https://www.getambassador.io/)
+1. [Ant Group](https://www.antgroup.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
