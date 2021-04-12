@@ -2142,7 +2142,7 @@ kind: Role
 metadata:
   labels:
     app: redis-ha
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     component: argocd-redis-ha-haproxy
     heritage: Helm
     release: argocd
@@ -2251,7 +2251,7 @@ kind: RoleBinding
 metadata:
   labels:
     app: redis-ha
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     component: argocd-redis-ha-haproxy
     heritage: Helm
     release: argocd
@@ -2322,7 +2322,7 @@ kind: ConfigMap
 metadata:
   labels:
     app: argocd-redis-ha
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     heritage: Helm
     release: argocd
   name: argocd-redis-ha-health-configmap
@@ -2358,8 +2358,8 @@ data:
     defaults REDIS
       mode tcp
       timeout connect 4s
-      timeout server 330s
-      timeout client 330s
+      timeout server 6m
+      timeout client 6m
       timeout check 2s
 
     listen health_check_http_url
@@ -3117,7 +3117,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: d2ea567716f714054660c172aa717a4ec9daa16d25dab418d8fd7a0c961b03e3
+        checksum/config: c55502ce732f78a70658dc77f00c02444cd6b6bede4b270f56d082fdaed1dc5f
       labels:
         app.kubernetes.io/name: argocd-redis-ha-haproxy
       name: argocd-redis-ha-haproxy

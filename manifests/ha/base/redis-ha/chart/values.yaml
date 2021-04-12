@@ -10,6 +10,10 @@ redis-ha:
     enabled: true
     image:
       tag: 2.0.20-alpine
+    timeout:
+      server: 6m
+      client: 6m
+    checkInterval: 3s
   image:
     tag: 6.2.1-alpine
   sentinel:
