@@ -4,6 +4,8 @@ FROM node:12.18.4 as node
 
 FROM golang:1.16.0 as golang
 
+FROM registry:2.7.1 as registry
+
 FROM ubuntu:20.10
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -62,6 +64,10 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
+
+# Copy registry binaries to the image
+COPY --from=registry /bin/registry /usr/local/bin/
+COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config.yml
 
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules

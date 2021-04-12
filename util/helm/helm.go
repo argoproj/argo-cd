@@ -76,14 +76,16 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			_, err := h.cmd.Login(repo.Repo, repo.Creds)
+			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+				_, err := h.cmd.Login(repo.Repo, repo.Creds)
 
-			defer func() {
-				_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
-			}()
+				defer func() {
+					_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+				}()
 
-			if err != nil {
-				return err
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
