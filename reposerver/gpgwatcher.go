@@ -8,7 +8,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/util/gpg"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 const maxRecreateRetries = 5

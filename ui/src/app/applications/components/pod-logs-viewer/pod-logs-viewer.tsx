@@ -3,7 +3,6 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
-import {Observable} from 'rxjs';
 
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -43,11 +42,29 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         literal: string;
         inverse: boolean;
     }
+
+    const [filterText, setFilterText] = useState('');
     const [filter, setFilter] = useState({inverse: false, literal: ''} as FilterData);
 
-    const filterQuery = () => {
-        return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
+    const formatFilter = (f: FilterData): string => {
+        return f.literal && `${f.inverse ? '!' : ''}${f.literal}`;
     };
+
+    const [filterQuery, setFilterQuery] = React.useState(formatFilter(filter));
+    React.useEffect(() => {
+        setFilterQuery(formatFilter(filter));
+        if (loader) {
+            loader.reload();
+        }
+    }, [filter]);
+
+    React.useEffect(() => {
+        const to = setTimeout(() => {
+            setFilter({...filter, literal: filterText});
+        }, 500);
+        return () => clearTimeout(to);
+    }, [filterText]);
+
     const fullscreenURL =
         `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
@@ -117,35 +134,40 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </button>
+                        <button
+                            className='argo-button argo-button--base'
+                            onClick={async () => {
+                                const downloadURL = services.applications.getDownloadLogsURL(
+                                    props.applicationName,
+                                    props.namespace,
+                                    props.podName,
+                                    {group: props.group, kind: props.kind, name: props.name},
+                                    props.containerName
+                                );
+                                window.open(downloadURL, '_blank');
+                            }}>
+                            DOWNLOAD
+                        </button>
                         {!props.fullscreen && (
                             <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
                                 <i className='fa fa-external-link-alt' />
                             </Link>
                         )}
                         <div className='pod-logs-viewer__filter'>
-                            <button
-                                className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
-                                onClick={() => setFilter({...filter, inverse: !filter.inverse})}
-                                style={{marginRight: '10px'}}>
-                                !
-                            </button>
+                            <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
+                                <button
+                                    className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                    onClick={() => setFilter({...filter, inverse: !filter.inverse})}
+                                    style={{marginRight: '10px'}}>
+                                    !
+                                </button>
+                            </Tooltip>
                             <input
-                                ref={input => {
-                                    if (input) {
-                                        Observable.fromEvent(input, 'keyup')
-                                            .debounceTime(500)
-                                            .subscribe(() => {
-                                                if (loader) {
-                                                    loader.reload();
-                                                }
-                                            });
-                                    }
-                                }}
                                 type='text'
                                 placeholder='Filter string'
                                 className='argo-field'
-                                value={filter.literal}
-                                onChange={e => setFilter({...filter, literal: e.target.value})}
+                                value={filterText}
+                                onChange={e => setFilterText(e.target.value)}
                                 style={{padding: 0}}
                             />
                         </div>
@@ -170,7 +192,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     maxLines * (page.number + 1),
                                     prefs.appDetails.followLogs && page.number === 0,
                                     page.untilTimes[page.untilTimes.length - 1],
-                                    filterQuery()
+                                    filterQuery
                                 )
                                 // show only current page lines
                                 .scan((lines, logEntry) => {

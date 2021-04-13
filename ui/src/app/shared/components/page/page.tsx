@@ -1,8 +1,11 @@
 import {DataLoader, Page as ArgoPage, Toolbar, Utils} from 'argo-ui';
 import * as React from 'react';
 import {BehaviorSubject, Observable} from 'rxjs';
+
 import {Context, ContextApis} from '../../context';
 import {services} from '../../services';
+import requests from '../../services/requests';
+
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
 import './page.scss';
@@ -20,13 +23,13 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
             <DataLoader key='loginPanel' load={() => isLoggedIn()}>
                 {loggedIn =>
                     loggedIn ? (
-                        <a key='logout' onClick={() => ctx.navigation.goto('/auth/logout')}>
+                        <button className='login-logout-button' key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
                             Log out
-                        </a>
+                        </button>
                     ) : (
-                        <a key='login' onClick={() => ctx.navigation.goto('/login')}>
+                        <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto('/login')}>
                             Log in
-                        </a>
+                        </button>
                     )
                 }
             </DataLoader>

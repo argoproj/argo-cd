@@ -34,6 +34,7 @@ data:
     - Base64 encode the contents of the certificate file, for example:
     - `$ cat ArgoCD.cer | base64`
     - *Keep a copy of the encoded output to be used in the next section.*
+    - *Ensure that the certificate is in PEM format before base64 encoding*
 
     ![Google Admin IdP Metadata](../../assets/google-admin-idp-metadata.png "A screenshot of the Google IdP metadata")
 

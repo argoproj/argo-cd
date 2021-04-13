@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/certificate";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate";
 
 // Certificate Service
 //
@@ -9,7 +9,7 @@ package certificate;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // Message to query the server for configured repository certificates
 message RepositoryCertificateQuery {
@@ -24,7 +24,7 @@ message RepositoryCertificateQuery {
 // Request to create a set of certificates
 message RepositoryCertificateCreateRequest {
   // List of certificates to be created
-  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList certificates = 1;
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList certificates = 1;
   // Whether to upsert already existing certificates
   bool upsert = 2;
 }
@@ -33,12 +33,12 @@ message RepositoryCertificateResponse {}
 
 service CertificateService {
   // List all available repository certificates
-  rpc ListCertificates(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  rpc ListCertificates(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http).get = "/api/v1/certificates";
   }
 
   // Creates repository certificates on the server 
-  rpc CreateCertificate(RepositoryCertificateCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  rpc CreateCertificate(RepositoryCertificateCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http) = {
       post: "/api/v1/certificates"
       body: "certificates"
@@ -46,7 +46,7 @@ service CertificateService {
   }
 
   // Delete the certificates that match the RepositoryCertificateQuery
-  rpc DeleteCertificate(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+  rpc DeleteCertificate(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http).delete = "/api/v1/certificates";
   }
 }

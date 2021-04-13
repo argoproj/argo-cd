@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/test/fixture/log"
-	"github.com/argoproj/argo-cd/test/fixture/path"
-	"github.com/argoproj/argo-cd/test/fixture/test"
+	"github.com/argoproj/argo-cd/v2/test/fixture/log"
+	"github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/test/fixture/test"
 )
 
 func TestIsCommitSHA(t *testing.T) {

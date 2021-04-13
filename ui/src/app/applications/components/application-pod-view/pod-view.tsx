@@ -205,7 +205,8 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                             await services.applications.deleteResource(
                                                                                                 this.props.app.metadata.name,
                                                                                                 pod,
-                                                                                                !!vals.force
+                                                                                                !!vals.force,
+                                                                                                false
                                                                                             );
                                                                                             close();
                                                                                         } catch (e) {
@@ -328,6 +329,19 @@ export class PodView extends React.Component<PodViewProps> {
                 if (groupRefs[p.spec.nodeName]) {
                     const curNode = groupRefs[p.spec.nodeName];
                     curNode.pods.push(p);
+                } else {
+                    if (groupRefs.Unschedulable) {
+                        groupRefs.Unschedulable.pods.push(p);
+                    } else {
+                        groupRefs.Unschedulable = {
+                            type: 'node',
+                            kind: 'node',
+                            name: 'Unschedulable',
+                            pods: [p],
+                            info: [{name: 'Kernel Version', value: 'N/A'}, {name: 'OS/Arch', value: 'N/A'}],
+                            hostResourcesInfo: []
+                        };
+                    }
                 }
             } else if (sortMode === 'parentResource') {
                 rnode.parentRefs.forEach(parentRef => {

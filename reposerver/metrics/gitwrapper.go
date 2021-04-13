@@ -3,7 +3,7 @@ package metrics
 import (
 	"time"
 
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 type gitClientWrapper struct {

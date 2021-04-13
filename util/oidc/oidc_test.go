@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 )
 
 func TestInferGrantType(t *testing.T) {

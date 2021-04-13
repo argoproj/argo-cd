@@ -51,7 +51,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
         const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
         return (
             <div className='login'>
-                <div className='login__content'>
+                <div className='login__content show-for-medium'>
                     <div className='login__text'>Let's get stuff deployed!</div>
                     <div className='argo__logo' />
                 </div>
@@ -87,7 +87,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApi} label='Username' field='username' component={Text} />
+                                        <FormField formApi={formApi} label='Username' field='username' component={Text} componentProps={{autoCapitalize: 'none'}} />
                                     </div>
                                     <div className='argo-form-row'>
                                         <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />
