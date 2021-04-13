@@ -27,7 +27,7 @@
     "@types/react-router": "^4.0.27",
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
-    "argo-ui": "https://github.com/argoproj/argo-ui.git",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "classnames": "^2.2.5",
     "color": "^3.1.0",
     "cookie": "^0.3.1",

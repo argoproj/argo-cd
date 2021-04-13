@@ -5,13 +5,13 @@ import (
 	"github.com/google/go-jsonnet"
 	"golang.org/x/net/context"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/server/settings"
-	"github.com/argoproj/argo-cd/util/helm"
-	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/argoproj/argo-cd/util/kustomize"
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/server/settings"
+	"github.com/argoproj/argo-cd/v2/util/helm"
+	ksutil "github.com/argoproj/argo-cd/v2/util/ksonnet"
+	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 type server struct {

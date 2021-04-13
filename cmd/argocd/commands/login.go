@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,17 +19,17 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/io"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/util/oidc"
-	"github.com/argoproj/argo-cd/util/rand"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -192,7 +193,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	var refreshToken string
 
 	handleErr := func(w http.ResponseWriter, errMsg string) {
-		http.Error(w, errMsg, http.StatusBadRequest)
+		http.Error(w, html.EscapeString(errMsg), http.StatusBadRequest)
 		completionChan <- errMsg
 	}
 
@@ -207,7 +208,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		log.Debugf("Callback: %s", r.URL)
 
 		if formErr := r.FormValue("error"); formErr != "" {
-			handleErr(w, formErr+": "+r.FormValue("error_description"))
+			handleErr(w, fmt.Sprintf("%s: %s", formErr, r.FormValue("error_description")))
 			return
 		}
 

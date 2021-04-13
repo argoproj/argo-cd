@@ -32,8 +32,9 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
                 (settings.statusBadgeEnabled && (
                     <div className='white-box'>
                         <div className='white-box__details'>
+                            <p>STATUS BADGE</p>
                             <p>
-                                Status Badge <img src={badgeURL} />{' '}
+                                <img src={badgeURL} />{' '}
                             </p>
                             <div className='white-box__details-row'>
                                 <DropDownMenu

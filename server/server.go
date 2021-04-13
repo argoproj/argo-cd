@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -19,7 +20,6 @@ import (
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/pkg/jwt/zjwt"
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
@@ -47,64 +47,66 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey"
-	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
-	repocache "github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/server/account"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/badge"
-	servercache "github.com/argoproj/argo-cd/server/cache"
-	"github.com/argoproj/argo-cd/server/certificate"
-	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/gpgkey"
-	"github.com/argoproj/argo-cd/server/logout"
-	"github.com/argoproj/argo-cd/server/metrics"
-	"github.com/argoproj/argo-cd/server/project"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/server/repocreds"
-	"github.com/argoproj/argo-cd/server/repository"
-	"github.com/argoproj/argo-cd/server/session"
-	"github.com/argoproj/argo-cd/server/settings"
-	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/dex"
-	dexutil "github.com/argoproj/argo-cd/util/dex"
-	"github.com/argoproj/argo-cd/util/env"
-	"github.com/argoproj/argo-cd/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/healthz"
-	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/io"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/oidc"
-	"github.com/argoproj/argo-cd/util/rbac"
-	util_session "github.com/argoproj/argo-cd/util/session"
-	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/argoproj/argo-cd/util/webhook"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	repocache "github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/server/account"
+	"github.com/argoproj/argo-cd/v2/server/application"
+	"github.com/argoproj/argo-cd/v2/server/badge"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/certificate"
+	"github.com/argoproj/argo-cd/v2/server/cluster"
+	"github.com/argoproj/argo-cd/v2/server/gpgkey"
+	"github.com/argoproj/argo-cd/v2/server/logout"
+	"github.com/argoproj/argo-cd/v2/server/metrics"
+	"github.com/argoproj/argo-cd/v2/server/project"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/server/repocreds"
+	"github.com/argoproj/argo-cd/v2/server/repository"
+	"github.com/argoproj/argo-cd/v2/server/session"
+	"github.com/argoproj/argo-cd/v2/server/settings"
+	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	"github.com/argoproj/argo-cd/v2/util/healthz"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/oidc"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
+	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/swagger"
+	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/webhook"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 const replicasCountEnv = "ARGOCD_API_SERVER_REPLICAS"
+const renewTokenKey = "renew-token"
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -594,29 +596,36 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	return grpcS
 }
 
-// TranslateGrpcCookieHeader conditionally sets a cookie on the response.
+// translateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
-		cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
-		flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-		if !a.Insecure {
-			flags = append(flags, "Secure")
-		}
 		token := sessionResp.Token
-		if token != "" {
-			var err error
-			token, err = zjwt.ZJWT(token)
-			if err != nil {
-				return err
-			}
-		}
-		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+		err := a.setTokenCookie(token, w)
 		if err != nil {
 			return err
 		}
-		for _, cookie := range cookies {
-			w.Header().Add("Set-Cookie", cookie)
+	} else if md, ok := runtime.ServerMetadataFromContext(ctx); ok {
+		renewToken := md.HeaderMD[renewTokenKey]
+		if len(renewToken) > 0 {
+			return a.setTokenCookie(renewToken[0], w)
 		}
+	}
+
+	return nil
+}
+
+func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
+	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
+	if !a.Insecure {
+		flags = append(flags, "Secure")
+	}
+	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
+	if err != nil {
+		return err
+	}
+	for _, cookie := range cookies {
+		w.Header().Add("Set-Cookie", cookie)
 	}
 	return nil
 }
@@ -825,8 +834,18 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	return filePath, nil
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
+func fileExists(dir, filename string) bool {
+	// We make sure that the resulting path is within the directory we intend to
+	// serve content from. path.Join() will normalize the path.
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	fp := path.Join(abs, filename)
+	if !strings.HasPrefix(fp, abs) {
+		return false
+	}
+	info, err := os.Stat(fp)
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -843,7 +862,8 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 				break
 			}
 		}
-		fileRequest := r.URL.Path != "/index.html" && fileExists(path.Join(dir, r.URL.Path))
+
+		fileRequest := r.URL.Path != "/index.html" && fileExists(dir, r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
@@ -883,11 +903,19 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	claims, claimsErr := a.getClaims(ctx)
+	claims, newToken, claimsErr := a.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
+		if newToken != "" {
+			// Session tokens that are expiring soon should be regenerated if user stays active.
+			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
+			// response forwarder that will translate it into Set-Cookie header.
+			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
+				log.Warnf("Failed to set %s header", renewTokenKey)
+			}
+		}
 	}
 
 	if claimsErr != nil {
@@ -903,20 +931,20 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, error) {
+func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, ErrNoSession
+		return nil, "", ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return nil, ErrNoSession
+		return nil, "", ErrNoSession
 	}
-	claims, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return claims, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	return claims, nil
+	return claims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
@@ -929,12 +957,12 @@ func getToken(md metadata.MD) string {
 		}
 	}
 
-	var tokens []string
-
 	// looks for the HTTP header `Authorization: Bearer ...`
+	// argocd prefers bearer token over cookie
 	for _, t := range md["authorization"] {
-		if strings.HasPrefix(t, "Bearer ") {
-			tokens = append(tokens, strings.TrimPrefix(t, "Bearer "))
+		token := strings.TrimPrefix(t, "Bearer ")
+		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
+			return token
 		}
 	}
 
@@ -944,17 +972,11 @@ func getToken(md metadata.MD) string {
 		header.Add("Cookie", t)
 		request := http.Request{Header: header}
 		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
-		if token != "" && err == nil {
-			tokens = append(tokens, token)
+		if err == nil && jwtutil.IsValid(token) {
+			return token
 		}
 	}
 
-	for _, t := range tokens {
-		value, err := zjwt.JWT(t)
-		if err == nil {
-			return value
-		}
-	}
 	return ""
 }
 

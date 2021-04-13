@@ -22,21 +22,21 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/argo"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/gpg"
-	argohealth "github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/argo-cd/v2/common"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	argohealth "github.com/argoproj/argo-cd/v2/util/health"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/stats"
 )
 
 type resourceInfoProviderStub struct {
@@ -275,34 +275,29 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	conditions := make([]appv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
-		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-		if err != nil {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
-			log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
-		} else {
-			switch verifyResult.Result {
-			case gpg.VerifyResultGood:
-				// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-				validKey := false
-				for _, k := range project.Spec.SignatureKeys {
-					if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-						validKey = true
-						break
-					}
+		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+		switch verifyResult.Result {
+		case gpg.VerifyResultGood:
+			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+			validKey := false
+			for _, k := range project.Spec.SignatureKeys {
+				if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
+					validKey = true
+					break
 				}
-				if !validKey {
-					msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-						verifyResult.Cipher, verifyResult.KeyID)
-					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-				}
-			case gpg.VerifyResultInvalid:
-				msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-					verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-			default:
-				msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+			}
+			if !validKey {
+				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+					verifyResult.Cipher, verifyResult.KeyID)
 				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			}
+		case gpg.VerifyResultInvalid:
+			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		default:
+			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		}
 	} else {
 		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
@@ -353,9 +348,11 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 			}
 			dr = res
 		}
-		diffResultList.Diffs[i] = *dr
-		if dr != nil && dr.Modified {
-			diffResultList.Modified = true
+		if dr != nil {
+			diffResultList.Diffs[i] = *dr
+			if dr.Modified {
+				diffResultList.Modified = true
+			}
 		}
 	}
 

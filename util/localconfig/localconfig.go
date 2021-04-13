@@ -5,10 +5,11 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go/v4"
 
-	configUtil "github.com/argoproj/argo-cd/util/config"
+	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -261,4 +262,13 @@ func DefaultLocalConfigPath() (string, error) {
 		return "", err
 	}
 	return path.Join(dir, "config"), nil
+}
+
+// Get username from subject in a claim
+func GetUsername(subject string) string {
+	parts := strings.Split(subject, ":")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return subject
 }

@@ -45,7 +45,7 @@ If you make changes to the Argo UI component, and your Argo CD changes depend on
 1. Make changes to Argo UI and submit the PR request.
 2. Also, prepare your Argo CD changes, but don't create the PR just yet.
 3. **After** the Argo UI PR has been merged to master, then as part of your Argo CD changes:
-	- Run `yarn add https://github.com/argoproj/argo-ui.git`, and then,
+	- Run `yarn add git+https://github.com/argoproj/argo-ui.git`, and then,
 	- Check in the regenerated yarn.lock file as part of your Argo CD commit
 4. Create the Argo CD PR	 when you are ready. The PR build and test checks should pass.
 

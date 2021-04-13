@@ -14,19 +14,18 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/gpg"
-	argoio "github.com/argoproj/argo-cd/util/io"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type policyOpts struct {
@@ -129,23 +128,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			visited := 0
-			c.Flags().Visit(func(f *pflag.Flag) {
-				visited++
-				switch f.Name {
-				case "description":
-					proj.Spec.Description = opts.Description
-				case "dest":
-					proj.Spec.Destinations = opts.GetDestinations()
-				case "src":
-					proj.Spec.SourceRepos = opts.Sources
-				case "signature-keys":
-					proj.Spec.SignatureKeys = opts.GetSignatureKeys()
-				case "orphaned-resources", "orphaned-resources-warn":
-					proj.Spec.OrphanedResources = cmdutil.GetOrphanedResourcesSettings(c, opts)
-				}
-			})
-			if visited == 0 {
+			if visited := cmdutil.SetProjSpecOptions(c.Flags(), &proj.Spec, &opts); visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
 				os.Exit(1)

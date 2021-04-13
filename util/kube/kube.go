@@ -1,12 +1,21 @@
 package kube
 
 import (
+	"regexp"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
+
+var resourceNamePattern = regexp.MustCompile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
+
+// IsValidResourceName returns true if given string a valid Kubernetes resource name
+func IsValidResourceName(name string) bool {
+	return len(name) < 64 && resourceNamePattern.MatchString(name)
+}
 
 // SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set

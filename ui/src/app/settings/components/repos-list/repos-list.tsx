@@ -410,7 +410,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Type' field='ghType' component={FormSelect} componentProps={{options: ['GitHub', 'GitHub Enterprise']}} />
                                 </div>
-                                {formApi.getFormState().values.type === 'GitHub Enterprise' && (
+                                {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
                                     <React.Fragment>
                                         <div className='argo-form-row'>
                                             <FormField
