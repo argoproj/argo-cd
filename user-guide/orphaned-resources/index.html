@@ -1602,11 +1602,29 @@
                 
                 <h1 id="orphaned-resources-monitoring">Orphaned Resources Monitoring<a class="headerlink" href="#orphaned-resources-monitoring" title="Permanent link">&para;</a></h1>
 <p>Orphaned Kubernetes resource is a top-level namespaced resource which does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
-orphaned resources, generate a warning and inspect/remove resources using Argo CD UI.</p>
-<p>The Orphaned Resources monitoring is enabled in <a href="../projects/">Project</a> settings. Once the feature is enabled each project application which target namespace has orphaned resource
-will get a warning condition. The orphaned resources can be located using the application details page:</p>
+orphaned resources, inspect/remove resources using Argo CD UI and generate a warning.</p>
+<p>The Orphaned Resources monitoring is enabled in <a href="../projects/">Project</a> settings, 
+and the below is an example of enabling the feature using the AppProject custom resource.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AppProject</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+  <span class="l l-Scalar l-Scalar-Plain">orphanedResources</span><span class="p p-Indicator">:</span>
+    <span class="nt">warn</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nn">...</span>
+</code></pre></div>
+
+<p>Once the feature is enabled, each project application which has any orphaned resources in its target namespace
+will get a warning. The orphaned resources can be located using the application details page:</p>
 <p><img alt="orphaned resources" src="../../assets/orphaned-resources.png" /></p>
-<p>Before enabling feature you might consider disabling warning. In this case application users are going to see orphaned resources in the UI but application is won't get a warning condition.</p>
+<p>When enabling the feature, you might want to consider disabling warning at first.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">orphanedResources</span><span class="p">:</span>
+    <span class="nt">warn</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span> <span class="c1"># Disable warning</span>
+</code></pre></div>
+
+<p>While warning disabled, application users can still view orphaned resources in the UI.</p>
 <h2 id="exceptions">Exceptions<a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h2>
 <p>Not every resource in the Kubernetes cluster is controlled by the end user. Following resources are never considered as orphaned:</p>
 <ul>
@@ -1615,6 +1633,13 @@ will get a warning condition. The orphaned resources can be located using the ap
 <li><code>Service</code> with name <code>kubernetes</code> in the <code>default</code> namespace.</li>
 <li><code>ConfigMap</code> with name <code>kube-root-ca.crt</code> in all namespaces.</li>
 </ul>
+<p>Also, you can configure to ignore resources by providing a list of resource Group, Kind and Name.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">orphanedResources</span><span class="p">:</span>
+    <span class="nt">ignore</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">orphaned-but-ignored-configmap</span>
+</code></pre></div>
                 
               
               
