@@ -222,23 +222,6 @@
             flex-shrink: 0;
             text-align: center;
         }
-        i.fa-search {
-            position: absolute;
-            bottom: 0.6em;
-            left: -1.5em;
-            cursor: pointer;
-            &:hover {
-                color: $argo-color-gray-7;
-            }
-        }
-        i.fa-times {
-            cursor: pointer;
-            position: absolute;
-            color: $argo-color-gray-7;
-            bottom: 0.6em;
-            right: 0;
-            z-index: 1;
-        }
         .select {
             width: 100%;
             border-radius: $border-radius;

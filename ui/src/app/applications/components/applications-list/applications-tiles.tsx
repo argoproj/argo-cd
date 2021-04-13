@@ -1,9 +1,9 @@
 import {Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import {KeybindingContext, Key, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
-import {Key, NumKey, NumKeyToNumber, NumPadKey, useKeyListener, useNav} from '../../../shared/keybinding';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -53,14 +53,14 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
 
-    const useKeyPress = useKeyListener();
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeyPress(Key.RIGHT, () => navApp(1));
-    useKeyPress(Key.LEFT, () => navApp(-1));
-    useKeyPress(Key.DOWN, () => navApp(appsPerRow));
-    useKeyPress(Key.UP, () => navApp(-1 * appsPerRow));
+    useKeybinding(Key.RIGHT, () => navApp(1));
+    useKeybinding(Key.LEFT, () => navApp(-1));
+    useKeybinding(Key.DOWN, () => navApp(appsPerRow));
+    useKeybinding(Key.UP, () => navApp(-1 * appsPerRow));
 
-    useKeyPress(Key.ENTER, () => {
+    useKeybinding(Key.ENTER, () => {
         if (selectedApp > -1) {
             ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
             return true;
@@ -68,7 +68,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         return false;
     });
 
-    useKeyPress(Key.ESCAPE, () => {
+    useKeybinding(Key.ESCAPE, () => {
         if (selectedApp > -1) {
             reset();
             return true;
@@ -76,11 +76,11 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         return false;
     });
 
-    useKeyPress(Object.values(NumKey) as NumKey[], n => {
+    useKeybinding(Object.values(NumKey) as NumKey[], n => {
         reset();
         return navApp(NumKeyToNumber(n));
     });
-    useKeyPress(Object.values(NumPadKey) as NumPadKey[], n => {
+    useKeybinding(Object.values(NumPadKey) as NumPadKey[], n => {
         reset();
         return navApp(NumKeyToNumber(n));
     });
