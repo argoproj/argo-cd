@@ -796,12 +796,13 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh       bool
-		hardRefresh   bool
-		exitCode      bool
-		local         string
-		revision      string
-		localRepoRoot string
+		refresh             bool
+		hardRefresh         bool
+		exitCode            bool
+		includeResourceHook bool
+		local               string
+		revision            string
+		localRepoRoot       string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -870,7 +871,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			foundDiffs := false
 			for _, item := range items {
-				if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+				if item.target != nil && hook.IsHook(item.target) && !includeResourceHook || item.live != nil && hook.IsHook(item.live) && !includeResourceHook {
 					continue
 				}
 				overrides := make(map[string]argoappv1.ResourceOverride)
@@ -911,6 +912,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
+	command.Flags().BoolVar(&includeResourceHook, "include-resource-hook", false, "Display the diff of resource hooks")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
