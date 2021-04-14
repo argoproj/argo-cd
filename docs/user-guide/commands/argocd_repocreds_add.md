@@ -26,6 +26,7 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
+      --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
       --github-app-id int                       id of the GitHub Application
       --github-app-installation-id int          installation id of the GitHub Application

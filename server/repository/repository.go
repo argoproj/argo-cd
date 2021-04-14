@@ -240,6 +240,12 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+
+	repositoryCredentials, err := s.settings.GetRepositoryCredentials()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Sprintf("%v", repositoryCredentials)
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
