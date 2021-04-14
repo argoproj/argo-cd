@@ -636,7 +636,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	for _, r := range repos {
 		if !repoExists(r.Repo, q.Repos) {
-			q.Repos = append(q.Repos, repos...)
+			q.Repos = append(q.Repos, r)
 		}
 	}
 
