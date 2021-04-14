@@ -500,7 +500,7 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestTemplatesGitWithHelmOCIRegistryDependencies(t *testing.T) {
+func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
@@ -516,7 +516,7 @@ func TestTemplatesGitWithHelmOCIRegistryDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestTemplatesHelmOCIRegistryWithDependencies(t *testing.T) {
+func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
