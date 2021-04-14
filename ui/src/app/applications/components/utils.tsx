@@ -237,70 +237,63 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         deleteOptions.option = option;
     }
     return ctx.popup.prompt(
-                        'Delete resource',
-                        api => (
-                            <div>
-                                <p>
-                                    Are you sure you want to delete {resource.kind} '{resource.name}'?
-                                </p>
-                                {isManaged ? (
-                                    <div className='argo-form-row'>
-                                        <FormField
-                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                            formApi={api}
-                                            field='resourceName'
-                                            component={Text}
-                                        />
-                                    </div>
-                                ) : (
-                                    ''
-                                )}
-                                <div className='argo-form-row'>
-                                    <input
-                                        type='radio'
-                                        name='deleteOptions'
-                                        value='foreground'
-                                        onChange={() => handleStateChange('foreground')}
-                                        defaultChecked={true}
-                                        style={{marginRight: '5px'}}
-                                    />
-                                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
-                                        Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
-                                    </label>
-                                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
-                                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
-                                    </label>
-                                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
-                                    <label htmlFor='cascade-delete-radio'>
-                                        Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}
-                                    </label>
-                                </div>
-                            </div>
-                        ),
-                        {
-                            validate: vals =>
-                                isManaged && {
-                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                                },
-                            submit: async (vals, _, close) => {
-                                const force = deleteOptions.option === 'force';
-                                const orphan = deleteOptions.option === 'orphan';
-                                try {
-                                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
-                                    appChanged.next(await services.applications.get(application.metadata.name));
-                                    close();
-                                } catch (e) {
-                                    ctx.notifications.show({
-                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }
-                        },
-                        {name: 'argo-icon-warning', color: 'warning'},
-                        'yellow'
-                    );
+        'Delete resource',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                </p>
+                {isManaged ? (
+                    <div className='argo-form-row'>
+                        <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
+                    </div>
+                ) : (
+                    ''
+                )}
+                <div className='argo-form-row'>
+                    <input
+                        type='radio'
+                        name='deleteOptions'
+                        value='foreground'
+                        onChange={() => handleStateChange('foreground')}
+                        defaultChecked={true}
+                        style={{marginRight: '5px'}}
+                    />
+                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
+                        Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
+                    </label>
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
+                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                    </label>
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                    <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
+                </div>
+            </div>
+        ),
+        {
+            validate: vals =>
+                isManaged && {
+                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                },
+            submit: async (vals, _, close) => {
+                const force = deleteOptions.option === 'force';
+                const orphan = deleteOptions.option === 'orphan';
+                try {
+                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
+                    appChanged.next(await services.applications.get(application.metadata.name));
+                    close();
+                } catch (e) {
+                    ctx.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
+    );
 };
 
 export function renderResourceMenu(
@@ -312,7 +305,7 @@ export function renderResourceMenu(
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    
+
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
