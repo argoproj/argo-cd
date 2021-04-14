@@ -63,6 +63,21 @@ func TestHookDiff(t *testing.T) {
 		})
 }
 
+// make sure that that hooks appear in "argocd app diff --include-resource-hook"
+func TestHookDiffWithResourceHook(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		Create().
+		Then().
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook")
+			assert.Error(t, err)
+			assert.Contains(t, output, "name: pod")
+			assert.Contains(t, output, "name: hook")
+		})
+}
+
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).
