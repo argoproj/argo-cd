@@ -1,8 +1,8 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
+import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
-import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';

@@ -1,7 +1,7 @@
 import {Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {KeybindingContext, Key, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
