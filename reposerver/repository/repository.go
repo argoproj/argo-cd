@@ -686,10 +686,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
 	for _, cred := range repoCredentials {
-		url := repoURL
-		if strings.HasPrefix(url, "oci://") {
-			url = url[6:]
-		}
+		url := strings.TrimPrefix(repoURL, "oci://")
 		if strings.HasPrefix(url, cred.URL) {
 			return cred
 		}
