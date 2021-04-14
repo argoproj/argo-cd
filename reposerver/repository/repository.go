@@ -59,6 +59,7 @@ const (
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
 	appSourceFile                  = ".argocd-source-%s.yaml"
+	ociPrefix                      = "oci://"
 )
 
 // Service implements ManifestService interface
@@ -494,7 +495,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 
 func repoExists(repo string, repos []*v1alpha1.Repository) bool {
 	for _, r := range repos {
-		if repo == r.Repo {
+		if strings.TrimPrefix(repo, ociPrefix) == strings.TrimPrefix(r.Repo, ociPrefix) {
 			return true
 		}
 	}
@@ -686,7 +687,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
 	for _, cred := range repoCredentials {
-		url := strings.TrimPrefix(repoURL, "oci://")
+		url := strings.TrimPrefix(repoURL, ociPrefix)
 		if strings.HasPrefix(url, cred.URL) {
 			return cred
 		}
