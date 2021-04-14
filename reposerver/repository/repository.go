@@ -480,7 +480,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		if u, err := url.Parse(r.Repository); err == nil {
+		if u, err := url.Parse(r.Repository); err == nil && u.Scheme == "https" {
 			repo := &v1alpha1.Repository{
 				Repo: r.Repository,
 				Name: u.Host,
@@ -636,16 +636,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	for _, r := range repos {
 		if !repoExists(r.Repo, q.Repos) {
-			repositoryCredential := getRepoCredential(q.RepoCreds, r.Repo)
-			if repositoryCredential != nil {
-				r.EnableOCI = repositoryCredential.EnableOCI
-				r.Password = repositoryCredential.Password
-				r.Username = repositoryCredential.Username
-				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
-				r.TLSClientCertData = repositoryCredential.TLSClientCertData
-				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
-			}
-			q.Repos = append(q.Repos, r)
+			q.Repos = append(q.Repos, repos...)
 		}
 	}
 
@@ -682,19 +673,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 	return kube.SplitYAML([]byte(out))
-}
-
-func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
-	for _, cred := range repoCredentials {
-		url := repoURL
-		if strings.HasPrefix(url, "oci://") {
-			url = url[6:len(url)]
-		}
-		if strings.HasPrefix(url, cred.URL) {
-			return cred
-		}
-	}
-	return nil
 }
 
 // GenerateManifests generates manifests from a path

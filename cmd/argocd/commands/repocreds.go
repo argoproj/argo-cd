@@ -151,7 +151,6 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&githubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
 	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
-	command.Flags().BoolVar(&repo.EnableOCI, "enable-oci", false, "Specifies whether helm-oci support should be enabled for this repo")
 	return command
 }
 
