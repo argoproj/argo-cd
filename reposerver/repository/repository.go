@@ -480,7 +480,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		if u, err := url.Parse(r.Repository); err == nil {
+		if u, err := url.Parse(r.Repository); err == nil && u.Scheme == "https" {
 			repo := &v1alpha1.Repository{
 				Repo: r.Repository,
 				Name: u.Host,
