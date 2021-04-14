@@ -459,6 +459,48 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
+type dependencies struct {
+	Dependencies []repositories `yaml:"dependencies"`
+}
+
+type repositories struct {
+	Repository string `yaml:"repository"`
+}
+
+func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
+	repos := make([]*v1alpha1.Repository, 0)
+	f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appPath, "Chart.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	d := &dependencies{}
+	if err = yaml.Unmarshal(f, d); err != nil {
+		return nil, err
+	}
+
+	for _, r := range d.Dependencies {
+		if u, err := url.Parse(r.Repository); err == nil && u.Scheme == "https" {
+			repo := &v1alpha1.Repository{
+				Repo: r.Repository,
+				Name: u.Host,
+			}
+			repos = append(repos, repo)
+		}
+	}
+
+	return repos, nil
+}
+
+func repoExists(repo string, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if repo == r.Repo {
+			return true
+		}
+	}
+	return false
+}
+
 func isConcurrencyAllowed(appPath string) bool {
 	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
 		return true
@@ -586,11 +628,23 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
+	repos, err := getHelmDependencyRepos(appPath)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, r := range repos {
+		if !repoExists(r.Repo, q.Repos) {
+			q.Repos = append(q.Repos, r)
+		}
+	}
+
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
+	if err != nil {
+		return nil, err
+	}
+
 	defer h.Dispose()
 	err = h.Init()
 	if err != nil {
