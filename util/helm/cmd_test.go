@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +33,16 @@ func TestNewCmd_helmV3(t *testing.T) {
 	cmd, err := NewCmd(".", "v3")
 	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
+}
+
+func TestNewCmd_helmDefaultVersion(t *testing.T) {
+	cmd, err := NewCmd(".", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
+}
+
+func TestNewCmd_helmInvalidVersion(t *testing.T) {
+	_, err := NewCmd(".", "abcd")
+	log.Println(err)
+	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }

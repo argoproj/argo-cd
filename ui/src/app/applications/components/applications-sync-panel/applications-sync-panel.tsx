@@ -1,11 +1,11 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {Checkbox, Form, FormApi} from 'react-form';
-import {ProgressPopup} from '../../../shared/components';
+import {Form, FormApi} from 'react-form';
+import {CheckboxField, ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
 interface Progress {
@@ -78,11 +78,14 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                         getApi={setForm}>
                         {formApi => (
                             <React.Fragment>
-                                <div className='argo-form-row'>
+                                <div className='argo-form-row' style={{marginTop: 0}}>
                                     <h4>Sync app(s)</h4>
                                     {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
-                                    <label>Options:</label>
-                                    <div style={{paddingLeft: '1em', marginBottom: '1em'}}>
+                                    <div style={{marginBottom: '1em'}}>
+                                        <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
+                                    </div>
+                                    <div style={{marginBottom: '1em'}}>
+                                        <label>Sync Options</label>
                                         <ApplicationSyncOptions
                                             options={formApi.values.syncOptions}
                                             onChanged={opts => {
@@ -90,7 +93,6 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                                 formApi.setValue('syncOptions', opts);
                                             }}
                                         />
-                                        <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                     </div>
                                     <label>
                                         Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
@@ -100,10 +102,10 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         /<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
                                         ):
                                     </label>
-                                    <div style={{paddingLeft: '1em'}}>
+                                    <div>
                                         {apps.map((app, i) => (
-                                            <label key={app.metadata.name}>
-                                                <Checkbox field={`app/${i}`} />
+                                            <label key={app.metadata.name} style={{marginTop: '0.5em', cursor: 'pointer'}}>
+                                                <CheckboxField field={`app/${i}`} />
                                                 &nbsp;
                                                 {app.metadata.name}
                                                 &nbsp;

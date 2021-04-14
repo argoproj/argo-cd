@@ -97,7 +97,7 @@ Use the following steps to reconstruct configured cluster config and connect to 
 
 ```bash
 kubectl exec -it <argocd-pod-name> bash # ssh into any argocd server pod
-argocd-util kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
+argocd-util cluster kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
 KUBECONFIG=/tmp/config kubectl get pods # test connection manually
 ```
 
@@ -175,10 +175,18 @@ argocd ... --insecure
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
+## Why are `SealedSecret` resources reporting a `Status`?
+
+Versions of `SealedSecret` up to and including `v0.15.0` (especially through helm `1.15.0-r3`) don't include
+a [modern CRD](https://github.com/bitnami-labs/sealed-secrets/issues/555) and thus the status field will not
+be exposed (on k8s `1.16+`). If your Kubernetes deployment is [modern](
+https://www.openshift.com/blog/a-look-into-the-technical-details-of-kubernetes-1-16), ensure you're using a
+fixed CRD if you want this feature to work at all.
+
 ## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
-version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
+version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be

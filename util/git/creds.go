@@ -17,9 +17,9 @@ import (
 	"github.com/bradleyfalzon/ghinstallation"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
 
-	certutil "github.com/argoproj/argo-cd/util/cert"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 )
 
 // In memory cache for storing github APP api token credentials

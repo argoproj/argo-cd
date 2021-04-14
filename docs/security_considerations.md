@@ -1,5 +1,11 @@
 # Security Considerations
 
+!!!warning "Deprecation notice"
+    This page is now deprecated and serves as an archive only. For up-to-date
+    information, please have a look at our
+    [security policy](https://github.com/argoproj/argo-cd/security/policy) and
+    [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
+
 As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
 related features in [Security](./operator-manual/security.md) section.
@@ -14,6 +20,7 @@ no fix yet.
 |Date|CVE|Title|Risk|Affected version(s)|Fix version|
 |----|---|-----|----|-------------------|-----------|
 |2020-06-16|[CVE-2020-1747](https://nvd.nist.gov/vuln/detail/CVE-2020-1747)|PyYAML library susceptible to arbitrary code execution|High|all|v1.5.8|
+|2020-06-16|[CVE-2020-14343](https://nvd.nist.gov/vuln/detail/CVE-2020-14343)|PyYAML library susceptible to arbitrary code execution|High|all|v1.5.8|
 |2020-04-14|[CVE-2020-5260](https://nvd.nist.gov/vuln/detail/CVE-2020-5260)|Possible Git credential leak|High|all|v1.4.3,v1.5.2|
 |2020-04-08|[CVE-2020-11576](https://nvd.nist.gov/vuln/detail/CVE-2020-11576)|User Enumeration|Medium|v1.5.0|v1.5.1|
 |2020-04-08|[CVE-2020-8826](https://nvd.nist.gov/vuln/detail/CVE-2020-8826)|Session-fixation|High|all|n/a|
@@ -27,7 +34,7 @@ A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Erin
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
 
-### CVE-2020-1747 - PyYAML library susceptible to arbitrary code execution
+### CVE-2020-1747, CVE-2020-14343 - PyYAML library susceptible to arbitrary code execution
 
 **Summary:**
 
@@ -38,7 +45,7 @@ Most of the issues are related to the built-in user management implementation.
 **Details:**
 
 PyYAML library susceptible to arbitrary code execution when it processes untrusted YAML files.
-We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 is limited to usage of awscli.
+We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
 The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS API.
 
 ### CVE-2020-5260 - Possible Git credential leak
@@ -171,12 +178,6 @@ Upgrade to ArgoCD v1.5.0 or higher. No workaround available
 
 ## Reporting Vulnerabilities
 
-If you find a security related bug in ArgoCD, we kindly ask you for responsible
-disclosure and for giving us appropriate time to react, analyze and develop a
-fix to mitigate the found security vulnerability.
-
-Please report security vulnerabilities by e-mailing:
-
-* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
-* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
-* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)
+Please have a look at our
+[security policy](https://github.com/argoproj/argo-cd/security/policy)
+for more details on how to report security vulnerabilities for Argo CD.
