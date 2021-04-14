@@ -18,6 +18,7 @@ argocd app diff APPNAME [flags]
       --exit-code                Return non-zero exit code when there is a diff (default true)
       --hard-refresh             Refresh application data as well as target manifests cache
   -h, --help                     help for diff
+      --include-resource-hook    Display the diff of resource hooks
       --local string             Compare live app to a local manifests
       --local-repo-root string   Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                  Refresh application data when retrieving
