@@ -688,7 +688,7 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 	for _, cred := range repoCredentials {
 		url := repoURL
 		if strings.HasPrefix(url, "oci://") {
-			url = url[6:len(url)]
+			url = url[6:]
 		}
 		if strings.HasPrefix(url, cred.URL) {
 			return cred
