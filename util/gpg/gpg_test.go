@@ -87,25 +87,26 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not point to a directory")
 
-	// Unaccessible GNUPGHOME
-	p = initTempDir()
-	defer os.RemoveAll(p)
-	fp := fmt.Sprintf("%s/gpg", p)
-	err = os.Mkdir(fp, 0000)
-	if err != nil {
-		panic(err.Error())
-	}
-	if err != nil {
-		panic(err.Error())
-	}
-	os.Setenv(common.EnvGnuPGHome, fp)
-	err = InitializeGnuPG()
-	assert.Error(t, err)
-	// Restore permissions so path can be deleted
-	err = os.Chmod(fp, 0700)
-	if err != nil {
-		panic(err.Error())
-	}
+// THIS CODE WORKS ONLY FOR NON-ROOT BUILDS, SO DISABLE IT
+//	// Unaccessible GNUPGHOME
+//	p = initTempDir()
+//	defer os.RemoveAll(p)
+//	fp := fmt.Sprintf("%s/gpg", p)
+//	err = os.Mkdir(fp, 0000)
+//	if err != nil {
+//		panic(err.Error())
+//	}
+//	if err != nil {
+//		panic(err.Error())
+//	}
+//	os.Setenv(common.EnvGnuPGHome, fp)
+//	err = InitializeGnuPG()
+//	assert.Error(t, err)
+//	// Restore permissions so path can be deleted
+//	err = os.Chmod(fp, 0700)
+//	if err != nil {
+//		panic(err.Error())
+//	}
 
 	// GNUPGHOME with too wide permissions
 	// We do not expect an error here, because of openshift's random UIDs that
