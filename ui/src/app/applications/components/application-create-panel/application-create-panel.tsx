@@ -414,11 +414,12 @@ export const ApplicationCreatePanel = (props: {
                                                     repoURL: app.spec.source.repoURL,
                                                     path: app.spec.source.path,
                                                     chart: app.spec.source.chart,
-                                                    targetRevision: app.spec.source.targetRevision
+                                                    targetRevision: app.spec.source.targetRevision,
+                                                    appName: app.metadata.name
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));

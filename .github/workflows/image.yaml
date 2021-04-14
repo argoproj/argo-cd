@@ -26,13 +26,13 @@ jobs:
       # build
       - run: |
           docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
-          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=docker.pkg.github.com/argoproj/argo-cd IMAGE_TAG=${{ steps.image.outputs.tag }}
+          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/argoproj IMAGE_TAG=${{ steps.image.outputs.tag }}
         working-directory: ./src/github.com/argoproj/argo-cd
 
       # publish
       - run: |
-          docker login docker.pkg.github.com --username $USERNAME --password $PASSWORD
-          docker push docker.pkg.github.com/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
+          docker login ghcr.io --username $USERNAME --password $PASSWORD
+          docker push ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
         env:
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.TOKEN }}
@@ -42,7 +42,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=docker.pkg.github.com/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
+          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)

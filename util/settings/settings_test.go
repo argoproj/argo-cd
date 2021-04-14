@@ -2,10 +2,11 @@ package settings
 
 import (
 	"context"
+	"sort"
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -296,19 +297,88 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		assert.Equal(t, "foo", options.BuildOptions)
 		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
 	})
+
+	t.Run("Kustomize settings per-version", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"kustomize.buildOptions":        "--global true",
+			"kustomize.version.v3.2.1":      "/path_3.2.1",
+			"kustomize.buildOptions.v3.2.3": "--options v3.2.3",
+			"kustomize.path.v3.2.3":         "/path_3.2.3",
+			"kustomize.path.v3.2.4":         "/path_3.2.4",
+			"kustomize.buildOptions.v3.2.4": "--options v3.2.4",
+			"kustomize.buildOptions.v3.2.5": "--options v3.2.5",
+		})
+
+		got, err := settingsManager.GetKustomizeSettings()
+
+		assert.NoError(t, err)
+		assert.Equal(t, "--global true", got.BuildOptions)
+		want := &KustomizeSettings{
+			BuildOptions: "--global true",
+			Versions: []KustomizeVersion{
+				{Name: "v3.2.1", Path: "/path_3.2.1"},
+				{Name: "v3.2.3", Path: "/path_3.2.3", BuildOptions: "--options v3.2.3"},
+				{Name: "v3.2.4", Path: "/path_3.2.4", BuildOptions: "--options v3.2.4"},
+			},
+		}
+		sortVersionsByName := func(versions []KustomizeVersion) {
+			sort.Slice(versions, func(i, j int) bool {
+				return versions[i].Name > versions[j].Name
+			})
+		}
+		sortVersionsByName(want.Versions)
+		sortVersionsByName(got.Versions)
+		assert.EqualValues(t, want, got)
+	})
+
+	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"kustomize.buildOptions":        "--global true",
+			"kustomize.version.v3.2.1":      "/path_3.2.1",
+			"kustomize.buildOptions.v3.2.1": "--options v3.2.3",
+			"kustomize.path.v3.2.2":         "/other_path_3.2.2",
+			"kustomize.path.v3.2.1":         "/other_path_3.2.1",
+		})
+
+		got, err := settingsManager.GetKustomizeSettings()
+		assert.EqualError(t, err, "found duplicate kustomize version: v3.2.1")
+		assert.Empty(t, got)
+	})
+
+	t.Run("Config map with no Kustomize settings", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"other.options": "--global true",
+		})
+
+		got, err := settingsManager.GetKustomizeSettings()
+		assert.NoError(t, err)
+		assert.Empty(t, got)
+	})
 }
 
 func TestKustomizeSettings_GetOptions(t *testing.T) {
-	settings := KustomizeSettings{Versions: []KustomizeVersion{
-		{Name: "v1", Path: "path_v1"},
-		{Name: "v2", Path: "path_v2"},
-		{Name: "v3", Path: "path_v3"},
-	}}
+	settings := KustomizeSettings{
+		BuildOptions: "--opt1 val1",
+		Versions: []KustomizeVersion{
+			{Name: "v1", Path: "path_v1"},
+			{Name: "v2", Path: "path_v2"},
+			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
+		},
+	}
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
 		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
 		assert.Error(t, err)
+	})
+
+	t.Run("DefaultBuildOptions", func(t *testing.T) {
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "", ver.BinaryPath)
+		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
 	t.Run("VersionExists", func(t *testing.T) {
@@ -318,6 +388,17 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 			return
 		}
 		assert.Equal(t, "path_v2", ver.BinaryPath)
+		assert.Equal(t, "", ver.BuildOptions)
+	})
+
+	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"}})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "path_v3", ver.BinaryPath)
+		assert.Equal(t, "--opt2 val2", ver.BuildOptions)
 	})
 }
 

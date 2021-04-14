@@ -15,6 +15,7 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
+      --exit-code                Return non-zero exit code when there is a diff (default true)
       --hard-refresh             Refresh application data as well as target manifests cache
   -h, --help                     help for diff
       --local string             Compare live app to a local manifests

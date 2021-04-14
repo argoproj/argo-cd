@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -165,10 +165,10 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("retry-limit", "5"))
+		assert.NoError(t, f.SetFlag("sync-retry-limit", "5"))
 		assert.True(t, f.spec.SyncPolicy.Retry.Limit == 5)
 
-		assert.NoError(t, f.SetFlag("retry-limit", "0"))
-		assert.Nil(t, f.spec.SyncPolicy)
+		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
+		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
 }

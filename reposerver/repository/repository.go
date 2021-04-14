@@ -32,25 +32,25 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util/app/discovery"
-	argopath "github.com/argoproj/argo-cd/util/app/path"
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/glob"
-	"github.com/argoproj/argo-cd/util/gpg"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/ksonnet"
-	argokube "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/argoproj/argo-cd/util/security"
-	"github.com/argoproj/argo-cd/util/text"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v2/util/app/discovery"
+	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/ksonnet"
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
 const (
@@ -232,17 +232,13 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		version, err := semver.NewVersion(revision)
-		if err != nil {
-			return nil, err
-		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, version)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return nil, err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
 		if err != nil {
 			return nil, err
 		}
@@ -458,7 +454,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	repos := make([]helm.HelmRepository, 0)
 	for _, repo := range repositories {
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
 	}
 	return repos
 }
@@ -1301,12 +1297,11 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noCache bool) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
-	if helm.IsVersion(revision) {
+	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI)
+	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
+	if helm.IsVersion(revision) || enableOCI {
 		return helmClient, revision, nil
-	}
-	if repo.EnableOCI {
-		return nil, "", errors.New("OCI helm registers don't support semver ranges. Exact revision must be specified.")
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
@@ -1376,4 +1371,36 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 		res.Items = append(res.Items, &chart)
 	}
 	return &res, nil
+}
+
+func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+	repo := q.Repo
+	checks := map[string]func() error{
+		"git": func() error {
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		},
+		"helm": func() error {
+			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
+				return err
+			} else {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
+				return err
+			}
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return &apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil
+		}
+	}
+	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
 }

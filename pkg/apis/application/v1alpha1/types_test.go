@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	argocommon "github.com/argoproj/argo-cd/common"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {

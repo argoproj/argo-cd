@@ -7,10 +7,10 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/util/errors"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
@@ -118,7 +118,7 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		// not the best test, as we should have two remote repos both with the same SSH private key
 		SSHInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeSSH).
-		Path("ssh-kustomize-base").
+		Path(fixture.LocalOrRemotePath("ssh-kustomize-base")).
 		When().
 		Create().
 		Sync().

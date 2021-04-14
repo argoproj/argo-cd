@@ -27,14 +27,14 @@ import (
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/settings/oidc"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/password"
-	argorand "github.com/argoproj/argo-cd/util/rand"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	argorand "github.com/argoproj/argo-cd/v2/util/rand"
+	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -122,8 +122,10 @@ type HelmRepoCredentials struct {
 type KustomizeVersion struct {
 	// Name holds Kustomize version name
 	Name string
-	// Name holds corresponding binary path
+	// Path holds corresponding binary path
 	Path string
+	// BuildOptions that are specific to Kustomize version
+	BuildOptions string
 }
 
 // KustomizeSettings holds kustomize settings
@@ -134,19 +136,25 @@ type KustomizeSettings struct {
 
 func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
 	binaryPath := ""
+	buildOptions := ""
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
+				// add version specific path and build options
 				binaryPath = ver.Path
+				buildOptions = ver.BuildOptions
 				break
 			}
 		}
 		if binaryPath == "" {
 			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
 		}
+	} else {
+		// add build options for the default version
+		buildOptions = ks.BuildOptions
 	}
 	return &v1alpha1.KustomizeOptions{
-		BuildOptions: ks.BuildOptions,
+		BuildOptions: buildOptions,
 		BinaryPath:   binaryPath,
 	}, nil
 }
@@ -264,6 +272,8 @@ const (
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
 	kustomizeVersionKeyPrefix = "kustomize.version"
+	// kustomizePathPrefixKey is a kustomize path for a specific version
+	kustomizePathPrefixKey = "kustomize.path"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
 	// anonymousUserEnabledKey is the key which specifies token expiration duration
@@ -586,20 +596,58 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	buildOptions := map[string]string{}
 	settings := &KustomizeSettings{}
-	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		settings.BuildOptions = value
+
+	// extract build options for the default version
+	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		settings.BuildOptions = options
 	}
+
+	// extract per-version binary paths and build options
 	for k, v := range argoCDCM.Data {
-		if !strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
-			continue
+		// extract version and path from kustomize.version.<version>
+		if strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
+			err = addKustomizeVersion(kustomizeVersionKeyPrefix, k, v, kustomizeVersionsMap)
+			if err != nil {
+				return nil, err
+			}
 		}
-		settings.Versions = append(settings.Versions, KustomizeVersion{
-			Name: k[len(kustomizeVersionKeyPrefix)+1:],
-			Path: v,
-		})
+
+		// extract version and path from kustomize.path.<version>
+		if strings.HasPrefix(k, kustomizePathPrefixKey) {
+			err = addKustomizeVersion(kustomizePathPrefixKey, k, v, kustomizeVersionsMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// extract version and build options from kustomize.buildOptions.<version>
+		if strings.HasPrefix(k, kustomizeBuildOptionsKey) && k != kustomizeBuildOptionsKey {
+			buildOptions[k[len(kustomizeBuildOptionsKey)+1:]] = v
+		}
+	}
+
+	for _, v := range kustomizeVersionsMap {
+		if _, ok := buildOptions[v.Name]; ok {
+			v.BuildOptions = buildOptions[v.Name]
+		}
+		settings.Versions = append(settings.Versions, v)
 	}
 	return settings, nil
+}
+
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+	version := name[len(prefix)+1:]
+	if _, ok := kvMap[version]; ok {
+		return fmt.Errorf("found duplicate kustomize version: %s", version)
+	}
+	kvMap[version] = KustomizeVersion{
+		Name: version,
+		Path: path,
+	}
+	return nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials

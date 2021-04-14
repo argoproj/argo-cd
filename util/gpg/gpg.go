@@ -12,9 +12,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 // Regular expression to match public key beginning
