@@ -5,9 +5,13 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
+      bind: "0.0.0.0"
   haproxy:
     enabled: true
     image:
       tag: 2.0.20-alpine
   image:
     tag: 6.2.1-alpine
+  sentinel:
+    config:
+      replaceme: "0.0.0.0"

@@ -14,3 +14,4 @@ helm template argocd ./chart \
 sed -e 's/check inter 1s/check inter 3s/' ./chart/upstream_orig.yaml >> ./chart/upstream.yaml && rm ./chart/upstream_orig.yaml
 sed -i.bak 's/timeout server 30s/timeout server 6m/' ./chart/upstream.yaml && rm ./chart/upstream.yaml.bak
 sed -i.bak 's/timeout client 30s/timeout client 6m/' ./chart/upstream.yaml && rm ./chart/upstream.yaml.bak
+sed -i.bak -E 's/^([[:space:]]){8}sentinel replaceme argocd/    bind/' ./chart/upstream.yaml && rm ./chart/upstream.yaml.bak
