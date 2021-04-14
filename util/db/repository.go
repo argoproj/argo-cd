@@ -14,11 +14,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -185,13 +185,12 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&repo.Username:            repoInfo.UsernameSecret,
-		&repo.Password:            repoInfo.PasswordSecret,
-		&repo.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
-		&repo.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
-		&repo.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&repo.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:     repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.TLSClientCertKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -203,13 +202,12 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&creds.Username:            repoInfo.UsernameSecret,
-		&creds.Password:            repoInfo.PasswordSecret,
-		&creds.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
-		&creds.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
-		&creds.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&creds.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+		&SecretMaperValidation{Dest: &creds.Username}:          repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &creds.Password}:          repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:     repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertData}: repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:  repoInfo.TLSClientCertKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }

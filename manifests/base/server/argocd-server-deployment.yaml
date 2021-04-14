@@ -26,6 +26,8 @@ spec:
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
+        - name: argocd-repo-server-tls
+          mountPath: /app/config/server/tls
         ports:
         - containerPort: 8080
         - containerPort: 8083
@@ -41,6 +43,11 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
       volumes:
       - emptyDir: {}
         name: static-files
@@ -50,6 +57,17 @@ spec:
       - name: tls-certs
         configMap:
           name: argocd-tls-certs-cm
+      - name: argocd-repo-server-tls
+        secret:
+          secretName: argocd-repo-server-tls
+          optional: true
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

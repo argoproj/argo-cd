@@ -1,0 +1,19 @@
+.propagation-policy-list {
+    display: flex;
+    justify-content: left;
+}
+
+.propagation-policy-option {
+    display: flex;
+    align-items: center;
+    padding-right: 2em;
+
+    label {
+        color: #6D7F8B;
+        font-size: 15px;
+    }
+}
+
+.radio-button {
+    margin-right: 0.1em;       
+}

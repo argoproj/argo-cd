@@ -18,16 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -61,6 +59,20 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	}
 	return items
 
+}
+
+// FilterByRepo returns an application
+func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
+	if repo == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Source.RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
 }
 
 // FilterByName returns an application
@@ -139,7 +151,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
@@ -148,34 +160,10 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	return TestRepo(repo)
-}
+	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	})
 
-func TestRepo(repo *argoappv1.Repository) error {
-	checks := map[string]func() error{
-		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-		},
-		"helm": func() error {
-			if repo.EnableOCI {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
-				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex()
-				return err
-			}
-		},
-	}
-	if check, ok := checks[repo.Type]; ok {
-		return check()
-	}
-	var err error
-	for _, check := range checks {
-		err = check()
-		if err == nil {
-			return nil
-		}
-	}
 	return err
 }
 
@@ -208,7 +196,8 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
+
+	err = TestRepoWithKnownType(ctx, repoClient, repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

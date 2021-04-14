@@ -4,20 +4,22 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/ghodss/yaml"
 
-	"github.com/argoproj/argo-cd/util/config"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type HelmRepository struct {
 	Creds
-	Name string
-	Repo string
+	Name      string
+	Repo      string
+	EnableOci bool
 }
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -65,11 +67,32 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 }
 
 func (h *helm) DependencyBuild() error {
-	for _, repo := range h.repos {
-		_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+	isHelmOci := h.cmd.IsHelmOci
+	defer func() {
+		h.cmd.IsHelmOci = isHelmOci
+	}()
 
-		if err != nil {
-			return err
+	for i := range h.repos {
+		repo := h.repos[i]
+		if repo.EnableOci {
+			h.cmd.IsHelmOci = true
+			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+				_, err := h.cmd.Login(repo.Repo, repo.Creds)
+
+				defer func() {
+					_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+				}()
+
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 	h.repos = nil
@@ -115,7 +138,11 @@ func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			fileValues, err = ioutil.ReadFile(path.Join(h.cmd.WorkDir, file))
+			filePath := path.Join(h.cmd.WorkDir, file)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				continue
+			}
+			fileValues, err = ioutil.ReadFile(filePath)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)

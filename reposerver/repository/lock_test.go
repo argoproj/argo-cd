@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	util "github.com/argoproj/argo-cd/util/io"
+	util "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // execute given action and return false if action have not completed within 1 second

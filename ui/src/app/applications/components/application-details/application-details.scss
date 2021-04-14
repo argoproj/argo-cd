@@ -87,7 +87,7 @@ $header: 120px;
         top: 10px;
         width: 60px;
         line-height: 1;
-        color: $argo-color-gray-5;
+        color: $argo-color-gray-7;
         font-size: 0.8em;
     }
 
@@ -102,7 +102,7 @@ $header: 120px;
         white-space: nowrap;
         i {
             cursor: pointer;
-            color: $argo-color-gray-4;
+            color: $argo-color-gray-5;
             margin: 0 0.5em;
             &::before {
                 font-size: 1.5em;
@@ -110,7 +110,7 @@ $header: 120px;
         }
         i.selected {
             cursor: default;
-            color: $argo-color-gray-5;
+            color: $argo-color-gray-7;
         }
     }
 
