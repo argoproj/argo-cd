@@ -50,6 +50,7 @@ nav:
     - operator-manual/disaster_recovery.md
     - operator-manual/webhook.md
     - operator-manual/health.md
+    - operator-manual/resource_actions.md
     - operator-manual/custom_tools.md
     - operator-manual/custom-styles.md
     - operator-manual/metrics.md
