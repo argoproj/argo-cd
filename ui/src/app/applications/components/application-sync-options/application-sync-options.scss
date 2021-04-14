@@ -1,0 +1,21 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.application-sync-options {
+    &__select {
+        position: relative;
+        padding-left: 12.5em;
+
+        .select__focus-receiver {
+            position: absolute;
+        }
+
+        label {
+            position: absolute;
+            left: 0;
+            top: 0.75em;
+        }
+    }
+    .fa-exclamation-triangle {
+        color: $argo-status-warning-color;
+    }
+}

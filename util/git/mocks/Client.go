@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	git "github.com/argoproj/argo-cd/util/git"
+	git "github.com/argoproj/argo-cd/v2/util/git"
 	mock "github.com/stretchr/testify/mock"
 )
 

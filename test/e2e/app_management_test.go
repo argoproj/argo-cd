@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,16 +29,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/common"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/util/argo"
-	. "github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/util/argo"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -48,6 +49,7 @@ const (
 )
 
 func TestSyncToUnsignedCommit(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -62,6 +64,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 }
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -77,6 +80,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 }
 
 func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
+	SkipOnEnv(t, "GPG")
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -139,6 +143,7 @@ func TestAppCreation(t *testing.T) {
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
 	n := rand.Intn(254)
@@ -346,7 +351,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 					break
 				}
 			}
-
 			assert.True(t, index > -1)
 
 			deployment := resources[index]
@@ -424,6 +428,15 @@ func TestAppWithSecrets(t *testing.T) {
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
+
+			// make sure resource update error does not print secret details
+			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
+				"--patch-type", "application/json-patch+json")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			assert.NotContains(t, err.Error(), "username")
+			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
 			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
@@ -591,6 +604,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 }
 
 func TestKsonnetApp(t *testing.T) {
+	SkipOnEnv(t, "KSONNET")
 	Given(t).
 		Path("ksonnet").
 		Env("prod").
@@ -999,6 +1013,7 @@ func TestRevisionHistoryLimit(t *testing.T) {
 }
 
 func TestOrphanedResource(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1222,18 +1237,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1250,18 +1259,12 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Path(guestbookWithNamespace).
 		When().
 		CreateWithNoNameSpace().
+		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			var updatedApp *Application
-			for i := 0; i < 3; i++ {
-				obj, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-				assert.NoError(t, err)
-				updatedApp = obj
-				if len(updatedApp.Status.Conditions) > 0 {
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			updatedApp, err := AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
 			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
@@ -1269,6 +1272,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 }
 
 func TestListResource(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
@@ -1330,10 +1334,13 @@ func TestListResource(t *testing.T) {
 //        application sync successful
 //        when application is deleted, --dest-namespace is not deleted
 func TestNamespaceAutoCreation(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
 	defer func() {
-		_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
-		assert.NoError(t, err)
+		if !t.Skipped() {
+			_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
+			assert.NoError(t, err)
+		}
 	}()
 	Given(t).
 		Timeout(30).
@@ -1519,6 +1526,7 @@ definitions:
 }
 
 func TestAppLogs(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path("guestbook-logs").
 		When().
@@ -1567,5 +1575,26 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		And(func() {
 			_, err := RunCli("app", "wait", Name(), "--suspended")
 			errors.CheckError(err)
+		})
+}
+
+func TestSyncOptionReplace(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "ConfigMap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
 		})
 }

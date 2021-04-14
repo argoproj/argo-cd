@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-e2e-cluster
+  labels:
+    app.kubernetes.io/name: argocd-e2e-server
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-e2e-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-e2e-server
+    spec:
+      containers:
+      - name: argocd-e2e-server
+        image: argocd-e2e-cluster:latest
+        imagePullPolicy: Always
+        command:
+        - goreman
+        - start
+        ports:
+        - containerPort: 2222
+        - containerPort: 9080
+        - containerPort: 9081
+        - containerPort: 9443
+        - containerPort: 9444
+        securityContext:
+          capabilities:
+            add: ["SYS_CHROOT"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-e2e-server
+  name: argocd-e2e-server
+spec:
+  ports:
+  - name: helm-https
+    protocol: TCP
+    port: 9080
+    targetPort: 9080
+  - name: git-http-noauth
+    protocol: TCP
+    port: 9081
+    targetPort: 9081
+  - name: git-https-auth
+    protocol: TCP
+    port: 9443
+    targetPort: 9443
+  - name: git-https-ccert
+    protocol: TCP
+    port: 9444
+    targetPort: 9444
+  - name: git-ssh
+    protocol: TCP
+    port: 2222
+    targetPort: 2222
+  selector:
+    app.kubernetes.io/name: argocd-e2e-server

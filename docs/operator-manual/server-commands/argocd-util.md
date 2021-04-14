@@ -20,13 +20,12 @@ argocd-util [flags]
 
 ### SEE ALSO
 
-* [argocd-util apps](argocd-util_apps.md)	 - Utility commands operate on ArgoCD applications
-* [argocd-util config](argocd-util_config.md)	 - Generate declarative configuration files
+* [argocd-util app](argocd-util_app.md)	 - Manage applications configuration
+* [argocd-util cluster](argocd-util_cluster.md)	 - Manage clusters configuration
 * [argocd-util export](argocd-util_export.md)	 - Export all Argo CD data to stdout (default) or a file
 * [argocd-util import](argocd-util_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd-util kubeconfig](argocd-util_kubeconfig.md)	 - Generates kubeconfig for the specified cluster
-* [argocd-util projects](argocd-util_projects.md)	 - Utility commands operate on ArgoCD Projects
-* [argocd-util rbac](argocd-util_rbac.md)	 - Validate and test RBAC configuration
+* [argocd-util proj](argocd-util_proj.md)	 - Manage projects configuration
+* [argocd-util repo](argocd-util_repo.md)	 - Manage repositories configuration
 * [argocd-util settings](argocd-util_settings.md)	 - Provides set of commands for settings validation and troubleshooting
 * [argocd-util version](argocd-util_version.md)	 - Print version information
 

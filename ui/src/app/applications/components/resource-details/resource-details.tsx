@@ -237,9 +237,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             content: (
                                 <DataLoader
                                     key='appDetails'
-                                    input={application.spec.source}
-                                    load={src =>
-                                        services.repos.appDetails(src).catch(() => ({
+                                    input={application}
+                                    load={app =>
+                                        services.repos.appDetails(app.spec.source, app.metadata.name).catch(() => ({
                                             type: 'Directory' as AppSourceType,
                                             path: application.spec.source.path
                                         }))

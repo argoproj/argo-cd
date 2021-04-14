@@ -45,6 +45,11 @@
         line-height: 1.15;
     }
 
+    .white-box__details p {
+        font-weight: 500;
+        color: $argo-color-gray-7;
+    }
+
     .white-box__details-row .row {
         padding-left: 1em;
         padding-right: 1em;
