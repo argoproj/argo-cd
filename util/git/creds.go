@@ -50,6 +50,8 @@ func (c NopCloser) Close() error {
 	return nil
 }
 
+var _ Creds = NopCreds{}
+
 type NopCreds struct {
 }
 
@@ -57,12 +59,16 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
+var _ io.Closer = NopCloser{}
+
 type GenericHTTPSCreds interface {
 	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
 	Environ() (io.Closer, []string, error)
 }
+
+var _ GenericHTTPSCreds = HTTPSCreds{}
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
