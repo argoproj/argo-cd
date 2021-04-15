@@ -3351,8 +3351,7 @@ spec:
       - configMap:
           name: argocd-gpg-keys-cm
         name: gpg-keys
-      - emptyDir: {}
-        name: gpg-keyring
+      - name: gpg-keyring
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3439,8 +3438,7 @@ spec:
           name: argocd-repo-server-tls
       serviceAccountName: argocd-server
       volumes:
-      - emptyDir: {}
-        name: static-files
+      - name: static-files
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts

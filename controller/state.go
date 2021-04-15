@@ -179,7 +179,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
-		RepoCreds:         repositoryCredentials,
+		HelmRepoCreds:     repositoryCredentials,
 	})
 	if err != nil {
 		return nil, nil, err

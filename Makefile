@@ -93,7 +93,7 @@ endef
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
 	docker run --rm -it \
-	  --name argocd-test-client \
+	  --name alexmt-argocd-test-client \
 		-u $(shell id -u):$(shell id -g) \
 		-e HOME=/home/user \
 		-e GOPATH=/go \
@@ -106,7 +106,7 @@ define run-in-test-client
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
-		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
+		alexmt-argocd-test-tools:latest \
 		bash -c "$(1)"
 endef
 
@@ -199,7 +199,7 @@ codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapige
 	rm -rf vendor/
 
 .PHONY: codegen
-codegen: test-tools-image
+codegen:
 	$(call run-in-test-client,make codegen-local)
 
 .PHONY: cli

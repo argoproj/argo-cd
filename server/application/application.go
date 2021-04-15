@@ -300,7 +300,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		RepoCreds:         repositoryCredentials,
+		HelmRepoCreds:     repositoryCredentials,
 	})
 	if err != nil {
 		return nil, err

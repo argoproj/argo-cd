@@ -637,7 +637,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	for _, r := range repos {
 		if !repoExists(r.Repo, q.Repos) {
-			repositoryCredential := getRepoCredential(q.RepoCreds, r.Repo)
+			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
 			if repositoryCredential != nil {
 				r.EnableOCI = repositoryCredential.EnableOCI
 				r.Password = repositoryCredential.Password

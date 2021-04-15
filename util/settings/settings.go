@@ -219,6 +219,8 @@ type RepositoryCredentials struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty"`
+	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
+	Type string `json:"type,omitempty"`
 }
 
 const (

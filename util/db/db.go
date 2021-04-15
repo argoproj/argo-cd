@@ -63,7 +63,7 @@ type ArgoDB interface {
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
-	// GetAllRepoCredentials gets all repo credentials
+	// GetAllRepositoryCredentials gets all repo credentials
 	GetAllRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
 
 	// ListHelmRepositories lists repositories
