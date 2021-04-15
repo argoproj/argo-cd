@@ -42,6 +42,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
