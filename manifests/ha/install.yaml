@@ -3178,7 +3178,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.0.0
+        image: quay.io/argoproj/argocd:v2.0.1
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -3312,7 +3312,7 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: quay.io/argoproj/argocd:v2.0.0
+        image: quay.io/argoproj/argocd:v2.0.1
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -3413,7 +3413,7 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
-        image: quay.io/argoproj/argocd:v2.0.0
+        image: quay.io/argoproj/argocd:v2.0.1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3508,7 +3508,7 @@ spec:
         - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
-        image: quay.io/argoproj/argocd:v2.0.0
+        image: quay.io/argoproj/argocd:v2.0.1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
