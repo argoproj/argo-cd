@@ -491,6 +491,34 @@ func TestSyncHelm(t *testing.T) {
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }
 
+func TestSyncGit(t *testing.T) {
+	ctx := context.Background()
+	appServer := newTestAppServer()
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
+	testApp.Spec.Source.Path = "deploy"
+	testApp.Spec.Source.TargetRevision = "0.7.*"
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
+	assert.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+		Manifests: []string{
+			`apiVersion: v1
+			kind: ServiceAccount
+			metadata:
+			  name: test
+			  namespace: test`,
+		},
+	}
+	app, err = appServer.Sync(ctx, syncReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []appsv1.RevisionHistory{{
