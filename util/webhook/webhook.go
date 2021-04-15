@@ -32,6 +32,8 @@ type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 }
 
+var _ settingsSource = &settings.SettingsManager{}
+
 type ArgoCDWebhookHandler struct {
 	cache           *cache.Cache
 	ns              string
