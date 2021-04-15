@@ -118,8 +118,7 @@ func AddHTTPSCredentialsTLSClientCert() {
 
 // AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
 func AddHelmoOCICredentialsWithoutUserPass() {
-	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHelmOCI
-	args := []string{"repocreds", "add", fixture.RepoURL(repoURLType),
+	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
 		"--enable-oci"}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
