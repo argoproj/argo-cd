@@ -7,9 +7,20 @@ if obj.status ~= nil then
       return health_k9sstatus
     end
     if obj.status.applicationState.state == "RUNNING" then
-      health_status.status = "Healthy"
-      health_status.message = "SparkApplication is in RunningState"
-      return health_status
+      if obj.status.executorState ~= nil then
+        count=0
+        executor_instances = obj.spec.executor.instances
+        for i, executorState in pairs(obj.status.executorState) do
+          if executorState == "RUNNING" then
+            count=count+1
+          end
+        end
+        if executor_instances == count then
+          health_status.status = "Healthy"
+          health_status.message = "SparkApplication is Running"
+          return health_status
+        end
+      end
     end
     if obj.status.applicationState.state == "SUBMITTED" then
       health_status.status = "Progressing"
