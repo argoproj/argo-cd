@@ -896,3 +896,22 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
+
+export interface DebounceState<T> {
+    intermediate: T;
+    value: T;
+}
+
+export function useDebounce<T>(init: T, duration: number, action?: (s: DebounceState<T>) => void): [DebounceState<T>, (v: T) => void] {
+    const [field, setField] = React.useState({intermediate: init, value: init} as DebounceState<T>);
+    React.useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setField({...field, value: field.intermediate});
+            if (action) {
+                action(field);
+            }
+        }, duration);
+        return () => clearTimeout(timeoutId);
+    }, [field.intermediate]);
+    return [field, (v: T) => setField({...field, intermediate: v})];
+}
