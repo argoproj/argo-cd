@@ -1845,7 +1845,7 @@
 <p>See <a href="../user-guide/diffing/">Diffing</a> documentation for reasons resources can be OutOfSync, and ways to configure Argo CD
 to ignore fields when differences are expected.</p>
 <h2 id="why-is-my-application-stuck-in-progressing-state">Why is my application stuck in <code>Progressing</code> state?<a class="headerlink" href="#why-is-my-application-stuck-in-progressing-state" title="Permanent link">&para;</a></h2>
-<p>Argo CD provides health for several standard Kubernetes types. The <code>Ingress</code> and <code>StatefulSet</code> types have known issues
+<p>Argo CD provides health for several standard Kubernetes types. The <code>Ingress</code>, <code>StatefulSet</code> and <code>SealedSecret</code> types have known issues
 which might cause health check to return <code>Progressing</code> state instead of <code>Healthy</code>.</p>
 <ul>
 <li>
@@ -1865,6 +1865,7 @@ which might cause health check to return <code>Progressing</code> state instead 
 </li>
 <li>Your <code>StatefulSet</code> or <code>DaemonSet</code> is using <code>OnDelete</code> instead of <code>RollingUpdate</code> strategy.
   See <a href="https://github.com/argoproj/argo-cd/issues/1881">#1881</a>.</li>
+<li>For <code>SealedSecret</code>, see <a href="#sealed-secret-stuck-progressing">Why are resources of type <code>SealedSecret</code> stuck in the <code>Progressing</code> state?</a></li>
 </ul>
 <p>As workaround Argo CD allows providing <a href="../operator-manual/health/">health check</a> customization which overrides default
 behavior.</p>
@@ -1975,7 +1976,7 @@ from.</p>
 a <a href="https://github.com/bitnami-labs/sealed-secrets/issues/555">modern CRD</a> and thus the status field will not
 be exposed (on k8s <code>1.16+</code>). If your Kubernetes deployment is <a href="https://www.openshift.com/blog/a-look-into-the-technical-details-of-kubernetes-1-16">modern</a>, ensure you're using a
 fixed CRD if you want this feature to work at all.</p>
-<h2 id="why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state">Why are resources of type <code>SealedSecret</code> stuck in the <code>Progressing</code> state?<a class="headerlink" href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" title="Permanent link">&para;</a></h2>
+<h2 id="why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state"><a name="sealed-secret-stuck-progressing"></a>Why are resources of type <code>SealedSecret</code> stuck in the <code>Progressing</code> state?<a class="headerlink" href="#why-are-resources-of-type-sealedsecret-stuck-in-the-progressing-state" title="Permanent link">&para;</a></h2>
 <p>The controller of the <code>SealedSecret</code> resource may expose the status condition on resource it provisioned. Since
 version <code>v2.0.0</code> ArgoCD picks up that status condition to derive a health status for the <code>SealedSecret</code>.</p>
 <p>Versions before <code>v0.15.0</code> of the <code>SealedSecret</code> controller are affected by an issue regarding this status
