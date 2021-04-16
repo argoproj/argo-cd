@@ -129,7 +129,6 @@ export const ApplicationCreatePanel = (props: {
                     ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
                 }>
                 {({projects, clusters, reposInfo}) => {
-                    const repos = reposInfo.map(info => info.repo).sort();
                     const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
@@ -233,16 +232,6 @@ export const ApplicationCreatePanel = (props: {
                                                 <p>SOURCE</p>
                                                 <div className='row argo-form-row'>
                                                     <div className='columns small-10'>
-                                                        {false && (
-                                                            <FormField
-                                                                formApi={api}
-                                                                label='Repository URL'
-                                                                qeId='application-create-field-repository-url'
-                                                                field='spec.source.repoURL'
-                                                                component={AutocompleteField}
-                                                                componentProps={{items: repos}}
-                                                            />
-                                                        )}
                                                         <input
                                                             className='argo-field'
                                                             placeholder='Repository URL'
