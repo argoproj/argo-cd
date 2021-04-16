@@ -32,6 +32,8 @@ type providerImpl struct {
 	goOIDCProvider *gooidc.Provider
 }
 
+var _ Provider = &providerImpl{}
+
 // NewOIDCProvider initializes an OIDC provider
 func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 	return &providerImpl{

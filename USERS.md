@@ -48,6 +48,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [hipages](https://hipages.com.au/)
 1. [Honestbank](https://honestbank.com)
 1. [IBM](https://www.ibm.com/)
+1. [Index Exchange](https://www.indexexchange.com/)
 1. [InsideBoard](https://www.insideboard.com)
 1. [Intuit](https://www.intuit.com/)
 1. [JovianX](https://www.jovianx.com/)
@@ -124,6 +125,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Walkbase](https://www.walkbase.com/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
+1. [Witick](https://witick.io/)
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [Sap Labs](http://sap.com)
 1. [Smilee.io](https://smilee.io)
