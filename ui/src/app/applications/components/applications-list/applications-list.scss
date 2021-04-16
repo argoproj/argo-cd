@@ -185,28 +185,65 @@
         margin-left: -30px !important;
     }
 
-    &__search {
-        position: relative;
-        i.fa-search {
-            position: absolute;
-            bottom: 0.6em;
-            left: -1.5em;
-            cursor: pointer;
-            &:hover {
-                color: $argo-color-gray-7;
-            }
+    &__search-wrapper {
+        margin-left: 15px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            margin-left: 0;
         }
-        i.fa-times {
-            cursor: pointer;
-            position: absolute;
+        line-height: normal;
+    }
+
+    &__search {
+        border: 1px solid $argo-color-gray-4;
+        background-color: $argo-color-gray-2;
+        border-radius: 7px;
+        position: relative;
+        padding: 0 10px;
+        height: 33px;
+        display: flex;
+        align-items: center;
+        transition: width 200ms;
+        @include breakpoint(large up) {
+            flex-shrink: 1;
+            width: 300px;
+        }
+        i {
+            font-size: 12px;
+            color: $argo-color-gray-6;
+        }
+        .keyboard-hint {
+            border: 1px solid $argo-color-gray-5;
             color: $argo-color-gray-7;
-            bottom: 0.6em;
-            right: 0;
-            z-index: 1;
+            border-radius: 3px;
+            padding: 0 7px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            text-align: center;
         }
         .select {
             width: 100%;
             border-radius: $border-radius;
+        }
+        &:focus-within {
+            border: 1px solid $argo-color-teal-5;
+            @include breakpoint(large up) {
+                width: 500px;
+            }
+            i {
+                color: $argo-color-gray-7;
+            }
+            .keyboard-hint {
+                display: none;
+            }
+        }
+        .argo-field {
+            border: none;
+            font-weight: 500;
+            &::placeholder {
+                color: $argo-color-gray-6;
+            }
         }
     }
 
