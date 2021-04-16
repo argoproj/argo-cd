@@ -18,10 +18,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 // represents a Docker image in the format NAME[:TAG].

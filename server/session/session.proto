@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/session";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/session";
 
 // Session Service
 //
@@ -8,9 +8,6 @@ package session;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
-
 
 // SessionCreateRequest is for logging in.
 message SessionCreateRequest {

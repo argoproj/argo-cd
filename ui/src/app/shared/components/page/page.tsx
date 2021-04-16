@@ -23,13 +23,13 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
             <DataLoader key='loginPanel' load={() => isLoggedIn()}>
                 {loggedIn =>
                     loggedIn ? (
-                        <a key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+                        <button className='login-logout-button' key='logout' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
                             Log out
-                        </a>
+                        </button>
                     ) : (
-                        <a key='login' onClick={() => ctx.navigation.goto('/login')}>
+                        <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto('/login')}>
                             Log in
-                        </a>
+                        </button>
                     )
                 }
             </DataLoader>

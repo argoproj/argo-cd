@@ -175,6 +175,14 @@ argocd ... --insecure
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
+## Why are `SealedSecret` resources reporting a `Status`?
+
+Versions of `SealedSecret` up to and including `v0.15.0` (especially through helm `1.15.0-r3`) don't include
+a [modern CRD](https://github.com/bitnami-labs/sealed-secrets/issues/555) and thus the status field will not
+be exposed (on k8s `1.16+`). If your Kubernetes deployment is [modern](
+https://www.openshift.com/blog/a-look-into-the-technical-details-of-kubernetes-1-16), ensure you're using a
+fixed CRD if you want this feature to work at all.
+
 ## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since

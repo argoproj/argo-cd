@@ -6,7 +6,7 @@ import (
 	"fmt"
 	gohttp "net/http"
 
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/kube"
 
 	"github.com/argoproj/pkg/grpc/http"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -14,7 +14,7 @@ import (
 	// nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func init() {

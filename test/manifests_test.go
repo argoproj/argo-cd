@@ -9,7 +9,7 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/test/fixture/test"
+	"github.com/argoproj/argo-cd/v2/test/fixture/test"
 )
 
 func TestKustomizeVersion(t *testing.T) {

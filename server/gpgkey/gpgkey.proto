@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey";
 
 // GPG public key service
 //
@@ -8,7 +8,7 @@ package gpgkey;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // Message to query the server for configured GPG public keys
 message GnuPGPublicKeyQuery {
@@ -19,7 +19,7 @@ message GnuPGPublicKeyQuery {
 // Request to create one or more public keys on the server
 message GnuPGPublicKeyCreateRequest {
   // Raw key data of the GPG key(s) to create
-  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey publickey = 1;
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.GnuPGPublicKey publickey = 1;
   // Whether to upsert already existing public keys
   bool upsert = 2;
 }
@@ -27,7 +27,7 @@ message GnuPGPublicKeyCreateRequest {
 // Response to a public key creation request
 message GnuPGPublicKeyCreateResponse {
   // List of GPG public keys that have been created
-  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList created = 1;
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.GnuPGPublicKeyList created = 1;
   // List of key IDs that haven been skipped because they already exist on the server
   repeated string skipped = 2;
 }
@@ -38,12 +38,12 @@ message GnuPGPublicKeyResponse {}
 // GPGKeyService implements API for managing GPG public keys on the server
 service GPGKeyService {
   // List all available repository certificates
-  rpc List(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
+  rpc List(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.GnuPGPublicKeyList) {
     option (google.api.http).get = "/api/v1/gpgkeys";
   }
 
   // Get information about specified GPG public key from the server
-  rpc Get(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
+  rpc Get(GnuPGPublicKeyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.GnuPGPublicKey) {
     option (google.api.http).get = "/api/v1/gpgkeys/{keyID}";
   }
 

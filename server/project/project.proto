@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/project";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/project";
 
 // Project Service
 //
@@ -10,12 +10,12 @@ import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 
 // ProjectCreateRequest defines project creation parameters.
 message ProjectCreateRequest {
-  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 1;
   bool upsert = 2;
 }
 
@@ -48,7 +48,7 @@ message ProjectQuery {
 }
 
 message ProjectUpdateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 1;
 }
 
 message EmptyResponse {}
@@ -58,11 +58,11 @@ message SyncWindowsQuery {
 }
 
 message SyncWindowsResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncWindow windows = 1;
 }
 
 message GlobalProjectsResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject items = 1;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject items = 1;
 }
 
 // ProjectService
@@ -82,7 +82,7 @@ service ProjectService {
   }
 
   // Create a new project
-  rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
     option (google.api.http) = {
       post: "/api/v1/projects"
       body: "*"
@@ -90,12 +90,12 @@ service ProjectService {
   }
 
   // List returns list of projects
-  rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProjectList) {
+  rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProjectList) {
       option (google.api.http).get = "/api/v1/projects";
   }
 
   // Get returns a project by name
-  rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http).get = "/api/v1/projects/{name}";
   }
 
@@ -105,7 +105,7 @@ service ProjectService {
   }
 
   // Update updates a project
-  rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+  rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http) = {
           put: "/api/v1/projects/{project.metadata.name}"
           body: "*"

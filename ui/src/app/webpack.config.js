@@ -18,6 +18,11 @@ const proxyConf = {
     secure: false
 };
 
+const hotLoader = isProd ? {
+    test: /\.tsx?$/,
+    loader: 'react-hot-loader/webpack'
+} : {};
+
 const config = {
     entry: './src/app/index.tsx',
     output: {
@@ -34,10 +39,7 @@ const config = {
 
     module: {
         rules: [
-            isProd && {
-                test: /\.tsx?$/,
-                loader: 'react-hot-loader/webpack'
-            },
+            hotLoader,
             {
                 test: /\.tsx?$/,
                 loader: `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
