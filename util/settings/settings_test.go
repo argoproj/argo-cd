@@ -222,6 +222,127 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
+func TestGetResourceOverrides_with_split_keys(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    admissionregistration.k8s.io/MutatingWebhookConfiguration:
+      ignoreDifferences: |
+        jsonPointers:
+        - foo
+    certmanager.k8s.io/Certificate:
+      health.lua: |
+        foo
+    cert-manager.io/Certificate: 
+      health.lua: |
+        foo
+    apps/Deployment: 
+      actions: |
+        foo`,
+	}
+
+	t.Run("TestGetResourceOverrides", func(t *testing.T) {
+		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 5, len(overrides))
+		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
+	})
+
+	t.Run("TestGetResourceOverrides_with_split_keys", func(t *testing.T) {
+		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+		data["resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = "bar"
+		data["resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = `jsonPointers:
+        - bar`
+		data["resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = `
+- field: foo
+  type: bar`
+		data["resource.customizations.health.certmanager.k8s.io_Certificate"] = "bar"
+		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
+		data["resource.customizations.actions.apps_Deployment"] = "bar"
+		data["resource.customizations.actions.Deployment"] = "bar"
+		data["resource.customizations.health.iam-manager.k8s.io_Iamrole"] = "bar"
+		data["resource.customizations.health.Iamrole"] = "bar"
+		data["resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole"] = `jsonPointers:
+        - bar`
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 8, len(overrides))
+		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields[0].Type)
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
+		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+		assert.Equal(t, "bar", overrides["Deployment"].Actions)
+		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
+		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
+		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
+	})
+
+	t.Run("TestGetResourceOverrides_with_split_keys_compareoptions_all", func(t *testing.T) {
+		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
+		data["resource.customizations.actions.apps_Deployment"] = "bar"
+		data["resource.compareoptions"] = `ignoreResourceStatusField: all`
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 5, len(overrides))
+		assert.Equal(t, 1, len(overrides["*/*"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+	})
+
+	t.Run("TestGetResourceOverrides_with_split_keys_compareoptions_all", func(t *testing.T) {
+		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
+		data["resource.customizations.actions.apps_Deployment"] = "bar"
+		data["resource.compareoptions"] = `ignoreResourceStatusField: off`
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 4, len(overrides))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+	})
+}
+
+func TestConvertToOverrideKey(t *testing.T) {
+	key, err := convertToOverrideKey("cert-manager.io_Certificate")
+	assert.NoError(t, err)
+	assert.Equal(t, "cert-manager.io/Certificate", key)
+
+	key, err = convertToOverrideKey("Certificate")
+	assert.NoError(t, err)
+	assert.Equal(t, "Certificate", key)
+
+	_, err = convertToOverrideKey("")
+	assert.NotNil(t, err)
+
+	_, err = convertToOverrideKey("_Certificate")
+	assert.NotNil(t, err)
+
+	_, err = convertToOverrideKey("Certificate_")
+	assert.NotNil(t, err)
+}
+
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",

@@ -515,6 +515,11 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
+	err = mgr.AppendResourceOverridesFromSplitKeys(argoCDCM.Data, resourceOverrides)
+	if err != nil {
+		return nil, err
+	}
+
 	var diffOptions ArgoCDDiffOptions
 	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
 		err := yaml.Unmarshal([]byte(value), &diffOptions)
@@ -543,6 +548,69 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+func (mgr *SettingsManager) AppendResourceOverridesFromSplitKeys(cmData map[string]string, resourceOverrides map[string]v1alpha1.ResourceOverride) error {
+	for k, v := range cmData {
+		if !strings.HasPrefix(k, resourceCustomizationsKey) {
+			continue
+		}
+
+		// config map key should be of format resource.customizations.<type>.<group-kind>
+		parts := strings.SplitN(k, ".", 4)
+		if len(parts) < 4 {
+			continue
+		}
+
+		overrideKey, err := convertToOverrideKey(parts[3])
+		if err != nil {
+			return err
+		}
+
+		overrideVal, ok := resourceOverrides[overrideKey]
+		if !ok {
+			overrideVal = v1alpha1.ResourceOverride{}
+		}
+
+		customizationType := parts[2]
+		switch customizationType {
+		case "health":
+			overrideVal.HealthLua = v
+		case "actions":
+			overrideVal.Actions = v
+		case "ignoreDifferences":
+			overrideIgnoreDiff := v1alpha1.OverrideIgnoreDiff{}
+			err := yaml.Unmarshal([]byte(v), &overrideIgnoreDiff)
+			if err != nil {
+				return err
+			}
+			overrideVal.IgnoreDifferences = overrideIgnoreDiff
+		case "knownTypeFields":
+			var knownTypeFields []v1alpha1.KnownTypeField
+			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
+			if err != nil {
+				return err
+			}
+			overrideVal.KnownTypeFields = knownTypeFields
+		default:
+			return fmt.Errorf("resource customization type %s not supported", customizationType)
+		}
+		resourceOverrides[overrideKey] = overrideVal
+	}
+	return nil
+}
+
+// Convert group-kind format to <group/kind>, allowed key format examples
+// resource.customizations.health.cert-manager.io_Certificate
+// resource.customizations.health.Certificate
+func convertToOverrideKey(groupKind string) (string, error) {
+	i := strings.LastIndex(groupKind, "_")
+	if i == -1 && groupKind != "" {
+		return groupKind, nil
+	} else if i > 0 && i < len(groupKind)-1 {
+		return fmt.Sprintf("%s/%s", groupKind[:i], groupKind[i+1:]), nil
+	}
+	return "", fmt.Errorf("group kind should be in format `resource.customizations.<type>.<group_kind>` or resource.customizations.<type>.<kind>`, got group kind: '%s'", groupKind)
 }
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
