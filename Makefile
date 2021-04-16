@@ -113,7 +113,7 @@ define run-in-test-client
 		bash -c "$(1)"
 endef
 
-#
+# 
 define exec-in-test-server
 	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
@@ -195,7 +195,7 @@ clientgen: ensure-gopath
 
 .PHONY: clidocsgen
 clidocsgen: ensure-gopath
-	go run tools/cmd-docs/main.go
+	go run tools/cmd-docs/main.go	
 
 .PHONY: codegen-local
 codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
