@@ -2045,7 +2045,7 @@ and responds appropriately. Note that the <code>nginx.ingress.kubernetes.io/ssl-
 requires that the <code>--enable-ssl-passthrough</code> flag be added to the command line arguments to
 <code>nginx-ingress-controller</code>.</p>
 <h4 id="ssl-passthrough-with-cert-manager-and-lets-encrypt">SSL-Passthrough with cert-manager and Let's Encrypt<a class="headerlink" href="#ssl-passthrough-with-cert-manager-and-lets-encrypt" title="Permanent link">&para;</a></h4>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server-ingress</span>
@@ -2058,16 +2058,19 @@ requires that the <code>--enable-ssl-passthrough</code> flag be added to the com
     <span class="c1"># If you encounter a redirect loop or are getting a 307 response code </span>
     <span class="c1"># then you need to force the nginx ingress to connect to the backend using HTTPS.</span>
     <span class="c1">#</span>
-    <span class="c1"># nginx.ingress.kubernetes.io/backend-protocol: &quot;HTTPS&quot;</span>
+    <span class="nt">nginx.ingress.kubernetes.io/backend-protocol</span><span class="p">:</span> <span class="s">&quot;HTTPS&quot;</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">rules</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
     <span class="nt">http</span><span class="p">:</span>
       <span class="nt">paths</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
-          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
-          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
-        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+        <span class="nt">pathType</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Prefix</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">service</span><span class="p">:</span> 
+            <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-server</span>
+            <span class="nt">port</span><span class="p">:</span>
+              <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https</span>
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">argocd.example.com</span>
