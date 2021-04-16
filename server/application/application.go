@@ -283,7 +283,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	repositoryCredentials, err := s.db.GetAllRepositoryCredentials(ctx)
+	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +300,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		HelmRepoCreds:     repositoryCredentials,
+		HelmRepoCreds:     helmRepositoryCredentials,
 	})
 	if err != nil {
 		return nil, err

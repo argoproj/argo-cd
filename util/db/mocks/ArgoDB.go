@@ -196,8 +196,8 @@ func (_m *ArgoDB) DeleteRepositoryCredentials(ctx context.Context, name string) 
 	return r0
 }
 
-// GetAllRepositoryCredentials provides a mock function with given fields: ctx
-func (_m *ArgoDB) GetAllRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
+// GetAllHelmRepositoryCredentials provides a mock function with given fields: ctx
+func (_m *ArgoDB) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
 	ret := _m.Called(ctx)
 
 	var r0 []*v1alpha1.RepoCreds

@@ -304,19 +304,21 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 	return credential, err
 }
 
-// GetAllRepositoryCredentials retrieves all repository credentials
-func (db *db) GetAllRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
+// GetAllHelmRepositoryCredentials retrieves all repository credentials
+func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
 	var allCredentials []*appsv1.RepoCreds
 	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
 	}
 	for _, v := range repoCredentials {
-		credential, err := db.credentialsToRepositoryCredentials(v)
-		if err != nil {
-			return nil, err
+		if strings.EqualFold(v.Type, "helm") {
+			credential, err := db.credentialsToRepositoryCredentials(v)
+			if err != nil {
+				return nil, err
+			}
+			allCredentials = append(allCredentials, credential)
 		}
-		allCredentials = append(allCredentials, credential)
 	}
 	return allCredentials, err
 }
@@ -339,6 +341,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		GithubAppInstallationId:    r.GithubAppInstallationId,
 		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
 		EnableOCI:                  r.EnableOCI,
+		Type:                       r.Type,
 	}
 
 	err = db.updateCredentialsSecret(&repoInfo, r)

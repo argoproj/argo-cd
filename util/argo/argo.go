@@ -223,7 +223,7 @@ func ValidateRepo(
 		return nil, err
 	}
 
-	repositoryCredentials, err := db.GetAllRepositoryCredentials(ctx)
+	helmRepositoryCredentials, err := db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), repositoryCredentials)...)
+		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), helmRepositoryCredentials)...)
 
 	return conditions, nil
 }
