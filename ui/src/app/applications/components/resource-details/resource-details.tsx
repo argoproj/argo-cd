@@ -15,7 +15,6 @@ import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
-import './new-tabs.scss';
 import './resource-details.scss';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -27,31 +26,6 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
 }
-
-export const NewTabs = (props: {tabs: Tab[]; selectedTabKey?: string; onTabSelected?: (tabKey: string) => any}) => {
-    const {tabs, selectedTabKey, onTabSelected} = {...props};
-    const [selected, setSelected] = React.useState(selectedTabKey);
-    const selectedTab = tabs.find(tab => (!selected && tabs.length > 0 ? tabs[0].key : selected) === tab.key) || tabs[0];
-    const menuItem = (tab: Tab) => (
-        <a
-            className={`new-tabs__menu__item ${selectedTab.key === tab.key ? 'new-tabs__menu__item--selected' : ''}`}
-            onClick={() => {
-                setSelected(tab.key);
-                onTabSelected(tab.key);
-            }}>
-            {tab.icon && <i className={tab.icon} style={{marginRight: '5px'}} />}
-            {tab.title}
-            {tab.badge && <span className='new-tabs__menu__badge'>{tab.badge}</span>}
-        </a>
-    );
-
-    return (
-        <div className='new-tabs'>
-            <div className='new-tabs__menu'>{tabs.map(tab => menuItem(tab))}</div>
-            {selectedTab && selectedTab.content}
-        </div>
-    );
-};
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
@@ -206,7 +180,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-trash' /> DELETE
                                 </button>
                             </div>
-                            <NewTabs
+                            <Tabs
+                                navTransparent
                                 tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, [
                                     {
                                         title: 'SUMMARY',
@@ -215,8 +190,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
                                     }
                                 ])}
-                                selectedTabKey={tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
                             />
                         </React.Fragment>
                     )}
