@@ -5,11 +5,11 @@ tests:
   inputPath: testdata/ready_green.yaml
 - healthStatus:
     status: Degraded
-    message: 'Elasticsearch Cluster status is Yellow'
+    message: 'Elasticsearch Cluster status is Yellow. Check the status of your ES indices, shards and replicas'
   inputPath: testdata/ready_yellow.yaml
 - healthStatus:
     status: Degraded
-    message: 'Elasticsearch Cluster status is Red'
+    message: 'Elasticsearch Cluster status is Red. Check the status of your ES indices, shards and replicas'
   inputPath: testdata/ready_red.yaml
 - healthStatus:
     status: Progressing
@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: 'Elasticsearch phase is Invalid'
   inputPath: testdata/invalid.yaml
+- healthStatus:
+    status: Progressing
+    message: 'The desired amount of nodes is 5 and the availableNodes are 3'
+  inputPath: testdata/number_of_nodes.yaml
