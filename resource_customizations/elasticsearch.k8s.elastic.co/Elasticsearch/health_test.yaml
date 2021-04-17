@@ -25,7 +25,7 @@ tests:
   inputPath: testdata/invalid.yaml
 - healthStatus:
     status: Progressing
-    message: "The desired amount of nodes is 5 but the amount of availableNodes is 3"
+    message: "The desired amount of availableNodes is 5 but the current amount is 3"
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Unknown

@@ -7,7 +7,7 @@ if obj.status ~= nil then
     end
     if obj.status.availableNodes < sum then
       hs.status = "Progressing"
-      hs.message = "The desired amount of nodes is " .. sum .. " but the amount of availableNodes is " .. obj.status.availableNodes
+      hs.message = "The desired amount of availableNodes is " .. sum .. " but the current amount is " .. obj.status.availableNodes
       return hs
     elseif obj.status.availableNodes == sum then
       if obj.status.phase ~= nil and obj.status.health ~= nil then
