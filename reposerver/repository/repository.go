@@ -602,6 +602,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			if err != nil {
 				return nil, err
 			}
+			defer file.Close()
 			templateOpts.Values = append(templateOpts.Values, p)
 		}
 
