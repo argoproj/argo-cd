@@ -15,7 +15,7 @@ case $ARCHITECTURE in
   arm|arm64)
     BINNAME=kustomize
     CGO_ENABLED=0 GO111MODULE=on go get -ldflags="-s" sigs.k8s.io/kustomize/kustomize/v3@v${KUSTOMIZE_VERSION}
-    mv $GOPATH/bin/kustomize $BIN/$BINNAME
+    sudo install -m 0755 $GOPATH/bin/kustomize $BIN/$BINNAME
     ;;
   *)
     case $KUSTOMIZE_VERSION in
