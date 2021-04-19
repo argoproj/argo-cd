@@ -10,7 +10,6 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
@@ -140,6 +139,8 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+// Flag --load_restrictor is no longer supported in Kustomize 4
+/*
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -163,6 +164,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
 }
+*/
 
 // make sure we we can invoke the CLI to replace images
 func TestKustomizeImages(t *testing.T) {
