@@ -532,16 +532,16 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	sudo ./hack/install.sh packr-linux
-	sudo ./hack/install.sh kustomize-linux
-	sudo ./hack/install.sh ksonnet-linux
-	sudo ./hack/install.sh helm2-linux
-	sudo ./hack/install.sh helm-linux
+	./hack/install.sh packr-linux
+	./hack/install.sh kustomize-linux
+	./hack/install.sh ksonnet-linux
+	./hack/install.sh helm2-linux
+	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
-	sudo ./hack/install.sh codegen-tools
+	./hack/install.sh codegen-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local

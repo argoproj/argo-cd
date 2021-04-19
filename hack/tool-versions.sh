@@ -1,6 +1,13 @@
 #!/bin/sh
-# The checksum of this file is used as cache key in our integration toolchain
-# 
+###############################################################################
+# This file defines the versions of the tools that are installed in the CI
+# toolchain and the Docker image.
+#
+# Updating a tool's version here is not enough, you will need to create a
+# checksum file in ./hack/installers/checksums matching the name of the
+# downloaded binary with a ".sha256" suffix appended, containing the proper
+# SHA256 sum of the binary.
+###############################################################################
 helm2_version=2.17.0
 helm3_version=3.5.1
 jq_version=1.6
