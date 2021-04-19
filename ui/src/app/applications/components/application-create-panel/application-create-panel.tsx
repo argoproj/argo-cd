@@ -8,6 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import {useDebounce} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -104,6 +105,7 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
+    const [repoURL, setIntermediateRepoURL] = useDebounce<string>('', 500);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -127,7 +129,6 @@ export const ApplicationCreatePanel = (props: {
                     ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
                 }>
                 {({projects, clusters, reposInfo}) => {
-                    const repos = reposInfo.map(info => info.repo).sort();
                     const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
@@ -231,13 +232,14 @@ export const ApplicationCreatePanel = (props: {
                                                 <p>SOURCE</p>
                                                 <div className='row argo-form-row'>
                                                     <div className='columns small-10'>
-                                                        <FormField
-                                                            formApi={api}
-                                                            label='Repository URL'
-                                                            qeId='application-create-field-repository-url'
-                                                            field='spec.source.repoURL'
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: repos}}
+                                                        <input
+                                                            className='argo-field'
+                                                            placeholder='Repository URL'
+                                                            value={repoURL.intermediate}
+                                                            onChange={e => {
+                                                                setIntermediateRepoURL(e.target.value);
+                                                                api.setValue('spec.source.repoURL', repoURL.value);
+                                                            }}
                                                         />
                                                     </div>
                                                     <div className='columns small-2'>
@@ -275,7 +277,7 @@ export const ApplicationCreatePanel = (props: {
                                                         <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} />
                                                         <div className='argo-form-row'>
                                                             <DataLoader
-                                                                input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
+                                                                input={{repoURL: repoURL.value, revision: app.spec.source.targetRevision}}
                                                                 load={async src =>
                                                                     (src.repoURL &&
                                                                         services.repos

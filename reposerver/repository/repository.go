@@ -459,6 +459,48 @@ func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	return repos
 }
 
+type dependencies struct {
+	Dependencies []repositories `yaml:"dependencies"`
+}
+
+type repositories struct {
+	Repository string `yaml:"repository"`
+}
+
+func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
+	repos := make([]*v1alpha1.Repository, 0)
+	f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appPath, "Chart.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	d := &dependencies{}
+	if err = yaml.Unmarshal(f, d); err != nil {
+		return nil, err
+	}
+
+	for _, r := range d.Dependencies {
+		if u, err := url.Parse(r.Repository); err == nil && u.Scheme == "https" {
+			repo := &v1alpha1.Repository{
+				Repo: r.Repository,
+				Name: u.Host,
+			}
+			repos = append(repos, repo)
+		}
+	}
+
+	return repos, nil
+}
+
+func repoExists(repo string, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if repo == r.Repo {
+			return true
+		}
+	}
+	return false
+}
+
 func isConcurrencyAllowed(appPath string) bool {
 	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
 		return true
@@ -586,11 +628,23 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
+	repos, err := getHelmDependencyRepos(appPath)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, r := range repos {
+		if !repoExists(r.Repo, q.Repos) {
+			q.Repos = append(q.Repos, r)
+		}
+	}
+
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
+	if err != nil {
+		return nil, err
+	}
+
 	defer h.Dispose()
 	err = h.Init()
 	if err != nil {
@@ -1371,4 +1425,36 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 		res.Items = append(res.Items, &chart)
 	}
 	return &res, nil
+}
+
+func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+	repo := q.Repo
+	checks := map[string]func() error{
+		"git": func() error {
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		},
+		"helm": func() error {
+			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
+				return err
+			} else {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
+				return err
+			}
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return &apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil
+		}
+	}
+	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
 }

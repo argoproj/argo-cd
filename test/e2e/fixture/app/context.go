@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -40,7 +41,10 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
+	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+	// for any context.
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
@@ -107,6 +111,16 @@ func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
 
 func (c *Context) HelmRepoAdded(name string) *Context {
 	repos.AddHelmRepo(name)
+	return c
+}
+
+func (c *Context) HelmOCIRepoAdded(name string) *Context {
+	repos.AddHelmOCIRepo(name)
+	return c
+}
+
+func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
 	return c
 }
 

@@ -96,6 +96,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 }
 
 func TestHelmRepo(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		CustomCACertAdded().
 		HelmRepoAdded("custom-repo").
@@ -219,6 +220,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 }
 
 func TestHelmCrdHook(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm-crd").
 		When().
@@ -312,6 +314,7 @@ func TestHelmSetStringEnv(t *testing.T) {
 
 // make sure kube-version gets passed down to resources
 func TestKubeVersion(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm-kube-version").
 		When().
@@ -328,6 +331,7 @@ func TestKubeVersion(t *testing.T) {
 }
 
 func TestHelmValuesHiddenDirectory(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		Path(".hidden-helm").
 		When().
@@ -342,14 +346,17 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 }
 
 func TestHelmWithDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	testHelmWithDependencies(t, "helm-with-dependencies", false)
 }
 
 func TestHelm2WithDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM", "HELM2")
 	testHelmWithDependencies(t, "helm2-with-dependencies", false)
 }
 
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	testHelmWithDependencies(t, "helm-with-dependencies", true)
 }
 
@@ -396,6 +403,7 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 }
 
 func TestHelm3CRD(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	Given(t).
 		Path("helm3-crd").
 		When().
@@ -407,6 +415,7 @@ func TestHelm3CRD(t *testing.T) {
 }
 
 func TestHelmRepoDiffLocal(t *testing.T) {
+	SkipOnEnv(t, "HELM")
 	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
 	assert.NoError(t, err)
 	Given(t).
@@ -426,7 +435,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
-			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", RepoURL(RepoURLTypeHelm),
+			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", RepoURL(RepoURLTypeHelm)),
 				"--username", GitUsername,
 				"--password", GitPassword,
 				"--cert-file", "../fixture/certs/argocd-test-client.crt",
@@ -436,4 +445,57 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
 			assert.Empty(t, diffOutput)
 		})
+}
+
+func TestHelmOCIRegistry(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		Path("helm-oci-with-dependencies").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmOCIRegistryWithDependencies(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(RepoURLTypeHelmOCI).
+		Chart("helm-oci-with-dependencies").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

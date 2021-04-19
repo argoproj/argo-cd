@@ -13,8 +13,8 @@ const isOnline = process.env.NODE_ONLINE_ENV === 'online';
 console.log(`Bundling in ${isProd ? 'production' : 'development'} mode ${isOnline ? 'online' : 'offline'}...`);
 
 const proxyConf = {
-    'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
-    'secure': false,
+    target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
+    secure: false
 };
 
 const config = {
@@ -28,65 +28,77 @@ const config = {
     devtool: 'source-map',
 
     resolve: {
-        extensions: ['.ts', '.tsx', '.js', '.json']
+        extensions: ['.ts', '.tsx', '.js', '.json'],
+        alias: {react: require.resolve('react')}
     },
 
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [ ...( isProd ? [] : ['react-hot-loader/webpack']), `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`]
-            }, {
+                loaders: [...(isProd ? [] : ['react-hot-loader/webpack']), `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`]
+            },
+            {
                 enforce: 'pre',
-                exclude: [
-                    /node_modules\/react-paginate/,
-                    /node_modules\/monaco-editor/,
-                ],
+                exclude: [/node_modules\/react-paginate/, /node_modules\/monaco-editor/],
                 test: /\.js$/,
-                loaders: [...(isProd ? ['babel-loader'] : []), 'source-map-loader'],
-            }, {
+                loaders: [...(isProd ? ['babel-loader'] : []), 'source-map-loader']
+            },
+            {
                 test: /\.scss$/,
                 loader: 'style-loader!raw-loader!sass-loader'
-            }, {
+            },
+            {
                 test: /\.css$/,
                 loader: 'style-loader!raw-loader'
-            },
+            }
         ]
     },
     node: {
-        fs: 'empty',
+        fs: 'empty'
     },
     plugins: [
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
-            SYSTEM_INFO: JSON.stringify({
-                version: process.env.ARGO_VERSION || 'latest',
-            }),
+            'SYSTEM_INFO': JSON.stringify({
+                version: process.env.ARGO_VERSION || 'latest'
+            })
         }),
-        new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new HtmlWebpackPlugin({template: 'src/app/index.html'}),
         new CopyWebpackPlugin({
-            patterns: [{
-                from: 'src/assets', to: 'assets'
-            }, {
-                from: 'node_modules/argo-ui/src/assets', to: 'assets'
-            }, {
-                from: 'node_modules/@fortawesome/fontawesome-free/webfonts', to: 'assets/fonts'
-            }, {
-                from: 'node_modules/redoc/bundles/redoc.standalone.js', to: 'assets/scripts/redoc.standalone.js'
-            }]
+            patterns: [
+                {
+                    from: 'src/assets',
+                    to: 'assets'
+                },
+                {
+                    from: 'node_modules/argo-ui/src/assets',
+                    to: 'assets'
+                },
+                {
+                    from: 'node_modules/@fortawesome/fontawesome-free/webfonts',
+                    to: 'assets/fonts'
+                },
+                {
+                    from: 'node_modules/redoc/bundles/redoc.standalone.js',
+                    to: 'assets/scripts/redoc.standalone.js'
+                }
+            ]
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: [ 'yaml' ]
+            languages: ['yaml']
         }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin
             // the upstream version of this plugin is not compatible with webpack 4 so we use this fork
-			fonts: [{
-                family: 'Heebo',
-                variants: [ '300', '400', '500', '700' ]
-            }],
+            fonts: [
+                {
+                    family: 'Heebo',
+                    variants: ['300', '400', '500', '700']
+                }
+            ],
             // This works by downloading the fonts at bundle time and adding those font-faces to 'fonts.css'.
             name: 'fonts',
             filename: 'fonts.css',
@@ -94,7 +106,7 @@ const config = {
             // https://github.com/gabiseabra/google-fonts-webpack-plugin/issues/2
             local: isOnline,
             path: 'assets/fonts/google-fonts'
-		})
+        })
     ],
     devServer: {
         historyApiFallback: {
@@ -106,7 +118,7 @@ const config = {
             '/api': proxyConf,
             '/auth': proxyConf,
             '/swagger-ui': proxyConf,
-            '/swagger.json': proxyConf,
+            '/swagger.json': proxyConf
         }
     }
 };

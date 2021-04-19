@@ -1,7 +1,9 @@
 package fixture
 
 import (
+	"bufio"
 	"context"
+	goerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,10 +37,11 @@ import (
 )
 
 const (
-	defaultApiServer = "localhost:8080"
-	adminPassword    = "password"
-	testingLabel     = "e2e.argoproj.io"
-	ArgoCDNamespace  = "argocd-e2e"
+	defaultApiServer     = "localhost:8080"
+	defaultAdminPassword = "password"
+	defaultAdminUsername = "admin"
+	testingLabel         = "e2e.argoproj.io"
+	ArgoCDNamespace      = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -49,6 +52,11 @@ const (
 	GuestbookPath = "guestbook"
 )
 
+const (
+	EnvAdminUsername = "ARGOCD_E2E_ADMIN_USERNAME"
+	EnvAdminPassword = "ARGOCD_E2E_ADMIN_PASSWORD"
+)
+
 var (
 	id                  string
 	deploymentNamespace string
@@ -57,9 +65,12 @@ var (
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
+	adminUsername       string
+	adminPassword       string
 	apiServerAddress    string
 	token               string
 	plainText           bool
+	testsRun            map[string]bool
 )
 
 type RepoURLType string
@@ -74,10 +85,18 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
+	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
+
+// TestNamespace returns the namespace where Argo CD E2E test instance will be
+// running in.
+func TestNamespace() string {
+	return GetEnvWithDefault("ARGOCD_E2E_NAMESPACE", ArgoCDNamespace)
+}
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
 func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
@@ -90,6 +109,26 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	return restConfig
 }
 
+func GetEnvWithDefault(envName, defaultValue string) string {
+	r := os.Getenv(envName)
+	if r == "" {
+		return defaultValue
+	}
+	return r
+}
+
+// IsRemote returns true when the tests are being run against a workload that
+// is running in a remote cluster.
+func IsRemote() bool {
+	r := os.Getenv("ARGOCD_E2E_REMOTE")
+	return r == "true"
+}
+
+// IsLocal returns when the tests are being run against a local workload
+func IsLocal() bool {
+	return !IsRemote()
+}
+
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
@@ -100,10 +139,10 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
-	apiServerAddress = os.Getenv(argocdclient.EnvArgoCDServer)
-	if apiServerAddress == "" {
-		apiServerAddress = defaultApiServer
-	}
+
+	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
+	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
+	adminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
@@ -115,7 +154,7 @@ func init() {
 	CheckError(err)
 	defer io.Close(closer)
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: "admin", Password: adminPassword})
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
 	CheckError(err)
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
@@ -130,6 +169,27 @@ func init() {
 	plainText = !tlsTestResult.TLS
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
+
+	// Preload a list of tests that should be skipped
+	testsRun = make(map[string]bool)
+	rf := os.Getenv("ARGOCD_E2E_RECORD")
+	if rf == "" {
+		return
+	}
+	f, err := os.Open(rf)
+	if err != nil {
+		if goerrors.Is(err, os.ErrNotExist) {
+			return
+		} else {
+			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
+		}
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		testsRun[scanner.Text()] = true
+	}
+
 }
 
 func Name() string {
@@ -148,33 +208,47 @@ func submoduleParentDirectory() string {
 	return path.Join(TmpDir, submoduleParentDir)
 }
 
+const (
+	EnvRepoURLTypeSSH                  = "ARGOCD_E2E_REPO_SSH"
+	EnvRepoURLTypeSSHSubmodule         = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
+	EnvRepoURLTypeSSHSubmoduleParent   = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
+	EnvRepoURLTypeHTTPS                = "ARGOCD_E2E_REPO_HTTPS"
+	EnvRepoURLTypeHTTPSClientCert      = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
+	EnvRepoURLTypeHTTPSSubmodule       = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
+	EnvRepoURLTypeHTTPSSubmoduleParent = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
+	EnvRepoURLTypeHelm                 = "ARGOCD_E2E_REPO_HELM"
+	EnvRepoURLDefault                  = "ARGOCD_E2E_REPO_DEFAULT"
+)
+
 func RepoURL(urlType RepoURLType) string {
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git"
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git"
-		// Git submodule parent repo
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git"
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
-		return "https://localhost:9443/argo-e2e/testdata.git"
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
-		return "https://localhost:9444/argo-e2e/testdata.git"
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
 	case RepoURLTypeHTTPSSubmodule:
-		return "https://localhost:9443/argo-e2e/submodule.git"
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmodule, "https://localhost:9443/argo-e2e/submodule.git")
 		// Git submodule parent repo
 	case RepoURLTypeHTTPSSubmoduleParent:
-		return "https://localhost:9443/argo-e2e/submoduleParent.git"
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmoduleParent, "https://localhost:9443/argo-e2e/submoduleParent.git")
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
-		return "https://localhost:9444/argo-e2e/testdata.git/helm-repo"
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	case RepoURLTypeHelmOCI:
+		return HelmOCIRegistryURL
 	default:
-		return fmt.Sprintf("file://%s", repoDirectory())
+		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
 }
 
@@ -192,8 +266,8 @@ func CreateSecret(username, password string) string {
 	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
-		"-n", ArgoCDNamespace))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", ArgoCDNamespace))
+		"-n", TestNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", TestNamespace()))
 	return secretName
 }
 
@@ -204,13 +278,13 @@ func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), name, v1.GetOptions{})
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
 	errors.CheckError(err)
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
 	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Update(context.Background(), cm, v1.UpdateOptions{})
+	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
@@ -288,26 +362,32 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 }
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(context.Background(), project, v1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
 	errors.CheckError(err)
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, v1.UpdateOptions{})
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
 func EnsureCleanState(t *testing.T) {
+	// In large scenarios, we can skip tests that already run
+	SkipIfAlreadyRun(t)
+	// Register this test after it has been run & was successfull
+	t.Cleanup(func() {
+		RecordTestRun(t)
+	})
 
 	start := time.Now()
 
 	policy := v1.DeletePropagationBackground
 	// delete resources
 	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).DeleteCollection(context.Background(),
+	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(ArgoCDNamespace).DeleteCollection(context.Background(),
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
 
 	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
@@ -342,8 +422,9 @@ func EnsureCleanState(t *testing.T) {
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 	})
 
-	// remove tmp dir
+	// Recreate temp dir
 	CheckError(os.RemoveAll(TmpDir))
+	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// random id - unique across test runs
 	postFix := "-" + strings.ToLower(rand.RandString(5))
@@ -351,12 +432,11 @@ func EnsureCleanState(t *testing.T) {
 	name = DnsFriendly(t.Name(), "")
 	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 
-	// create tmp dir
-	FailOnErr(Run("", "mkdir", "-p", TmpDir))
-
 	// create TLS and SSH certificate directories
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+	if IsLocal() {
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+	}
 
 	// For signing during the tests
 	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
@@ -369,9 +449,11 @@ func EnsureCleanState(t *testing.T) {
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 
 	// recreate GPG directories
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
-	FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+	if IsLocal() {
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+	}
 
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
@@ -379,6 +461,11 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run(repoDirectory(), "git", "init"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
+		FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
+	}
 
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
@@ -433,6 +520,9 @@ func Patch(path string, jsonPatch string) {
 	CheckError(ioutil.WriteFile(filename, bytes, 0644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 func Delete(path string) {
@@ -443,6 +533,9 @@ func Delete(path string) {
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 func WriteFile(path, contents string) {
@@ -458,6 +551,10 @@ func AddFile(path, contents string) {
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 func AddSignedFile(path, contents string) {
@@ -469,6 +566,9 @@ func AddSignedFile(path, contents string) {
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
@@ -482,7 +582,7 @@ func Declarative(filename string, values interface{}) (string, error) {
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
 
-	return Run("", "kubectl", "-n", ArgoCDNamespace, "apply", "-f", tmpFile.Name())
+	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
 
 func CreateSubmoduleRepos(repoType string) {
@@ -493,6 +593,11 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+
+	if IsRemote() {
+		FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
+		FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
+	}
 
 	// set-up submodule parent repo
 	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
@@ -507,4 +612,90 @@ func CreateSubmoduleRepos(repoType string) {
 	}
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
+
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
+	}
+}
+
+// RestartRepoServer performs a restart of the repo server deployment and waits
+// until the rollout has completed.
+func RestartRepoServer() {
+	if IsRemote() {
+		log.Infof("Waiting for repo server to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-repo-server"
+		if prefix != "" {
+			workload = prefix + "-repo-server"
+		}
+		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+	}
+}
+
+// RestartAPIServer performs a restart of the API server deployemt and waits
+// until the rollout has completed.
+func RestartAPIServer() {
+	if IsRemote() {
+		log.Infof("Waiting for API server to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-server"
+		if prefix != "" {
+			workload = prefix + "-server"
+		}
+		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+	}
+}
+
+// LocalOrRemotePath selects a path for a given application based on whether
+// tests are running local or remote.
+func LocalOrRemotePath(base string) string {
+	if IsRemote() {
+		return base + "/remote"
+	} else {
+		return base + "/local"
+	}
+}
+
+// SkipOnEnv allows to skip a test when a given environment variable is set.
+// Environment variable names follow the ARGOCD_E2E_SKIP_<suffix> pattern,
+// and must be set to the string value 'true' in order to skip a test.
+func SkipOnEnv(t *testing.T, suffixes ...string) {
+	for _, suffix := range suffixes {
+		e := os.Getenv("ARGOCD_E2E_SKIP_" + suffix)
+		if e == "true" {
+			t.Skip()
+		}
+	}
+}
+
+// SkipIfAlreadyRun skips a test if it has been already run by a previous
+// test cycle and was recorded.
+func SkipIfAlreadyRun(t *testing.T) {
+	if _, ok := testsRun[t.Name()]; ok {
+		t.Skip()
+	}
+}
+
+// RecordTestRun records a test that has been run successfully to a text file,
+// so that it can be automatically skipped if requested.
+func RecordTestRun(t *testing.T) {
+	if t.Skipped() || t.Failed() {
+		return
+	}
+	rf := os.Getenv("ARGOCD_E2E_RECORD")
+	if rf == "" {
+		return
+	}
+	log.Infof("Registering test execution at %s", rf)
+	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("could not open record file %s: %v", rf, err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
+		t.Fatalf("could not write to %s: %v", rf, err)
+	}
 }

@@ -64,6 +64,8 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 	}
 }
 
+var _ Client = &nativeHelmChart{}
+
 type nativeHelmChart struct {
 	repoPath  string
 	repoURL   string
