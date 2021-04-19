@@ -223,6 +223,11 @@ func ValidateRepo(
 		return nil, err
 	}
 
+	helmRepositoryCredentials, err := db.GetAllHelmRepositoryCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
@@ -258,7 +263,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups))...)
+		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), helmRepositoryCredentials)...)
 
 	return conditions, nil
 }
@@ -382,6 +387,7 @@ func verifyGenerateManifests(
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 	apiVersions []string,
+	repositoryCredentials []*argoappv1.RepoCreds,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
@@ -407,6 +413,7 @@ func verifyGenerateManifests(
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
+		HelmRepoCreds:     repositoryCredentials,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

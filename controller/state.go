@@ -127,6 +127,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("repo_ms")
+	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
+	if err != nil {
+		return nil, nil, err
+	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, err
@@ -175,6 +179,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
+		HelmRepoCreds:     helmRepositoryCredentials,
 	})
 	if err != nil {
 		return nil, nil, err

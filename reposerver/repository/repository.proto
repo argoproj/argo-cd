@@ -26,6 +26,7 @@ message ManifestRequest {
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.

@@ -5695,6 +5695,10 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "enableOCI": {
+          "type": "boolean",
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
@@ -5728,6 +5732,10 @@
         "tlsClientCertKey": {
           "type": "string",
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
+        },
+        "type": {
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "type": "string"
         },
         "url": {
           "type": "string",

@@ -259,6 +259,7 @@ func TestValidateRepo(t *testing.T) {
 	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
 	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
 	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
+	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
