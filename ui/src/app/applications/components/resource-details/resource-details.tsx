@@ -181,7 +181,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 </button>
                             </div>
                             <Tabs
-                                navTransparent
+                                navTransparent={true}
                                 tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, [
                                     {
                                         title: 'SUMMARY',
