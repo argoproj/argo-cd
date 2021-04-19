@@ -233,7 +233,7 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	assert.Len(t, overrides, 1)
 }
 
-func TestGetResourceOverrides_with_split_keys(t *testing.T) {
+func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	data := map[string]string{
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
@@ -251,7 +251,7 @@ func TestGetResourceOverrides_with_split_keys(t *testing.T) {
         foo`,
 	}
 
-	t.Run("TestGetResourceOverrides", func(t *testing.T) {
+	t.Run("MergedKey", func(t *testing.T) {
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 		_, settingsManager := fixtures(data)
 
@@ -266,23 +266,26 @@ func TestGetResourceOverrides_with_split_keys(t *testing.T) {
 		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
 	})
 
-	t.Run("TestGetResourceOverrides_with_split_keys", func(t *testing.T) {
-		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
-		data["resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = "bar"
-		data["resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = `jsonPointers:
-        - bar`
-		data["resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration"] = `
+	t.Run("SplitKeys", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration": "bar",
+			"resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
+        - bar`,
+			"resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration": `
 - field: foo
-  type: bar`
-		data["resource.customizations.health.certmanager.k8s.io_Certificate"] = "bar"
-		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
-		data["resource.customizations.actions.apps_Deployment"] = "bar"
-		data["resource.customizations.actions.Deployment"] = "bar"
-		data["resource.customizations.health.iam-manager.k8s.io_Iamrole"] = "bar"
-		data["resource.customizations.health.Iamrole"] = "bar"
-		data["resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole"] = `jsonPointers:
-        - bar`
-		_, settingsManager := fixtures(data)
+  type: bar`,
+			"resource.customizations.health.certmanager.k8s.io_Certificate": "bar",
+			"resource.customizations.health.cert-manager.io_Certificate":    "bar",
+			"resource.customizations.actions.apps_Deployment":               "bar",
+			"resource.customizations.actions.Deployment":                    "bar",
+			"resource.customizations.health.iam-manager.k8s.io_Iamrole":     "bar",
+			"resource.customizations.health.Iamrole":                        "bar",
+			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
+        - bar`,
+		}
+		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
+		_, settingsManager := fixtures(mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
@@ -303,11 +306,13 @@ func TestGetResourceOverrides_with_split_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
 	})
 
-	t.Run("TestGetResourceOverrides_with_split_keys_compareoptions_all", func(t *testing.T) {
-		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
-		data["resource.customizations.actions.apps_Deployment"] = "bar"
-		data["resource.compareoptions"] = `ignoreResourceStatusField: all`
-		_, settingsManager := fixtures(data)
+	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.cert-manager.io_Certificate": "bar",
+			"resource.customizations.actions.apps_Deployment":            "bar",
+			"resource.compareoptions":                                    `ignoreResourceStatusField: all`,
+		}
+		_, settingsManager := fixtures(mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
@@ -319,11 +324,13 @@ func TestGetResourceOverrides_with_split_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 	})
 
-	t.Run("TestGetResourceOverrides_with_split_keys_compareoptions_all", func(t *testing.T) {
-		data["resource.customizations.health.cert-manager.io_Certificate"] = "bar"
-		data["resource.customizations.actions.apps_Deployment"] = "bar"
-		data["resource.compareoptions"] = `ignoreResourceStatusField: off`
-		_, settingsManager := fixtures(data)
+	t.Run("SplitKeysCompareOptionsOff", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.cert-manager.io_Certificate": "bar",
+			"resource.customizations.actions.apps_Deployment":            "bar",
+			"resource.compareoptions":                                    `ignoreResourceStatusField: off`,
+		}
+		_, settingsManager := fixtures(mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
@@ -333,6 +340,13 @@ func TestGetResourceOverrides_with_split_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 	})
+}
+
+func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
+	for k, v := range mapA {
+		mapB[k] = v
+	}
+	return mapB
 }
 
 func TestConvertToOverrideKey(t *testing.T) {

@@ -525,7 +525,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
-	err = mgr.AppendResourceOverridesFromSplitKeys(argoCDCM.Data, resourceOverrides)
+	err = mgr.appendResourceOverridesFromSplitKeys(argoCDCM.Data, resourceOverrides)
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +571,7 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	}
 }
 
-func (mgr *SettingsManager) AppendResourceOverridesFromSplitKeys(cmData map[string]string, resourceOverrides map[string]v1alpha1.ResourceOverride) error {
+func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[string]string, resourceOverrides map[string]v1alpha1.ResourceOverride) error {
 	for k, v := range cmData {
 		if !strings.HasPrefix(k, resourceCustomizationsKey) {
 			continue
