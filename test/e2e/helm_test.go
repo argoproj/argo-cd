@@ -499,3 +499,38 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		HelmoOCICredentialsWithoutUserPassAdded().
+		Path("helm-oci-with-dependencies").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		HelmoOCICredentialsWithoutUserPassAdded().
+		RepoURLType(RepoURLTypeHelmOCI).
+		Chart("helm-oci-with-dependencies").
+		Revision("1.0.0").
+		When().
+		Create().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
