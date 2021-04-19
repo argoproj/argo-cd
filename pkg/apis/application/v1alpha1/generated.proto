@@ -795,6 +795,12 @@ message RepoCreds {
 
   // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 10;
+
+  // EnableOCI specifies whether helm-oci support should be enabled for this repo
+  optional bool enableOCI = 11;
+
+  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  optional string type = 12;
 }
 
 // RepositoryList is a collection of Repositories.
