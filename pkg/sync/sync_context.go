@@ -775,7 +775,6 @@ func isNamespaceWithName(res *unstructured.Unstructured, ns string) bool {
 
 func isNamespaceKind(res *unstructured.Unstructured) bool {
 	return res != nil &&
-		res.GetObjectKind() != nil &&
 		res.GetObjectKind().GroupVersionKind().Group == "" &&
 		res.GetKind() == kube.NamespaceKind
 }

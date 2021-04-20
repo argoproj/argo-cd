@@ -23,11 +23,11 @@ jobs:
         with:
           go-version: '1.15.6'
       - run: make test
-      - uses: actions-contrib/golangci-lint@v1
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2
         with:
-          args: run --timeout=5m
-        env:
-          GOROOT: ""
+          version: v1.38.0
+          args: --timeout 5m
       - uses: codecov/codecov-action@v1.2.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required
