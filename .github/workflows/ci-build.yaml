@@ -246,8 +246,10 @@ jobs:
           git add .
           git commit -s -m "Codegen changes"
           git push bot $PR_NUMBER-codegen --force
-          
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
 
   build-ui:
     name: Build, test & lint UI code
