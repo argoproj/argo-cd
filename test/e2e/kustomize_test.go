@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -140,14 +141,13 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 }
 
 // Flag --load_restrictor is no longer supported in Kustomize 4
-/*
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,
-				"-p", `{ "data": { "kustomize.buildOptions": "--load_restrictor none" } }`))
+				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).
@@ -164,7 +164,6 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
 }
-*/
 
 // make sure we we can invoke the CLI to replace images
 func TestKustomizeImages(t *testing.T) {
