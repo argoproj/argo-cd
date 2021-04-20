@@ -58,13 +58,15 @@ that should be used to render the manifests. As part of the improvements to conf
 
 We want to provide the same ability to auto-select the plugin based on recognized files in the path of the git repository.
 
-### Non-Goals
-
 #### Parameters support in UI/CLI
 Currently, configuration management plugins allow specifying only a list of environment variables via UI/CLI. 
 
 We want to extend its functionality to provide a similar experience as for existing natively supported tools 
 to additional config management tools. 
+
+### Non-Goals
+
+* We aren't planning on changing the existing support for native plugins as of now. 
 
 ## Proposal
 
@@ -96,7 +98,7 @@ Config Management Plugin v2.0 implementation and experience will be as,
 #### Installation
 
 To install a plugin, an operator will simply patch argocd-repo-server to run config management plugin container as a sidecar, 
-with argocd-cmp-server as it’s entrypoint:
+with argocd-cmp-server as it’s entrypoint. Operator can use either off-the-shelf or custom built plugin image as sidecar image. 
 
 ```bash
 # A plugin is a container image which runs as a sidecar, with the execution environment
@@ -139,7 +141,7 @@ volumes:
 #### Configuration
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a 
-well-known location (e.g. /plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
+well-known location (e.g. /home/argocd/cmp-server/plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
 but various options can be used on how to place this file, including: 
 - Baking the file into the plugin image as part of docker build
 - Volume mapping the file through a configmap.
@@ -178,7 +180,7 @@ The cmp-server will expose the following APIs to the repo-server,
 - GenerateManifests(path) - returns YAML output using plugin tooling
 - IsSupported(path) - returns whether or not the given path is supported by the plugin
 
-At startup, cmp-server looks at the /plugin.yaml ConfigManagementPlugin specification file to understand how to perform the requests.
+At startup, cmp-server looks at the /home/argocd/cmp-server/plugin.yaml ConfigManagementPlugin specification file to understand how to perform the requests.
 
 #### Registration & Communication
 The repo-server needs to understand what all plugins are available to render manifests. To do this, the cmp-server 
@@ -186,7 +188,7 @@ sidecars will register themselves as available plugins to the argocd-repo-server
 shared volume between repo-server and cmp-server. e.g.:
 
 ```bash
-/var/run/argocd/plugins/
+/home/argocd/plugins/
                         cdk8s.sock
                         jkcfg.sock
                         pulumi.sock
@@ -285,6 +287,39 @@ but various options can be used on how to place this file, including:
 
 ## Drawbacks
 
+There aren't any major drawbacks to this proposal. Also, the advantages supersede the minor learning curve of the new way of managing plugins.
+
+However following are few minor drawbacks,
+
+* With addition of plugin.yaml, there will be more yamls to manage
+* Operators need to be aware of the modified kubernetes manifests in the subsequent version.
+* The format of the CMP manifest is a new "contract" that would need to adhere the usual Argo CD compatibility promises in future.
+
 
 ## Alternatives
 
+1. ConfigManagementPlugin as CRD. Have a CR which the human operator creates:
+
+```bash
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cdk8s
+spec:
+  name: cdk8s
+  image: docker.ui/cdk8s/cdk8s:latest
+  version: v1.0
+  init:
+    command: [cdk8s, init]
+  generate:
+    command: [sh, -c, "cdk8s synth && cat dist/*.yaml"]
+  discovery:
+    find:
+    - command: [find . -name main.ts]
+      glob: "**/*/main.ts"
+    check:
+    - command: [-f ./main.ts]
+      glob: "main.ts"
+  allowConcurrency: true # enables generating multiple manifests in parallel. 
+```
+2. Something magically patches the relevant manifest to add the sidecar.
