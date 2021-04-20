@@ -73,10 +73,11 @@ func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
 	reactor := client.ReactionChain[0]
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		handled, ret, err = reactor.React(action)
-		// make sure list response have resource version
-		if list, ok := ret.(*unstructured.UnstructuredList); ok {
-			list.SetResourceVersion("123")
+		if err != nil || !handled {
+			return
 		}
+		// make sure list response have resource version
+		ret.(metav1.ListInterface).SetResourceVersion("123")
 		return
 	})
 
