@@ -11,21 +11,12 @@ import (
 	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 
-<<<<<<< HEAD
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-=======
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	httputil "github.com/argoproj/argo-cd/util/http"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
->>>>>>> 8ed930ce5 (merge conflicts)
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
