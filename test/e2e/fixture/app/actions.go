@@ -79,7 +79,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }
@@ -137,7 +137,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 		"app", "create",
 		"-f", tmpFile.Name(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }
