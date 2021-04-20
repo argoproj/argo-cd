@@ -17,6 +17,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 999
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
