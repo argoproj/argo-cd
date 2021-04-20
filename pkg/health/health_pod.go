@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubectl/pkg/util/podutils"
 )
 
 func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -96,7 +96,7 @@ func getCorev1PodHealth(pod *corev1.Pod) (*HealthStatus, error) {
 		switch pod.Spec.RestartPolicy {
 		case corev1.RestartPolicyAlways:
 			// if pod is ready, it is automatically healthy
-			if podutil.IsPodReady(pod) {
+			if podutils.IsPodReady(pod) {
 				return &HealthStatus{
 					Status:  HealthStatusHealthy,
 					Message: pod.Status.Message,

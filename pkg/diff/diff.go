@@ -18,8 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/kubernetes/pkg/api/v1/endpoints"
 
+	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
