@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -11,6 +10,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
