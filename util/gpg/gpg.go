@@ -164,7 +164,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		os.Remove(f.Name())
 		return "", err
 	}
-	f.Close()
+	defer f.Close()
 	return f.Name(), nil
 }
 
@@ -261,7 +261,7 @@ func InitializeGnuPG() error {
 		return err
 	}
 
-	f.Close()
+	defer f.Close()
 
 	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--generate-key", f.Name())
 	cmd.Env = getGPGEnviron()
@@ -284,7 +284,7 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	f.Close()
+	defer f.Close()
 	return ImportPGPKeys(f.Name())
 }
 
@@ -404,7 +404,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 		}
 	}
 
-	f.Close()
+	defer f.Close()
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
 	cmd := exec.Command("gpg", "--no-permission-warning", "--import-ownertrust", f.Name())
