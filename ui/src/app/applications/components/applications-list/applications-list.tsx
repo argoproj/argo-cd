@@ -524,7 +524,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 />
                                             )}
                                         </SlidingPanel>
-                                        )
                                     </React.Fragment>
                                 )}
                             </DataLoader>
