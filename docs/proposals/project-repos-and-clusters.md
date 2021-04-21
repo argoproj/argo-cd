@@ -137,7 +137,15 @@ The security considerations are explained in `Project RBAC Changes` section.
 
 ### Risks and Mitigations
 
-TBD
+#### Deverlopers Might Overload Argo CD
+
+The developers are typically not responsible for Argo CD health and don't have access to Argo CD metrics. So adding too many clusters might overload Argo CD.
+To mitigate the risk it is proposed to make changes so that administrators could quickly discover if the project "has" too many clusters and easily discover who added the cluster:
+
+* Add `project` tag to existing cluster metrics: [clustercollector.go](https://github.com/argoproj/argo-cd/blob/bfd0b155eff4212e9354a6958e329dbd64f9a69a/controller/metrics/clustercollector.go#L20).
+* Document how administrator can leverage metrics to configure limits per project and get notifications when the limit is exceeded.
+* Add `owner` field to the cluster (and repository for consistency ) and use it to store username of the user who added cluster/repository. The administrator can use the `owner` field to contact
+  the person who added the cluster and exceeded the limit.
 
 ### Upgrade / Downgrade Strategy
 
