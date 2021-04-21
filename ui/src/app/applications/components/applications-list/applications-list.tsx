@@ -13,6 +13,7 @@ import {AppsListPreferences, AppsListViewType, services} from '../../../shared/s
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import {Filter} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter} from './applications-filter';
@@ -393,12 +394,15 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 <DataLoader load={() => services.clusters.list()}>
                                                                     {clusterList => {
                                                                         return (
-                                                                            <ApplicationsFilter
-                                                                                clusters={clusterList}
-                                                                                applications={filteredApps}
-                                                                                pref={pref}
-                                                                                onChange={newPref => onFilterPrefChanged(ctx, newPref)}
-                                                                            />
+                                                                            <React.Fragment>
+                                                                                <ApplicationsFilter
+                                                                                    clusters={clusterList}
+                                                                                    applications={filteredApps}
+                                                                                    pref={pref}
+                                                                                    onChange={newPref => onFilterPrefChanged(ctx, newPref)}
+                                                                                />
+                                                                                <Filter items={{foo: true, bar: false}} setItems={() => null} />
+                                                                            </React.Fragment>
                                                                         );
                                                                     }}
                                                                 </DataLoader>
