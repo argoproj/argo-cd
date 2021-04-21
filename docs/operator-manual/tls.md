@@ -140,3 +140,25 @@ certificate stored in the `argocd-repo-server-tls` secret.
     Please make sure that the certificate has a proper life time. Keep in
     mind that when you have to replace the certificate, all workloads have
     to be restarted in order to properly work again.
+
+### Disabling TLS to argocd-repo-server
+
+In some scenarios where mTLS through side-car proxies is involved (e.g.
+in a service mesh), you may want configure the connections between the
+`argocd-server` and `argocd-application-controller` to `argocd-repo-server`
+to not use TLS at all.
+
+In this case, you will need to:
+
+* Configure `argocd-repo-server` with TLS on the gRPC API disabled by specifying
+  the `--disable-tls` parameter to the pod container's startup arguments
+* Configure `argocd-server` and `argocd-application-controller` to not use TLS
+  for connections to the `argocd-repo-server` by specifying the parameter
+  `--repo-server-plaintext` to the pod container's startup arguments
+* Configure `argocd-server` and `argocd-application-controller` to connect to
+  the side-car instead of directly to the `argocd-repo-server` service by
+  specifying its address via the `--repo-server <address>` parameter
+
+After this change, the `argocd-server` and `argocd-application-controller` will
+use a plain text connection to the side-car proxy, that will handle all aspects
+of TLS to the `argocd-repo-server`'s TLS side-car proxy.
