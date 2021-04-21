@@ -975,6 +975,9 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
 
+	// The TLS certificate may be externally managed. We try to load it from an
+	// external secret first. If the external secret doesn't exist, we either
+	// load it from argocd-secret or generate (and persist) a self-signed one.
 	cert, err := mgr.externalServerTLSCertificate()
 	if err != nil {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
@@ -1085,6 +1088,8 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		if settings.WebhookGogsSecret != "" {
 			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
 		}
+		// we only write the certificate to the secret if it's not externally
+		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
 			cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
 			argoCDSecret.Data[settingServerCertificate] = cert
