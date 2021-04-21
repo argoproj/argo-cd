@@ -30,37 +30,7 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
-
-```yaml
-data:
-  resource.customizations: |
-    cert-manager.io/Certificate:
-      health.lua: |
-        hs = {}
-        if obj.status ~= nil then
-          if obj.status.conditions ~= nil then
-            for i, condition in ipairs(obj.status.conditions) do
-              if condition.type == "Ready" and condition.status == "False" then
-                hs.status = "Degraded"
-                hs.message = condition.message
-                return hs
-              end
-              if condition.type == "Ready" and condition.status == "True" then
-                hs.status = "Healthy"
-                hs.message = condition.message
-                return hs
-              end
-            end
-          end
-        end
-        
-        hs.status = "Progressing"
-        hs.message = "Waiting for certificate"
-        return hs
-```
-
-Or it can be defined via `resource.customizations.health.<group_kind>` sub key.
+Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:

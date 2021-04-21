@@ -361,11 +361,8 @@ func TestConvertToOverrideKey(t *testing.T) {
 	_, err = convertToOverrideKey("")
 	assert.NotNil(t, err)
 
-	_, err = convertToOverrideKey("_Certificate")
-	assert.NotNil(t, err)
-
-	_, err = convertToOverrideKey("Certificate_")
-	assert.NotNil(t, err)
+	_, err = convertToOverrideKey("_")
+	assert.NoError(t, err)
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {

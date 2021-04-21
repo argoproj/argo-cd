@@ -308,20 +308,24 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
-			yamlBytes, err := yaml.Marshal(overrides)
-			if err != nil {
-				return err
-			}
 			if v.HealthLua != "" {
-				cm.Data[getResourceOverrideSplitKey(k, "health")] = string(yamlBytes)
+				cm.Data[getResourceOverrideSplitKey(k, "health")] = v.HealthLua
 			}
 			if v.Actions != "" {
-				cm.Data[getResourceOverrideSplitKey(k, "actions")] = string(yamlBytes)
+				cm.Data[getResourceOverrideSplitKey(k, "actions")] = v.Actions
 			}
 			if len(v.IgnoreDifferences.JSONPointers) > 0 {
+				yamlBytes, err := yaml.Marshal(v.IgnoreDifferences)
+				if err != nil {
+					return err
+				}
 				cm.Data[getResourceOverrideSplitKey(k, "ignoreDifferences")] = string(yamlBytes)
 			}
 			if len(v.KnownTypeFields) > 0 {
+				yamlBytes, err := yaml.Marshal(v.KnownTypeFields)
+				if err != nil {
+					return err
+				}
 				cm.Data[getResourceOverrideSplitKey(k, "knownTypeFields")] = string(yamlBytes)
 			}
 		}

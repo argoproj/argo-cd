@@ -625,11 +625,11 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 // resource.customizations.health.cert-manager.io_Certificate
 // resource.customizations.health.Certificate
 func convertToOverrideKey(groupKind string) (string, error) {
-	i := strings.LastIndex(groupKind, "_")
-	if i == -1 && groupKind != "" {
+	parts := strings.Split(groupKind, "_")
+	if len(parts) == 2 {
+		return fmt.Sprintf("%s/%s", parts[0], parts[1]), nil
+	} else if len(parts) == 1 && groupKind != "" {
 		return groupKind, nil
-	} else if i > 0 && i < len(groupKind)-1 {
-		return fmt.Sprintf("%s/%s", groupKind[:i], groupKind[i+1:]), nil
 	}
 	return "", fmt.Errorf("group kind should be in format `resource.customizations.<type>.<group_kind>` or resource.customizations.<type>.<kind>`, got group kind: '%s'", groupKind)
 }
