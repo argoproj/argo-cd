@@ -8,7 +8,6 @@ import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-// import {useDebounce} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -105,7 +104,6 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
-    // const [repoURL, setIntermediateRepoURL] = useDebounce<string>('', 500);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -234,13 +232,13 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='row argo-form-row'>
                                                     <div className='columns small-10'>
                                                         <FormField
-                                                             formApi={api}
-                                                             label='Repository URL'
-                                                             qeId='application-create-field-repository-url'
-                                                             field='spec.source.repoURL'
-                                                             component={AutocompleteField}
-                                                             componentProps={{items: repos}}
-                                                         />
+                                                            formApi={api}
+                                                            label='Repository URL'
+                                                            qeId='application-create-field-repository-url'
+                                                            field='spec.source.repoURL'
+                                                            component={AutocompleteField}
+                                                            componentProps={{items: repos}}
+                                                        />
                                                     </div>
                                                     <div className='columns small-2'>
                                                         <div style={{paddingTop: '1.5em'}}>
