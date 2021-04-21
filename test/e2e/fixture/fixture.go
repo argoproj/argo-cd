@@ -581,7 +581,7 @@ func Declarative(filename string, values interface{}) (string, error) {
 	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
-
+	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
 
