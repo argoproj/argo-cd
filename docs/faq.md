@@ -206,3 +206,12 @@ resource.customizations: |
       hs.message = "Controller doesn't report resource status"
       return hs
 ```
+Or it can be defined via `resource.customizations.health.<group_kind>` sub key.
+
+```yaml
+resource.customizations.health.bitnami.com_SealedSecret: |
+  hs = {}
+  hs.status = "Healthy"
+  hs.message = "Controller doesn't report resource status"
+  return hs
+```

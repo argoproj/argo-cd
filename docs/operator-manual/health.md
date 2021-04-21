@@ -59,6 +59,35 @@ data:
         hs.message = "Waiting for certificate"
         return hs
 ```
+
+Or it can be defined via `resource.customizations.health.<group_kind>` sub key.
+
+```yaml
+data:
+  resource.customizations.health.cert-manager.io_Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
+          end
+        end
+      end
+    end
+        
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
+```
+
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 
 NOTE: as a security measure you don't have access to most of the standard Lua libraries.
