@@ -15,6 +15,11 @@ interface FilterOption {
 
 const FilterRow = (props: {init: boolean; onChange?: (value: boolean) => void; option: FilterOption}) => {
     const [value, setValue] = React.useState(props.init);
+
+    React.useEffect(() => {
+        setValue(props.init);
+    }, [props.init]);
+
     return (
         <div
             className={`filter__item ${value ? 'filter__item--selected' : ''}`}
