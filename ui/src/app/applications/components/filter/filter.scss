@@ -1,0 +1,40 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.filter {
+    background-color: white;
+    padding: 10px;
+    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    margin-bottom: 1em;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: $argo-color-gray-5;
+        font-weight: 500;
+        margin-bottom: 0.5em;
+    }
+
+    &__item {
+        height: 2em;
+        padding: 0 5px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        background-color: white;
+        transition: background-color 200ms ease;
+        margin: 0.25em 0;
+        cursor: pointer;
+
+        &--selected {
+            background-color: $argo-color-teal-3;
+            color: $argo-color-teal-8;
+            font-weight: 500;
+            i {
+                color: $argo-color-teal-6;
+            }
+        }
+    }
+}

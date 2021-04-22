@@ -393,6 +393,31 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             <div className='columns small-12 xxlarge-2'>
                                                                 <DataLoader load={() => services.clusters.list()}>
                                                                     {clusterList => {
+                                                                        const syncStatuses = Object.keys(models.SyncStatuses);
+                                                                        const healthStatuses = Object.keys(models.HealthStatuses);
+
+                                                                        const sync = new Map<string, number>();
+                                                                        syncStatuses.forEach(key => sync.set(models.SyncStatuses[key], 0));
+
+                                                                        applications
+                                                                            .filter(app => app.status.sync.status)
+                                                                            .forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
+
+                                                                        const health = new Map<string, number>();
+                                                                        healthStatuses.forEach(key => health.set(models.HealthStatuses[key], 0));
+
+                                                                        applications
+                                                                            .filter(app => app.status.health.status)
+                                                                            .forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
+
+                                                                        const namespaceOptions = Array.from(
+                                                                            new Set(applications.map(app => app.spec.destination.namespace).filter(item => !!item))
+                                                                        )
+                                                                            .filter(ns => pref.namespacesFilter.indexOf(ns) === -1)
+                                                                            .map(ns => {
+                                                                                return {label: ns};
+                                                                            });
+
                                                                         return (
                                                                             <React.Fragment>
                                                                                 <ApplicationsFilter
@@ -401,7 +426,45 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     pref={pref}
                                                                                     onChange={newPref => onFilterPrefChanged(ctx, newPref)}
                                                                                 />
-                                                                                <Filter items={{foo: true, bar: false}} setItems={() => null} />
+
+                                                                                <Filter
+                                                                                    label='SYNC STATUS'
+                                                                                    selected={pref.syncFilter}
+                                                                                    setSelected={s => onFilterPrefChanged(ctx, {...pref, syncFilter: s})}
+                                                                                    options={syncStatuses.map(s => {
+                                                                                        return {
+                                                                                            label: s,
+                                                                                            icon: (
+                                                                                                <AppUtils.ComparisonStatusIcon status={s as models.SyncStatusCode} noSpin={true} />
+                                                                                            ),
+                                                                                            count: sync.get(s)
+                                                                                        };
+                                                                                    })}
+                                                                                />
+                                                                                <Filter
+                                                                                    label='HEALTH STATUS'
+                                                                                    selected={pref.healthFilter}
+                                                                                    setSelected={s => onFilterPrefChanged(ctx, {...pref, healthFilter: s})}
+                                                                                    options={healthStatuses.map(s => {
+                                                                                        return {
+                                                                                            label: s,
+                                                                                            icon: (
+                                                                                                <AppUtils.HealthStatusIcon
+                                                                                                    state={{status: s as models.HealthStatusCode, message: ''}}
+                                                                                                    noSpin={true}
+                                                                                                />
+                                                                                            ),
+                                                                                            count: health.get(s)
+                                                                                        };
+                                                                                    })}
+                                                                                />
+                                                                                <Filter
+                                                                                    label='NAMESPACES'
+                                                                                    selected={pref.namespacesFilter}
+                                                                                    setSelected={s => onFilterPrefChanged(ctx, {...pref, namespacesFilter: s})}
+                                                                                    field={true}
+                                                                                    options={namespaceOptions}
+                                                                                />
                                                                             </React.Fragment>
                                                                         );
                                                                     }}
