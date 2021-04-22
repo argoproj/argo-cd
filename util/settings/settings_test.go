@@ -244,6 +244,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         jsonPointers:
         - foo
     certmanager.k8s.io/Certificate:
+      health.lua.useOpenLibs: true
       health.lua: |
         foo
     cert-manager.io/Certificate: 
@@ -265,7 +266,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
 	})
 
@@ -277,12 +280,14 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration": `
 - field: foo
   type: bar`,
-			"resource.customizations.health.certmanager.k8s.io_Certificate": "bar",
-			"resource.customizations.health.cert-manager.io_Certificate":    "bar",
-			"resource.customizations.actions.apps_Deployment":               "bar",
-			"resource.customizations.actions.Deployment":                    "bar",
-			"resource.customizations.health.iam-manager.k8s.io_Iamrole":     "bar",
-			"resource.customizations.health.Iamrole":                        "bar",
+			"resource.customizations.health.certmanager.k8s.io_Certificate":      "bar",
+			"resource.customizations.health.cert-manager.io_Certificate":         "bar",
+			"resource.customizations.useOpenLibs.certmanager.k8s.io_Certificate": "false",
+			"resource.customizations.useOpenLibs.cert-manager.io_Certificate":    "true",
+			"resource.customizations.actions.apps_Deployment":                    "bar",
+			"resource.customizations.actions.Deployment":                         "bar",
+			"resource.customizations.health.iam-manager.k8s.io_Iamrole":          "bar",
+			"resource.customizations.health.Iamrole":                             "bar",
 			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
         - bar`,
 		}
@@ -302,6 +307,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
 		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, true, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)

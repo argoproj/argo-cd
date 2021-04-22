@@ -53,7 +53,7 @@ func TestLuaHealthScript(t *testing.T) {
 					UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
-				script, err := vm.GetHealthScript(obj)
+				script, _, err := vm.GetHealthScript(obj)
 				errors.CheckError(err)
 				result, err := vm.ExecuteHealthLua(obj, script)
 				errors.CheckError(err)

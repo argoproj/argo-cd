@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -605,6 +606,12 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 		switch customizationType {
 		case "health":
 			overrideVal.HealthLua = v
+		case "useOpenLibs":
+			useOpenLibs, err := strconv.ParseBool(v)
+			if err != nil {
+				return err
+			}
+			overrideVal.UseOpenLibs = useOpenLibs
 		case "actions":
 			overrideVal.Actions = v
 		case "ignoreDifferences":
