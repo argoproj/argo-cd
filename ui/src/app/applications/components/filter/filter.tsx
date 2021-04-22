@@ -32,7 +32,7 @@ const FilterRow = (props: {init: boolean; onChange?: (value: boolean) => void; o
             <i className={`${value ? 'fas fa-check-square' : 'fa fa-square'}`} style={{marginRight: '8px'}} />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
             <div className='filter__item__label'>{props.option.label}</div>
-            <div style={{marginLeft: 'auto'}}>{props.option.count || 0}</div>
+            <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
 };
