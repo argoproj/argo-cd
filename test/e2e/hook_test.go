@@ -71,7 +71,7 @@ func TestHookDiffWithResourceHook(t *testing.T) {
 		Create().
 		Then().
 		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", Name(), "--include-resource-hook")
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--local", "testdata/hook")
 			assert.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.Contains(t, output, "name: hook")
