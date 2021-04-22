@@ -255,6 +255,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		}
+		return nil, err
+	}
+
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+
 	plugins, err := s.plugins()
 	if err != nil {
 		return nil, err
@@ -287,6 +297,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
@@ -295,12 +306,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppName:           a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		Repos:             helmRepos,
+		Repos:             permittedHelmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		HelmRepoCreds:     helmRepositoryCredentials,
+		HelmRepoCreds:     permittedHelmCredentials,
 	})
 	if err != nil {
 		return nil, err
@@ -791,7 +802,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
 		if err != nil {
 			return err
 		}
