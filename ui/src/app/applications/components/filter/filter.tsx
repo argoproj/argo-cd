@@ -46,7 +46,7 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                 }}>
                 <i className={`${value ? 'fas fa-check-square' : 'fa fa-square'}`} style={{marginRight: '8px'}} />
                 {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-                <div style={{textOverflow: 'ellipsis'}}>{props.option.label}</div>
+                <div className='filter__item__label'>{props.option.label}</div>
                 <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
             </div>
         );
@@ -56,9 +56,11 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
         <div className='filter'>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
-                <div className='argo-button argo-button--base argo-button--sm' style={{marginLeft: 'auto'}} onClick={() => setValues({} as FilterMap)}>
-                    <i className='fa fa-times-circle' /> CLEAR
-                </div>
+                {(props.selected || []).length > 0 && (
+                    <div className='argo-button argo-button--base argo-button--sm' style={{marginLeft: 'auto'}} onClick={() => setValues({} as FilterMap)}>
+                        <i className='fa fa-times-circle' /> CLEAR
+                    </div>
+                )}
             </div>
             {props.field && (
                 <Autocomplete

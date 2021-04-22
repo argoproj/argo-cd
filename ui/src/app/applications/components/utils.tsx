@@ -904,3 +904,15 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
+
+export function useData<T>(getData: () => Promise<T>, init?: T): T {
+    const [data, setData] = React.useState(init);
+    React.useEffect(() => {
+        const asyncGetData = async () => {
+            const loaded = await getData();
+            setData(loaded);
+        };
+        asyncGetData();
+    }, []);
+    return data;
+}

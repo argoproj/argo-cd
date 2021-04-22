@@ -15,6 +15,7 @@
         color: $argo-color-gray-5;
         font-weight: 500;
         margin-bottom: 0.5em;
+        height: 28px;
     }
 
     &__item {
@@ -27,6 +28,14 @@
         transition: background-color 200ms ease;
         margin: 0.25em 0;
         cursor: pointer;
+        flex-wrap: nowrap;
+
+        &__label {
+            text-overflow: ellipsis;
+            flex-grow: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
 
         &--selected {
             background-color: $argo-color-teal-3;
