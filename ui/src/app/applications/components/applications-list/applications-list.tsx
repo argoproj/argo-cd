@@ -5,17 +5,16 @@ import * as React from 'react';
 import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
 import {Observable} from 'rxjs';
-
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
-import {ApplicationsFilter} from './applications-filter';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as LabelSelector from '../label-selector';
 import * as AppUtils from '../utils';
+import {ApplicationsFilter} from './applications-filter';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
