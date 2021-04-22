@@ -18,6 +18,13 @@
         height: 28px;
     }
 
+    &__collapse {
+        cursor: pointer;
+        margin-left: auto;
+        color: $argo-color-gray-7;
+        font-size: 20px;
+    }
+
     &__item {
         height: 2em;
         padding: 0 5px;

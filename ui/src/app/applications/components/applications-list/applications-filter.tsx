@@ -134,16 +134,18 @@ const NamespaceFilter = (props: AppFilterProps) => {
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
-        <React.Fragment>
-            <div style={{marginBottom: '1em', fontSize: '13px', opacity: 0.8}}>
+        <div className='applications-list__filters'>
+            <div className='applications-list__filters__title'>
                 FILTERS <i className='fa fa-filter' />
             </div>
             <SyncFilter {...props} />
             <HealthFilter {...props} />
-            <LabelsFilter {...props} />
-            <ProjectFilter {...props} />
-            <ClusterFilter {...props} />
-            <NamespaceFilter {...props} />
-        </React.Fragment>
+            <div className='applications-list__filters__text-filters'>
+                <LabelsFilter {...props} />
+                <ProjectFilter {...props} />
+                <ClusterFilter {...props} />
+                <NamespaceFilter {...props} />
+            </div>
+        </div>
     );
 };

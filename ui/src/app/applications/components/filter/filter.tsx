@@ -44,6 +44,7 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
+    const [collapsed, setCollapsed] = React.useState(false);
 
     React.useEffect(() => {
         const map: string[] = Object.keys(values).filter(s => values[s]);
@@ -61,40 +62,46 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
         <div className='filter'>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
-                {(props.selected || []).length > 0 && (
+                {(props.selected || []).length > 0 ? (
                     <div className='argo-button argo-button--base argo-button--sm' style={{marginLeft: 'auto'}} onClick={() => setValues({} as FilterMap)}>
                         <i className='fa fa-times-circle' /> CLEAR
                     </div>
+                ) : (
+                    <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 )}
             </div>
-            {props.field && (
-                <Autocomplete
-                    items={(props.options || []).map(opt => {
-                        return {value: opt.label};
-                    })}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    filterSuggestions={true}
-                    onSelect={val => {
-                        const update = {...values};
-                        update[val] = true;
-                        setValues(update);
-                    }}
-                    inputProps={{style: {marginBottom: '0.5em'}}}
-                />
+            {!collapsed && (
+                <React.Fragment>
+                    {props.field && (
+                        <Autocomplete
+                            items={(props.options || []).map(opt => {
+                                return {value: opt.label};
+                            })}
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            filterSuggestions={true}
+                            onSelect={val => {
+                                const update = {...values};
+                                update[val] = true;
+                                setValues(update);
+                            }}
+                            inputProps={{style: {marginBottom: '0.5em'}}}
+                        />
+                    )}
+                    {((props.field ? tags : props.options) || []).map((opt, i) => (
+                        <FilterRow
+                            key={i}
+                            init={values[opt.label]}
+                            onChange={val => {
+                                const update = {...values};
+                                update[opt.label] = val;
+                                setValues(update);
+                            }}
+                            option={opt}
+                        />
+                    ))}
+                </React.Fragment>
             )}
-            {((props.field ? tags : props.options) || []).map((opt, i) => (
-                <FilterRow
-                    key={i}
-                    init={values[opt.label]}
-                    onChange={val => {
-                        const update = {...values};
-                        update[opt.label] = val;
-                        setValues(update);
-                    }}
-                    option={opt}
-                />
-            ))}
         </div>
     );
 };
