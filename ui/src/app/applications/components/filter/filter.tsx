@@ -13,6 +13,25 @@ interface FilterOption {
     icon?: React.ReactNode;
 }
 
+const FilterRow = (props: {init: boolean; onChange?: (value: boolean) => void; option: FilterOption}) => {
+    const [value, setValue] = React.useState(props.init);
+    return (
+        <div
+            className={`filter__item ${value ? 'filter__item--selected' : ''}`}
+            onClick={() => {
+                setValue(!value);
+                if (props.onChange) {
+                    props.onChange(!value);
+                }
+            }}>
+            <i className={`${value ? 'fas fa-check-square' : 'fa fa-square'}`} style={{marginRight: '8px'}} />
+            {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
+            <div className='filter__item__label'>{props.option.label}</div>
+            <div style={{marginLeft: 'auto'}}>{props.option.count || 0}</div>
+        </div>
+    );
+};
+
 export const Filter = (props: {selected: string[]; setSelected: (items: string[]) => void; options?: FilterOption[]; label?: string; field?: boolean}) => {
     const init = {} as FilterMap;
     props.selected.forEach(s => (init[s] = true));
@@ -32,25 +51,6 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
             );
         }
     }, [values]);
-
-    const Row = (props: {init: boolean; onChange?: (value: boolean) => void; option: FilterOption}) => {
-        const [value, setValue] = React.useState(props.init);
-        return (
-            <div
-                className={`filter__item ${value ? 'filter__item--selected' : ''}`}
-                onClick={() => {
-                    setValue(!value);
-                    if (props.onChange) {
-                        props.onChange(!value);
-                    }
-                }}>
-                <i className={`${value ? 'fas fa-check-square' : 'fa fa-square'}`} style={{marginRight: '8px'}} />
-                {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-                <div className='filter__item__label'>{props.option.label}</div>
-                <div style={{marginLeft: 'auto'}}>{props.option.count || 0}</div>
-            </div>
-        );
-    };
 
     return (
         <div className='filter'>
@@ -79,7 +79,7 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                 />
             )}
             {((props.field ? tags : props.options) || []).map((opt, i) => (
-                <Row
+                <FilterRow
                     key={i}
                     init={values[opt.label]}
                     onChange={val => {

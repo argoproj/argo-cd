@@ -97,8 +97,8 @@ const ProjectFilter = (props: AppFilterProps) => {
 };
 
 const ClusterFilter = (props: AppFilterProps) => {
-    const getClusterDetail = (dest: ApplicationDestination, clusters: Cluster[]): string => {
-        const cluster = (clusters || []).find(target => target.name === dest.name || target.server === dest.server);
+    const getClusterDetail = (dest: ApplicationDestination, clusterList: Cluster[]): string => {
+        const cluster = (clusterList || []).find(target => target.name === dest.name || target.server === dest.server);
         if (!cluster) {
             return dest.server || dest.name;
         }
