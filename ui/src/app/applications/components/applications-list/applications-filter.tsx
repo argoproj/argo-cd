@@ -33,7 +33,7 @@ const getOptions = (apps: Application[], filter: (app: Application) => string, k
         return {
             label: k,
             icon: getIcon && getIcon(k),
-            counts: counts.get(k)
+            count: counts.get(k)
         };
     });
 };
