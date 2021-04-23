@@ -1102,7 +1102,13 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
+
+	pluginEnv := q.ApplicationSource.Plugin.Env
+	for i, j := range pluginEnv {
+		pluginEnv[i].Value = envVars.Envsubst(j.Value)
+	}
+	env = append(env, pluginEnv.Environ()...)
+
 	env = append(env, "KUBE_VERSION="+q.KubeVersion)
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 	if plugin.Init != nil {
