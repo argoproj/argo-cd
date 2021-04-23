@@ -224,13 +224,17 @@ func ValidateRepo(
 		return nil, err
 	}
 	permittedHelmRepos, err := GetPermittedRepos(proj, helmRepos)
-
+	if err != nil {
+		return nil, err
+	}
 	helmRepositoryCredentials, err := db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
-
+	if err != nil {
+		return nil, err
+	}
 	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
