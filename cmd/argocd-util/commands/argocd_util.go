@@ -28,10 +28,11 @@ const (
 )
 
 var (
-	configMapResource    = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	secretResource       = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
-	applicationsResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
-	appprojectsResource  = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
+	configMapResource       = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+	secretResource          = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
+	applicationsResource    = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+	appprojectsResource     = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
+	appplicationSetResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -65,20 +66,22 @@ func NewCommand() *cobra.Command {
 }
 
 type argoCDClientsets struct {
-	configMaps   dynamic.ResourceInterface
-	secrets      dynamic.ResourceInterface
-	applications dynamic.ResourceInterface
-	projects     dynamic.ResourceInterface
+	configMaps      dynamic.ResourceInterface
+	secrets         dynamic.ResourceInterface
+	applications    dynamic.ResourceInterface
+	projects        dynamic.ResourceInterface
+	applicationSets dynamic.ResourceInterface
 }
 
 func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientsets {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	errors.CheckError(err)
 	return &argoCDClientsets{
-		configMaps:   dynamicIf.Resource(configMapResource).Namespace(namespace),
-		secrets:      dynamicIf.Resource(secretResource).Namespace(namespace),
-		applications: dynamicIf.Resource(applicationsResource).Namespace(namespace),
-		projects:     dynamicIf.Resource(appprojectsResource).Namespace(namespace),
+		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
+		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
+		applications:    dynamicIf.Resource(applicationsResource).Namespace(namespace),
+		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
+		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(namespace),
 	}
 }
 
