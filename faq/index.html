@@ -1999,14 +1999,12 @@ conditions updates, which is why this feature is disabled by default in these ve
 enabled by starting the <code>SealedSecret</code> controller with the <code>--update-status</code> command line parameter or by setting
 the <code>SEALED_SECRETS_UPDATE_STATUS</code> environment variable.</p>
 <p>To disable ArgoCD from checking the status condition on <code>SealedSecret</code> resources, add the following resource
-customization in your <code>argocd-cm</code> ConfigMap:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-  <span class="no">bitnami.com/SealedSecret:</span>
-    <span class="no">health.lua: |</span>
-      <span class="no">hs = {}</span>
-      <span class="no">hs.status = &quot;Healthy&quot;</span>
-      <span class="no">hs.message = &quot;Controller doesn&#39;t report resource status&quot;</span>
-      <span class="no">return hs</span>
+customization in your <code>argocd-cm</code> ConfigMap via <code>resource.customizations.health.&lt;group_kind&gt;</code> key.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">resource.customizations.health.bitnami.com_SealedSecret</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">hs = {}</span>
+  <span class="no">hs.status = &quot;Healthy&quot;</span>
+  <span class="no">hs.message = &quot;Controller doesn&#39;t report resource status&quot;</span>
+  <span class="no">return hs</span>
 </code></pre></div>
                 
               

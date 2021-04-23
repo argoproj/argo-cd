@@ -1780,32 +1780,30 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 </ul>
 <p>There are two ways to configure a custom health check. The next two sections describe those ways.</p>
 <h3 id="way-1-define-a-custom-health-check-in-argocd-cm-configmap">Way 1. Define a Custom Health Check in <code>argocd-cm</code> ConfigMap<a class="headerlink" href="#way-1-define-a-custom-health-check-in-argocd-cm-configmap" title="Permanent link">&para;</a></h3>
-<p>Custom health checks can be defined in <code>resource.customizations</code> field of <code>argocd-cm</code>. Following example demonstrates a health check for <code>cert-manager.io/Certificate</code>.</p>
+<p>Custom health checks can be defined in <code>resource.customizations.health.&lt;group_kind&gt;</code> field of <code>argocd-cm</code>. Following example demonstrates a health check for <code>cert-manager.io/Certificate</code>.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
-  <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">cert-manager.io/Certificate:</span>
-      <span class="no">health.lua: |</span>
-        <span class="no">hs = {}</span>
-        <span class="no">if obj.status ~= nil then</span>
-          <span class="no">if obj.status.conditions ~= nil then</span>
-            <span class="no">for i, condition in ipairs(obj.status.conditions) do</span>
-              <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;False&quot; then</span>
-                <span class="no">hs.status = &quot;Degraded&quot;</span>
-                <span class="no">hs.message = condition.message</span>
-                <span class="no">return hs</span>
-              <span class="no">end</span>
-              <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;True&quot; then</span>
-                <span class="no">hs.status = &quot;Healthy&quot;</span>
-                <span class="no">hs.message = condition.message</span>
-                <span class="no">return hs</span>
-              <span class="no">end</span>
-            <span class="no">end</span>
+  <span class="nt">resource.customizations.health.cert-manager.io_Certificate</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">hs = {}</span>
+    <span class="no">if obj.status ~= nil then</span>
+      <span class="no">if obj.status.conditions ~= nil then</span>
+        <span class="no">for i, condition in ipairs(obj.status.conditions) do</span>
+          <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;False&quot; then</span>
+            <span class="no">hs.status = &quot;Degraded&quot;</span>
+            <span class="no">hs.message = condition.message</span>
+            <span class="no">return hs</span>
+          <span class="no">end</span>
+          <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;True&quot; then</span>
+            <span class="no">hs.status = &quot;Healthy&quot;</span>
+            <span class="no">hs.message = condition.message</span>
+            <span class="no">return hs</span>
           <span class="no">end</span>
         <span class="no">end</span>
+      <span class="no">end</span>
+    <span class="no">end</span>
 
-        <span class="no">hs.status = &quot;Progressing&quot;</span>
-        <span class="no">hs.message = &quot;Waiting for certificate&quot;</span>
-        <span class="no">return hs</span>
+    <span class="no">hs.status = &quot;Progressing&quot;</span>
+    <span class="no">hs.message = &quot;Waiting for certificate&quot;</span>
+    <span class="no">return hs</span>
 </code></pre></div>
 
 <p>The <code>obj</code> is a global variable which contains the resource. The script must return an object with status and optional message field.</p>
