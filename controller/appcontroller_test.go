@@ -855,7 +855,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, CompareWithLatest, compareWith)
+	assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 
 	{
 		// refresh app using the 'latest' level if comparison expired
@@ -866,7 +866,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 
 	{
@@ -880,7 +880,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 
 	{
@@ -898,7 +898,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 }
 

@@ -3083,6 +3083,13 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
+        env:
+        - name: RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3282,6 +3289,13 @@ spec:
         - "20"
         - --operation-processors
         - "10"
+        env:
+        - name: RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
