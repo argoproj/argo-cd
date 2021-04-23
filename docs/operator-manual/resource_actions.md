@@ -17,41 +17,37 @@ You can define your own custom resource actions in the `argocd-cm` ConfigMap.
 
 ### Define a Custom Resource Action in `argocd-cm` ConfigMap
 
-Custom resource actions can be defined in `resource.customizations` field of `argocd-cm`. Following example demonstrates a set of custom actions for `CronJob` resources. The customizations key is in the format of `apiGroup/Kind`.
+Custom resource actions can be defined in `resource.customizations.actions.<group_kind>` field of `argocd-cm`. Following example demonstrates a set of custom actions for `CronJob` resources. 
+The customizations key is in the format of `resource.customizations.actions.<apiGroup_Kind>`.
 
 ```yaml
-resource.customizations: |
-  batch/CronJob:
-    actions: |
-      discovery.lua: |
-        actions = {}
-        actions["suspend"] = {["disabled"] = true}
-        actions["resume"] = {["disabled"] = true}
-
-        local suspend = false
-        if obj.spec.suspend ~= nil then
-            suspend = obj.spec.suspend
-        end
-        if suspend then
-            actions["resume"]["disabled"] = false
-        else
-            actions["suspend"]["disabled"] = false
-        end
-
-        return actions
-      definitions:
-      - name: suspend
-        action.lua: |
-          obj.spec.suspend = true
-
-          return obj
-      - name: resume
-        action.lua: |
-          if obj.spec.suspend ~= nil and obj.spec.suspend then
-              obj.spec.suspend = false
-          end
-
-          return obj
+resource.customizations.actions.batch_CronJob: |
+  discovery.lua: |
+    actions = {}
+    actions["suspend"] = {["disabled"] = true}
+    actions["resume"] = {["disabled"] = true}
+  
+    local suspend = false
+    if obj.spec.suspend ~= nil then
+        suspend = obj.spec.suspend
+    end
+    if suspend then
+        actions["resume"]["disabled"] = false
+    else
+        actions["suspend"]["disabled"] = false
+    end
+    return actions
+  definitions:
+  - name: suspend
+    action.lua: |
+      obj.spec.suspend = true
+      return obj
+  - name: resume
+    action.lua: |
+      if obj.spec.suspend ~= nil and obj.spec.suspend then
+          obj.spec.suspend = false
+      end
+      return obj
 ```
 
 The `discovery.lua` script must return a table where the key name represents the action name. You can optionally include logic to enable or disable certain actions based on the current object state.

@@ -195,14 +195,12 @@ enabled by starting the `SealedSecret` controller with the `--update-status` com
 the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
 
 To disable ArgoCD from checking the status condition on `SealedSecret` resources, add the following resource
-customization in your `argocd-cm` ConfigMap:
+customization in your `argocd-cm` ConfigMap via `resource.customizations.health.<group_kind>` key.
 
 ```yaml
-resource.customizations: |
-  bitnami.com/SealedSecret:
-    health.lua: |
-      hs = {}
-      hs.status = "Healthy"
-      hs.message = "Controller doesn't report resource status"
-      return hs
+resource.customizations.health.bitnami.com_SealedSecret: |
+  hs = {}
+  hs.status = "Healthy"
+  hs.message = "Controller doesn't report resource status"
+  return hs
 ```
