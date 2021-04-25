@@ -18,8 +18,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
 	informerv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -57,28 +55,9 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	return cluster
 }
 
-func (db *db) listClusterSecrets() ([]*apiv1.Secret, error) {
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
-	if err != nil {
-		return nil, err
-	}
-	labelSelector = labelSelector.Add(*req)
-
-	secretsLister, err := db.settingsMgr.GetSecretsLister()
-	if err != nil {
-		return nil, err
-	}
-	clusterSecrets, err := secretsLister.Secrets(db.ns).List(labelSelector)
-	if err != nil {
-		return nil, err
-	}
-	return clusterSecrets, nil
-}
-
 // ListClusters returns list of clusters
 func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
-	clusterSecrets, err := db.listClusterSecrets()
+	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +179,7 @@ func (db *db) WatchClusters(ctx context.Context,
 }
 
 func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
-	clusterSecrets, err := db.listClusterSecrets()
+	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
 	}
