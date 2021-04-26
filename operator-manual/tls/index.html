@@ -14,7 +14,7 @@
     
     
       
-        <title>Cluster Bootstrapping - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>TLS configuration - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -69,7 +69,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cluster-bootstrapping" class="md-skip">
+        <a href="#tls-configuration" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +98,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Cluster Bootstrapping
+              TLS configuration
             
           </span>
         </div>
@@ -479,18 +479,6 @@
             
   
   
-  
-    <li class="md-nav__item">
-      <a href="../tls/" class="md-nav__link">
-        TLS configuration
-      </a>
-    </li>
-  
-
-          
-            
-  
-  
     
   
   
@@ -503,12 +491,12 @@
       
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
-          Cluster Bootstrapping
+          TLS configuration
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
-        Cluster Bootstrapping
+        TLS configuration
       </a>
       
         
@@ -526,16 +514,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#app-of-apps-pattern" class="md-nav__link">
-    App Of Apps Pattern
+  <a href="#configuring-tls-for-argocd-server" class="md-nav__link">
+    Configuring TLS for argocd-server
   </a>
   
-    <nav class="md-nav" aria-label="App Of Apps Pattern">
+    <nav class="md-nav" aria-label="Configuring TLS for argocd-server">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#helm-example" class="md-nav__link">
-    Helm Example
+  <a href="#inbound-tls-options-for-argocd-server" class="md-nav__link">
+    Inbound TLS options for argocd-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tls-certificates-used-by-argocd-sever" class="md-nav__link">
+    TLS certificates used by argocd-sever
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-inbound-tls-for-argocd-repo-server" class="md-nav__link">
+    Configuring inbound TLS for argocd-repo-server
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring inbound TLS for argocd-repo-server">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inbound-tls-options-for-argocd-repo-server" class="md-nav__link">
+    Inbound TLS options for argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inbound-tls-certificates-used-by-argocd-sever" class="md-nav__link">
+    Inbound TLS certificates used by argocd-sever
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-tls-between-argo-cd-components" class="md-nav__link">
+    Configuring TLS between Argo CD components
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring TLS between Argo CD components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-tls-to-argocd-repo-server" class="md-nav__link">
+    Configuring TLS to argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-tls-to-argocd-repo-server" class="md-nav__link">
+    Disabling TLS to argocd-repo-server
   </a>
   
 </li>
@@ -549,6 +598,18 @@
   
 </nav>
       
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cluster-bootstrapping/" class="md-nav__link">
+        Cluster Bootstrapping
+      </a>
     </li>
   
 
@@ -1629,16 +1690,77 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#app-of-apps-pattern" class="md-nav__link">
-    App Of Apps Pattern
+  <a href="#configuring-tls-for-argocd-server" class="md-nav__link">
+    Configuring TLS for argocd-server
   </a>
   
-    <nav class="md-nav" aria-label="App Of Apps Pattern">
+    <nav class="md-nav" aria-label="Configuring TLS for argocd-server">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#helm-example" class="md-nav__link">
-    Helm Example
+  <a href="#inbound-tls-options-for-argocd-server" class="md-nav__link">
+    Inbound TLS options for argocd-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tls-certificates-used-by-argocd-sever" class="md-nav__link">
+    TLS certificates used by argocd-sever
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-inbound-tls-for-argocd-repo-server" class="md-nav__link">
+    Configuring inbound TLS for argocd-repo-server
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring inbound TLS for argocd-repo-server">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inbound-tls-options-for-argocd-repo-server" class="md-nav__link">
+    Inbound TLS options for argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inbound-tls-certificates-used-by-argocd-sever" class="md-nav__link">
+    Inbound TLS certificates used by argocd-sever
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-tls-between-argo-cd-components" class="md-nav__link">
+    Configuring TLS between Argo CD components
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring TLS between Argo CD components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-tls-to-argocd-repo-server" class="md-nav__link">
+    Configuring TLS to argocd-repo-server
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-tls-to-argocd-repo-server" class="md-nav__link">
+    Disabling TLS to argocd-repo-server
   </a>
   
 </li>
@@ -1660,78 +1782,199 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/cluster-bootstrapping.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/tls.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                <h1 id="cluster-bootstrapping">Cluster Bootstrapping<a class="headerlink" href="#cluster-bootstrapping" title="Permanent link">&para;</a></h1>
-<p>This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.</p>
-<p>There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the <strong>app of apps pattern</strong>.</p>
-<h2 id="app-of-apps-pattern">App Of Apps Pattern<a class="headerlink" href="#app-of-apps-pattern" title="Permanent link">&para;</a></h2>
-<p><a href="../declarative-setup/">Declaratively</a> specify one Argo CD app that consists only of other apps.</p>
-<p><img alt="Application of Applications" src="../../assets/application-of-applications.png" /></p>
-<h3 id="helm-example">Helm Example<a class="headerlink" href="#helm-example" title="Permanent link">&para;</a></h3>
-<p>This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.</p>
-<p>A typical layout of your Git repository for this might be:</p>
-<div class="codehilite"><pre><span></span><code><span class="err">├── Chart.yaml</span>
-<span class="err">├── templates</span>
-<span class="err">│   ├── guestbook.yaml</span>
-<span class="err">│   ├── helm-dependency.yaml</span>
-<span class="err">│   ├── helm-guestbook.yaml</span>
-<span class="err">│   └── kustomize-guestbook.yaml</span>
-<span class="err">└── values.yaml</span>
+                <h1 id="tls-configuration">TLS configuration<a class="headerlink" href="#tls-configuration" title="Permanent link">&para;</a></h1>
+<p>Argo CD provides two inbound TLS endpoints that can be configured:</p>
+<ul>
+<li>The user-facing endpoint of the <code>argocd-server</code> workload which serves the UI
+  and the API</li>
+<li>The endpoint of the <code>argocd-repo-server</code>, which is accessed by <code>argocd-server</code>
+  and <code>argocd-application-controller</code> workloads to request repository
+  operations.</li>
+</ul>
+<p>By default, and without further configuration, both of these endpoints will be
+set-up to use an automatically generated, self-signed certificate. However,
+most users will want to explicitly configure the certificates for these TLS
+endpoints, possibly using automated means such as <code>cert-manager</code> or using
+their own dedicated Certificate Authority.</p>
+<h2 id="configuring-tls-for-argocd-server">Configuring TLS for argocd-server<a class="headerlink" href="#configuring-tls-for-argocd-server" title="Permanent link">&para;</a></h2>
+<h3 id="inbound-tls-options-for-argocd-server">Inbound TLS options for argocd-server<a class="headerlink" href="#inbound-tls-options-for-argocd-server" title="Permanent link">&para;</a></h3>
+<p>You can configure certain TLS options for the <code>argocd-server</code> workload by
+setting command line parameters. The following parameters are available:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--insecure</code></td>
+<td><code>false</code></td>
+<td>Disables TLS completely</td>
+</tr>
+<tr>
+<td><code>--tlsminversion</code></td>
+<td><code>1.2</code></td>
+<td>The minimum TLS version to be offered to clients</td>
+</tr>
+<tr>
+<td><code>--tlsmaxversion</code></td>
+<td><code>1.3</code></td>
+<td>The maximum TLS version to be offered to clients</td>
+</tr>
+<tr>
+<td><code>--tlsciphers</code></td>
+<td><code>TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384</code></td>
+<td>A colon separated list of TLS cipher suites to be offered to clients</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tls-certificates-used-by-argocd-sever">TLS certificates used by argocd-sever<a class="headerlink" href="#tls-certificates-used-by-argocd-sever" title="Permanent link">&para;</a></h3>
+<p>There are two ways to configure the TLS certificates used by <code>argocd-server</code>:</p>
+<ul>
+<li>Setting the <code>tls.crt</code> and <code>tls.key</code> keys in the <code>argocd-server-tls</code> secret
+  to hold PEM data of the certificate and the corresponding private key. The
+  <code>argocd-server-tls</code> secret may be of type <code>tls</code>, but does not have to be.</li>
+<li>Setting the <code>tls.crt</code> and <code>tls.key</code> keys in the <code>argocd-secret</code> secret to
+  hold PEM data of the certificate and the corresponding private key. This
+  method is considered deprecated, and only exists for purposes of backwards
+  compatiblity. Changing <code>argocd-secret</code> should not be used to override the
+  TLS certificate anymore.</li>
+</ul>
+<p>Argo CD decides which TLS certificate to use for the endpoint of
+<code>argocd-server</code> as follows:</p>
+<ul>
+<li>If the <code>argocd-server-tls</code> secret exists and contains a valid key pair in the
+  <code>tls.crt</code> and <code>tls.key</code> keys, this will be used for the certificate of the
+  endpoint of <code>argocd-server</code>.</li>
+<li>Otherwise, if the <code>argocd-secret</code> secret contains a valid key pair in the 
+ <code>tls.crt</code> and <code>tls.key</code> keys, this will be used as certificate for the
+  endpoint of <code>argocd-server</code>.</li>
+<li>If no <code>tls.crt</code> and <code>tls.key</code> keys are found in neither of the two mentioned
+  secrets, Argo CD will generate a self-signed certificate and persist it in
+  the <code>argocd-secret</code> secret.</li>
+</ul>
+<p>The <code>argocd-server-tls</code> secret contains only information for TLS configuration
+to be used by <code>argocd-server</code> and is safe to be managed via third-party tools
+such as <code>cert-manager</code> or <code>SealedSecrets</code></p>
+<p>To create this secret manually from an existing key pair, you can use <code>kubectl</code>:</p>
+<div class="codehilite"><pre><span></span><code>kubectl create -n argocd secret tls argocd-server-tls <span class="se">\</span>
+  --cert<span class="o">=</span>/path/to/cert.pem <span class="se">\</span>
+  --key<span class="o">=</span>/path/to/key.pem
 </code></pre></div>
 
-<p><code>Chart.yaml</code> is boiler-plate.</p>
-<p><code>templates</code> contains one file for each child app, roughly:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
-  <span class="nt">finalizers</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">destination</span><span class="p">:</span>
-    <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
-    <span class="nt">server</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Values.spec.destination.server</span> <span class="p p-Indicator">}}</span>
-  <span class="nt">project</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
-  <span class="nt">source</span><span class="p">:</span>
-    <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-    <span class="nt">repoURL</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/argocd-example-apps</span>
-    <span class="nt">targetRevision</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HEAD</span>
+<p>Argo CD will pick up changes to the <code>argocd-server-tls</code> secret automatically
+and will not require restart of the pods to use a renewed certificate.</p>
+<h2 id="configuring-inbound-tls-for-argocd-repo-server">Configuring inbound TLS for argocd-repo-server<a class="headerlink" href="#configuring-inbound-tls-for-argocd-repo-server" title="Permanent link">&para;</a></h2>
+<h3 id="inbound-tls-options-for-argocd-repo-server">Inbound TLS options for argocd-repo-server<a class="headerlink" href="#inbound-tls-options-for-argocd-repo-server" title="Permanent link">&para;</a></h3>
+<p>You can configure certain TLS options for the <code>argocd-repo-server</code> workload by
+setting command line parameters. The following parameters are available:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--disable-tls</code></td>
+<td><code>false</code></td>
+<td>Disables TLS completely</td>
+</tr>
+<tr>
+<td><code>--tlsminversion</code></td>
+<td><code>1.2</code></td>
+<td>The minimum TLS version to be offered to clients</td>
+</tr>
+<tr>
+<td><code>--tlsmaxversion</code></td>
+<td><code>1.3</code></td>
+<td>The maximum TLS version to be offered to clients</td>
+</tr>
+<tr>
+<td><code>--tlsciphers</code></td>
+<td><code>TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384</code></td>
+<td>A colon separated list of TLS cipher suites to be offered to clients</td>
+</tr>
+</tbody>
+</table>
+<h3 id="inbound-tls-certificates-used-by-argocd-sever">Inbound TLS certificates used by argocd-sever<a class="headerlink" href="#inbound-tls-certificates-used-by-argocd-sever" title="Permanent link">&para;</a></h3>
+<p>To configure the TLS certificate used by the <code>argocd-repo-server</code> workload,
+create a secret named <code>argocd-repo-server-tls</code> in the namespace where Argo CD
+is running in with the certificate's key pair stored in <code>tls.crt</code> and
+<code>tls.key</code> keys. If this secret does not exist, <code>argocd-repo-server</code> will
+generate and use a self-signed certificate.</p>
+<p>To create this secret, you can use <code>kubectl</code>:</p>
+<div class="codehilite"><pre><span></span><code>kubectl create -n argocd secret tls argocd-repo-server-tls <span class="se">\</span>
+  --cert<span class="o">=</span>/path/to/cert.pem <span class="se">\</span>
+  --key<span class="o">=</span>/path/to/key.pem
 </code></pre></div>
 
-<p>The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.</p>
-<p>Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.</p>
-<p>As you probably want to override the cluster server, this is a templated values.</p>
-<p><code>values.yaml</code> contains the default values:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">destination</span><span class="p">:</span>
-    <span class="nt">server</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://kubernetes.default.svc</span>
-</code></pre></div>
-
-<p>Next, you need to create and sync your parent app, e.g. via the CLI:</p>
-<div class="codehilite"><pre><span></span><code>argocd app create apps <span class="se">\</span>
-    --dest-namespace argocd <span class="se">\</span>
-    --dest-server https://kubernetes.default.svc <span class="se">\</span>
-    --repo https://github.com/argoproj/argocd-example-apps.git <span class="se">\</span>
-    --path apps  
-argocd app sync apps  
-</code></pre></div>
-
-<p>The parent app will appear as in-sync but the child apps will be out of sync:</p>
-<p><img alt="New App Of Apps" src="../../assets/new-app-of-apps.png" /></p>
-<p>You can either sync via the UI, firstly filter by the correct label:</p>
-<p><img alt="Filter Apps" src="../../assets/filter-apps.png" /></p>
-<p>Then select the "out of sync" apps and sync: </p>
-<p><img alt="Sync Apps" src="../../assets/sync-apps.png" /></p>
-<p>Or, via the CLI: </p>
-<div class="codehilite"><pre><span></span><code>argocd app sync -l app.kubernetes.io/instance<span class="o">=</span>apps
-</code></pre></div>
-
-<p>View <a href="https://github.com/argoproj/argocd-example-apps/tree/master/apps">the example on Github</a>.</p>
+<p>Please note, that as opposed to <code>argocd-server</code>, the <code>argocd-repo-server</code> is
+not able to pick up changes to this secret automatically. If you create (or
+update) this secret, the <code>argocd-repo-server</code> pods need to be restarted.</p>
+<p>Also note, that the certificate should be issued with the correct SAN entries
+for the <code>argocd-repo-server</code>, containing at least the entries for
+<code>DNS:argocd-repo-server</code> and <code>DNS:argocd-repo-server.argo-cd.svc</code> depending
+on how your workloads connect to the repository server.</p>
+<h2 id="configuring-tls-between-argo-cd-components">Configuring TLS between Argo CD components<a class="headerlink" href="#configuring-tls-between-argo-cd-components" title="Permanent link">&para;</a></h2>
+<h3 id="configuring-tls-to-argocd-repo-server">Configuring TLS to argocd-repo-server<a class="headerlink" href="#configuring-tls-to-argocd-repo-server" title="Permanent link">&para;</a></h3>
+<p>Both <code>argocd-server</code> and <code>argocd-application-controller</code> communicate with the
+<code>argocd-repo-server</code> using a gRPC API over TLS. By default,
+<code>argocd-repo-server</code> generates a non-persistant, self signed certificate
+to use for its gRPC endpoint on startup. Because the <code>argocd-repo-server</code> has
+no means to connect to the K8s control plane API, this certificate is not
+being available to outside consumers for verification. Both, the
+<code>argocd-server</code> and <code>argocd-application-server</code> will use a non-validating
+connection to the <code>argocd-repo-server</code> for this reason.</p>
+<p>To change this behavior to be more secure by having the <code>argocd-server</code> and
+<code>argocd-application-controller</code> validate the TLS certificate of the
+<code>argocd-repo-server</code> endpoint, the following steps need to be performed:</p>
+<ul>
+<li>Create a persistent TLS certificate to be used by <code>argocd-repo-server</code>, as
+  shown above</li>
+<li>Restart the <code>argocd-repo-server</code> pod(s)</li>
+<li>Modify the pod startup parameters for <code>argocd-server</code> and
+  <code>argocd-application-controller</code> to include the <code>--repo-server-strict-tls</code>
+  parameter.</li>
+</ul>
+<p>The <code>argocd-server</code> and <code>argocd-application-controller</code> workloads will now
+validate the TLS certificate of the <code>argocd-repo-server</code> by using the
+certificate stored in the <code>argocd-repo-server-tls</code> secret.</p>
+<div class="admonition note">
+<p class="admonition-title">Certificate expiry</p>
+<p>Please make sure that the certificate has a proper life time. Keep in
+mind that when you have to replace the certificate, all workloads have
+to be restarted in order to properly work again.</p>
+</div>
+<h3 id="disabling-tls-to-argocd-repo-server">Disabling TLS to argocd-repo-server<a class="headerlink" href="#disabling-tls-to-argocd-repo-server" title="Permanent link">&para;</a></h3>
+<p>In some scenarios where mTLS through side-car proxies is involved (e.g.
+in a service mesh), you may want configure the connections between the
+<code>argocd-server</code> and <code>argocd-application-controller</code> to <code>argocd-repo-server</code>
+to not use TLS at all.</p>
+<p>In this case, you will need to:</p>
+<ul>
+<li>Configure <code>argocd-repo-server</code> with TLS on the gRPC API disabled by specifying
+  the <code>--disable-tls</code> parameter to the pod container's startup arguments</li>
+<li>Configure <code>argocd-server</code> and <code>argocd-application-controller</code> to not use TLS
+  for connections to the <code>argocd-repo-server</code> by specifying the parameter
+  <code>--repo-server-plaintext</code> to the pod container's startup arguments</li>
+<li>Configure <code>argocd-server</code> and <code>argocd-application-controller</code> to connect to
+  the side-car instead of directly to the <code>argocd-repo-server</code> service by
+  specifying its address via the <code>--repo-server &lt;address&gt;</code> parameter</li>
+</ul>
+<p>After this change, the <code>argocd-server</code> and <code>argocd-application-controller</code> will
+use a plain text connection to the side-car proxy, that will handle all aspects
+of TLS to the <code>argocd-repo-server</code>'s TLS side-car proxy.</p>
                 
               
               
@@ -1750,7 +1993,7 @@ argocd app sync apps
   
     <nav class="md-footer__inner md-grid" aria-label="Footer">
       
-        <a href="../tls/" class="md-footer__link md-footer__link--prev" rel="prev">
+        <a href="../security/" class="md-footer__link md-footer__link--prev" rel="prev">
           <div class="md-footer__button md-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
           </div>
@@ -1759,19 +2002,19 @@ argocd app sync apps
               <span class="md-footer__direction">
                 Previous
               </span>
-              TLS configuration
+              Security
             </div>
           </div>
         </a>
       
       
-        <a href="../secret-management/" class="md-footer__link md-footer__link--next" rel="next">
+        <a href="../cluster-bootstrapping/" class="md-footer__link md-footer__link--next" rel="next">
           <div class="md-footer__title">
             <div class="md-ellipsis">
               <span class="md-footer__direction">
                 Next
               </span>
-              Secret Management
+              Cluster Bootstrapping
             </div>
           </div>
           <div class="md-footer__button md-icon">
