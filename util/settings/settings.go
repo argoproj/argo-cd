@@ -53,6 +53,8 @@ type ArgoCDSettings struct {
 	// Certificate holds the certificate/private key for the Argo CD API server.
 	// If nil, will run insecure without TLS.
 	Certificate *tls.Certificate `json:"-"`
+	// CertificateIsExternal indicates whether Certificate was loaded from external secret
+	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
@@ -298,6 +300,8 @@ const (
 	initialPasswordSecretField = "password"
 	// initialPasswordLength defines the length of the generated initial password
 	initialPasswordLength = 16
+	// externalServerTLSSecretName defines the name of the external secret holding the server's TLS certificate
+	externalServerTLSSecretName = "argocd-server-tls"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -872,7 +876,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
-	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
+	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
@@ -1015,7 +1019,7 @@ func validateExternalURL(u string) error {
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -1039,14 +1043,29 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
 
-	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-	serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-	if certOk && keyOk {
-		cert, err := tls.X509KeyPair(serverCert, serverKey)
-		if err != nil {
-			errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
+	// The TLS certificate may be externally managed. We try to load it from an
+	// external secret first. If the external secret doesn't exist, we either
+	// load it from argocd-secret or generate (and persist) a self-signed one.
+	cert, err := mgr.externalServerTLSCertificate()
+	if err != nil {
+		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
+	} else {
+		if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
+			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
 		} else {
-			settings.Certificate = &cert
+			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
+			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
+			if certOk && keyOk {
+				cert, err := tls.X509KeyPair(serverCert, serverKey)
+				if err != nil {
+					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
+				} else {
+					settings.Certificate = &cert
+					settings.CertificateIsExternal = false
+				}
+			}
 		}
 	}
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
@@ -1058,6 +1077,28 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		return errs[0]
 	}
 	return nil
+}
+
+// externalServerTLSCertificate will try and load a TLS certificate from an
+// external secret, instead of tls.crt and tls.key in argocd-secret. If both
+// return values are nil, no external secret has been configured.
+func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
+	var cert tls.Certificate
+	secret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(mgr.ctx, externalServerTLSSecretName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, nil
+		}
+	}
+	tlsCert, certOK := secret.Data[settingServerCertificate]
+	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
+	if certOK && keyOK {
+		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &cert, nil
 }
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
@@ -1115,7 +1156,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		if settings.WebhookGogsSecret != "" {
 			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
 		}
-		if settings.Certificate != nil {
+		// we only write the certificate to the secret if it's not externally
+		// managed.
+		if settings.Certificate != nil && !settings.CertificateIsExternal {
 			cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
 			argoCDSecret.Data[settingServerCertificate] = cert
 			argoCDSecret.Data[settingServerPrivateKey] = key
