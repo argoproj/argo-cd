@@ -183,3 +183,24 @@ func TestNormalizeIllegalJQPathExpression(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestNormalizeJQPathExpressionWithError(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "apps",
+		Kind:              "Deployment",
+		JQPathExpressions: []string{".spec.fakeField.foo[]"},
+	}}, make(map[string]v1alpha1.ResourceOverride))
+
+	assert.Nil(t, err)
+
+	deployment := test.NewDeployment()
+	originalDeployment, err := deployment.MarshalJSON()
+	assert.Nil(t, err)
+
+	err = normalizer.Normalize(deployment)
+	assert.Nil(t, err)
+
+	normalizedDeployment, err := deployment.MarshalJSON()
+	assert.Nil(t, err)
+	assert.Equal(t, originalDeployment, normalizedDeployment)
+}
