@@ -79,8 +79,8 @@ type ResourceIgnoreDifferences struct {
 	Kind              string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name              string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
-	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,6,opt,name=jqPathExpressions"`
+	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
 }
 
 // EnvEntry represents an entry in the application's environment

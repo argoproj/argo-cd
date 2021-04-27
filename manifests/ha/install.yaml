@@ -458,8 +458,6 @@ spec:
                     namespace:
                       type: string
                   required:
-                  - jqPathExpressions
-                  - jsonPointers
                   - kind
                   type: object
                 type: array

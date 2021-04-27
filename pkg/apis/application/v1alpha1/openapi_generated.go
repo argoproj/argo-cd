@@ -3372,7 +3372,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 						},
 					},
 				},
-				Required: []string{"kind", "jsonPointers", "jqPathExpressions"},
+				Required: []string{"kind"},
 			},
 		},
 	}
