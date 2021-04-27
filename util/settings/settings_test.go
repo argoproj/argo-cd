@@ -167,7 +167,7 @@ func TestGetResourceOverrides(t *testing.T) {
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-			JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"},
+			JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle"},
 			JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 		},
 	}, webHookOverrides)
@@ -208,7 +208,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"},
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
