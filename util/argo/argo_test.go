@@ -235,6 +235,13 @@ func TestValidateRepo(t *testing.T) {
 			},
 		},
 	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+		},
+	}
+
 	helmRepos := []*argoappv1.Repository{{Repo: "sample helm repo"}}
 
 	repoClient := &mocks.RepoServerServiceClient{}
@@ -245,6 +252,13 @@ func TestValidateRepo(t *testing.T) {
 		KustomizeOptions: kustomizeOptions,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
+	repo.Type = "git"
+	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	}).Return(&apiclient.TestRepositoryResponse{
+		VerifiedRepository: true,
+	}, nil)
+
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
@@ -252,6 +266,7 @@ func TestValidateRepo(t *testing.T) {
 	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
 	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
 	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
+	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
@@ -260,7 +275,7 @@ func TestValidateRepo(t *testing.T) {
 		return true
 	})).Return(nil, nil)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups})
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups}, proj)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)
@@ -742,10 +757,4 @@ func TestFilterByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, res, 0)
 	})
-}
-
-func TestTestRepoOCI(t *testing.T) {
-	err := TestRepo(&argoappv1.Repository{Repo: "https://demo.goharbor.io", Type: "helm", EnableOCI: true})
-	assert.Error(t, err)
-	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
 }

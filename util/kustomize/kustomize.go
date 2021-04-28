@@ -54,6 +54,8 @@ type kustomize struct {
 	binaryPath string
 }
 
+var _ Kustomize = &kustomize{}
+
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
 		return k.binaryPath

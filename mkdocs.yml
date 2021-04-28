@@ -44,12 +44,14 @@ nav:
       - operator-manual/user-management/google.md
       - operator-manual/rbac.md
     - operator-manual/security.md
+    - operator-manual/tls.md
     - operator-manual/cluster-bootstrapping.md
     - operator-manual/secret-management.md
     - operator-manual/high_availability.md
     - operator-manual/disaster_recovery.md
     - operator-manual/webhook.md
     - operator-manual/health.md
+    - operator-manual/resource_actions.md
     - operator-manual/custom_tools.md
     - operator-manual/custom-styles.md
     - operator-manual/metrics.md
@@ -63,6 +65,7 @@ nav:
     - argocd-util Tools: operator-manual/server-commands/argocd-util.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
+        - operator-manual/upgrading/2.0-2.1.md
         - operator-manual/upgrading/1.8-2.0.md
         - operator-manual/upgrading/1.7-1.8.md
         - operator-manual/upgrading/1.6-1.7.md
@@ -108,6 +111,7 @@ nav:
     - developer-guide/contributing.md
     - developer-guide/running-locally.md
     - developer-guide/debugging-remote-environment.md
+    - developer-guide/use-gitpod.md
     - developer-guide/api-docs.md
     - developer-guide/test-e2e.md
     - developer-guide/dependencies.md

@@ -5,11 +5,11 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argocd-redis-ha
-  namespace: argocd
+  namespace: "argocd"
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
@@ -17,11 +17,11 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: argocd
+  namespace: "argocd"
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -29,16 +29,17 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-redis-ha-configmap
-  namespace: argocd
+  namespace: "argocd"
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     app: argocd-redis-ha
 data:
   redis.conf: |
     dir "/data"
     port 6379
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -55,6 +56,7 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    bind 0.0.0.0
 
   init.sh: |
     echo "$(date) Start..."
@@ -324,8 +326,8 @@ data:
     defaults REDIS
       mode tcp
       timeout connect 4s
-      timeout server 330s
-      timeout client 330s
+      timeout server 6m
+      timeout client 6m
       timeout check 2s
 
     listen health_check_http_url
@@ -455,11 +457,11 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-redis-ha-health-configmap
-  namespace: argocd
+  namespace: "argocd"
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -504,12 +506,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: argocd-redis-ha
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
 rules:
 - apiGroups:
     - ""
@@ -523,12 +525,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -543,12 +545,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: argocd-redis-ha
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -562,12 +564,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -582,12 +584,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-0
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -612,12 +614,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-1
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -642,12 +644,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-announce-2
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -672,12 +674,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
   annotations:
 spec:
   type: ClusterIP
@@ -700,12 +702,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -724,12 +726,12 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: argocd-redis-ha-haproxy
-  namespace: argocd
+  namespace: "argocd"
   labels:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
 spec:
   strategy:
     type: RollingUpdate
@@ -747,7 +749,7 @@ spec:
         release: argocd
         revision: "1"
       annotations:
-        checksum/config: d2ea567716f714054660c172aa717a4ec9daa16d25dab418d8fd7a0c961b03e3
+        checksum/config: c55502ce732f78a70658dc77f00c02444cd6b6bede4b270f56d082fdaed1dc5f
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -830,13 +832,13 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: argocd-redis-ha-server
-  namespace: argocd
+  namespace: "argocd"
   labels:
     argocd-redis-ha: replica
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.9
+    chart: redis-ha-4.12.14
   annotations:
     {}
 spec:
@@ -852,7 +854,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: f967dc53802e37a7bd0a7097785686e65cefc3002881b7c2a1936b3988698c11
+        checksum/init-config: 7128bfbb51eafaffe3c33b1b463e15f0cf6514cec570f9d9c4f2396f28c724ac
       labels:
         release: argocd
         app: redis-ha

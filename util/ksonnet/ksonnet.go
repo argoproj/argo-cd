@@ -79,6 +79,8 @@ type ksonnetApp struct {
 	rootDir string
 }
 
+var _ KsonnetApp = &ksonnetApp{}
+
 // NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
 func NewKsonnetApp(path string) (KsonnetApp, error) {
 	ksApp := ksonnetApp{rootDir: path}

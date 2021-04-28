@@ -751,7 +751,6 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	for i := range apps {
 		if apps[i].Spec.GetProject() == proj.Name {
 			appsCount++
-			break
 		}
 	}
 	if appsCount == 0 {

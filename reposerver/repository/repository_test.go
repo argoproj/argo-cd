@@ -129,7 +129,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 29
+	const countOfManifests = 28
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -750,6 +750,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	assert.NoError(t, err)
 	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
 	assert.NoError(t, err)
+	defer file.Close()
 
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
@@ -1466,4 +1467,28 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 
 	assert.ElementsMatch(t,
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
+}
+
+func TestTestRepoOCI(t *testing.T) {
+	service := newService(".")
+	_, err := service.TestRepository(context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: &argoappv1.Repository{
+			Repo:      "https://demo.goharbor.io",
+			Type:      "helm",
+			EnableOCI: true,
+		},
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+}
+
+func Test_getHelmDependencyRepos(t *testing.T) {
+	repo1 := "https://charts.bitnami.com/bitnami"
+	repo2 := "https://eventstore.github.io/EventStore.Charts"
+
+	repos, err := getHelmDependencyRepos("../../util/helm/testdata/dependency")
+	assert.NoError(t, err)
+	assert.Equal(t, len(repos), 2)
+	assert.Equal(t, repos[0].Repo, repo1)
+	assert.Equal(t, repos[1].Repo, repo2)
 }

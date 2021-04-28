@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/argo-cd/common
+PACKAGE=github.com/argoproj/argo-cd/v2/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
@@ -47,6 +47,8 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
+ARGOCD_E2E_TEST_TIMEOUT?=20m
+
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 
@@ -75,6 +77,9 @@ define run-in-test-server
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
 		-e ARGOCD_E2E_DISABLE_AUTH=$(ARGOCD_E2E_DISABLE_AUTH) \
+		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
+		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
+		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -83,6 +88,7 @@ define run-in-test-server
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
+		-p 5000:5000 \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
@@ -399,7 +405,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/e2e
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -526,16 +532,16 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	sudo ./hack/install.sh packr-linux
-	sudo ./hack/install.sh kustomize-linux
-	sudo ./hack/install.sh ksonnet-linux
-	sudo ./hack/install.sh helm2-linux
-	sudo ./hack/install.sh helm-linux
+	./hack/install.sh packr-linux
+	./hack/install.sh kustomize-linux
+	./hack/install.sh ksonnet-linux
+	./hack/install.sh helm2-linux
+	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
-	sudo ./hack/install.sh codegen-tools
+	./hack/install.sh codegen-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
@@ -548,3 +554,6 @@ dep-ui: test-tools-image
 
 dep-ui-local:
 	cd ui && yarn install
+
+start-test-k8s:
+	go run ./hack/k8s

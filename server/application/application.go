@@ -255,6 +255,19 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		}
+		return nil, err
+	}
+
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	if err != nil {
+		return nil, err
+	}
+
 	plugins, err := s.plugins()
 	if err != nil {
 		return nil, err
@@ -282,6 +295,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err != nil {
 		return nil, err
 	}
+
+	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	if err != nil {
+		return nil, err
+	}
+
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 		Repo:              repo,
 		Revision:          revision,
@@ -289,11 +312,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		AppName:           a.Name,
 		Namespace:         a.Spec.Destination.Namespace,
 		ApplicationSource: &a.Spec.Source,
-		Repos:             helmRepos,
+		Repos:             permittedHelmRepos,
 		Plugins:           plugins,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		HelmRepoCreds:     permittedHelmCredentials,
 	})
 	if err != nil {
 		return nil, err
@@ -784,7 +808,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
 		if err != nil {
 			return err
 		}
@@ -1358,7 +1382,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if len(syncReq.Resources) > 0 {
 			partial = "partial "
 		}
-		s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
+		reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+		if syncReq.Manifests != nil {
+			reason = fmt.Sprintf("initiated %ssync locally", partial)
+		}
+		s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
 	}
 	return a, err
 }
@@ -1421,6 +1449,9 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 // resolveRevision resolves the revision specified either in the sync request, or the
 // application source, into a concrete revision that will be used for a sync operation.
 func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, error) {
+	if syncReq.Manifests != nil {
+		return "", "", nil
+	}
 	ambiguousRevision := syncReq.Revision
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision

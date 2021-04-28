@@ -118,7 +118,7 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		// not the best test, as we should have two remote repos both with the same SSH private key
 		SSHInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeSSH).
-		Path("ssh-kustomize-base").
+		Path(fixture.LocalOrRemotePath("ssh-kustomize-base")).
 		When().
 		Create().
 		Sync().
@@ -140,13 +140,14 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+// Flag --load_restrictor is no longer supported in Kustomize 4
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,
-				"-p", `{ "data": { "kustomize.buildOptions": "--load_restrictor none" } }`))
+				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).

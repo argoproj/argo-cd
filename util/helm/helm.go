@@ -52,6 +52,8 @@ type helm struct {
 	repos []HelmRepository
 }
 
+var _ Helm = &helm{}
+
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
 func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts") ||
@@ -76,14 +78,16 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			_, err := h.cmd.Login(repo.Repo, repo.Creds)
+			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+				_, err := h.cmd.Login(repo.Repo, repo.Creds)
 
-			defer func() {
-				_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
-			}()
+				defer func() {
+					_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+				}()
 
-			if err != nil {
-				return err
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
