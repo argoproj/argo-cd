@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"net/url"
-	"regexp"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -34,6 +33,10 @@ type RepoCreds struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
+	// EnableOCI specifies whether helm-oci support should be enabled for this repo
+	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
+	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
 }
 
 // Repository is a repository holding application configurations
@@ -185,12 +188,6 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
 	}
-}
-
-// IsHTTPSURL returns true if supplied URL is HTTPS URL
-func IsHTTPSURL(url string) bool {
-	httpsURLRegex := regexp.MustCompile("^(https://).*")
-	return httpsURLRegex.MatchString(url)
 }
 
 func getCAPath(repoURL string) string {
