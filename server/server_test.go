@@ -378,6 +378,7 @@ func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string
 		user             string
+		token            string
 		errorMsg         string
 		anonymousEnabled bool
 	}
@@ -395,6 +396,12 @@ func TestAuthenticate(t *testing.T) {
 		{
 			test:             "TestSessionNotPresentAnonymousEnabled",
 			anonymousEnabled: true,
+		},
+		{
+			test:             "TestInvalidSessionPresent",
+			anonymousEnabled: false,
+			token:            "i-am-invalid",
+			errorMsg:         "invalid session: token is malformed: token contains an invalid number of segments",
 		},
 	}
 
@@ -414,7 +421,9 @@ func TestAuthenticate(t *testing.T) {
 			}
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
-			if testData.user != "" {
+			if testData.token != "" {
+				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, testData.token))
+			} else if testData.user != "" {
 				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
