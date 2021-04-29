@@ -20,6 +20,6 @@ status:
     status: "True"
     type: InstallSucceeded
   - lastTransitionTime: "2020-06-08T10:53:44Z"
-    status: "False"
+    status: "Unknown"
     type: Ready
   version: 0.14.1
