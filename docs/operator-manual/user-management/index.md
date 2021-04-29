@@ -79,7 +79,7 @@ argocd account get <username>
 ```bash
 argocd account update-password \
   --account <name> \
-  --current-password <current-admin> \
+  --current-password <current-user-password> \
   --new-password <new-user-password>
 ```
 
