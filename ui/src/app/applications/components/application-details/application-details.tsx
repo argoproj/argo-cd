@@ -150,6 +150,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const operationState = application.status.operationState;
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
+                            const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                             const filteredRes = application.status.resources.filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
@@ -297,6 +298,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 isAppSelected={isAppSelected}
                                                 updateApp={app => this.updateApp(app)}
                                                 selectedNode={selectedNode}
+                                                tab={tab}
                                             />
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
