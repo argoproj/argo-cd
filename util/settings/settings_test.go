@@ -300,6 +300,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.health.Iamrole":                             "bar",
 			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
         - bar`,
+			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
+        - bar`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -324,6 +326,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
 		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
+		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
