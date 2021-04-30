@@ -141,7 +141,7 @@ volumes:
 #### Configuration
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a 
-well-known location (e.g. /home/argocd/cmp-server/plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
+well-known location (e.g. /home/argocd/plugins/plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
 but various options can be used on how to place this file, including: 
 - Baking the file into the plugin image as part of docker build
 - Volume mapping the file through a configmap.
