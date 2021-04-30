@@ -86,6 +86,15 @@ func NewExportCommand() *cobra.Command {
 			for _, app := range applications.Items {
 				export(writer, app)
 			}
+			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
+			if err != nil && !apierr.IsNotFound(err) {
+				errors.CheckError(err)
+			}
+			if applicationSets != nil {
+				for _, appSet := range applicationSets.Items {
+					export(writer, appSet)
+				}
+			}
 		},
 	}
 
@@ -186,6 +195,8 @@ func NewImportCommand() *cobra.Command {
 					dynClient = acdClients.projects
 				case "Application":
 					dynClient = acdClients.applications
+				case "ApplicationSet":
+					dynClient = acdClients.applicationSets
 				}
 				if !exists {
 					if !dryRun {
