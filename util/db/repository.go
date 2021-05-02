@@ -59,6 +59,10 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 	return (&settingRepositoryBackend{}).ListRepositories(ctx, nil)
 }
 
+func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
+	return (&settingRepositoryBackend{}).ListRepositories(ctx, repoType)
+}
+
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	return (&settingRepositoryBackend{}).UpdateRepository(ctx, r)
 }
