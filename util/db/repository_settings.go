@@ -17,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var _ repositoryBackend = &settingRepositoryBackend{}
+
 type settingRepositoryBackend struct {
 	db *db
 }
