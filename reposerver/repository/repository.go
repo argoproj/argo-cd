@@ -32,25 +32,25 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	reposervercache "github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-	"github.com/argoproj/argo-cd/util/app/discovery"
-	argopath "github.com/argoproj/argo-cd/util/app/path"
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/glob"
-	"github.com/argoproj/argo-cd/util/gpg"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/ksonnet"
-	argokube "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/argoproj/argo-cd/util/security"
-	"github.com/argoproj/argo-cd/util/text"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v2/util/app/discovery"
+	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/ksonnet"
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
 const (
@@ -59,6 +59,7 @@ const (
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
 	appSourceFile                  = ".argocd-source-%s.yaml"
+	ociPrefix                      = "oci://"
 )
 
 // Service implements ManifestService interface
@@ -202,7 +203,7 @@ func (s *Service) runRepoOperation(
 	var err error
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	if source.IsHelm() {
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart)
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache)
 		if err != nil {
 			return err
 		}
@@ -231,17 +232,13 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsHelm() {
-		version, err := semver.NewVersion(revision)
-		if err != nil {
-			return err
-		}
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, version)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, version)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
 		if err != nil {
 			return err
 		}
@@ -463,9 +460,51 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 func getHelmRepos(repositories []*v1alpha1.Repository) []helm.HelmRepository {
 	repos := make([]helm.HelmRepository, 0)
 	for _, repo := range repositories {
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds()})
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
 	}
 	return repos
+}
+
+type dependencies struct {
+	Dependencies []repositories `yaml:"dependencies"`
+}
+
+type repositories struct {
+	Repository string `yaml:"repository"`
+}
+
+func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
+	repos := make([]*v1alpha1.Repository, 0)
+	f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appPath, "Chart.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	d := &dependencies{}
+	if err = yaml.Unmarshal(f, d); err != nil {
+		return nil, err
+	}
+
+	for _, r := range d.Dependencies {
+		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
+			repo := &v1alpha1.Repository{
+				Repo: r.Repository,
+				Name: u.Host,
+			}
+			repos = append(repos, repo)
+		}
+	}
+
+	return repos, nil
+}
+
+func repoExists(repo string, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if strings.TrimPrefix(repo, ociPrefix) == strings.TrimPrefix(r.Repo, ociPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func isConcurrencyAllowed(appPath string) bool {
@@ -569,6 +608,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			if err != nil {
 				return nil, err
 			}
+			defer file.Close()
 			templateOpts.Values = append(templateOpts.Values, p)
 		}
 
@@ -595,11 +635,32 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.SetFile {
 		templateOpts.SetFile[i] = env.Envsubst(j)
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
 
+	repos, err := getHelmDependencyRepos(appPath)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, r := range repos {
+		if !repoExists(r.Repo, q.Repos) {
+			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
+			if repositoryCredential != nil {
+				r.EnableOCI = repositoryCredential.EnableOCI
+				r.Password = repositoryCredential.Password
+				r.Username = repositoryCredential.Username
+				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
+				r.TLSClientCertData = repositoryCredential.TLSClientCertData
+				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+			}
+			q.Repos = append(q.Repos, r)
+		}
+	}
+
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
+	if err != nil {
+		return nil, err
+	}
+
 	defer h.Dispose()
 	err = h.Init()
 	if err != nil {
@@ -628,6 +689,16 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 	return kube.SplitYAML([]byte(out))
+}
+
+func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
+	for _, cred := range repoCredentials {
+		url := strings.TrimPrefix(repoURL, ociPrefix)
+		if strings.HasPrefix(url, cred.URL) {
+			return cred
+		}
+	}
+	return nil
 }
 
 // GenerateManifests generates manifests from a path
@@ -1211,7 +1282,8 @@ func findHelmValueFilesInPath(path string) ([]string, error) {
 			continue
 		}
 		filename := f.Name()
-		if strings.Contains(filename, "values") && (filepath.Ext(filename) == ".yaml" || filepath.Ext(filename) == ".yml") {
+		fileNameExt := strings.ToLower(filepath.Ext(filename))
+		if strings.Contains(filename, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
 			result = append(result, filename)
 		}
 	}
@@ -1290,17 +1362,17 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if gpg.IsGPGEnabled() && q.CheckSignature {
 		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
-			log.Debugf("Could not verify commit signature: %v", err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
 			return nil, err
 		}
 
 		if cs != "" {
-			vr, err := gpg.ParseGitCommitVerification(cs)
-			if err != nil {
-				log.Debugf("Could not parse commit verification: %v", err)
-				return nil, err
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}
-			signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 		} else {
 			signatureInfo = "Revision is not signed."
 		}
@@ -1340,19 +1412,18 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string) (helm.Client, string, error) {
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || helm.IsHelmOciChart(chart))
-	if helm.IsVersion(revision) {
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noCache bool) (helm.Client, string, error) {
+	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI)
+	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
+	if helm.IsVersion(revision) || enableOCI {
 		return helmClient, revision, nil
-	}
-	if repo.EnableOCI {
-		return nil, "", errors.New("OCI helm registers don't support semver ranges. Exact revision must be specified.")
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
-	index, err := helmClient.GetIndex()
+	index, err := helmClient.GetIndex(noCache)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1401,7 +1472,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex()
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex(true)
 	if err != nil {
 		return nil, err
 	}
@@ -1416,4 +1487,36 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 		res.Items = append(res.Items, &chart)
 	}
 	return &res, nil
+}
+
+func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+	repo := q.Repo
+	checks := map[string]func() error{
+		"git": func() error {
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+		},
+		"helm": func() error {
+			if repo.EnableOCI {
+				if !helm.IsHelmOciRepo(repo.Repo) {
+					return errors.New("OCI Helm repository URL should include hostname and port only")
+				}
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
+				return err
+			} else {
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
+				return err
+			}
+		},
+	}
+	if check, ok := checks[repo.Type]; ok {
+		return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, check()
+	}
+	var err error
+	for _, check := range checks {
+		err = check()
+		if err == nil {
+			return &apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil
+		}
+	}
+	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
 }

@@ -41,6 +41,11 @@ spec:
             port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -50,6 +55,8 @@ spec:
           mountPath: /app/config/gpg/source
         - name: gpg-keyring
           mountPath: /app/config/gpg/keys
+        - name: argocd-repo-server-tls
+          mountPath: /app/config/reposerver/tls
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -62,6 +69,17 @@ spec:
             name: argocd-gpg-keys-cm
         - name: gpg-keyring
           emptyDir: {}
+        - name: argocd-repo-server-tls
+          secret:
+            secretName: argocd-repo-server-tls
+            optional: true
+            items:
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+            - key: ca.crt
+              path: ca.crt
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

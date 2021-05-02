@@ -17,9 +17,9 @@ import (
 	"github.com/bradleyfalzon/ghinstallation"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
 
-	certutil "github.com/argoproj/argo-cd/util/cert"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 )
 
 // In memory cache for storing github APP api token credentials
@@ -50,6 +50,8 @@ func (c NopCloser) Close() error {
 	return nil
 }
 
+var _ Creds = NopCreds{}
+
 type NopCreds struct {
 }
 
@@ -57,12 +59,16 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
+var _ io.Closer = NopCloser{}
+
 type GenericHTTPSCreds interface {
 	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
 	Environ() (io.Closer, []string, error)
 }
+
+var _ GenericHTTPSCreds = HTTPSCreds{}
 
 // HTTPS creds implementation
 type HTTPSCreds struct {

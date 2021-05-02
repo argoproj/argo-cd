@@ -8,10 +8,10 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/oidc"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/oidc"
 )
 
 var ErrCacheMiss = appstatecache.ErrCacheMiss
@@ -22,6 +22,8 @@ type Cache struct {
 	oidcCacheExpiration             time.Duration
 	loginAttemptsExpiration         time.Duration
 }
+
+var _ oidc.OIDCStateStorage = &Cache{}
 
 func NewCache(
 	cache *appstatecache.Cache,

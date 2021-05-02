@@ -13,8 +13,8 @@ import (
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 // Destination returns the deployment destination for an environment in app spec data
@@ -78,6 +78,8 @@ func Version() (string, error) {
 type ksonnetApp struct {
 	rootDir string
 }
+
+var _ KsonnetApp = &ksonnetApp{}
 
 // NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
 func NewKsonnetApp(path string) (KsonnetApp, error) {

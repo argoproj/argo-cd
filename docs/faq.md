@@ -14,7 +14,7 @@ to ignore fields when differences are expected.
 
 ## Why is my application stuck in `Progressing` state?
 
-Argo CD provides health for several standard Kubernetes types. The `Ingress` and `StatefulSet` types have known issues
+Argo CD provides health for several standard Kubernetes types. The `Ingress`, `StatefulSet` and `SealedSecret` types have known issues
 which might cause health check to return `Progressing` state instead of `Healthy`.
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
@@ -31,6 +31,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
   in `Progressing` state.
 * Your `StatefulSet` or `DaemonSet` is using `OnDelete` instead of `RollingUpdate` strategy.
   See [#1881](https://github.com/argoproj/argo-cd/issues/1881).
+* For `SealedSecret`, see [Why are resources of type `SealedSecret` stuck in the `Progressing` state?](#sealed-secret-stuck-progressing)
 
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
 behavior.
@@ -97,7 +98,7 @@ Use the following steps to reconstruct configured cluster config and connect to 
 
 ```bash
 kubectl exec -it <argocd-pod-name> bash # ssh into any argocd server pod
-argocd-util kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
+argocd-util cluster kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
 KUBECONFIG=/tmp/config kubectl get pods # test connection manually
 ```
 
@@ -175,10 +176,18 @@ argocd ... --insecure
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
 [the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
-## Why are resources of type `SealedSecret` stuck in the `Progressing` state?
+## Why are `SealedSecret` resources reporting a `Status`?
+
+Versions of `SealedSecret` up to and including `v0.15.0` (especially through helm `1.15.0-r3`) don't include
+a [modern CRD](https://github.com/bitnami-labs/sealed-secrets/issues/555) and thus the status field will not
+be exposed (on k8s `1.16+`). If your Kubernetes deployment is [modern](
+https://www.openshift.com/blog/a-look-into-the-technical-details-of-kubernetes-1-16), ensure you're using a
+fixed CRD if you want this feature to work at all.
+
+## <a name="sealed-secret-stuck-progressing"></a>Why are resources of type `SealedSecret` stuck in the `Progressing` state?
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
-version `v1.9.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
+version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
@@ -186,14 +195,12 @@ enabled by starting the `SealedSecret` controller with the `--update-status` com
 the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
 
 To disable ArgoCD from checking the status condition on `SealedSecret` resources, add the following resource
-customization in your `argocd-cm` ConfigMap:
+customization in your `argocd-cm` ConfigMap via `resource.customizations.health.<group_kind>` key.
 
 ```yaml
-resource.customizations: |
-  bitnami.com/SealedSecret:
-    health.lua: |
-      hs = {}
-      hs.status = "Healthy"
-      hs.message = "Controller doesn't report resource status"
-      return hs
+resource.customizations.health.bitnami.com_SealedSecret: |
+  hs = {}
+  hs.status = "Healthy"
+  hs.message = "Controller doesn't report resource status"
+  return hs
 ```

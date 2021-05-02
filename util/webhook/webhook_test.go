@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type fakeSettingsSrc struct {
@@ -82,6 +82,20 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
 	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	eventJSON := "{\"test\": true}"
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
+	req.Header.Set("X-Event-Key", "diagnostics:ping")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Ignoring webhook event"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 

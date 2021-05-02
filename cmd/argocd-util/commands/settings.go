@@ -23,13 +23,13 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type settingsOpts struct {
@@ -162,6 +162,7 @@ func NewSettingsCommand() *cobra.Command {
 
 	command.AddCommand(NewValidateSettingsCommand(&opts))
 	command.AddCommand(NewResourceOverridesCommand(&opts))
+	command.AddCommand(NewRBACCommand())
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
