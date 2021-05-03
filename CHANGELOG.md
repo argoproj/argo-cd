@@ -1,6 +1,14 @@
 # Changelog
 
-## v2.0.0 (Unreleased)
+## v2.0.1 (2021-04-15)
+
+### Bug Fixes
+
+* fix: spark application check fails on missing section (#6036)
+* fix: Adding explicit bind to redis and sentinel for IPv4 clusters #5957 (#6005)
+* fix: fix: use correct field for evaluating whether or not GitHub Enterprise is selected (#5987)
+
+## v2.0.0 (2021-04-07)
 
 > [Upgrade instructions](./docs/operator-manual/upgrading/1.8-2.0.md)
 

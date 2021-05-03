@@ -70,6 +70,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Money Forward](https://corp.moneyforward.com/en/)
 1. [MOO Print](https://www.moo.com/)
 1. [MTN Group](https://www.mtn.com/)
+1. [Natura &Co](https://naturaeco.com/)
 1. [New Relic](https://newrelic.com/)
 1. [Nextdoor](https://nextdoor.com/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
@@ -124,6 +125,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [VSHN - The DevOps Company](https://vshn.ch/)
 1. [Walkbase](https://www.walkbase.com/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
+1. [Webstores](https://www.webstores.nl)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Witick](https://witick.io/)
 1. [Yieldlab](https://www.yieldlab.de/)

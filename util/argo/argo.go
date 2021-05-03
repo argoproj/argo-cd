@@ -180,6 +180,7 @@ func ValidateRepo(
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
+	proj *argoappv1.AppProject,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -222,17 +223,23 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-
+	permittedHelmRepos, err := GetPermittedRepos(proj, helmRepos)
+	if err != nil {
+		return nil, err
+	}
 	helmRepositoryCredentials, err := db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
-
+	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	if err != nil {
+		return nil, err
+	}
 	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &spec.Source,
-		Repos:            helmRepos,
+		Repos:            permittedHelmRepos,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
@@ -263,7 +270,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), helmRepositoryCredentials)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), permittedHelmCredentials)...)
 
 	return conditions, nil
 }
@@ -500,6 +507,26 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		}
 	}
 	return spec
+}
+
+func GetPermittedReposCredentials(proj *argoappv1.AppProject, repoCreds []*argoappv1.RepoCreds) ([]*argoappv1.RepoCreds, error) {
+	var permittedRepoCreds []*argoappv1.RepoCreds
+	for _, v := range repoCreds {
+		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}) {
+			permittedRepoCreds = append(permittedRepoCreds, v)
+		}
+	}
+	return permittedRepoCreds, nil
+}
+
+func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository) ([]*argoappv1.Repository, error) {
+	var permittedRepos []*argoappv1.Repository
+	for _, v := range repos {
+		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.Repo}) {
+			permittedRepos = append(permittedRepos, v)
+		}
+	}
+	return permittedRepos, nil
 }
 
 func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {

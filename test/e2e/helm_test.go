@@ -534,3 +534,24 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+// This is for the scenario of application source is from Git repo which has a helm chart with helm OCI registry dependency.
+// When the application project only allows git repository, this app creation should fail.
+func TestRepoPermission(t *testing.T) {
+	Given(t).
+		And(func() {
+			repoURL := fixture.RepoURL("")
+			output := FailOnErr(RunCli("proj", "remove-source", "default", "*")).(string)
+			assert.Empty(t, output)
+			output = FailOnErr(RunCli("proj", "add-source", "default", repoURL)).(string)
+			assert.Empty(t, output)
+		}).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		Path("helm-oci-with-dependencies").
+		When().
+		IgnoreErrors().
+		Create().
+		Then().
+		Expect(Error("", "Unable to generate manifests"))
+}
