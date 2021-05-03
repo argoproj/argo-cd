@@ -192,6 +192,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     }
                                 ])}
                                 selectedTabKey={props.tab}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
                             />
                         </React.Fragment>
                     )}
