@@ -456,7 +456,7 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 			updatedData[k] = v
 		}
 
-		updatedData, err := mgr.updateMapSecretRef(updatedData)
+		updatedData, err = mgr.updateMapSecretRef(updatedData)
 		if err != nil {
 			return nil, err
 		}
@@ -1567,7 +1567,7 @@ func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map
 		case string:
 			updatedData[key] = value
 		}
-		if unmarshaled {
+		if unmarshaled && value != nil {
 			yamlStr, _ := yaml.Marshal(value)
 			updatedData[key] = strings.TrimSuffix(string(yamlStr), "\n")
 		}
