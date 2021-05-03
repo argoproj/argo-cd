@@ -72,7 +72,7 @@ argocd account list
 
 * Get specific user details
 ```bash
-argocd account get <username>
+argocd account get --account <username>
 ```
 
 * Set user password
