@@ -73,7 +73,8 @@
             margin-bottom: 1em;
             font-size: 13px;
             color: $argo-color-gray-6;
-            display: none;
+            display: flex;
+            align-items: center;
         }
 
         .filter {
@@ -98,8 +99,8 @@
         &__filters {
             flex-wrap: wrap;
 
-            &__title {
-                display: block;
+            &__title .action-button {
+                display: none;
             }
 
             &__text-filters {

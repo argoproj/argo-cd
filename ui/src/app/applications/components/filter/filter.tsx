@@ -1,4 +1,4 @@
-import {Autocomplete} from 'argo-ui';
+import {Autocomplete} from 'argo-ux';
 import * as React from 'react';
 
 import './filter.scss';
@@ -62,8 +62,13 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
         <div className='filter'>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
-                {(props.selected || []).length > 0 ? (
-                    <div className='argo-button argo-button--base argo-button--sm' style={{marginLeft: 'auto'}} onClick={() => setValues({} as FilterMap)}>
+                {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
+                    <div
+                        className='argo-button argo-button--base argo-button--sm'
+                        style={{marginLeft: 'auto'}}
+                        onClick={() => {
+                            setValues({} as FilterMap);
+                        }}>
                         <i className='fa fa-times-circle' /> CLEAR
                     </div>
                 ) : (
@@ -74,19 +79,19 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                 <React.Fragment>
                     {props.field && (
                         <Autocomplete
+                            placeholder={props.label}
                             items={(props.options || []).map(opt => {
-                                return {value: opt.label};
+                                return opt.label;
                             })}
                             value={input}
                             onChange={e => setInput(e.target.value)}
-                            filterSuggestions={true}
-                            onSelect={val => {
+                            onItemClick={val => {
                                 const update = {...values};
                                 update[val] = true;
                                 setValues(update);
                             }}
-                            wrapperProps={{style: {width: '100%'}}}
-                            inputProps={{style: {marginBottom: '0.5em'}}}
+                            style={{width: '100%'}}
+                            inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
                         />
                     )}
                     {((props.field ? tags : props.options) || []).map((opt, i) => (

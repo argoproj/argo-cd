@@ -1,9 +1,9 @@
+import {ActionButton, useData} from 'argo-ux';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
-import {useData} from 'argo-ux';
 
 const optionsFrom = (options: string[], filter: string[]) => {
     return options
@@ -134,19 +134,31 @@ const NamespaceFilter = (props: AppFilterProps) => {
 };
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
+    const [hidden, setHidden] = React.useState(false);
     return (
-        <div className='applications-list__filters'>
+        <React.Fragment>
             <div className='applications-list__filters__title'>
                 FILTERS <i className='fa fa-filter' />
+                <ActionButton
+                    label={hidden ? 'SHOW' : 'HIDE'}
+                    action={() => setHidden(!hidden)}
+                    style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: hidden && 'block'}}
+                />
             </div>
-            <SyncFilter {...props} />
-            <HealthFilter {...props} />
-            <div className='applications-list__filters__text-filters'>
-                <LabelsFilter {...props} />
-                <ProjectFilter {...props} />
-                <ClusterFilter {...props} />
-                <NamespaceFilter {...props} />
+            <div className='applications-list__filters'>
+                {!hidden && (
+                    <React.Fragment>
+                        <SyncFilter {...props} />
+                        <HealthFilter {...props} />
+                        <div className='applications-list__filters__text-filters'>
+                            <LabelsFilter {...props} />
+                            <ProjectFilter {...props} />
+                            <ClusterFilter {...props} />
+                            <NamespaceFilter {...props} />
+                        </div>
+                    </React.Fragment>
+                )}
             </div>
-        </div>
+        </React.Fragment>
     );
 };
