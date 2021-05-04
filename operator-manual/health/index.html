@@ -1819,7 +1819,14 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 </code></pre></div>
 
 <p>The <code>obj</code> is a global variable which contains the resource. The script must return an object with status and optional message field.</p>
-<p>NOTE: as a security measure you don't have access to most of the standard Lua libraries.</p>
+<p>NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
+setting <code>resource.customizations.useOpenLibs.&lt;group_kind&gt;</code>. In the following example, standard libraries are enabled for health check of <code>cert-manager.io/Certificate</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">resource.customizations.useOpenLibs.cert-manager.io_Certificate</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
+  <span class="nt">resource.customizations.health.cert-manager.io_Certificate</span><span class="p">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">-- Lua standard libraries are enabled for this script</span>
+</code></pre></div>
+
 <h3 id="way-2-contribute-a-custom-health-check">Way 2. Contribute a Custom Health Check<a class="headerlink" href="#way-2-contribute-a-custom-health-check" title="Permanent link">&para;</a></h3>
 <p>A health check can be bundled into Argo CD. Custom health check scripts are located in the <code>resource_customizations</code> directory of <a href="https://github.com/argoproj/argo-cd">https://github.com/argoproj/argo-cd</a>. This must have the following directory structure:</p>
 <div class="codehilite"><pre><span></span><code><span class="err">argo-cd</span>
