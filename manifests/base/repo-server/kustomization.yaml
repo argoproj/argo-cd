@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
 - argocd-repo-server-deployment.yaml
 - argocd-repo-server-service.yaml
+- argocd-repo-server-network-policy.yaml
