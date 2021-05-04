@@ -1418,6 +1418,7 @@ type OverrideIgnoreDiff struct {
 
 type rawResourceOverride struct {
 	HealthLua         string           `json:"health.lua,omitempty"`
+	UseOpenLibs       bool             `json:"health.lua.useOpenLibs,omitempty"`
 	Actions           string           `json:"actions,omitempty"`
 	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
 	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
@@ -1427,6 +1428,7 @@ type rawResourceOverride struct {
 // TODO: describe the members of this type
 type ResourceOverride struct {
 	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
+	UseOpenLibs       bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
 	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
 	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
 	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
@@ -1440,6 +1442,7 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	}
 	s.KnownTypeFields = raw.KnownTypeFields
 	s.HealthLua = raw.HealthLua
+	s.UseOpenLibs = raw.UseOpenLibs
 	s.Actions = raw.Actions
 	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
 }
@@ -1450,7 +1453,7 @@ func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{s.HealthLua, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
 	return json.Marshal(raw)
 }
 

@@ -3562,6 +3562,13 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 							Format:  "",
 						},
 					},
+					"UseOpenLibs": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
 					"Actions": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -3589,7 +3596,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"HealthLua", "Actions", "IgnoreDifferences", "KnownTypeFields"},
+				Required: []string{"HealthLua", "UseOpenLibs", "Actions", "IgnoreDifferences", "KnownTypeFields"},
 			},
 		},
 		Dependencies: []string{
@@ -4486,6 +4493,12 @@ func schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref common.Referen
 					"health.lua": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"health.lua.useOpenLibs": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
