@@ -85,6 +85,7 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                                 update[val] = true;
                                 setValues(update);
                             }}
+                            wrapperProps={{style: {width: '100%'}}}
                             inputProps={{style: {marginBottom: '0.5em'}}}
                         />
                     )}

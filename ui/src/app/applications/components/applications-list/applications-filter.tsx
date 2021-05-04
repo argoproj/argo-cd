@@ -2,7 +2,8 @@ import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter} from '../filter/filter';
-import {ComparisonStatusIcon, HealthStatusIcon, useData} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {useData} from 'argo-ux';
 
 const optionsFrom = (options: string[], filter: string[]) => {
     return options
@@ -87,7 +88,7 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
-    const projects = useData(() => services.projects.list('items.metadata.name'));
+    const [projects] = useData(() => services.projects.list('items.metadata.name'));
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
     });
@@ -108,7 +109,7 @@ const ClusterFilter = (props: AppFilterProps) => {
         return `${cluster.name} (${cluster.server})`;
     };
 
-    const clusters = useData(() => services.clusters.list());
+    const [clusters] = useData(() => services.clusters.list());
     const clusterOptions = optionsFrom(
         Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
         props.pref.clustersFilter
