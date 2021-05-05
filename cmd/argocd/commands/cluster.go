@@ -84,7 +84,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if isTTY && !skipConfirmation {
 				message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
 				if !cli.AskToProceed(message) {
-					os.Exit(0)
+					os.Exit(1)
 				}
 			}
 
