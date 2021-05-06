@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/mattn/go-isatty"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -78,10 +79,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
 			}
 
-			fileInfo, _ := os.Stdout.Stat()
-			isTTY := fileInfo.Mode()&os.ModeCharDevice != 0
+			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
-			if isTTY && !skipConfirmation {
+			if isTerminal && !skipConfirmation {
 				message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
 				if !cli.AskToProceed(message) {
 					os.Exit(1)
