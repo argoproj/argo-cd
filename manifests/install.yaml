@@ -3409,6 +3409,8 @@ kind: NetworkPolicy
 metadata:
   name: argocd-server-network-policy
 spec:
+  ingress:
+  - {}
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-server

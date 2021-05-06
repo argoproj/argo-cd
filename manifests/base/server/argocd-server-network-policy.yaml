@@ -6,5 +6,7 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-server
+  ingress:
+  - {}
   policyTypes:
   - Ingress
