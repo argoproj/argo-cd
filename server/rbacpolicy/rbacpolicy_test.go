@@ -9,10 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 func newFakeProj() *argoappv1.AppProject {
@@ -66,12 +66,6 @@ func TestEnforceAllPolicies(t *testing.T) {
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 
 	claims = jwt.MapClaims{"sub": "cathy"}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"sub": "proj:my-proj:my-role"}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"sub": "proj:my-proj:other-role", "iat": 1234}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	claims = jwt.MapClaims{"groups": []string{"my-org:other-group"}}
 	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 
 	// AWS cognito returns its groups in  cognito:groups

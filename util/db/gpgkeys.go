@@ -8,9 +8,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/gpg"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 // Validates a single GnuPG key and returns the key's ID
@@ -25,7 +25,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	f.Close()
+	defer f.Close()
 
 	parsed, err := gpg.ValidatePGPKeys(f.Name())
 	if err != nil {

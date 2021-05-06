@@ -70,4 +70,4 @@ data:
 <br>
 
 !!! note "Storing Client Secrets"
-    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](https://argoproj.github.io/argo-cd/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
+    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](../../user-management/#sensitive-data-and-sso-client-secrets).

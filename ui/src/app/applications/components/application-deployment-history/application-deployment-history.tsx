@@ -79,8 +79,8 @@ export const ApplicationDeploymentHistory = ({
                                     source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 />
                                 <DataLoader
-                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                                    load={src => services.repos.appDetails(src)}>
+                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                    load={src => services.repos.appDetails(src, src.appName)}>
                                     {(details: models.RepoAppDetails) => (
                                         <div>
                                             <ApplicationParameters

@@ -6,7 +6,7 @@ import * as models from '../../models';
 require('./events-list.scss');
 
 export const EventsList = (props: {events: models.Event[]}) => {
-    const events = props.events.sort((first, second) => moment(second.firstTimestamp).diff(first.lastTimestamp));
+    const events = props.events.sort((first, second) => moment(second.lastTimestamp).diff(first.lastTimestamp));
 
     return (
         <div className='events-list'>

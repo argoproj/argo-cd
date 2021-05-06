@@ -7,10 +7,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/grpc"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -79,7 +79,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }
@@ -137,7 +137,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 		"app", "create",
 		"-f", tmpFile.Name(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }

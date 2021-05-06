@@ -13,19 +13,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/jwt/zjwt"
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/server/settings/oidc"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/dex"
-	httputil "github.com/argoproj/argo-cd/util/http"
-	"github.com/argoproj/argo-cd/util/rand"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -325,18 +324,16 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if idTokenRAW != "" {
-		idTokenRAW, err = zjwt.ZJWT(idTokenRAW)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Set-Cookie", cookie)
+
+		for _, cookie := range cookies {
+			w.Header().Add("Set-Cookie", cookie)
+		}
 	}
 
 	claimsJSON, _ := json.Marshal(claims)

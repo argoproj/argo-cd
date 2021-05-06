@@ -13,15 +13,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/account"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/server/session"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/rbac"
-	sessionutil "github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/server/session"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -63,11 +64,11 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	}
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "", sessionutil.NewInMemoryUserStateStorage())
+	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {

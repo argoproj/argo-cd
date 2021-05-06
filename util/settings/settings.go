@@ -10,10 +10,12 @@ import (
 	"net/url"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -26,14 +28,14 @@ import (
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/settings/oidc"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/password"
-	argorand "github.com/argoproj/argo-cd/util/rand"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	argorand "github.com/argoproj/argo-cd/v2/util/rand"
+	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -52,6 +54,8 @@ type ArgoCDSettings struct {
 	// Certificate holds the certificate/private key for the Argo CD API server.
 	// If nil, will run insecure without TLS.
 	Certificate *tls.Certificate `json:"-"`
+	// CertificateIsExternal indicates whether Certificate was loaded from external secret
+	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
@@ -68,8 +72,14 @@ type ArgoCDSettings struct {
 	KustomizeBuildOptions string `json:"kustomizeBuildOptions,omitempty"`
 	// Indicates if anonymous user is enabled or not
 	AnonymousUserEnabled bool `json:"anonymousUserEnabled,omitempty"`
+	// Specifies token expiration duration
+	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
 	UiCssURL string `json:"uiCssURL,omitempty"`
+	// Content of UI Banner
+	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	// URL for UI Banner
+	UiBannerURL string `json:"uiBannerURL,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -115,8 +125,10 @@ type HelmRepoCredentials struct {
 type KustomizeVersion struct {
 	// Name holds Kustomize version name
 	Name string
-	// Name holds corresponding binary path
+	// Path holds corresponding binary path
 	Path string
+	// BuildOptions that are specific to Kustomize version
+	BuildOptions string
 }
 
 // KustomizeSettings holds kustomize settings
@@ -127,19 +139,25 @@ type KustomizeSettings struct {
 
 func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
 	binaryPath := ""
+	buildOptions := ""
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
+				// add version specific path and build options
 				binaryPath = ver.Path
+				buildOptions = ver.BuildOptions
 				break
 			}
 		}
 		if binaryPath == "" {
 			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
 		}
+	} else {
+		// add build options for the default version
+		buildOptions = ks.BuildOptions
 	}
 	return &v1alpha1.KustomizeOptions{
-		BuildOptions: ks.BuildOptions,
+		BuildOptions: buildOptions,
 		BinaryPath:   binaryPath,
 	}, nil
 }
@@ -170,6 +188,14 @@ type Repository struct {
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -186,6 +212,18 @@ type RepositoryCredentials struct {
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	// Github App Private Key PEM data
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	// Github App ID of the app used to access the repo
+	GithubAppId int64 `json:"githubAppID,omitempty"`
+	// Github App Installation ID of the installed GitHub App
+	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	// EnableOCI specifies whether helm-oci support should be enabled for this repo
+	EnableOCI bool `json:"enableOCI,omitempty"`
+	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
+	Type string `json:"type,omitempty"`
 }
 
 const (
@@ -241,12 +279,20 @@ const (
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
 	kustomizeVersionKeyPrefix = "kustomize.version"
+	// kustomizePathPrefixKey is a kustomize path for a specific version
+	kustomizePathPrefixKey = "kustomize.path"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
+	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
 	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
 	settingUiCssURLKey = "ui.cssurl"
+	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUiBannerContentKey = "ui.bannercontent"
+	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUiBannerURLKey = "ui.bannerurl"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -255,6 +301,8 @@ const (
 	initialPasswordSecretField = "password"
 	// initialPasswordLength defines the length of the generated initial password
 	initialPasswordLength = 16
+	// externalServerTLSSecretName defines the name of the external secret holding the server's TLS certificate
+	externalServerTLSSecretName = "argocd-server-tls"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -486,6 +534,11 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
+	err = mgr.appendResourceOverridesFromSplitKeys(argoCDCM.Data, resourceOverrides)
+	if err != nil {
+		return nil, err
+	}
+
 	var diffOptions ArgoCDDiffOptions
 	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
 		err := yaml.Unmarshal([]byte(value), &diffOptions)
@@ -527,6 +580,75 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	}
 }
 
+func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[string]string, resourceOverrides map[string]v1alpha1.ResourceOverride) error {
+	for k, v := range cmData {
+		if !strings.HasPrefix(k, resourceCustomizationsKey) {
+			continue
+		}
+
+		// config map key should be of format resource.customizations.<type>.<group-kind>
+		parts := strings.SplitN(k, ".", 4)
+		if len(parts) < 4 {
+			continue
+		}
+
+		overrideKey, err := convertToOverrideKey(parts[3])
+		if err != nil {
+			return err
+		}
+
+		overrideVal, ok := resourceOverrides[overrideKey]
+		if !ok {
+			overrideVal = v1alpha1.ResourceOverride{}
+		}
+
+		customizationType := parts[2]
+		switch customizationType {
+		case "health":
+			overrideVal.HealthLua = v
+		case "useOpenLibs":
+			useOpenLibs, err := strconv.ParseBool(v)
+			if err != nil {
+				return err
+			}
+			overrideVal.UseOpenLibs = useOpenLibs
+		case "actions":
+			overrideVal.Actions = v
+		case "ignoreDifferences":
+			overrideIgnoreDiff := v1alpha1.OverrideIgnoreDiff{}
+			err := yaml.Unmarshal([]byte(v), &overrideIgnoreDiff)
+			if err != nil {
+				return err
+			}
+			overrideVal.IgnoreDifferences = overrideIgnoreDiff
+		case "knownTypeFields":
+			var knownTypeFields []v1alpha1.KnownTypeField
+			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
+			if err != nil {
+				return err
+			}
+			overrideVal.KnownTypeFields = knownTypeFields
+		default:
+			return fmt.Errorf("resource customization type %s not supported", customizationType)
+		}
+		resourceOverrides[overrideKey] = overrideVal
+	}
+	return nil
+}
+
+// Convert group-kind format to <group/kind>, allowed key format examples
+// resource.customizations.health.cert-manager.io_Certificate
+// resource.customizations.health.Certificate
+func convertToOverrideKey(groupKind string) (string, error) {
+	parts := strings.Split(groupKind, "_")
+	if len(parts) == 2 {
+		return fmt.Sprintf("%s/%s", parts[0], parts[1]), nil
+	} else if len(parts) == 1 && groupKind != "" {
+		return groupKind, nil
+	}
+	return "", fmt.Errorf("group kind should be in format `resource.customizations.<type>.<group_kind>` or resource.customizations.<type>.<kind>`, got group kind: '%s'", groupKind)
+}
+
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
 	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false}
 }
@@ -557,20 +679,58 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	buildOptions := map[string]string{}
 	settings := &KustomizeSettings{}
-	if value, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		settings.BuildOptions = value
+
+	// extract build options for the default version
+	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		settings.BuildOptions = options
 	}
+
+	// extract per-version binary paths and build options
 	for k, v := range argoCDCM.Data {
-		if !strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
-			continue
+		// extract version and path from kustomize.version.<version>
+		if strings.HasPrefix(k, kustomizeVersionKeyPrefix) {
+			err = addKustomizeVersion(kustomizeVersionKeyPrefix, k, v, kustomizeVersionsMap)
+			if err != nil {
+				return nil, err
+			}
 		}
-		settings.Versions = append(settings.Versions, KustomizeVersion{
-			Name: k[len(kustomizeVersionKeyPrefix)+1:],
-			Path: v,
-		})
+
+		// extract version and path from kustomize.path.<version>
+		if strings.HasPrefix(k, kustomizePathPrefixKey) {
+			err = addKustomizeVersion(kustomizePathPrefixKey, k, v, kustomizeVersionsMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// extract version and build options from kustomize.buildOptions.<version>
+		if strings.HasPrefix(k, kustomizeBuildOptionsKey) && k != kustomizeBuildOptionsKey {
+			buildOptions[k[len(kustomizeBuildOptionsKey)+1:]] = v
+		}
+	}
+
+	for _, v := range kustomizeVersionsMap {
+		if _, ok := buildOptions[v.Name]; ok {
+			v.BuildOptions = buildOptions[v.Name]
+		}
+		settings.Versions = append(settings.Versions, v)
 	}
 	return settings, nil
+}
+
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+	version := name[len(prefix)+1:]
+	if _, ok := kvMap[version]; ok {
+		return fmt.Errorf("found duplicate kustomize version: %s", version)
+	}
+	kvMap[version] = KustomizeVersion{
+		Name: version,
+		Path: path,
+	}
+	return nil
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -723,7 +883,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
-	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
+	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
@@ -830,10 +990,24 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
+	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+	}
+	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
+		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
+		} else {
+			settings.UserSessionDuration = *val
+		}
+	} else {
+		settings.UserSessionDuration = time.Hour * 24
+	}
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -852,7 +1026,7 @@ func validateExternalURL(u string) error {
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -876,14 +1050,29 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		settings.WebhookGogsSecret = string(gogsWebhookSecret)
 	}
 
-	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-	serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-	if certOk && keyOk {
-		cert, err := tls.X509KeyPair(serverCert, serverKey)
-		if err != nil {
-			errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
+	// The TLS certificate may be externally managed. We try to load it from an
+	// external secret first. If the external secret doesn't exist, we either
+	// load it from argocd-secret or generate (and persist) a self-signed one.
+	cert, err := mgr.externalServerTLSCertificate()
+	if err != nil {
+		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
+	} else {
+		if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
+			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
 		} else {
-			settings.Certificate = &cert
+			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
+			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
+			if certOk && keyOk {
+				cert, err := tls.X509KeyPair(serverCert, serverKey)
+				if err != nil {
+					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
+				} else {
+					settings.Certificate = &cert
+					settings.CertificateIsExternal = false
+				}
+			}
 		}
 	}
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
@@ -895,6 +1084,28 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		return errs[0]
 	}
 	return nil
+}
+
+// externalServerTLSCertificate will try and load a TLS certificate from an
+// external secret, instead of tls.crt and tls.key in argocd-secret. If both
+// return values are nil, no external secret has been configured.
+func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
+	var cert tls.Certificate
+	secret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(mgr.ctx, externalServerTLSSecretName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, nil
+		}
+	}
+	tlsCert, certOK := secret.Data[settingServerCertificate]
+	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
+	if certOK && keyOK {
+		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &cert, nil
 }
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
@@ -917,6 +1128,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		if settings.UiCssURL != "" {
 			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+		}
+		if settings.UiBannerContent != "" {
+			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+		} else {
+			delete(argoCDCM.Data, settingUiBannerContentKey)
+		}
+		if settings.UiBannerURL != "" {
+			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+		} else {
+			delete(argoCDCM.Data, settingUiBannerURLKey)
 		}
 		return nil
 	})
@@ -942,7 +1163,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		if settings.WebhookGogsSecret != "" {
 			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
 		}
-		if settings.Certificate != nil {
+		// we only write the certificate to the secret if it's not externally
+		// managed.
+		if settings.Certificate != nil && !settings.CertificateIsExternal {
 			cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
 			argoCDSecret.Data[settingServerCertificate] = cert
 			argoCDSecret.Data[settingServerPrivateKey] = key
@@ -1303,7 +1526,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		log.Warnf("config referenced '%s', but key does not exist in secret", val)
 		return val
 	}
-	return secretVal
+	return strings.TrimSpace(secretVal)
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,25 +15,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	servercache "github.com/argoproj/argo-cd/server/cache"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
-func fakeServer() *ArgoCDServer {
+func fakeServer() (*ArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:       test.FakeArgoCDNamespace,
@@ -51,8 +53,9 @@ func fakeServer() *ArgoCDServer {
 			1*time.Minute,
 			1*time.Minute,
 		),
+		RedisClient: redis,
 	}
-	return NewServer(context.Background(), argoCDOpts)
+	return NewServer(context.Background(), argoCDOpts), closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -362,17 +365,11 @@ func TestRevokedToken(t *testing.T) {
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
-	// Now revoke the token by deleting the token
-	existingProj.Spec.Roles[0].JWTTokens = nil
-	existingProj.Status.JWTTokensByRole = nil
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
-	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
-	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
@@ -381,6 +378,7 @@ func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string
 		user             string
+		token            string
 		errorMsg         string
 		anonymousEnabled bool
 	}
@@ -392,12 +390,18 @@ func TestAuthenticate(t *testing.T) {
 		},
 		{
 			test:             "TestSessionPresent",
-			user:             "admin",
+			user:             "admin:login",
 			anonymousEnabled: false,
 		},
 		{
 			test:             "TestSessionNotPresentAnonymousEnabled",
 			anonymousEnabled: true,
+		},
+		{
+			test:             "TestInvalidSessionPresent",
+			anonymousEnabled: false,
+			token:            "i-am-invalid",
+			errorMsg:         "invalid session: token is malformed: token contains an invalid number of segments",
 		},
 	}
 
@@ -417,8 +421,10 @@ func TestAuthenticate(t *testing.T) {
 			}
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
-			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0, "")
+			if testData.token != "" {
+				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, testData.token))
+			} else if testData.user != "" {
+				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
@@ -467,6 +473,17 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+	})
+
+	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "abc.xyz." + strings.Repeat("x", 4093),
+		})
+		assert.NoError(t, err)
+		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -475,7 +492,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
 }
@@ -537,4 +554,25 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestFileExists(t *testing.T) {
+	t.Run("File exists and path is within dir", func(t *testing.T) {
+		exists := fileExists(".", "server.go")
+		assert.True(t, exists)
+		exists = fileExists(".", "account/account.go")
+		assert.True(t, exists)
+	})
+	t.Run("File does not exist", func(t *testing.T) {
+		exists := fileExists(".", "notexist.go")
+		assert.False(t, exists)
+	})
+	t.Run("Dir does not exist", func(t *testing.T) {
+		exists := fileExists("/notexisting", "server.go")
+		assert.False(t, exists)
+	})
+	t.Run("File outside of dir", func(t *testing.T) {
+		exists := fileExists(".", "../reposerver/server.go")
+		assert.False(t, exists)
+	})
 }

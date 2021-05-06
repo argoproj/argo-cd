@@ -10,11 +10,13 @@ import (
 var index = Index{
 	Entries: map[string]Entries{
 		"argo-cd": {
+			{Version: "~0.7.3"},
 			{Version: "0.7.2"},
 			{Version: "0.7.1"},
 			{Version: "0.5.4"},
 			{Version: "0.5.3"},
 			{Version: "0.5.2"},
+			{Version: "~0.5.2"},
 			{Version: "0.5.1"},
 			{Version: "0.5.0"},
 		},
@@ -30,7 +32,7 @@ func TestIndex_GetEntries(t *testing.T) {
 	t.Run("Found", func(t *testing.T) {
 		entries, err := index.GetEntries("argo-cd")
 		assert.NoError(t, err)
-		assert.Len(t, entries, 7)
+		assert.Len(t, entries, 9)
 	})
 }
 

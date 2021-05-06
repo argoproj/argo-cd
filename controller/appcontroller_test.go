@@ -10,7 +10,7 @@ import (
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 
-	statecache "github.com/argoproj/argo-cd/controller/cache"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -29,16 +29,16 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/test"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type namespacedResource struct {
@@ -47,11 +47,12 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                []runtime.Object
-	manifestResponse    *apiclient.ManifestResponse
-	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources map[kube.ResourceKey]namespacedResource
-	configMapData       map[string]string
+	apps                   []runtime.Object
+	manifestResponse       *apiclient.ManifestResponse
+	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources    map[kube.ResourceKey]namespacedResource
+	configMapData          map[string]string
+	metricsCacheExpiration time.Duration
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -103,6 +104,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		time.Minute,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
+		data.metricsCacheExpiration,
 		0,
 		nil,
 	)
@@ -1257,4 +1259,14 @@ func TestGetAppHosts(t *testing.T) {
 		ResourcesInfo: []argoappv1.HostResourceInfo{{
 			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
 		}}}, hosts)
+}
+
+func TestMetricsExpiration(t *testing.T) {
+	app := newFakeApp()
+	// Check expiration is disabled by default
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	assert.False(t, ctrl.metricsServer.HasExpiration())
+	// Check expiration is enabled if set
+	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
+	assert.True(t, ctrl.metricsServer.HasExpiration())
 }

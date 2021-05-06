@@ -92,6 +92,16 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	assert.Equal(t, slaveCountParam, "3")
 }
 
+func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
+	h, err := NewHelmApp("./testdata/redis", nil, false, "")
+	assert.NoError(t, err)
+	params, err := h.GetParameters([]string{"values-missing.yaml", "values-production.yaml"})
+	assert.Nil(t, err)
+
+	slaveCountParam := params["cluster.slaveCount"]
+	assert.Equal(t, slaveCountParam, "3")
+}
+
 func TestHelmDependencyBuild(t *testing.T) {
 	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
 	helmRepos := []HelmRepository{{Name: "bitnami", Repo: "https://charts.bitnami.com/bitnami"}}

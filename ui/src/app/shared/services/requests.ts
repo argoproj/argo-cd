@@ -80,7 +80,7 @@ export default {
             // check readyState periodically instead.
             const interval = setInterval(() => {
                 if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
-                    observer.complete();
+                    observer.error('connection got closed unexpectedly');
                 }
             }, 500);
             return () => {

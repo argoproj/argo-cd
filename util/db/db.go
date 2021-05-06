@@ -2,13 +2,20 @@ package db
 
 import (
 	"context"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+// SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
+type SecretMaperValidation struct {
+	Dest      *string
+	Transform func(string) string
+}
 
 type ArgoDB interface {
 	// ListClusters lists configured clusters
@@ -56,6 +63,8 @@ type ArgoDB interface {
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
+	// GetAllHelmRepositoryCredentials gets all repo credentials
+	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
@@ -102,15 +111,24 @@ func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, e
 	return secret, nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
+func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)
 			if err != nil {
 				return err
 			}
-			*dst = string(secret.Data[src.Key])
+			if dst.Transform != nil {
+				*dst.Dest = dst.Transform(string(secret.Data[src.Key]))
+			} else {
+				*dst.Dest = string(secret.Data[src.Key])
+			}
 		}
 	}
 	return nil
+}
+
+// StripCRLFCharacter strips the trailing CRLF characters
+func StripCRLFCharacter(input string) string {
+	return strings.TrimSpace(input)
 }

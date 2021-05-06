@@ -6,18 +6,18 @@ set -eux -o pipefail
 PACKR_VERSION=${packr_version}
 case $ARCHITECTURE in
   arm|arm64)
-    # Clone the repository in $GOPATH/src/github.com/gobuffalo/packr
-    go get -u github.com/gobuffalo/packr
-    cd $GOPATH/src/github.com/gobuffalo/packr && git checkout tags/v$PACKR_VERSION
-    cd $GOPATH/src/github.com/gobuffalo/packr && CGO_ENABLED=0 make install
-    mv $GOPATH/bin/packr $BIN/packr
+    go get -d github.com/gobuffalo/packr@v$PACKR_VERSION
+    cd $GOPATH/pkg/mod/github.com/gobuffalo/packr@v$PACKR_VERSION && CGO_ENABLED=0 make install
+    sudo install -m 0755 $GOPATH/bin/packr $BIN/packr
     ;;
   *)
-    [ -e $DOWNLOADS/parkr.tar.gz ] || curl -sLf --retry 3 -o $DOWNLOADS/parkr.tar.gz https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/packr_${PACKR_VERSION}_linux_$ARCHITECTURE.tar.gz
-    tar -vxf $DOWNLOADS/parkr.tar.gz -C /tmp/
-    cp /tmp/packr $BIN/
+    export TARGET_FILE=packr_linux_${ARCHITECTURE}_${packr_version}.tar.gz
+    [ -e $DOWNLOADS/${TARGET_FILE} ] || curl -sLf --retry 3 -o $DOWNLOADS/${TARGET_FILE} https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/packr_${PACKR_VERSION}_linux_$ARCHITECTURE.tar.gz
+    $(dirname $0)/compare-chksum.sh
+    mkdir -p /tmp/packr-${packr_version}
+    tar -vxf $DOWNLOADS/${TARGET_FILE} -C /tmp/packr-${packr_version}
+    sudo install -m 0755 /tmp/packr-${packr_version}/packr $BIN/packr
     ;;
 esac
 
-chmod +x $BIN/packr
 packr version

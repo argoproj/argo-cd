@@ -9,18 +9,17 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/common"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var (
@@ -81,6 +80,7 @@ func TestConstructLogoutURL(t *testing.T) {
 		})
 	}
 }
+
 func TestHandlerConstructLogoutURL(t *testing.T) {
 	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
@@ -177,28 +177,28 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, "", session.NewInMemoryUserStateStorage())
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", "default")
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, nil
+		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
 	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", "default")
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
 	}
 
 	oidcTokenHeader := make(map[string][]string)

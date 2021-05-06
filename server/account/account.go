@@ -11,15 +11,15 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/slice"
+	"k8s.io/kubectl/pkg/util/slice"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Session service
@@ -204,7 +204,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 		now := time.Now()
 		var err error
-		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
+		tokenString, err = s.sessionMgr.Create(fmt.Sprintf("%s:%s", r.Name, settings.AccountCapabilityApiKey), r.ExpiresIn, id)
 		if err != nil {
 			return err
 		}

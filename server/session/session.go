@@ -2,19 +2,24 @@ package session
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	util "github.com/argoproj/argo-cd/util/io"
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	util "github.com/argoproj/argo-cd/v2/util/io"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 // Server provides a Session service
 type Server struct {
 	mgr                *sessionmgr.SessionManager
+	settingsMgr        *settings.SettingsManager
 	authenticator      Authenticator
 	policyEnf          *rbacpolicy.RBACPolicyEnforcer
 	limitLoginAttempts func() (util.Closer, error)
@@ -25,8 +30,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error)) *Server {
-	return &Server{mgr, authenticator, policyEnf, rateLimiter}
+func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error)) *Server {
+	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
@@ -50,7 +55,19 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if err != nil {
 		return nil, err
 	}
-	jwtToken, err := s.mgr.Create(q.Username, 0, "")
+	uniqueId, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+	argoCDSettings, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	jwtToken, err := s.mgr.Create(
+		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
+		int64(argoCDSettings.UserSessionDuration.Seconds()),
+		uniqueId.String())
+
 	if err != nil {
 		return nil, err
 	}

@@ -8,11 +8,10 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/oidc"
-	"github.com/argoproj/argo-cd/util/session"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/oidc"
 )
 
 var ErrCacheMiss = appstatecache.ErrCacheMiss
@@ -23,6 +22,8 @@ type Cache struct {
 	oidcCacheExpiration             time.Duration
 	loginAttemptsExpiration         time.Duration
 }
+
+var _ oidc.OIDCStateStorage = &Cache{}
 
 func NewCache(
 	cache *appstatecache.Cache,
@@ -64,14 +65,6 @@ func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, c
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
 	return c.cache.GetAppManagedResources(appName, res)
-}
-
-func (c *Cache) GetLoginAttempts(attempts *map[string]session.LoginAttempts) error {
-	return c.cache.GetItem("session|login.attempts", attempts)
-}
-
-func (c *Cache) SetLoginAttempts(attempts map[string]session.LoginAttempts) error {
-	return c.cache.SetItem("session|login.attempts", attempts, c.loginAttemptsExpiration, attempts == nil)
 }
 
 func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {

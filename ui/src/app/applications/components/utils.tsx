@@ -1,7 +1,8 @@
-import {DataLoader, FormField, MenuItem, NotificationType} from 'argo-ui';
+import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Checkbox, Text} from 'react-form';
+import * as ReactForm from 'react-form';
+import {Text} from 'react-form';
 import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
 import {AppContext} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
@@ -10,6 +11,8 @@ import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+
+require('./utils.scss');
 
 export interface NodeId {
     kind: string;
@@ -28,8 +31,32 @@ export function isSameNode(first: NodeId, second: NodeId) {
     return nodeKey(first) === nodeKey(second);
 }
 
+export function helpTip(text: string) {
+    return (
+        <Tooltip content={text}>
+            <span style={{fontSize: 'smaller'}}>
+                {' '}
+                <i className='fas fa-info-circle' />
+            </span>
+        </Tooltip>
+    );
+}
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
+    const propagationPolicies: {name: string; message: string}[] = [
+        {
+            name: 'Foreground',
+            message: `Cascade delete the application's resources using foreground propagation policy`
+        },
+        {
+            name: 'Background',
+            message: `Cascade delete the application's resources using background propagation policy`
+        },
+        {
+            name: 'Non-cascading',
+            message: `Only delete the application, but do not cascade delete its resources`
+        }
+    ];
     await apis.popup.prompt(
         'Delete application',
         api => (
@@ -44,8 +71,22 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
                         component={Text}
                     />
                 </div>
-                <div className='argo-form-row'>
-                    <Checkbox id='cascade-checkbox-delete-confirmation' field='cascadeCheckbox' /> <label htmlFor='cascade-checkbox-delete-confirmation'>Cascade</label>
+                <p>Select propagation policy for application deletion</p>
+                <div className='propagation-policy-list'>
+                    {propagationPolicies.map(policy => {
+                        return (
+                            <FormField
+                                formApi={api}
+                                key={policy.name}
+                                field='propagationPolicy'
+                                component={PropagationPolicyOption}
+                                componentProps={{
+                                    policy: policy.name,
+                                    message: policy.message
+                                }}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         ),
@@ -55,7 +96,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.delete(appName, vals.cascadeCheckbox);
+                    await services.applications.delete(appName, vals.propagationPolicy);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -68,10 +109,33 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         },
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
-        {cascadeCheckbox: true}
+        {propagationPolicy: 'foreground'}
     );
     return confirmed;
 }
+
+const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policy: string; message: string}) => {
+    const {
+        fieldApi: {setValue}
+    } = props;
+    return (
+        <div className='propagation-policy-option'>
+            <input
+                className='radio-button'
+                key={props.policy}
+                type='radio'
+                name='propagation-policy'
+                value={props.policy}
+                id={props.policy}
+                defaultChecked={props.policy === 'Foreground'}
+                onChange={() => setValue(props.policy.toLowerCase())}
+            />
+            <label htmlFor={props.policy}>
+                {props.policy} {helpTip(props.message)}
+            </label>
+        </div>
+    );
+});
 
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
@@ -136,19 +200,116 @@ export function showDeploy(resource: string, appContext: AppContext) {
     appContext.apis.navigation.goto('.', {deploy: resource});
 }
 
+export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
+    const key = nodeKey(node);
+
+    const allNodes = tree.nodes.concat(tree.orphanedNodes || []);
+    const nodeByKey = new Map<string, appModels.ResourceNode>();
+    allNodes.forEach(item => nodeByKey.set(nodeKey(item), item));
+
+    const pods = tree.nodes.concat(tree.orphanedNodes || []).filter(item => item.kind === 'Pod');
+    return pods.find(pod => {
+        const items: Array<appModels.ResourceNode> = [pod];
+        while (items.length > 0) {
+            const next = items.pop();
+            const parentKeys = (next.parentRefs || []).map(nodeKey);
+            if (parentKeys.includes(key)) {
+                return true;
+            }
+            parentKeys.forEach(item => {
+                const parent = nodeByKey.get(item);
+                if (parent) {
+                    items.push(parent);
+                }
+            });
+        }
+
+        return false;
+    });
+}
+
+export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
+    const isManaged = !!resource.status;
+    const deleteOptions = {
+        option: 'foreground'
+    };
+    function handleStateChange(option: string) {
+        deleteOptions.option = option;
+    }
+    return ctx.popup.prompt(
+        'Delete resource',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                </p>
+                {isManaged ? (
+                    <div className='argo-form-row'>
+                        <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
+                    </div>
+                ) : (
+                    ''
+                )}
+                <div className='argo-form-row'>
+                    <input
+                        type='radio'
+                        name='deleteOptions'
+                        value='foreground'
+                        onChange={() => handleStateChange('foreground')}
+                        defaultChecked={true}
+                        style={{marginRight: '5px'}}
+                    />
+                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
+                        Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
+                    </label>
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
+                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                    </label>
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                    <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
+                </div>
+            </div>
+        ),
+        {
+            validate: vals =>
+                isManaged && {
+                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                },
+            submit: async (vals, _, close) => {
+                const force = deleteOptions.option === 'force';
+                const orphan = deleteOptions.option === 'orphan';
+                try {
+                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
+                    appChanged.next(await services.applications.get(application.metadata.name));
+                    close();
+                } catch (e) {
+                    ctx.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
+    );
+};
+
 export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
+    tree: appModels.ApplicationTree,
     appContext: AppContext,
     appChanged: BehaviorSubject<appModels.Application>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
+
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = Observable.from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
-        const isManaged = !!resource.status;
         const items: MenuItem[] = [
             ...((isRoot && [
                 {
@@ -160,54 +321,16 @@ export function renderResourceMenu(
             {
                 title: 'Delete',
                 action: async () => {
-                    appContext.apis.popup.prompt(
-                        'Delete resource',
-                        api => (
-                            <div>
-                                <p>
-                                    Are you sure you want to delete {resource.kind} '{resource.name}'?
-                                </p>
-                                {isManaged ? (
-                                    <div className='argo-form-row'>
-                                        <FormField
-                                            label={`Please type '${resource.name}' to confirm the deletion of the resource`}
-                                            formApi={api}
-                                            field='resourceName'
-                                            component={Text}
-                                        />
-                                    </div>
-                                ) : (
-                                    ''
-                                )}
-                                <div className='argo-form-row'>
-                                    <Checkbox id='force-delete-checkbox' field='force' /> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                </div>
-                            </div>
-                        ),
-                        {
-                            validate: vals =>
-                                isManaged && {
-                                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
-                                },
-                            submit: async (vals, _, close) => {
-                                try {
-                                    await services.applications.deleteResource(application.metadata.name, resource, !!vals.force);
-                                    appChanged.next(await services.applications.get(application.metadata.name));
-                                    close();
-                                } catch (e) {
-                                    appContext.apis.notifications.show({
-                                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }
-                        },
-                        {name: 'argo-icon-warning', color: 'warning'},
-                        'yellow'
-                    );
+                    return deletePopup(appContext.apis, resource, application, appChanged);
                 }
             }
         ];
+        if (findChildPod(resource, tree)) {
+            items.push({
+                title: 'Logs',
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'})
+            });
+        }
         const resourceActions = services.applications
             .getResourceActions(application.metadata.name, resource)
             .then(actions =>
@@ -323,7 +446,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
@@ -347,7 +470,7 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     }
     let title: string = state.status;
     if (state.message) {
-        title = `${state.status}: ${state.message};`;
+        title = `${state.status}: ${state.message}`;
     }
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
 };
@@ -428,7 +551,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         }
         let title: string = resource.message;
         if (resource.message) {
-            title = `${resource.hookPhase}: ${resource.message};`;
+            title = `${resource.hookPhase}: ${resource.message}`;
         }
         return <i title={title} className={className} style={{color}} />;
     }
@@ -436,12 +559,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
 };
 
 export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
-    if (app.metadata.deletionTimestamp) {
-        return {
-            phase: appModels.OperationPhases.Running,
-            startedAt: app.metadata.deletionTimestamp
-        } as appModels.OperationState;
-    } else if (app.operation) {
+    if (app.operation) {
         return {
             phase: appModels.OperationPhases.Running,
             message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
@@ -450,18 +568,23 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
                 sync: {}
             }
         } as appModels.OperationState;
+    } else if (app.metadata.deletionTimestamp) {
+        return {
+            phase: appModels.OperationPhases.Running,
+            startedAt: app.metadata.deletionTimestamp
+        } as appModels.OperationState;
     } else {
         return app.status.operationState;
     }
 };
 
 export function getOperationType(application: appModels.Application) {
-    if (application.metadata.deletionTimestamp) {
-        return 'Delete';
-    }
-    const operation = application.operation || (application.status.operationState && application.status.operationState.operation);
+    const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (operation && operation.sync) {
         return 'Sync';
+    }
+    if (application.metadata.deletionTimestamp) {
+        return 'Delete';
     }
     return 'Unknown';
 }
@@ -544,7 +667,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             } else if (container.state.terminated && container.state.terminated.reason) {
                 reason = container.state.terminated.reason;
                 message = container.state.terminated.message;
-            } else if (container.state.terminated && container.state.terminated.reason) {
+            } else if (container.state.terminated && !container.state.terminated.reason) {
                 if (container.state.terminated.signal !== 0) {
                     reason = `Signal:${container.state.terminated.signal}`;
                     message = '';
@@ -762,3 +885,12 @@ export function getContainerName(pod: any, containerIndex: number): string {
     const container = containers[containerIndex];
     return container.name;
 }
+
+export const BASE_COLORS = [
+    '#0DADEA', // blue
+    '#95D58F', // green
+    '#F4C030', // orange
+    '#FF6262', // red
+    '#4B0082', // purple
+    '#964B00' // brown
+];

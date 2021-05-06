@@ -10,11 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/assets"
-	"github.com/argoproj/argo-cd/util/settings"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 //NewHandler creates handler serving to do api/badge endpoint
@@ -155,6 +155,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Ask cache's to not cache the contents in order prevent the badge from becoming stale
 	w.Header().Set("Cache-Control", "private, no-store")
+
+	//Allow badges to be fetched via XHR from frontend applications without running into CORS issues
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(badge))
 }

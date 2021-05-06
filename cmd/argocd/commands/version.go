@@ -8,11 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/common"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/util/errors"
-	argoio "github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -116,18 +116,40 @@ func printServerVersion(version *version.VersionMessage, short bool) {
 		return
 	}
 
-	fmt.Printf("  BuildDate: %s\n", version.BuildDate)
-	fmt.Printf("  GitCommit: %s\n", version.GitCommit)
-	fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	if version.BuildDate != "" {
+		fmt.Printf("  BuildDate: %s\n", version.BuildDate)
+	}
+	if version.GitCommit != "" {
+		fmt.Printf("  GitCommit: %s\n", version.GitCommit)
+	}
+	if version.GitTreeState != "" {
+		fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	}
 	if version.GitTag != "" {
 		fmt.Printf("  GitTag: %s\n", version.GitTag)
 	}
-	fmt.Printf("  GoVersion: %s\n", version.GoVersion)
-	fmt.Printf("  Compiler: %s\n", version.Compiler)
-	fmt.Printf("  Platform: %s\n", version.Platform)
-	fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
-	fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
-	fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
-	fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
-	fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
+	if version.GoVersion != "" {
+		fmt.Printf("  GoVersion: %s\n", version.GoVersion)
+	}
+	if version.Compiler != "" {
+		fmt.Printf("  Compiler: %s\n", version.Compiler)
+	}
+	if version.Platform != "" {
+		fmt.Printf("  Platform: %s\n", version.Platform)
+	}
+	if version.KsonnetVersion != "" {
+		fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
+	}
+	if version.KustomizeVersion != "" {
+		fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
+	}
+	if version.HelmVersion != "" {
+		fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
+	}
+	if version.KubectlVersion != "" {
+		fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
+	}
+	if version.JsonnetVersion != "" {
+		fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
+	}
 }

@@ -57,3 +57,71 @@ metadata:
 ```
 
 The dry run will still be executed if the CRD is already present in the cluster.
+
+## Selective Sync
+
+Currently when syncing using auto sync ArgoCD applies every object in the application. 
+For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
+Turning on selective sync option which will sync only out-of-sync resources. 
+
+You can add this option by following ways
+
+1) Add `ApplyOutOfSync=true` in manifest
+
+Example:
+
+```yaml
+syncPolicy:
+  syncOptions:
+    - ApplyOutOfSyncOnly=true
+``` 
+
+2) Set sync option via argocd cli
+
+Example:
+
+```bash
+$ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
+```
+
+## Resources Prune Deletion Propagation Policy
+
+By default, extraneous resources get pruned using foreground deletion policy. The propagation policy can be controlled
+using `PrunePropagationPolicy` sync option. Supported policies are background, foreground and orphan.
+
+```yaml
+syncOptions:
+- PrunePropagationPolicy=foreground
+```
+
+## Prune Last
+
+This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation, 
+after the other resources have been deployed and become healthy, and after all other waves completed successfully. 
+
+```yaml
+syncOptions:
+- PruneLast=true
+```
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: PruneLast=true
+```
+
+## Replace Resource Instead Of Applying Changes
+
+By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
+`kubectl apply` is not suitable. For example, resource spec might be too big and won't fit into
+`kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
+might use `Replace=true` sync option:
+
+
+```yaml
+syncOptions:
+- Replace=true
+```
+
+If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.

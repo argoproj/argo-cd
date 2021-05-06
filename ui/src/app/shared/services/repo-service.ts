@@ -64,6 +64,49 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
+    public createGitHubApp({
+        type,
+        name,
+        url,
+        githubAppPrivateKey,
+        githubAppId,
+        githubAppInstallationId,
+        githubAppEnterpriseBaseURL,
+        tlsClientCertData,
+        tlsClientCertKey,
+        insecure,
+        enableLfs
+    }: {
+        type: string;
+        name: string;
+        url: string;
+        githubAppPrivateKey: string;
+        githubAppId: bigint;
+        githubAppInstallationId: bigint;
+        githubAppEnterpriseBaseURL: string;
+        tlsClientCertData: string;
+        tlsClientCertKey: string;
+        insecure: boolean;
+        enableLfs: boolean;
+    }): Promise<models.Repository> {
+        return requests
+            .post('/repositories')
+            .send({
+                type,
+                name,
+                repo: url,
+                githubAppPrivateKey,
+                githubAppId,
+                githubAppInstallationId,
+                githubAppEnterpriseBaseURL,
+                tlsClientCertData,
+                tlsClientCertKey,
+                insecure,
+                enableLfs
+            })
+            .then(res => res.body as models.Repository);
+    }
+
     public delete(url: string): Promise<models.Repository> {
         return requests
             .delete(`/repositories/${encodeURIComponent(url)}`)
@@ -86,10 +129,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
-            .send({source})
+            .send({source, appName})
             .then(res => res.body as models.RepoAppDetails);
     }
 }

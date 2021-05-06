@@ -14,20 +14,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	ssh2 "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/memory"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
 
-	"github.com/argoproj/argo-cd/common"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 type RevisionMetadata struct {
@@ -131,16 +131,16 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		var err error
 		cert := tls.Certificate{}
 
-		// If we aren't called with HTTPSCreds, then we just return an empty cert
-		httpsCreds, ok := creds.(HTTPSCreds)
+		// If we aren't called with GenericHTTPSCreds, then we just return an empty cert
+		httpsCreds, ok := creds.(GenericHTTPSCreds)
 		if !ok {
 			return &cert, nil
 		}
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
-		if httpsCreds.clientCertData != "" && httpsCreds.clientCertKey != "" {
-			cert, err = tls.X509KeyPair([]byte(httpsCreds.clientCertData), []byte(httpsCreds.clientCertKey))
+		if httpsCreds.HasClientCert() {
+			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)
 				return &cert, nil
@@ -217,6 +217,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		return auth, nil
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
+		return &auth, nil
+	case GitHubAppCreds:
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, err
+		}
+		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
 	}
 	return nil, nil

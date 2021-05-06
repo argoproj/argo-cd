@@ -1,39 +1,47 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, TopBarFilter} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, Observable} from 'rxjs';
 
-import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, Revision, Timestamp, YamlEditor} from '../../../shared/components';
-import {AppContext} from '../../../shared/context';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
-import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
-import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {PodView} from '../application-pod-view/pod-view';
-import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
-import {ApplicationSummary} from '../application-summary/application-summary';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-
-const jsonMergePatch = require('json-merge-patch');
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
-    metadata?: appModels.RevisionMetadata & {revision: string};
+    revision?: string;
 }
+
+export const NodeInfo = (node?: string): {key: string; container: number} => {
+    const nodeContainer = {key: '', container: 0};
+    if (node) {
+        const parts = node.split('/');
+        nodeContainer.key = parts.slice(0, 4).join('/');
+        nodeContainer.container = parseInt(parts[4] || '0', 10);
+    }
+    return nodeContainer;
+};
+
+export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
+    const node = fullName ? `${fullName}/${containerIndex}` : null;
+    appContext.navigation.goto('.', {node, tab});
+};
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
@@ -60,14 +68,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private get selectedNodeInfo() {
-        const nodeContainer = {key: '', container: 0};
-        const node = new URLSearchParams(this.props.location.search).get('node');
-        if (node) {
-            const parts = node.split('/');
-            nodeContainer.key = parts.slice(0, 4).join('/');
-            nodeContainer.container = parseInt(parts[4] || '0', 10);
-        }
-        return nodeContainer;
+        return NodeInfo(new URLSearchParams(this.props.history.location.search).get('node'));
     }
 
     private get selectedNodeKey() {
@@ -207,7 +208,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 application={application}
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
-                                                showMetadataInfo={(revision, metadata) => this.setState({metadata: {...metadata, revision}})}
+                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
                                             />
                                         </div>
                                         <div className='application-details__tree'>
@@ -231,7 +232,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
                                                     nodeMenu={node =>
-                                                        AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
                                                             this.getApplicationActionMenu(application)
                                                         )
                                                     }
@@ -251,7 +252,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         app={application}
                                                         onItemClick={fullName => this.selectNode(fullName)}
                                                         nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, this.appContext, this.appChanged, () =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
                                                                 this.getApplicationActionMenu(application)
                                                             )
                                                         }
@@ -269,8 +270,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         onNodeClick={fullName => this.selectNode(fullName)}
                                                                         resources={data}
                                                                         nodeMenu={node =>
-                                                                            AppUtils.renderResourceMenu({...node, root: node}, application, this.appContext, this.appChanged, () =>
-                                                                                this.getApplicationActionMenu(application)
+                                                                            AppUtils.renderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                tree,
+                                                                                this.appContext,
+                                                                                this.appChanged,
+                                                                                () => this.getApplicationActionMenu(application)
                                                                             )
                                                                         }
                                                                     />
@@ -286,141 +292,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
-                                            <div>
-                                                {selectedNode && (
-                                                    <DataLoader
-                                                        noLoaderOnInputChange={true}
-                                                        input={selectedNode.resourceVersion}
-                                                        load={async () => {
-                                                            const managedResources = await services.applications.managedResources(application.metadata.name, {
-                                                                id: {
-                                                                    name: selectedNode.name,
-                                                                    namespace: selectedNode.namespace,
-                                                                    kind: selectedNode.kind,
-                                                                    group: selectedNode.group
-                                                                }
-                                                            });
-                                                            const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
-                                                            const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
-                                                            const controlledState = (controlled && summary && {summary, state: controlled}) || null;
-                                                            const resQuery = {...selectedNode};
-                                                            if (controlled && controlled.targetState) {
-                                                                resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
-                                                            }
-                                                            const liveState = await services.applications.getResource(application.metadata.name, resQuery).catch(() => null);
-                                                            const events =
-                                                                (liveState &&
-                                                                    (await services.applications.resourceEvents(application.metadata.name, {
-                                                                        name: liveState.metadata.name,
-                                                                        namespace: liveState.metadata.namespace,
-                                                                        uid: liveState.metadata.uid
-                                                                    }))) ||
-                                                                [];
-
-                                                            return {controlledState, liveState, events};
-                                                        }}>
-                                                        {data => (
-                                                            <Tabs
-                                                                navTransparent={true}
-                                                                tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.events, [
-                                                                    {
-                                                                        title: 'SUMMARY',
-                                                                        key: 'summary',
-                                                                        content: (
-                                                                            <ApplicationNodeInfo
-                                                                                application={application}
-                                                                                live={data.liveState}
-                                                                                controlled={data.controlledState}
-                                                                                node={selectedNode}
-                                                                            />
-                                                                        )
-                                                                    }
-                                                                ])}
-                                                                selectedTabKey={tab}
-                                                                onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
-                                                            />
-                                                        )}
-                                                    </DataLoader>
-                                                )}
-                                                {isAppSelected && (
-                                                    <Tabs
-                                                        navTransparent={true}
-                                                        tabs={[
-                                                            {
-                                                                title: 'SUMMARY',
-                                                                key: 'summary',
-                                                                content: <ApplicationSummary app={application} updateApp={app => this.updateApp(app)} />
-                                                            },
-                                                            {
-                                                                title: 'PARAMETERS',
-                                                                key: 'parameters',
-                                                                content: (
-                                                                    <DataLoader
-                                                                        key='appDetails'
-                                                                        input={application.spec.source}
-                                                                        load={src =>
-                                                                            services.repos.appDetails(src).catch(() => ({
-                                                                                type: 'Directory' as appModels.AppSourceType,
-                                                                                path: application.spec.source.path
-                                                                            }))
-                                                                        }>
-                                                                        {(details: appModels.RepoAppDetails) => (
-                                                                            <ApplicationParameters save={app => this.updateApp(app)} application={application} details={details} />
-                                                                        )}
-                                                                    </DataLoader>
-                                                                )
-                                                            },
-                                                            {
-                                                                title: 'MANIFEST',
-                                                                key: 'manifest',
-                                                                content: (
-                                                                    <YamlEditor
-                                                                        minHeight={800}
-                                                                        input={application.spec}
-                                                                        onSave={async patch => {
-                                                                            const spec = JSON.parse(JSON.stringify(application.spec));
-                                                                            return services.applications.updateSpec(
-                                                                                application.metadata.name,
-                                                                                jsonMergePatch.apply(spec, JSON.parse(patch))
-                                                                            );
-                                                                        }}
-                                                                    />
-                                                                )
-                                                            },
-                                                            {
-                                                                icon: 'fa fa-file-medical',
-                                                                title: 'DIFF',
-                                                                key: 'diff',
-                                                                content: (
-                                                                    <DataLoader
-                                                                        key='diff'
-                                                                        load={async () =>
-                                                                            await services.applications.managedResources(application.metadata.name, {
-                                                                                fields: [
-                                                                                    'items.normalizedLiveState',
-                                                                                    'items.predictedLiveState',
-                                                                                    'items.group',
-                                                                                    'items.kind',
-                                                                                    'items.namespace',
-                                                                                    'items.name'
-                                                                                ]
-                                                                            })
-                                                                        }>
-                                                                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
-                                                                    </DataLoader>
-                                                                )
-                                                            },
-                                                            {
-                                                                title: 'EVENTS',
-                                                                key: 'event',
-                                                                content: <ApplicationResourceEvents applicationName={application.metadata.name} />
-                                                            }
-                                                        ]}
-                                                        selectedTabKey={tab}
-                                                        onTabSelected={selected => this.appContext.apis.navigation.goto('.', {tab: selected})}
-                                                    />
-                                                )}
-                                            </div>
+                                            <ResourceDetails
+                                                tree={tree}
+                                                application={application}
+                                                isAppSelected={isAppSelected}
+                                                updateApp={app => this.updateApp(app)}
+                                                selectedNode={selectedNode}
+                                                tab={tab}
+                                            />
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
                                             application={application}
@@ -443,48 +322,52 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
-                                        <SlidingPanel isShown={!!this.state.metadata} isMiddle={true} onClose={() => this.setState({metadata: null})}>
-                                            {this.state.metadata && (
-                                                <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                    <div className='white-box__details'>
-                                                        <div className='row white-box__details-row'>
-                                                            <div className='columns small-3'>SHA:</div>
-                                                            <div className='columns small-9'>
-                                                                <Revision repoUrl={application.spec.source.repoURL} revision={this.state.metadata.revision} />
+                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
+                                            {this.state.revision && (
+                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
+                                                    {metadata => (
+                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>SHA:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Date:</div>
+                                                                    <div className='columns small-9'>
+                                                                        <Timestamp date={metadata.date} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Tags:</div>
+                                                                    <div className='columns small-9'>
+                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Author:</div>
+                                                                    <div className='columns small-9'>{metadata.author}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className='white-box__details'>
+                                                                <div className='row white-box__details-row'>
+                                                                    <div className='columns small-3'>Message:</div>
+                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                        <div className='application-details__commit-message'>{metadata.message}</div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                    <div className='white-box__details'>
-                                                        <div className='row white-box__details-row'>
-                                                            <div className='columns small-3'>Date:</div>
-                                                            <div className='columns small-9'>
-                                                                <Timestamp date={this.state.metadata.date} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className='white-box__details'>
-                                                        <div className='row white-box__details-row'>
-                                                            <div className='columns small-3'>Tags:</div>
-                                                            <div className='columns small-9'>
-                                                                {((this.state.metadata.tags || []).length > 0 && this.state.metadata.tags.join(', ')) || 'No tags'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className='white-box__details'>
-                                                        <div className='row white-box__details-row'>
-                                                            <div className='columns small-3'>Author:</div>
-                                                            <div className='columns small-9'>{this.state.metadata.author}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className='white-box__details'>
-                                                        <div className='row white-box__details-row'>
-                                                            <div className='columns small-3'>Message:</div>
-                                                            <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                <div className='application-details__commit-message'>{this.state.metadata.message}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    )}
+                                                </DataLoader>
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -503,42 +386,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>App Details</span>,
+                title: <span className='show-for-large'>App Details</span>,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <span className='show-for-medium'>App Diff</span>,
+                title: <span className='show-for-large'>App Diff</span>,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: <span className='show-for-medium'>Sync</span>,
+                title: <span className='show-for-large'>Sync</span>,
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-medium'>Sync Status</span>,
+                title: <span className='show-for-large'>Sync Status</span>,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <span className='show-for-medium'>History and rollback</span>,
+                title: <span className='show-for-large'>History and rollback</span>,
                 action: () => this.setRollbackPanelVisible(0),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
-                title: <span className='show-for-medium'>Delete</span>,
+                title: <span className='show-for-large'>Delete</span>,
                 action: () => this.deleteApplication()
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
-                        <span className='show-for-medium'>Refresh</span>{' '}
+                        <span className='show-for-large'>Refresh</span>{' '}
                         <DropDownMenu
                             items={[
                                 {
@@ -668,8 +551,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
-        const node = fullName ? `${fullName}/${containerIndex}` : null;
-        this.appContext.apis.navigation.goto('.', {node, tab});
+        SelectNode(fullName, containerIndex, tab, this.appContext.apis);
     }
 
     private async rollbackApplication(revisionHistory: appModels.RevisionHistory, application: appModels.Application) {
@@ -706,72 +588,5 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
-    }
-
-    private getResourceTabs(application: appModels.Application, node: appModels.ResourceNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
-        if (state) {
-            const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
-            tabs.push({
-                title: 'EVENTS',
-                badge: (numErrors > 0 && numErrors) || null,
-                key: 'events',
-                content: (
-                    <div className='application-resource-events'>
-                        <EventsList events={events} />
-                    </div>
-                )
-            });
-        }
-        if (node.kind === 'Pod' && state) {
-            const containerGroups = [
-                {
-                    offset: 0,
-                    title: 'CONTAINERS',
-                    containers: state.spec.containers || []
-                },
-                {
-                    offset: (state.spec.containers || []).length,
-                    title: 'INIT CONTAINERS',
-                    containers: state.spec.initContainers || []
-                }
-            ];
-            tabs = tabs.concat([
-                {
-                    key: 'logs',
-                    title: 'LOGS',
-                    content: (
-                        <div className='application-details__tab-content-full-height'>
-                            <div className='row'>
-                                <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
-                                        <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}</p>}
-                                            {group.containers.map((container: any, i: number) => (
-                                                <div
-                                                    className='application-details__container'
-                                                    key={container.name}
-                                                    onClick={() => this.selectNode(this.selectedNodeKey, group.offset + i, 'logs')}>
-                                                    {group.offset + i === this.selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                    <span title={container.name}>{container.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer
-                                        podName={state.metadata.name}
-                                        namespace={state.metadata.namespace}
-                                        applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(state, this.selectedNodeInfo.container)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-            ]);
-        }
-        return tabs;
     }
 }

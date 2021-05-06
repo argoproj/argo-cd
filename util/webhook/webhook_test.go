@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type fakeSettingsSrc struct {
@@ -85,6 +85,20 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	eventJSON := "{\"test\": true}"
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
+	req.Header.Set("X-Event-Key", "diagnostics:ping")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Ignoring webhook event"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler()
@@ -114,6 +128,46 @@ func TestGitLabPushEvent(t *testing.T) {
 	assert.Equal(t, w.Code, http.StatusOK)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestInvalidMethod(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("GET", "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusMethodNotAllowed)
+	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	hook.Reset()
+}
+
+func TestInvalidEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusBadRequest)
+	expectedLogResult := "Webhook processing failed: error parsing payload"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	hook.Reset()
+}
+
+func TestUnknownEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-Unknown-Event", "push")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusBadRequest)
+	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
 	hook.Reset()
 }
 

@@ -9,9 +9,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
-	utils "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	utils "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -240,6 +240,7 @@ func tempFile(content string) (string, io.Closer, error) {
 		_ = os.Remove(f.Name())
 		return "", nil, err
 	}
+	defer f.Close()
 	return f.Name(), utils.NewCloser(func() error {
 		return os.Remove(f.Name())
 	}), nil

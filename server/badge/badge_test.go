@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
@@ -68,6 +68,7 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 
 	response := rr.Body.String()
 	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
@@ -116,6 +117,7 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		assert.NoError(t, err)
 		handler.ServeHTTP(rr, req)
 		assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+		assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 		response := rr.Body.String()
 		assert.Equal(t, toRGBString(tt.healthColor), leftRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
@@ -182,6 +184,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 
 	response := rr.Body.String()
 	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
@@ -204,6 +207,7 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 
 	response := rr.Body.String()
 	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
@@ -243,6 +247,7 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 
 	response := rr.Body.String()
 	assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])

@@ -10,8 +10,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/env"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 const (
@@ -76,6 +76,14 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 // Cache provides strongly types methods to store and retrieve values from shared cache
 type Cache struct {
 	client CacheClient
+}
+
+func (c *Cache) GetClient() CacheClient {
+	return c.client
+}
+
+func (c *Cache) SetClient(client CacheClient) {
+	c.client = client
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {

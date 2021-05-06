@@ -17,10 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 )
 
 const fakeApp = `
@@ -260,6 +260,16 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 	}
 }
 
+// assertMetricNotPrinted
+func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
+	for _, line := range strings.Split(expectedLines, "\n") {
+		if line == "" {
+			continue
+		}
+		assert.False(t, strings.Contains(body, expectedLines))
+	}
+}
+
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
@@ -291,4 +301,41 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
+}
+
+func TestMetricsReset(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck)
+	assert.NoError(t, err)
+
+	appSyncTotal := `
+# HELP argocd_app_sync_total Number of application syncs.
+# TYPE argocd_app_sync_total counter
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+`
+
+	req, err := http.NewRequest("GET", "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	assertMetricsPrinted(t, appSyncTotal, body)
+
+	err = metricsServ.SetExpiration(time.Second)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
+	req, err = http.NewRequest("GET", "/metrics", nil)
+	assert.NoError(t, err)
+	rr = httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body = rr.Body.String()
+	log.Println(body)
+	assertMetricsNotPrinted(t, appSyncTotal, body)
+	err = metricsServ.SetExpiration(time.Second)
+	assert.Error(t, err)
 }

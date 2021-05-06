@@ -1,10 +1,10 @@
 ## argocd-dex
 
-argocd-util tools used by Argo CD
+argocd-dex tools used by Argo CD
 
 ### Synopsis
 
-argocd-util has internal utility tools used by Argo CD
+argocd-dex has internal utility tools used by Argo CD
 
 ```
 argocd-dex [flags]

@@ -3,7 +3,7 @@
 - [Roadmap](#roadmap)
     - [Core Functionality Bug Fixes](#core-functionality-bug-fixes)
     - [Performance](#performance)
-    - [ApplicationsSet](#applicationsset)
+    - [ApplicationSet](#applicationset)
     - [Large Applications support](#large-applications-support)
     - [Serviceability](#serviceability)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
@@ -18,13 +18,11 @@
 
 ### Core Functionality Bug Fixes
 
-The core GitOps features still have several known bugs and limitations. The full list is available in [v1.7 milestone](
-https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.7+%22+label%3Acomponent%3Acore)
+The core GitOps features still have several known bugs and limitations. The full list is available in [v1.9 milestone](
+https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.9%22+label%3Acomponent%3Acore)
 
 The most notable issues:
 
-* [Application is incorrectly reporting a diff](https://github.com/argoproj/argo-cd/issues/2865)
-* [Helm hooks are deleted right after creation](https://github.com/argoproj/argo-cd/issues/2737)
 * [Argo CD synchronization lasts incredibly long](https://github.com/argoproj/argo-cd/issues/3663)
 
 ### Performance
@@ -62,8 +60,8 @@ The [GitOps Engine](https://github.com/argoproj/gitops-engine) is a library that
 A lot of Argo CD features are still not available in GitOps engine. The following features have to be contributed to the GitOps Engine:
 
 * an ability to customize resources health assessment and existing CRD health [assessment functions](https://github.com/argoproj/argo-cd/tree/master/resource_customizations).
-* resource diffing [customization](https://argoproj.github.io/argo-cd/user-guide/diffing/).
-* config management [tools](https://argoproj.github.io/argo-cd/user-guide/application_sources/) integration.
+* resource diffing [customization](../user-guide/diffing/).
+* config management [tools](../user-guide/application_sources/) integration.
 * unified syncing annotations [argoproj/gitops-engine#43](https://github.com/argoproj/gitops-engine/issues/43).
 
 ### GitOps Agent

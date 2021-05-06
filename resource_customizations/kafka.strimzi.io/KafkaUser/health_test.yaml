@@ -1,0 +1,12 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Kafka User"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: "Authorization needs to be enabled in the Kafka custom resource"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy.yaml
