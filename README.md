@@ -68,3 +68,4 @@ Participation in the Argo CD project is governed by the [CNCF Code of Conduct](h
 1. [Setting up Argo CD with Helm](https://www.arthurkoziel.com/setting-up-argocd-with-helm/)
 1. [Applied GitOps with Argo CD](https://thenewstack.io/applied-gitops-with-argocd/)
 1. [Solving configuration drift using GitOps with Argo CD](https://www.cncf.io/blog/2020/12/17/solving-configuration-drift-using-gitops-with-argo-cd/)
+1. [Decentralized GitOps over environments](https://blogs.sap.com/2021/05/06/decentralized-gitops-over-environments/)
