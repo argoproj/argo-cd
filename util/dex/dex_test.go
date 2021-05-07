@@ -270,10 +270,10 @@ func Test_GenerateDexConfig(t *testing.T) {
 }
 
 func Test_DexReverseProxy(t *testing.T) {
-    t.Run("Good case", func(t *testing.T) {
-	    var host string
+	t.Run("Good case", func(t *testing.T) {
+		var host string
 		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		    host = req.Host
+			host = req.Host
 			rw.WriteHeader(http.StatusOK)
 		}))
 		defer fakeDex.Close()

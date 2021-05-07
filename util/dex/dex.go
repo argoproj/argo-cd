@@ -18,10 +18,10 @@ import (
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 
 func decorateDirector(director func(req *http.Request), target *url.URL) func(req *http.Request) {
-    return func(req *http.Request) {
-        director(req)
-        req.Host = target.Host
-    }
+	return func(req *http.Request) {
+		director(req)
+		req.Host = target.Host
+	}
 }
 
 // NewDexHTTPReverseProxy returns a reverse proxy to the Dex server. Dex is assumed to be configured
@@ -33,8 +33,8 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 	errors.CheckError(err)
 	target.Path = baseHRef
 
-    proxy := httputil.NewSingleHostReverseProxy(target)
-    proxy.ModifyResponse = func(resp *http.Response) error {
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
 			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
