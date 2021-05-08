@@ -7,8 +7,9 @@ KSONNET_VERSION=${ksonnet_version}
 case $ARCHITECTURE in
   arm|arm64)
     set +o pipefail
+    export GO111MODULE=off
     # Clone the repository in $GOPATH/src/github.com/ksonnet/ksonnet
-    go get -u github.com/ksonnet/ksonnet || true
+    go get -u github.com/ksonnet/ksonnet/cmd/ks || true
     set -o pipefail
     cd $GOPATH/src/github.com/ksonnet/ksonnet && git checkout tags/v$KSONNET_VERSION
     cd $GOPATH/src/github.com/ksonnet/ksonnet && CGO_ENABLED=0 GO_LDFLAGS="-s" make install
