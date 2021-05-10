@@ -3,11 +3,11 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/mattn/go-isatty"
 	"os"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
