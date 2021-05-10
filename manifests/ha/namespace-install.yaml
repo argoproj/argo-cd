@@ -123,7 +123,7 @@ kind: Role
 metadata:
   labels:
     app: redis-ha
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     component: argocd-redis-ha-haproxy
     heritage: Helm
     release: argocd
@@ -232,7 +232,7 @@ kind: RoleBinding
 metadata:
   labels:
     app: redis-ha
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     component: argocd-redis-ha-haproxy
     heritage: Helm
     release: argocd
@@ -303,7 +303,7 @@ kind: ConfigMap
 metadata:
   labels:
     app: argocd-redis-ha
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     heritage: Helm
     release: argocd
   name: argocd-redis-ha-health-configmap
@@ -742,11 +742,11 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
+    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
-    bind 0.0.0.0
 kind: ConfigMap
 metadata:
   labels:
