@@ -115,7 +115,7 @@ data:
   url: https://<argocd.myproject.com>
   oidc.config: |
     name: OneLogin
-    issuer: https://openid-connect.onelogin.com/oidc
+    issuer: https://<subdomain>.onelogin.com/oidc/2
     clientID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaaaaaaaa
     clientSecret: abcdef123456
 
