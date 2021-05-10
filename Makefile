@@ -134,7 +134,7 @@ override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
   -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
-  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
+  -X ${PACKAGE}.gitTag=${GIT_TAG}\
   -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
   -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
 
