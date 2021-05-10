@@ -25,6 +25,7 @@ argocd cluster add CONTEXT [flags]
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")
       --upsert                             Override an existing cluster with the same name even if the spec differs
+  -y, --yes                                Skip explicit confirmation
 ```
 
 ### Options inherited from parent commands
