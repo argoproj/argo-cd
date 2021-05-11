@@ -9,7 +9,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
@@ -21,7 +21,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -33,7 +33,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -52,11 +52,11 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
+    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
-    bind 0.0.0.0
 
   init.sh: |
     echo "$(date) Start..."
@@ -461,7 +461,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -511,7 +511,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
 rules:
 - apiGroups:
     - ""
@@ -530,7 +530,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -550,7 +550,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -569,7 +569,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -589,7 +589,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -619,7 +619,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -649,7 +649,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -679,7 +679,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
   annotations:
 spec:
   type: ClusterIP
@@ -707,7 +707,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -731,7 +731,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
 spec:
   strategy:
     type: RollingUpdate
@@ -838,7 +838,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.12.14
+    chart: redis-ha-4.12.15
   annotations:
     {}
 spec:
