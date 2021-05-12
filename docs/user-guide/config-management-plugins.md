@@ -31,7 +31,8 @@ More config management plugin examples are available in [argocd-example-apps](ht
 !!!note "Repository locking"
     If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
     `lockRepo` to `true` so that your plugin will have exclusive access to the
-    repository when it's executed.
+    repository at the time it is executed. Otherwise, two applications synced
+    at the same time may result in a race condition and sync failure.
 
 ## Environment
 
