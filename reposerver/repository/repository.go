@@ -309,7 +309,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	return res, err
 }
 
-// runManifestGenwill be called by runRepoOperation if:
+// runManifestGen will be called by runRepoOperation if:
 // - the cache does not contain a value for this key
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
