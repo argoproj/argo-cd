@@ -224,7 +224,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	return updated, nil
 }
 
-func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, action func(
+func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, repository string, action func(
 	client apiclient.RepoServerServiceClient,
 	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
@@ -239,7 +239,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 		return err
 	}
 	defer ioutil.Close(closer)
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, repository)
 	if err != nil {
 		return err
 	}
@@ -287,18 +287,34 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
 }
 
-// GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
-	a, err := s.appLister.Get(*q.Name)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+// GenerateManifest generates the manifests either for installed app or for app manifest
+func (s *Server) GenerateManifests(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	a, err := s.appLister.Get(q.AppName)
+	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
 	}
 
+	if err == nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return nil, err
+		}
+		if q.ApplicationSource == nil {
+			q.ApplicationSource = &a.Spec.Source
+		}
+		if q.Namespace == "" {
+			q.Namespace = a.Spec.Destination.Namespace
+		}
+	}
+
+	var repo string
+	if q.Repo != nil && q.Repo.Repo != "" {
+		repo = q.Repo.Repo
+	} else if a != nil {
+		repo = a.Spec.Source.RepoURL
+	}
+
 	var manifestInfo *apiclient.ManifestResponse
-	err = s.queryRepoServer(ctx, a, func(
+	err = s.queryRepoServer(ctx, a, repo, func(
 		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
 		revision := a.Spec.Source.TargetRevision
 		if q.Revision != "" {
@@ -374,6 +390,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	return manifestInfo, nil
 }
 
+// GetManifests returns application manifests
+func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
+	return s.GenerateManifests(ctx, &apiclient.ManifestRequest{
+		AppName: *q.Name,
+	})
+}
+
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
 	// We must use a client Get instead of an informer Get, because it's common to call Get immediately
@@ -413,7 +436,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 
 	if refreshType == appv1.RefreshTypeHard {
 		// force refresh cached application details
-		if err := s.queryRepoServer(ctx, a, func(
+		repository := a.Spec.Source.RepoURL
+		if err := s.queryRepoServer(ctx, a, repository, func(
 			client apiclient.RepoServerServiceClient,
 			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,

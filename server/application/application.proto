@@ -269,6 +269,14 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
 	}
 
+	// GenerateManifests generates the manifests either for installed app or for app manifest
+	rpc GenerateManifests (repository.ManifestRequest) returns (repository.ManifestResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{appName}/manifests"
+			body: "*"
+		};
+	}
+
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
