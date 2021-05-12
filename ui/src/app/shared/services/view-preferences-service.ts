@@ -1,5 +1,6 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {SortAppsBy} from '../../applications/components/applications-list/applications-list';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -20,7 +21,6 @@ export interface PodViewPreferences {
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
-
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
         return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
@@ -42,6 +42,7 @@ export class AppsListPreferences {
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
+        pref.sorter = null;
     }
 
     public labelsFilter: string[];
@@ -52,6 +53,7 @@ export class AppsListPreferences {
     public namespacesFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
+    public sorter: SortAppsBy | null;
 }
 
 export interface ViewPreferences {
@@ -89,7 +91,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        healthFilter: new Array<string>(),
+        sorter: null
     },
     pageSizes: {},
     hideBannerContent: ''

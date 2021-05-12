@@ -272,6 +272,46 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
+type AppSorter = (a: models.Application, b: models.Application) => number;
+
+export enum SortAppsBy {
+    Name = 'Name',
+    DeploymentTime = 'Deployment Time'
+}
+
+const AppSorters: {[key: string]: AppSorter} = {
+    'Name': ((a, b) => {
+        if (a && a.metadata && b && b.metadata) {
+            return a.metadata.name < b.metadata.name ? -1 : 1;
+        }
+        return 1;
+    }) as AppSorter,
+    'Deployment Time': ((a, b) => (a.status.observedAt < b.status.observedAt ? 1 : -1)) as AppSorter
+};
+
+const ApplicationSortOptions = (props: {onChange: (sorter: SortAppsBy) => void}) => {
+    const [sorter, setSorter] = React.useState<SortAppsBy>(null);
+    React.useEffect(() => {
+        props.onChange(sorter);
+    }, [sorter]);
+
+    return (
+        <div style={{marginBottom: '-1em'}}>
+            SORT BY
+            {Object.values(SortAppsBy).map(opt => (
+                <div
+                    key={opt}
+                    onClick={() => {
+                        setSorter(sorter === opt ? null : opt);
+                    }}
+                    style={{cursor: 'pointer'}}>
+                    <i className={`fa fa-${sorter === opt ? 'check-square' : 'square'}`} style={{marginRight: '5px'}} /> {opt}
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
@@ -280,6 +320,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
+
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -375,7 +416,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    const filteredApps = filterApps(applications, pref, pref.search);
+                                                    let filteredApps = filterApps(applications, pref, pref.search);
+                                                    if (pref.sorter) {
+                                                        filteredApps = filteredApps.sort(AppSorters[pref.sorter]);
+                                                    }
+
                                                     return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                         <EmptyState icon='argo-icon-application'>
                                                             <h4>No applications yet</h4>
@@ -390,6 +435,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     ) : (
                                                         <div className='row'>
                                                             <div className='columns small-12 xxlarge-2'>
+                                                                <ApplicationSortOptions
+                                                                    onChange={sorter => {
+                                                                        services.viewPreferences.updatePreferences({appList: {...pref, sorter}});
+                                                                        ctx.navigation.goto('.', {sorter});
+                                                                    }}
+                                                                />
                                                                 <DataLoader load={() => services.clusters.list()}>
                                                                     {clusterList => {
                                                                         return (
@@ -402,7 +453,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         );
                                                                     }}
                                                                 </DataLoader>
-
                                                                 {syncAppsInput && (
                                                                     <ApplicationsSyncPanel
                                                                         key='syncsPanel'
