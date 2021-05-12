@@ -32,6 +32,18 @@ spec:
                 name: argocd-cm
                 key: timeout.reconciliation
                 optional: true
+          - name: ARGOCD_REPO_SERVER_LOGFORMAT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-repo-server-config
+                key: log.format
+                optional: true
+          - name: ARGOCD_REPO_SERVER_LOGLEVEL
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-repo-server-config
+                key: log.level
+                optional: true
         ports:
         - containerPort: 8081
         - containerPort: 8084

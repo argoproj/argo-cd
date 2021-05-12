@@ -151,13 +151,16 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
-
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	if cmdutil.LogFormat == "" {
+		cmdutil.LogFormat = os.Getenv("ARGOCD_REPO_SERVER_LOGLEVEL")
+	}
+	log.Infof("OS Env ARGOCD_REPO_SERVER_LOGLEVEL %s", os.Getenv("ARGOCD_REPO_SERVER_LOGLEVEL"))
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
-	command.Flags().BoolVar(&disableTLS, "disable-tls", false, "Disable TLS on the gRPC endpoint")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", env.GetBoolVal("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
@@ -64,8 +65,25 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 
 func StringFromEnv(env string, defaultValue string) string {
 	str := os.Getenv(env)
+	log.Infof("ENV value for %s is %s", env, str)
 	if str == "" {
 		return defaultValue
 	}
 	return str
+}
+
+// Package env provides some utility functions to interact with the environment
+// of the process.
+
+// GetBoolVal retrieves a boolean value from given environment envVar.
+// Returns default value if envVar is not set.
+func GetBoolVal(envVar string, defaultValue bool) bool {
+	if val := os.Getenv(envVar); val != "" {
+		if strings.ToLower(val) == "true" {
+			return true
+		} else if strings.ToLower(val) == "false" {
+			return false
+		}
+	}
+	return defaultValue
 }

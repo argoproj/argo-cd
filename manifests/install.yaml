@@ -2817,6 +2817,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-application-controller-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-cm
@@ -2836,6 +2844,25 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
+---
+apiVersion: v1
+data:
+  log.level: debug
+  test.value: test
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-repo-server-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-server-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-server-config
 ---
 apiVersion: v1
 data:
@@ -3144,11 +3171,25 @@ spec:
         - --redis
         - argocd-redis:6379
         env:
+<<<<<<< HEAD
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation
               name: argocd-cm
+=======
+        - name: ARGOCD_REPO_SERVER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: log.format
+              name: argocd-repo-server-config
+              optional: true
+        - name: ARGOCD_REPO_SERVER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: log.level
+              name: argocd-repo-server-config
+>>>>>>> 9218c3c91 (test configmap)
               optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always

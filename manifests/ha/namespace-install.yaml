@@ -265,6 +265,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-application-controller-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-cm
@@ -753,6 +761,22 @@ metadata:
     heritage: Helm
     release: argocd
   name: argocd-redis-ha-health-configmap
+  log.level: debug
+  test.value: test
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-repo-server-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-server-config
+    app.kubernetes.io/part-of: argocd
+  name: argocd-server-config
 ---
 apiVersion: v1
 data:

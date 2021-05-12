@@ -156,8 +156,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&metricsCacheExpiration, "metrics-cache-expiration", 0*time.Second, "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", 5, "Specifies timeout between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
-	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", false, "Disable TLS on connections to repo server")
-	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", false, "Whether to use strict validation of the TLS cert presented by the repo server")
+	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.GetBoolVal("ARGOCD_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
+	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.GetBoolVal("ARGOCD_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
