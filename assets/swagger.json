@@ -324,6 +324,46 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/manifests": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GenerateManifest generates the manifests either for installed app or for app manifest",
+        "operationId": "ApplicationService_GenerateManifests",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of the application for which the request is triggered",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -3895,6 +3935,69 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "repositoryManifestRequest": {
+      "description": "ManifestRequest is a query for manifest generation.",
+      "type": "object",
+      "properties": {
+        "apiVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "appLabelKey": {
+          "type": "string"
+        },
+        "appName": {
+          "type": "string",
+          "title": "Name of the application for which the request is triggered"
+        },
+        "applicationSource": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "helmRepoCreds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RepoCreds"
+          }
+        },
+        "kubeVersion": {
+          "type": "string"
+        },
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "noCache": {
+          "type": "boolean"
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
+        "repo": {
+          "$ref": "#/definitions/v1alpha1Repository"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
+          }
+        },
+        "revision": {
+          "type": "string",
+          "title": "revision, potentially un-resolved"
+        },
+        "verifySignature": {
+          "type": "boolean",
+          "title": "Request to verify the signature when generating the manifests (only for Git repositories)"
         }
       }
     },

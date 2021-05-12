@@ -224,16 +224,33 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	return updated, nil
 }
 
-// GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
-	a, err := s.appLister.Get(*q.Name)
-	if err != nil {
+// GenerateManifest generates the manifests either for installed app or for app manifest
+func (s *Server) GenerateManifests(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	a, err := s.appLister.Get(q.AppName)
+	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
+
+	if err == nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return nil, err
+		}
+		if q.ApplicationSource == nil {
+			q.ApplicationSource = &a.Spec.Source
+		}
+		if q.Namespace == "" {
+			q.Namespace = a.Spec.Destination.Namespace
+		}
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+
+	var repo string
+	if q.Repo != nil && q.Repo.Repo != "" {
+		repo = q.Repo.Repo
+	} else if a != nil {
+		repo = a.Spec.Source.RepoURL
+	}
+
+	q.Repo, err = s.db.GetRepository(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -242,83 +259,73 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 	defer ioutil.Close(conn)
-	revision := a.Spec.Source.TargetRevision
-	if q.Revision != "" {
-		revision = q.Revision
+
+	if q.Revision == "" && a != nil {
+		q.Revision = a.Spec.Source.TargetRevision
 	}
-	appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
-	if err != nil {
-		return nil, err
-	}
-	helmRepos, err := s.db.ListHelmRepositories(ctx)
+	q.AppLabelKey, err = s.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	q.Plugins, err = s.plugins()
 	if err != nil {
-		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		return nil, err
+	}
+
+	if a != nil {
+		helmRepos, err := s.db.ListHelmRepositories(ctx)
+		if err != nil {
+			return nil, err
 		}
-		return nil, err
+
+		proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+			}
+			return nil, err
+		}
+
+		q.Repos, err = argo.GetPermittedRepos(proj, helmRepos)
+		if err != nil {
+			return nil, err
+		}
+		// If source is Kustomize add build options
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		if err != nil {
+			return nil, err
+		}
+		q.KustomizeOptions, err = kustomizeSettings.GetOptions(a.Spec.Source)
+		if err != nil {
+			return nil, err
+		}
+		config, err := s.getApplicationClusterConfig(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+
+		q.KubeVersion, err = s.kubectl.GetServerVersion(config)
+		if err != nil {
+			return nil, err
+		}
+
+		apiGroups, err := s.kubectl.GetAPIGroups(config)
+		if err != nil {
+			return nil, err
+		}
+		q.ApiVersions = argo.APIGroupsToVersions(apiGroups)
+		helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		q.HelmRepoCreds, err = argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
-	if err != nil {
-		return nil, err
-	}
-
-	plugins, err := s.plugins()
-	if err != nil {
-		return nil, err
-	}
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return nil, err
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
-	if err != nil {
-		return nil, err
-	}
-	config, err := s.getApplicationClusterConfig(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-
-	serverVersion, err := s.kubectl.GetServerVersion(config)
-	if err != nil {
-		return nil, err
-	}
-
-	apiGroups, err := s.kubectl.GetAPIGroups(config)
-	if err != nil {
-		return nil, err
-	}
-
-	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
-	if err != nil {
-		return nil, err
-	}
-
-	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
-		Repo:              repo,
-		Revision:          revision,
-		AppLabelKey:       appInstanceLabelKey,
-		AppName:           a.Name,
-		Namespace:         a.Spec.Destination.Namespace,
-		ApplicationSource: &a.Spec.Source,
-		Repos:             permittedHelmRepos,
-		Plugins:           plugins,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		HelmRepoCreds:     permittedHelmCredentials,
-	})
+	manifestInfo, err := repoClient.GenerateManifest(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -342,6 +349,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	}
 
 	return manifestInfo, nil
+}
+
+// GetManifests returns application manifests
+func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
+	return s.GenerateManifests(ctx, &apiclient.ManifestRequest{
+		AppName: *q.Name,
+	})
 }
 
 // Get returns an application by name
