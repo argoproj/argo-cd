@@ -32,6 +32,12 @@ const config = {
         alias: {react: require.resolve('react')}
     },
 
+    externals: {
+        'extensions': 'Extension',
+        'react': 'React',
+        'react-dom': 'ReactDOM'
+    },
+
     module: {
         rules: [
             {
@@ -88,7 +94,8 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml']
+            languages: ['yaml'],
+            features: ['!gotoSymbol']
         }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin
@@ -115,10 +122,12 @@ const config = {
         port: 4000,
         host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
         proxy: {
+            '/api/v1/rollouts': {target: 'http://localhost:3100', secure: false},
             '/api': proxyConf,
             '/auth': proxyConf,
             '/swagger-ui': proxyConf,
-            '/swagger.json': proxyConf
+            '/swagger.json': proxyConf,
+            '/extension.js': {target: 'http://localhost:3100', secure: false}
         }
     }
 };

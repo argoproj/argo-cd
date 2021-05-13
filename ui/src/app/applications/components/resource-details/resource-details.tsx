@@ -14,6 +14,7 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+const Extension = React.lazy(() => import('extensions'));
 import * as AppUtils from '../utils';
 import './resource-details.scss';
 
@@ -26,6 +27,26 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
+}
+
+class ErrorBoundary extends React.Component<{}, {hasError: boolean}> {
+    constructor(props: any) {
+        super(props);
+        this.state = {hasError: false};
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        console.log(error);
+        return {hasError: true};
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return <h1>Something went wrong.</h1>;
+        }
+
+        return this.props.children;
+    }
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -109,6 +130,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
+        tabs.push({
+            key: 'extension',
+            title: 'MORE',
+            content: (
+                <ErrorBoundary>
+                    <React.Suspense fallback='Loading...'>
+                        <Extension name='canary-demo' namespace='rollouts-demo' />
+                    </React.Suspense>
+                </ErrorBoundary>
+            )
+        });
         return tabs;
     };
 
