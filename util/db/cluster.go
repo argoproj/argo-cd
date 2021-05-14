@@ -90,7 +90,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	err = db.createSecret(ctx, common.LabelValueSecretTypeCluster, clusterSecret)
+	clusterSecret, err = db.createSecret(ctx, common.LabelValueSecretTypeCluster, clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)

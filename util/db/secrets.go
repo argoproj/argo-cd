@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
@@ -18,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	informerv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
@@ -39,6 +40,7 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	return secrets, nil
 }
 
+//nolint:unused
 func boolOrDefault(secret *apiv1.Secret, key string, def bool) (bool, error) {
 	val, present := secret.Data[key]
 	if !present {
@@ -48,6 +50,7 @@ func boolOrDefault(secret *apiv1.Secret, key string, def bool) (bool, error) {
 	return strconv.ParseBool(string(val))
 }
 
+//nolint:unused
 func intOrDefault(secret *apiv1.Secret, key string, def int64) (int64, error) {
 	val, present := secret.Data[key]
 	if !present {
@@ -57,7 +60,7 @@ func intOrDefault(secret *apiv1.Secret, key string, def int64) (int64, error) {
 	return strconv.ParseInt(string(val), 10, 64)
 }
 
-func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1.Secret) error {
+func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1.Secret) (*apiv1.Secret, error) {
 	if secret.Annotations == nil {
 		secret.Annotations = map[string]string{}
 	}
@@ -69,7 +72,7 @@ func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1
 	secret.Labels[common.LabelKeySecretType] = secretType
 
 	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
-	return err
+	return secret, err
 }
 
 func (db *db) deleteSecret(ctx context.Context, secret *apiv1.Secret) error {
