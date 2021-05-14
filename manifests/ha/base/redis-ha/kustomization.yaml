@@ -3,6 +3,8 @@ kind: Kustomization
 
 resources:
 - chart/upstream.yaml
+- argocd-redis-ha-proxy-network-policy.yaml
+- argocd-redis-ha-server-network-policy.yaml
 
 patchesJson6902:
 - target:
