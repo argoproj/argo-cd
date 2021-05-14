@@ -177,8 +177,8 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 
-	s.projectLock.Lock(q.Application.Spec.Project)
-	defer s.projectLock.Unlock(q.Application.Spec.Project)
+	s.projectLock.RLock(q.Application.Spec.Project)
+	defer s.projectLock.RUnlock(q.Application.Spec.Project)
 
 	a := q.Application
 	validate := true
@@ -453,8 +453,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 }
 
 func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool) (*appv1.Application, error) {
-	s.projectLock.Lock(newApp.Spec.GetProject())
-	defer s.projectLock.Unlock(newApp.Spec.GetProject())
+	s.projectLock.RLock(newApp.Spec.GetProject())
+	defer s.projectLock.RUnlock(newApp.Spec.GetProject())
 
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, newApp.Name, metav1.GetOptions{})
 	if err != nil {
@@ -633,8 +633,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	s.projectLock.Lock(a.Spec.Project)
-	defer s.projectLock.Unlock(a.Spec.Project)
+	s.projectLock.RLock(a.Spec.Project)
+	defer s.projectLock.RUnlock(a.Spec.Project)
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
 		return nil, err
