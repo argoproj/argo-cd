@@ -85,14 +85,12 @@ func (s *settingRepositoryBackend) GetRepository(ctx context.Context, repoURL st
 }
 
 func (s *settingRepositoryBackend) ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
-	var repos []*appsv1.Repository
-
-	// once the repository management via argocd-cm get removed, the following lines can be deleted
 	inRepos, err := s.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
 	}
 
+	var repos []*appsv1.Repository
 	for _, inRepo := range inRepos {
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := s.tryGetRepository(ctx, inRepo.URL)
@@ -113,7 +111,6 @@ func (s *settingRepositoryBackend) ListRepositories(ctx context.Context, repoTyp
 			repos = append(repos, r)
 		}
 	}
-
 	return repos, nil
 }
 
@@ -454,11 +451,12 @@ func (s *settingRepositoryBackend) credentialsToRepository(repoInfo settings.Rep
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
 	err := s.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:     repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -472,11 +470,12 @@ func (s *settingRepositoryBackend) credentialsToRepositoryCredentials(repoInfo s
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
 	err := s.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:          repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:          repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:     repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}: repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:  repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }
