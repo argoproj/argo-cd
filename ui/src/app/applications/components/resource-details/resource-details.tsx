@@ -25,6 +25,7 @@ interface ResourceDetailsProps {
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
+    tab?: string;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -190,6 +191,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
                                     }
                                 ])}
+                                selectedTabKey={props.tab}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
                             />
                         </React.Fragment>
                     )}

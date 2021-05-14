@@ -2,11 +2,14 @@ package settings
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"sort"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -241,6 +244,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         jsonPointers:
         - foo
     certmanager.k8s.io/Certificate:
+      health.lua.useOpenLibs: true
       health.lua: |
         foo
     cert-manager.io/Certificate: 
@@ -262,7 +266,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
 	})
 
@@ -274,12 +280,14 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration": `
 - field: foo
   type: bar`,
-			"resource.customizations.health.certmanager.k8s.io_Certificate": "bar",
-			"resource.customizations.health.cert-manager.io_Certificate":    "bar",
-			"resource.customizations.actions.apps_Deployment":               "bar",
-			"resource.customizations.actions.Deployment":                    "bar",
-			"resource.customizations.health.iam-manager.k8s.io_Iamrole":     "bar",
-			"resource.customizations.health.Iamrole":                        "bar",
+			"resource.customizations.health.certmanager.k8s.io_Certificate":      "bar",
+			"resource.customizations.health.cert-manager.io_Certificate":         "bar",
+			"resource.customizations.useOpenLibs.certmanager.k8s.io_Certificate": "false",
+			"resource.customizations.useOpenLibs.cert-manager.io_Certificate":    "true",
+			"resource.customizations.actions.apps_Deployment":                    "bar",
+			"resource.customizations.actions.Deployment":                         "bar",
+			"resource.customizations.health.iam-manager.k8s.io_Iamrole":          "bar",
+			"resource.customizations.health.Iamrole":                             "bar",
 			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
         - bar`,
 		}
@@ -299,6 +307,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
 		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, true, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
@@ -680,4 +690,189 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 	oidcConfig := settings.OIDCConfig()
 	assert.NotNil(t, oidcConfig)
 	assert.Equal(t, "test-secret", oidcConfig.ClientSecret)
+}
+
+func getCNFromCertificate(cert *tls.Certificate) string {
+	c, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return ""
+	}
+	return c.Subject.CommonName
+}
+
+func Test_GetTLSConfiguration(t *testing.T) {
+	t.Run("Valid external TLS secret with success", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
+	})
+
+	t.Run("Valid external TLS secret overrides argocd-secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
+	})
+	t.Run("Invalid external TLS secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(""),
+					"tls.key": []byte(""),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not read from secret")
+		assert.NotNil(t, settings)
+	})
+	t.Run("No external TLS secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+	})
 }

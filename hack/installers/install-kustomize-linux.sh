@@ -13,10 +13,14 @@ KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize4_version}
 # v3.3.0 = https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.3.0/kustomize_v3.3.0_linux_amd64.tar.gz
 case $ARCHITECTURE in
   arm|arm64)
-    BINNAME=kustomize
-    CGO_ENABLED=0 GO111MODULE=on go get -ldflags="-s" sigs.k8s.io/kustomize/kustomize/v3@v${KUSTOMIZE_VERSION}
-    sudo install -m 0755 $GOPATH/bin/kustomize $BIN/$BINNAME
-    ;;
+      export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_linux_${ARCHITECTURE}.tar.gz
+      URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_$ARCHITECTURE.tar.gz
+      BINNAME=kustomize
+      [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
+      $(dirname $0)/compare-chksum.sh
+      tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
+      sudo install -m 0755 /tmp/kustomize $BIN/$BINNAME
+      ;;
   *)
     case $KUSTOMIZE_VERSION in
       2.*)

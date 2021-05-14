@@ -6100,6 +6100,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1KnownTypeField"
           }
+        },
+        "useOpenLibs": {
+          "type": "boolean"
         }
       }
     },

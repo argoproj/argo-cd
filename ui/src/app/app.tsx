@@ -188,15 +188,18 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         navItems={navItems}
                                                         version={() => (
                                                             <DataLoader load={() => versionLoader}>
-                                                                {version => (
-                                                                    <React.Fragment>
-                                                                        <Tooltip content={version.Version}>
-                                                                            <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                {version.Version}
-                                                                            </a>
-                                                                        </Tooltip>
-                                                                    </React.Fragment>
-                                                                )}
+                                                                {version => {
+                                                                    const versionString = version ? version.Version : 'Unknown';
+                                                                    return (
+                                                                        <React.Fragment>
+                                                                            <Tooltip content={versionString}>
+                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
+                                                                                    {versionString}
+                                                                                </a>
+                                                                            </Tooltip>
+                                                                        </React.Fragment>
+                                                                    );
+                                                                }}
                                                             </DataLoader>
                                                         )}>
                                                         <Banner>

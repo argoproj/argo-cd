@@ -1026,6 +1026,8 @@ message ResourceNode {
 message ResourceOverride {
   optional string healthLua = 1;
 
+  optional bool useOpenLibs = 5;
+
   optional string actions = 3;
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;

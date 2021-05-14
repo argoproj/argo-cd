@@ -60,7 +60,15 @@ data:
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 
-NOTE: as a security measure you don't have access to most of the standard Lua libraries.
+NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
+setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
+
+```yaml
+data:
+  resource.customizations.useOpenLibs.cert-manager.io_Certificate: "true"
+  resource.customizations.health.cert-manager.io_Certificate:
+    -- Lua standard libraries are enabled for this script
+```
 
 ### Way 2. Contribute a Custom Health Check
 
