@@ -1,4 +1,4 @@
-import {Autocomplete} from 'argo-ux';
+import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ux';
 import * as React from 'react';
 
 import './filter.scss';
@@ -7,37 +7,7 @@ interface FilterMap {
     [label: string]: boolean;
 }
 
-interface FilterOption {
-    label: string;
-    count?: number;
-    icon?: React.ReactNode;
-}
-
-const FilterRow = (props: {init: boolean; onChange?: (value: boolean) => void; option: FilterOption}) => {
-    const [value, setValue] = React.useState(props.init);
-
-    React.useEffect(() => {
-        setValue(props.init);
-    }, [props.init]);
-
-    return (
-        <div
-            className={`filter__item ${value ? 'filter__item--selected' : ''}`}
-            onClick={() => {
-                setValue(!value);
-                if (props.onChange) {
-                    props.onChange(!value);
-                }
-            }}>
-            <i className={`${value ? 'fas fa-check-square' : 'fa fa-square'}`} style={{marginRight: '8px'}} />
-            {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='filter__item__label'>{props.option.label}</div>
-            <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
-        </div>
-    );
-};
-
-export const Filter = (props: {selected: string[]; setSelected: (items: string[]) => void; options?: FilterOption[]; label?: string; field?: boolean}) => {
+export const Filter = (props: {selected: string[]; setSelected: (items: string[]) => void; options?: CheckboxOption[]; label?: string; field?: boolean}) => {
     const init = {} as FilterMap;
     props.selected.forEach(s => (init[s] = true));
 
@@ -52,7 +22,7 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
-                    return {label: v} as FilterOption;
+                    return {label: v} as CheckboxOption;
                 })
             );
         }
@@ -95,9 +65,9 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                         />
                     )}
                     {((props.field ? tags : props.options) || []).map((opt, i) => (
-                        <FilterRow
+                        <CheckboxRow
                             key={i}
-                            init={values[opt.label]}
+                            value={values[opt.label]}
                             onChange={val => {
                                 const update = {...values};
                                 update[opt.label] = val;

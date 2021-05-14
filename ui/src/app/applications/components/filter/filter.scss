@@ -24,33 +24,4 @@
         color: $argo-color-gray-7;
         font-size: 20px;
     }
-
-    &__item {
-        height: 2em;
-        padding: 0 5px;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        background-color: white;
-        transition: background-color 200ms ease;
-        margin: 0.25em 0;
-        cursor: pointer;
-        flex-wrap: nowrap;
-
-        &__label {
-            text-overflow: ellipsis;
-            flex-grow: 0;
-            overflow: hidden;
-            white-space: nowrap;
-        }
-
-        &--selected {
-            background-color: $argo-color-teal-3;
-            color: $argo-color-teal-8;
-            font-weight: 500;
-            i {
-                color: $argo-color-teal-6;
-            }
-        }
-    }
 }
