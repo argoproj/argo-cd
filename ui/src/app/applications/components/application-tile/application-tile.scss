@@ -1,0 +1,24 @@
+.application-tile {
+    line-height: 1em;
+    font-size: 14px;
+    &__header {
+        font-size: 18px;
+        padding: 1.1em 0;
+        font-weight: 600;
+        .checkbox {
+            margin-right: 8px;
+            margin-top: 2px;
+        }
+    }
+
+    .info-item--row {
+        margin: 2px 0;
+    }
+
+    &__actions {
+        padding: 1em 0;
+        width: 100%;
+        justify-content: center;
+        line-height: 1em;
+    }
+}

@@ -9,6 +9,9 @@ export const clusterName = (name: string | null) => {
 };
 
 export const clusterTitle = (cluster: models.Cluster) => {
+    if (!cluster) {
+        return 'Unknown';
+    }
     return `${clusterName(cluster.name)} (${cluster.server})`;
 };
 
@@ -21,7 +24,7 @@ const clusterHTML = (cluster: models.Cluster, showUrl: boolean) => {
     );
 };
 
-async function getCluster(clusters: Promise<models.Cluster[]>, server: string, name: string): Promise<models.Cluster> {
+export async function GetCluster(clusters: Promise<models.Cluster[]>, server: string, name: string): Promise<models.Cluster> {
     let cluster: models.Cluster;
     if (clusters) {
         cluster = await clusters.then(items => items.find(item => item.server === server || item.name === name));
@@ -46,7 +49,7 @@ export const ClusterCtx = React.createContext<Promise<Array<models.Cluster>>>(nu
 export const Cluster = (props: {server: string; name?: string; showUrl?: boolean}) => (
     <ClusterCtx.Consumer>
         {clusters => (
-            <DataLoader input={props} loadingRenderer={() => <span>{props.server}</span>} load={input => getCluster(clusters, input.server, input.name)}>
+            <DataLoader input={props} loadingRenderer={() => <span>{props.server}</span>} load={input => GetCluster(clusters, input.server, input.name)}>
                 {(cluster: models.Cluster) => clusterHTML(cluster, props.showUrl)}
             </DataLoader>
         )}
