@@ -32,7 +32,7 @@ func (s *settingRepositoryBackend) CreateRepository(ctx context.Context, r *apps
 		return nil, err
 	}
 
-	index := getRepositoryIndex(repos, r.Repo)
+	index := s.getRepositoryIndex(repos, r.Repo)
 	if index > -1 {
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
@@ -120,7 +120,7 @@ func (s *settingRepositoryBackend) UpdateRepository(ctx context.Context, r *apps
 		return nil, err
 	}
 
-	index := getRepositoryIndex(repos, r.Repo)
+	index := s.getRepositoryIndex(repos, r.Repo)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 	}
@@ -150,7 +150,7 @@ func (s *settingRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 		return err
 	}
 
-	index := getRepositoryIndex(repos, repoURL)
+	index := s.getRepositoryIndex(repos, repoURL)
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
@@ -307,12 +307,12 @@ func (s *settingRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*
 func (s *settingRepositoryBackend) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
 	secretsData := make(map[string]map[string][]byte)
 
-	repoInfo.UsernameSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.UsernameSecret, r.Username, username)
-	repoInfo.PasswordSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.PasswordSecret, r.Password, password)
-	repoInfo.SSHPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
-	repoInfo.TLSClientCertDataSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
-	repoInfo.TLSClientCertKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	repoInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
+	repoInfo.UsernameSecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.UsernameSecret, r.Username, username)
+	repoInfo.PasswordSecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.PasswordSecret, r.Password, password)
+	repoInfo.SSHPrivateKeySecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	repoInfo.TLSClientCertDataSecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
+	repoInfo.TLSClientCertKeySecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
+	repoInfo.GithubAppPrivateKeySecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
 	for k, v := range secretsData {
 		err := s.upsertSecret(k, v)
 		if err != nil {
@@ -337,12 +337,12 @@ func (s *settingRepositoryBackend) updateCredentialsSecret(credsInfo *settings.R
 	}
 	secretsData := make(map[string]map[string][]byte)
 
-	credsInfo.UsernameSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.UsernameSecret, r.Username, username)
-	credsInfo.PasswordSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.PasswordSecret, r.Password, password)
-	credsInfo.SSHPrivateKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
-	credsInfo.TLSClientCertDataSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
-	credsInfo.TLSClientCertKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	credsInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
+	credsInfo.UsernameSecret = s.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.UsernameSecret, r.Username, username)
+	credsInfo.PasswordSecret = s.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.PasswordSecret, r.Password, password)
+	credsInfo.SSHPrivateKeySecret = s.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	credsInfo.TLSClientCertDataSecret = s.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
+	credsInfo.TLSClientCertKeySecret = s.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
+	credsInfo.GithubAppPrivateKeySecret = s.setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
 	for k, v := range secretsData {
 		err := s.upsertSecret(k, v)
 		if err != nil {
@@ -411,7 +411,7 @@ func (s *settingRepositoryBackend) tryGetRepository(ctx context.Context, repoURL
 	}
 
 	repo := &appsv1.Repository{Repo: repoURL}
-	index := getRepositoryIndex(repos, repoURL)
+	index := s.getRepositoryIndex(repos, repoURL)
 	if index >= 0 {
 		repo, err = s.credentialsToRepository(repos[index])
 		if err != nil {
@@ -483,7 +483,7 @@ func (s *settingRepositoryBackend) credentialsToRepositoryCredentials(repoInfo s
 // Set data to be stored in a given secret used for repository credentials and templates.
 // The name of the secret is a combination of the prefix given, and a calculated value
 // from the repository or template URL.
-func setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
+func (s *settingRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
 	if secretKey == nil && value != "" {
 		secretKey = &apiv1.SecretKeySelector{
 			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url)},
@@ -509,7 +509,7 @@ func setSecretData(prefix string, url string, secretsData map[string]map[string]
 	return secretKey
 }
 
-func getRepositoryIndex(repos []settings.Repository, repoURL string) int {
+func (s *settingRepositoryBackend) getRepositoryIndex(repos []settings.Repository, repoURL string) int {
 	for i, repo := range repos {
 		if git.SameURL(repo.URL, repoURL) {
 			return i

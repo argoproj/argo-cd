@@ -1,0 +1,295 @@
+package db
+
+import (
+	"strconv"
+
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
+)
+
+var _ repositoryBackend = &secretsRepositoryBackend{}
+
+type secretsRepositoryBackend struct {
+	db *db
+}
+
+func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
+	secName, err := URIToSecretName("repository", repository.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	repositorySecret := &apiv1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secName,
+		},
+	}
+
+	s.repositoryToSecret(repository, repositorySecret)
+
+	_, err = s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repositorySecret)
+	if err != nil {
+		if apierr.IsAlreadyExists(err) {
+			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
+		}
+		return nil, err
+	}
+
+	return repository, s.db.settingsMgr.ResyncInformers()
+}
+
+func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	secret, err := s.getRepositorySecret(repoURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.secretToRepository(secret)
+}
+
+func (s *secretsRepositoryBackend) ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
+	var repos []*appsv1.Repository
+
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		r, err := s.secretToRepository(secret)
+		if err != nil {
+			if r != nil {
+				modifiedTime := metav1.Now()
+				r.ConnectionState = appsv1.ConnectionState{
+					Status:     appsv1.ConnectionStatusFailed,
+					Message:    "Configuration error - please check the server logs",
+					ModifiedAt: &modifiedTime,
+				}
+
+				log.Warnf("Error while parsing repository secret '%s': %v", secret.Name, err)
+			} else {
+				return nil, err
+			}
+		}
+
+		if repoType == nil || *repoType == r.Type {
+			repos = append(repos, r)
+		}
+	}
+
+	return repos, nil
+}
+
+func (s *secretsRepositoryBackend) UpdateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
+	repositorySecret, err := s.getRepositorySecret(repository.Repo)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return s.CreateRepository(ctx, repository)
+		}
+		return nil, err
+	}
+
+	s.repositoryToSecret(repository, repositorySecret)
+
+	repositorySecret, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repositorySecret, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	updatedRepository, err := s.secretToRepository(repositorySecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedRepository, s.db.settingsMgr.ResyncInformers()
+}
+
+func (s *secretsRepositoryBackend) DeleteRepository(ctx context.Context, repoURL string) error {
+	secret, err := s.getRepositorySecret(repoURL)
+	if err != nil {
+		return err
+	}
+
+	if err := s.db.deleteSecret(ctx, secret); err != nil {
+		return err
+	}
+
+	return s.db.settingsMgr.ResyncInformers()
+}
+
+func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) ListRepoCreds(ctx context.Context) ([]string, error) {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) DeleteRepoCreds(ctx context.Context, name string) error {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error) {
+	panic("Implement me")
+}
+
+func (s *secretsRepositoryBackend) secretToRepository(secret *apiv1.Secret) (*appsv1.Repository, error) {
+	repository := &appsv1.Repository{
+		Name:                       string(secret.Data["name"]),
+		Repo:                       string(secret.Data["repo"]),
+		Username:                   string(secret.Data["username"]),
+		Password:                   string(secret.Data["password"]),
+		SSHPrivateKey:              string(secret.Data["sshPrivateKey"]),
+		TLSClientCertData:          string(secret.Data["tlsClientCertData"]),
+		TLSClientCertKey:           string(secret.Data["tlsClientCertKey"]),
+		Type:                       string(secret.Data["type"]),
+		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
+		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+	}
+
+	insecureIgnoreHostKey, err := boolOrDefault(secret, "insecureIgnoreHostKey", false)
+	if err != nil {
+		return repository, err
+	}
+	repository.InsecureIgnoreHostKey = insecureIgnoreHostKey
+
+	insecure, err := boolOrDefault(secret, "insecure", false)
+	if err != nil {
+		return repository, err
+	}
+	repository.Insecure = insecure
+
+	enableLfs, err := boolOrDefault(secret, "enableLfs", false)
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableLFS = enableLfs
+
+	enableOCI, err := boolOrDefault(secret, "enableOCI", false)
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableOCI = enableOCI
+
+	githubAppID, err := intOrDefault(secret, "githubAppID", 0)
+	if err != nil {
+		return repository, err
+	}
+	repository.GithubAppId = githubAppID
+
+	githubAppInstallationID, err := intOrDefault(secret, "githubAppInstallationID", 0)
+	if err != nil {
+		return repository, err
+	}
+	repository.GithubAppInstallationId = githubAppInstallationID
+
+	return repository, nil
+}
+
+func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *apiv1.Secret) {
+	data := make(map[string][]byte)
+
+	data["name"] = []byte(repository.Name)
+	data["repo"] = []byte(repository.Repo)
+	data["username"] = []byte(repository.Username)
+	data["password"] = []byte(repository.Password)
+	data["sshPrivateKey"] = []byte(repository.SSHPrivateKey)
+	data["insecureIgnoreHostKey"] = []byte(strconv.FormatBool(repository.InsecureIgnoreHostKey))
+	data["insecure"] = []byte(strconv.FormatBool(repository.Insecure))
+	data["enableLfs"] = []byte(strconv.FormatBool(repository.EnableLFS))
+	data["enableOCI"] = []byte(strconv.FormatBool(repository.EnableOCI))
+	data["tlsClientCertData"] = []byte(repository.TLSClientCertData)
+	data["tlsClientCertKey"] = []byte(repository.TLSClientCertKey)
+	data["type"] = []byte(repository.Type)
+	data["githubAppPrivateKey"] = []byte(repository.GithubAppPrivateKey)
+	data["githubAppID"] = []byte(strconv.FormatInt(repository.GithubAppId, 10))
+	data["githubAppInstallationID"] = []byte(strconv.FormatInt(repository.GithubAppInstallationId, 10))
+	data["githubAppEnterpriseBaseUrl"] = []byte(repository.GitHubAppEnterpriseBaseURL)
+
+	secret.Data = data
+}
+
+func (s *secretsRepositoryBackend) secretToRepoCred(secret *apiv1.Secret) (*appsv1.RepoCreds, error) {
+	repository := &appsv1.RepoCreds{
+		URL:                        string(secret.Data["url"]),
+		Username:                   string(secret.Data["username"]),
+		Password:                   string(secret.Data["password"]),
+		SSHPrivateKey:              string(secret.Data["sshPrivateKey"]),
+		TLSClientCertData:          string(secret.Data["tlsClientCertData"]),
+		TLSClientCertKey:           string(secret.Data["tlsClientCertKey"]),
+		Type:                       string(secret.Data["type"]),
+		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
+		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+	}
+
+	enableOCI, err := boolOrDefault(secret, "enableOCI", false)
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableOCI = enableOCI
+
+	githubAppID, err := intOrDefault(secret, "githubAppID", 0)
+	if err != nil {
+		return repository, err
+	}
+	repository.GithubAppId = githubAppID
+
+	githubAppInstallationID, err := intOrDefault(secret, "githubAppInstallationID", 0)
+	if err != nil {
+		return repository, err
+	}
+	repository.GithubAppInstallationId = githubAppInstallationID
+
+	return repository, nil
+}
+
+func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *apiv1.Secret) {
+	data := make(map[string][]byte)
+
+	data["url"] = []byte(repoCreds.URL)
+	data["username"] = []byte(repoCreds.Username)
+	data["password"] = []byte(repoCreds.Password)
+	data["sshPrivateKey"] = []byte(repoCreds.SSHPrivateKey)
+	data["enableOCI"] = []byte(strconv.FormatBool(repoCreds.EnableOCI))
+	data["tlsClientCertData"] = []byte(repoCreds.TLSClientCertData)
+	data["tlsClientCertKey"] = []byte(repoCreds.TLSClientCertKey)
+	data["type"] = []byte(repoCreds.Type)
+	data["githubAppPrivateKey"] = []byte(repoCreds.GithubAppPrivateKey)
+	data["githubAppID"] = []byte(strconv.FormatInt(repoCreds.GithubAppId, 10))
+	data["githubAppInstallationID"] = []byte(strconv.FormatInt(repoCreds.GithubAppInstallationId, 10))
+	data["githubAppEnterpriseBaseUrl"] = []byte(repoCreds.GitHubAppEnterpriseBaseURL)
+
+	secret.Data = data
+}
+
+func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*apiv1.Secret, error) {
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		if git.SameURL(string(secret.Data["url"]), repoURL) {
+			return secret, nil
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
+}

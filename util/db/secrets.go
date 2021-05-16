@@ -40,7 +40,6 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	return secrets, nil
 }
 
-//nolint:unused
 func boolOrDefault(secret *apiv1.Secret, key string, def bool) (bool, error) {
 	val, present := secret.Data[key]
 	if !present {
@@ -50,7 +49,6 @@ func boolOrDefault(secret *apiv1.Secret, key string, def bool) (bool, error) {
 	return strconv.ParseBool(string(val))
 }
 
-//nolint:unused
 func intOrDefault(secret *apiv1.Secret, key string, def int64) (int64, error) {
 	val, present := secret.Data[key]
 	if !present {
@@ -131,7 +129,7 @@ func (db *db) watchSecrets(ctx context.Context,
 	<-ctx.Done()
 }
 
-// uriToSecretName hashes an uri address to the secret name using a formula.
+// URIToSecretName hashes an uri address to the secret name using a formula.
 // Part of the uri address is incorporated for debugging purposes
 func URIToSecretName(uriType, uri string) (string, error) {
 	parsedURI, err := url.ParseRequestURI(uri)
