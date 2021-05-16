@@ -2,6 +2,7 @@ package db
 
 import (
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -23,7 +24,7 @@ type secretsRepositoryBackend struct {
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
-	secName, err := URIToSecretName("repository", repository.Repo)
+	secName, err := URIToSecretName("repoconfig", repository.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -126,28 +127,112 @@ func (s *secretsRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 	return s.db.settingsMgr.ResyncInformers()
 }
 
-func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	panic("Implement me")
+func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	secName, err := URIToSecretName("repocreds", repoCreds.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	repoCredsSecret := &apiv1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secName,
+		},
+	}
+
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
+
+	_, err = s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repoCredsSecret)
+	if err != nil {
+		if apierr.IsAlreadyExists(err) {
+			return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", repoCreds.URL)
+		}
+		return nil, err
+	}
+
+	return repoCreds, s.db.settingsMgr.ResyncInformers()
 }
 
 func (s *secretsRepositoryBackend) GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
-	panic("Implement me")
+	secret, err := s.getRepoCredsSecret(repoURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.secretToRepoCred(secret)
 }
 
 func (s *secretsRepositoryBackend) ListRepoCreds(ctx context.Context) ([]string, error) {
-	panic("Implement me")
+	var repoURLs []string
+
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		repoURLs = append(repoURLs, string(secret.Data["url"]))
+	}
+
+	return repoURLs, nil
 }
 
-func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	panic("Implement me")
+func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	repoCredsSecret, err := s.getRepoCredsSecret(repoCreds.URL)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return s.CreateRepoCreds(ctx, repoCreds)
+		}
+		return nil, err
+	}
+
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
+
+	repoCredsSecret, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repoCredsSecret, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	updatedRepoCreds, err := s.secretToRepoCred(repoCredsSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedRepoCreds, s.db.settingsMgr.ResyncInformers()
 }
 
 func (s *secretsRepositoryBackend) DeleteRepoCreds(ctx context.Context, name string) error {
-	panic("Implement me")
+	secret, err := s.getRepositorySecret(name)
+	if err != nil {
+		return err
+	}
+
+	if err := s.db.deleteSecret(ctx, secret); err != nil {
+		return err
+	}
+
+	return s.db.settingsMgr.ResyncInformers()
 }
 
 func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error) {
-	panic("Implement me")
+	var helmRepoCreds []*appsv1.RepoCreds
+
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		if strings.EqualFold(string(secret.Data["type"]), "helm") {
+			repoCreds, err := s.secretToRepoCred(secret)
+			if err != nil {
+				return nil, err
+			}
+
+			helmRepoCreds = append(helmRepoCreds, repoCreds)
+		}
+	}
+
+	return helmRepoCreds, nil
 }
 
 func (s *secretsRepositoryBackend) secretToRepository(secret *apiv1.Secret) (*appsv1.Repository, error) {
@@ -292,4 +377,19 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*apiv1.S
 	}
 
 	return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
+}
+
+func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*apiv1.Secret, error) {
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		if git.SameURL(string(secret.Data["url"]), repoURL) {
+			return secret, nil
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", repoURL)
 }
