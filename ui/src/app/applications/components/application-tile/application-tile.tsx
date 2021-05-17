@@ -11,16 +11,47 @@ import './application-tile.scss';
 
 type AppAction = (app: string) => void;
 
-export const ApplicationTile = (props: {
+interface TileProps {
     app: Application;
     selected?: boolean;
+    checked?: boolean;
     ref: React.MutableRefObject<any>;
     onSelect?: (selected: boolean) => void;
     syncApplication: AppAction;
     refreshApplication: AppAction;
     deleteApplication: AppAction;
-}) => {
-    const {app, selected, ref, syncApplication, refreshApplication, deleteApplication} = props;
+    compact?: boolean;
+}
+
+const TileActions = (props: TileProps) => {
+    const {app, compact, syncApplication, refreshApplication, deleteApplication} = props;
+    return (
+        <Flexy className={`application-tile__actions ${props.compact ? 'application-tile__actions--compact' : ''}`}>
+            <ActionButton label='SYNC' action={() => syncApplication(app.metadata.name)} icon={faSync} short={compact} transparent={compact} />
+            <ActionButton
+                label='REFRESH'
+                action={() => refreshApplication(app.metadata.name)}
+                icon={faRedo}
+                {...refreshLinkAttrs(app)}
+                indicateLoading={true}
+                short={compact}
+                transparent={compact}
+            />
+            <ActionButton
+                label='DELETE'
+                action={() => deleteApplication(app.metadata.name)}
+                icon={faTimesCircle}
+                shouldConfirm={true}
+                indicateLoading={true}
+                short={compact}
+                transparent={compact}
+            />
+        </Flexy>
+    );
+};
+
+export const ApplicationTile = (props: TileProps) => {
+    const {app, selected, ref, compact} = props;
     const appContext = React.useContext(Context);
     const clusterContext = React.useContext(ClusterCtx);
     const [cluster, loading] = useData(() => GetCluster(clusterContext, app.spec.destination.server, app.spec.destination.name));
@@ -29,10 +60,11 @@ export const ApplicationTile = (props: {
         <div key={app.metadata.name} className='column column-block'>
             <div
                 ref={ref}
-                className={`application-tile argo-table-list__row applications-list__entry applications-list__entry--comparison-${
+                className={`application-tile ${compact ? 'application-tile--compact' : ''} argo-table-list__row applications-list__entry applications-list__entry--comparison-${
                     app.status.sync.status
                 } applications-list__entry--health-${app.status.health.status} ${selected ? 'applications-tiles__selected' : ''}`}>
-                <div onClick={e => appContext.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
+                {compact && <TileActions {...props} />}
+                <div onClick={e => appContext.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})} style={{minWidth: 0, flexGrow: 1}}>
                     <Flexy className='application-tile__header'>
                         <Checkbox
                             onChange={val => {
@@ -40,35 +72,42 @@ export const ApplicationTile = (props: {
                                     props.onSelect(val);
                                 }
                             }}
+                            value={props.checked}
                         />
                         {app.metadata.name}
                         <div style={{marginLeft: 'auto'}}>
-                            <HealthStatusIcon state={app.status.health} />
-                            &nbsp;
-                            <ComparisonStatusIcon status={app.status.sync.status} />
+                            <i className={app.spec.source.chart != null ? 'icon argo-icon-helm' : 'fab fa-git-square'} style={{marginRight: '7px'}} />
+                            <span style={{marginRight: '7px'}}>
+                                <HealthStatusIcon state={app.status.health} />
+                            </span>
+                            <span style={{marginRight: '7px'}}>
+                                <ComparisonStatusIcon status={app.status.sync.status} />
+                            </span>
                         </div>
                     </Flexy>
                     <ApplicationURLs urls={app.status.summary.externalURLs} />
                     <InfoItemRow label='Namespace' items={[{content: app.spec.destination.namespace}]} lightweight={true} />
                     <InfoItemRow label='Project' items={[{content: app.spec.project}]} lightweight />
-                    <InfoItemRow label='Repo' items={[{content: app.spec.source.repoURL, truncate: true}]} lightweight />
-                    <InfoItemRow label='Destination' items={[{content: loading ? 'Loading...' : clusterTitle(cluster), truncate: true}]} lightweight />
-                    {app.metadata.labels && (
-                        <InfoItemRow
-                            label='Labels'
-                            items={Object.keys(app.metadata.labels).map(l => {
-                                return {content: l};
-                            })}
-                        />
+                    {!props.compact && (
+                        <React.Fragment>
+                            <InfoItemRow label='Repo' items={[{content: app.spec.source.repoURL, truncate: true}]} lightweight />
+                            <InfoItemRow label='Destination' items={[{content: loading ? 'Loading...' : clusterTitle(cluster), truncate: true}]} lightweight />
+                            <InfoItemRow
+                                label='Labels'
+                                items={
+                                    app.metadata.labels && Object.keys(app.metadata.labels).length > 0
+                                        ? Object.keys(app.metadata.labels).map(l => {
+                                              return {content: `${l}=${app.metadata.labels[l]}`};
+                                          })
+                                        : [{content: 'None', lightweight: true}]
+                                }
+                            />
+                            <InfoItemRow label='Path' items={[{content: app.spec.source.path}]} lightweight />
+                            <InfoItemRow label='Target' items={[{content: app.spec.source.targetRevision}]} lightweight />
+                        </React.Fragment>
                     )}
-                    <InfoItemRow label='Path' items={[{content: app.spec.source.path}]} lightweight />
-                    <InfoItemRow label='Target' items={[{content: app.spec.source.targetRevision}]} lightweight />
                 </div>
-                <Flexy className='application-tile__actions'>
-                    <ActionButton label='SYNC' action={() => syncApplication(app.metadata.name)} icon={faSync} />
-                    <ActionButton label='REFRESH' action={() => refreshApplication(app.metadata.name)} icon={faRedo} {...refreshLinkAttrs(app)} indicateLoading={true} />
-                    <ActionButton label='DELETE' action={() => deleteApplication(app.metadata.name)} icon={faTimesCircle} shouldConfirm={true} indicateLoading={true} />
-                </Flexy>
+                {!compact && <TileActions {...props} />}
             </div>
         </div>
     );

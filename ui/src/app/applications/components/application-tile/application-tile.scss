@@ -1,6 +1,9 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .application-tile {
     line-height: 1em;
     font-size: 14px;
+    min-width: 0;
     &__header {
         font-size: 18px;
         padding: 1.1em 0;
@@ -15,10 +18,24 @@
         margin: 2px 0;
     }
 
+    &--compact {
+        display: flex;
+    }
+
     &__actions {
         padding: 1em 0;
         width: 100%;
         justify-content: center;
         line-height: 1em;
+
+        &--compact {
+            display: flex;
+            flex-direction: column;
+            flex-basis: 0;
+            padding-right: 2px;
+            margin-right: 17px;
+            margin-left: -3px;
+            border-right: 2px solid $argo-color-gray-4;
+        }
     }
 }

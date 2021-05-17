@@ -1,8 +1,10 @@
+import {ActionButton, Flexy} from 'argo-ux';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationTile} from '../application-tile/application-tile';
+import {faCheckDouble, faCompress, faExpand, faTimes, faRedo} from '@fortawesome/free-solid-svg-icons';
 
 require('./applications-tiles.scss');
 
@@ -48,6 +50,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
     const [checkedApps, setCheckedApps] = React.useState<{[key: string]: models.Application}>({});
+    const [allSelected, setAllSelected] = React.useState(false);
+    const [compact, setCompact] = React.useState(false);
+
+    React.useEffect(() => {
+        setAllSelected((Object.keys(checkedApps) || []).length === (applications || []).length);
+    }, [applications, checkedApps]);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -81,18 +89,65 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         return navApp(NumKeyToNumber(n));
     });
 
+    const getAppName = (app: models.Application) => {
+        return app.metadata ? app.metadata.name : 'Unknown';
+    };
+
+    const selectAll = () => {
+        const update = {...checkedApps};
+        for (const app of applications) {
+            const name = getAppName(app);
+            if (!update[name]) {
+                update[name] = app;
+            }
+        }
+        setCheckedApps(update);
+    };
+
+    const deselectAll = () => {
+        const update = {...checkedApps};
+        for (const app of applications) {
+            const name = getAppName(app);
+            if (update[name]) {
+                delete update[name];
+            }
+        }
+        setCheckedApps(update);
+    };
+
     return (
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <div style={{height: '1em'}}>{(Object.keys(checkedApps) || []).length > 0 && `Batch Actions (${(Object.keys(checkedApps) || []).length})`}</div>
+                    <Flexy style={{height: '1em', margin: '1em 0'}}>
+                        <span>
+                            SHOWING <b>{(applications || []).length}</b> APPS
+                            {(Object.keys(checkedApps) || []).length > 0 && ` (${(Object.keys(checkedApps) || []).length} SELECTED)`}
+                        </span>
+                        <Flexy style={{marginLeft: 'auto', lineHeight: '1em', fontSize: '14px'}}>
+                            {(Object.keys(checkedApps) || []).length > 0 && (
+                                <React.Fragment>
+                                    <ActionButton action={(): any => null} label='REFRESH' icon={faRedo} />
+                                </React.Fragment>
+                            )}
+                            {(Object.keys(checkedApps) || []).length > 0 && <ActionButton label='DESELECT ALL' icon={faTimes} action={deselectAll} />}
+                            {!allSelected && <ActionButton label='SELECT ALL' icon={faCheckDouble} action={selectAll} />}
+                            <ActionButton
+                                label={`${compact ? 'NORMAL' : 'COMPACT'} VIEW`}
+                                icon={compact ? faExpand : faCompress}
+                                action={() => setCompact(!compact)}
+                                style={{width: '150px'}}
+                            />
+                        </Flexy>
+                    </Flexy>
                     <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4' ref={appContainerRef}>
-                        {applications.map((app, i) => {
-                            const name = app.metadata ? app.metadata.name : 'Unknown';
+                        {(applications || []).map((app, i) => {
+                            const name = getAppName(app);
                             return (
                                 <ApplicationTile
                                     key={app.metadata ? app.metadata.name : i}
                                     selected={selectedApp === i}
+                                    checked={checkedApps[name] === app}
                                     ref={appRef.set ? appRef.ref : null}
                                     onSelect={val => {
                                         const update = {...checkedApps};
@@ -103,6 +158,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         }
                                         setCheckedApps(update);
                                     }}
+                                    compact={compact}
                                     app={app}
                                     syncApplication={syncApplication}
                                     deleteApplication={deleteApplication}
