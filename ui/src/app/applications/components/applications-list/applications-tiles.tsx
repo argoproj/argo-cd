@@ -1,10 +1,10 @@
+import {faCheckDouble, faCompress, faExpand, faRedo, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {ActionButton, Flexy, useTimeout} from 'argo-ux';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationTile} from '../application-tile/application-tile';
-import {faCheckDouble, faCompress, faExpand, faTimes, faRedo} from '@fortawesome/free-solid-svg-icons';
 
 require('./applications-tiles.scss');
 

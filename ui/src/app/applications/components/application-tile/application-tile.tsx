@@ -1,12 +1,11 @@
+import {faRedo, faSync, faTimesCircle} from '@fortawesome/free-solid-svg-icons';
+import {ActionButton, Checkbox, Flexy, InfoItemRow, useData} from 'argo-ux';
 import * as React from 'react';
+import {ClusterCtx, clusterTitle, GetCluster} from '../../../shared/components';
+import {Context} from '../../../shared/context';
 import {Application} from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import {ComparisonStatusIcon, HealthStatusIcon, refreshLinkAttrs} from '../utils';
-import {ClusterCtx, clusterTitle, GetCluster} from '../../../shared/components';
-import {Context} from '../../../shared/context';
-import {ActionButton, Checkbox, Flexy, InfoItemRow, useData} from 'argo-ux';
-import {faSync, faRedo, faTimesCircle} from '@fortawesome/free-solid-svg-icons';
-
 import './application-tile.scss';
 
 type AppAction = (app: string) => void;
