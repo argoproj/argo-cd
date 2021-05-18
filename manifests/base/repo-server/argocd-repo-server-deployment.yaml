@@ -66,8 +66,21 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
-        - name: tmp
-          mountPath: /tmp
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+        - mountPath: /tmp
+          name: tmp-dir
+      initContainers:
+      - command:
+        - cp
+        - -n
+        - /usr/local/bin/argocd
+        - /var/run/argocd/argocd-cmp-server
+        image: quay.io/argoproj/argocd:latest
+        name: copyutil
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -93,6 +106,15 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
+        - emptyDir: {}
+          name: var-files
+        - emptyDir: {}
+          name: plugins
+        - emptyDir: {}
+          name: tmp-dir
+        - name: config-files
+          configMap:
+            name: argocd-cmp-cm
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

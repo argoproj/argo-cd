@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -55,6 +56,7 @@ import (
 
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
+	pluginNotSupported             = "config management plugin not supported."
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
@@ -731,6 +733,21 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
+		// if a plugin is not supported by standard config management plugin version,
+		// check if it is supported by sidecar config management plugin version
+		var cmpManifests []string
+		var cmpErr error
+		if err != nil && strings.HasPrefix(err.Error(), pluginNotSupported) {
+			if cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q); cmpErr == nil {
+				return &apiclient.ManifestResponse{
+					Manifests:  cmpManifests,
+					SourceType: string(appSourceType),
+				}, nil
+			}
+		}
+		if cmpErr != nil {
+			err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
+		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -1097,7 +1114,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
-		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
+		return nil, fmt.Errorf(pluginNotSupported+" plugin name %s", q.ApplicationSource.Plugin.Name)
 	}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
@@ -1122,6 +1139,40 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		return nil, err
 	}
 	return kube.SplitYAML([]byte(out))
+}
+
+func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+	// detect config management plugin server (sidecar)
+	conn, cmpClient, err := detectConfigManagementPlugin(appPath)
+	if err != nil {
+		return nil, err
+	}
+	defer io.Close(conn)
+
+	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
+	env := append(os.Environ(), envVars.Environ()...)
+	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
+	cmpManifests, err := cmpClient.GenerateManifest(context.Background(), &pluginclient.ManifestRequest{
+		AppPath:  appPath,
+		RepoPath: repoPath,
+		Env:      toEnvEntry(env),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cmpManifests.Manifests, nil
+}
+
+func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
+	envEntry := make([]*pluginclient.EnvEntry, 0)
+	for _, env := range envVars {
+		pair := strings.Split(env, "=")
+		if len(pair) != 2 {
+			continue
+		}
+		envEntry = append(envEntry, &pluginclient.EnvEntry{Name: pair[0], Value: pair[1]})
+	}
+	return envEntry
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
@@ -1517,4 +1568,51 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		}
 	}
 	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
+}
+
+// 1. list all plugins in /plugins folder
+// 2. foreach plugin setup connection with respective cmp-server
+// 3. check isSupported(path)?
+// 4.a if no then close connection
+// 4.b if yes then return conn for detected plugin
+func detectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+	var conn io.Closer
+	var cmpClient pluginclient.ConfigManagementPluginServiceClient
+
+	files, err := os.ReadDir(common.DefaultPluginSockFilePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var connFound bool
+	for _, file := range files {
+		if file.Type() == os.ModeSocket {
+			address := fmt.Sprintf("%s/%s", strings.TrimRight(common.DefaultPluginSockFilePath, "/"), file.Name())
+			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
+
+			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
+			if err != nil {
+				log.Errorf("error dialing to cmp-server for plugin %s, %v", file.Name(), err)
+				continue
+			}
+
+			resp, err := cmpClient.MatchRepository(context.Background(), &pluginclient.RepositoryRequest{Path: appPath})
+			if err != nil {
+				log.Errorf("repository %s is not the match because %v", appPath, err)
+				continue
+			}
+
+			if !resp.IsSupported {
+				io.Close(conn)
+			} else {
+				connFound = true
+				break
+			}
+		}
+	}
+
+	if !connFound {
+		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", appPath)
+	}
+	return conn, cmpClient, err
 }

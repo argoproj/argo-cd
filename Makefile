@@ -178,7 +178,7 @@ gogen: ensure-gopath
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: ensure-gopath
+protogen: ensure-gopath mod-vendor-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
@@ -279,6 +279,7 @@ image:
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-util
 	ln -sfn ${DIST_DIR}/argocd-darwin-amd64 ${DIST_DIR}/argocd-util-darwin-amd64

@@ -54,6 +54,10 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
+	// Default path to cmp server plugin socket file
+	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
+	// Default path to cmp server plugin configuration file
+	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
 )
 
 // Argo CD application related constants
