@@ -56,6 +56,7 @@ type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectRefe
 type PodInfo struct {
 	NodeName         string
 	ResourceRequests v1.ResourceList
+	Phase            v1.PodPhase
 }
 
 type NodeInfo struct {
