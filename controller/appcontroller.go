@@ -413,11 +413,13 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
 		}
 	}
+
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
 	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
+
 		switch {
 		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
 			allNodesInfo[key.Name] = *info.NodeInfo
@@ -464,7 +466,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 		for _, pod := range neighbors {
 			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] {
+				if !supportedResourceNames[name] || pod.Phase == v1.PodSucceeded || pod.Phase == v1.PodFailed {
 					continue
 				}
 				info := resources[name]
