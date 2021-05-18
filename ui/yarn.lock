@@ -4164,10 +4164,10 @@ are-we-there-yet@~1.1.2:
     typescript "^4.0.3"
     xterm "2.4.0"
 
-argo-ux@^1.1.4:
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.4.tgz#575ec12a02d04c7e8bd3717a3d95344d8127e6a4"
-  integrity sha512-8oFB4sn434f15wUIwa+1TmJb7+JLAYQa9oAHKKeATdtjUFM9Shbij6nbYGfjN3gWSdiE2WxFOg3AMdIEa34tBw==
+argo-ux@^1.1.5:
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.5.tgz#7c111aa4cb1e29a9e0ddc22bf748966e1c922c11"
+  integrity sha512-7qgFQs35A4QMj2nWglbR9mdr8OEaaXIRgRiSa6pqGvHNzFzJ7wXdNnUkHoF/Eskx7xDV0ccmUp6X1ck607CepA==
   dependencies:
     "@fortawesome/fontawesome-free" "^5.15.2"
     "@fortawesome/fontawesome-svg-core" "^1.2.34"
