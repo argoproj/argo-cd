@@ -2860,7 +2860,6 @@ metadata:
     heritage: Helm
     release: argocd
   name: argocd-redis-ha-health-configmap
-  namespace: argocd
 ---
 apiVersion: v1
 kind: ConfigMap
