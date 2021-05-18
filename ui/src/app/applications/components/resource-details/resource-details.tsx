@@ -39,6 +39,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+        if (!node || node === undefined) {
+            return [];
+        }
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
@@ -53,7 +56,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 )
             });
         }
-        if (podState) {
+        if (podState && podState.metadata && podState.spec) {
             const containerGroups = [
                 {
                     offset: 0,
@@ -92,7 +95,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 </div>
                                 <div className='columns small-9 medium-10'>
                                     <PodsLogsViewer
-                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                        podName={podState.metadata.name || ''}
                                         group={node.group}
                                         kind={node.kind}
                                         name={node.name}
