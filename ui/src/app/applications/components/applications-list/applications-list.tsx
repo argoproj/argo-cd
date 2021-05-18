@@ -280,18 +280,26 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
-    function refreshApp(appName: string) {
+    function refreshApp(appNames: string | string[]) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
+        if (!Array.isArray(appNames)) {
+            appNames = [appNames];
+        }
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            const app = applications.find(item => item.metadata.name === appName);
-            if (app) {
-                AppUtils.setAppRefreshing(app);
-                loaderRef.current.setData(applications);
+            for (const appName of appNames) {
+                const app = applications.find(item => item.metadata.name === appName);
+                if (app) {
+                    AppUtils.setAppRefreshing(app);
+                    loaderRef.current.setData(applications);
+                }
             }
         }
-        services.applications.get(appName, 'normal');
+
+        for (const appName of appNames) {
+            services.applications.get(appName, 'normal');
+        }
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -438,6 +446,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles
                                                                                     applications={data}
+                                                                                    compact={pref.compact}
+                                                                                    setCompact={(compact: boolean) =>
+                                                                                        services.viewPreferences.updatePreferences({appList: {...pref, compact}})
+                                                                                    }
                                                                                     syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
                                                                                     refreshApplication={refreshApp}
                                                                                     deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}

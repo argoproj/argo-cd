@@ -20,11 +20,12 @@ interface TileProps {
     syncApplication: AppAction;
     refreshApplication: AppAction;
     deleteApplication: AppAction;
+    refreshing?: boolean;
     compact?: boolean;
 }
 
 const TileActions = (props: TileProps) => {
-    const {app, compact, syncApplication, refreshApplication, deleteApplication} = props;
+    const {app, compact, syncApplication, refreshApplication, deleteApplication, refreshing} = props;
     return (
         <Flexy className={`application-tile__actions ${props.compact ? 'application-tile__actions--compact' : ''}`}>
             <ActionButton label='SYNC' action={() => syncApplication(app.metadata.name)} icon={faSync} short={compact} transparent={compact} />
@@ -36,6 +37,7 @@ const TileActions = (props: TileProps) => {
                 indicateLoading={true}
                 short={compact}
                 transparent={compact}
+                loading={refreshing}
             />
             <ActionButton
                 label='DELETE'
