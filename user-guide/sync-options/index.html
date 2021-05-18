@@ -1770,7 +1770,7 @@ which creates CRDs in response to user defined <code>ConstraintTemplates</code>.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
 Turning on selective sync option which will sync only out-of-sync resources. </p>
 <p>You can add this option by following ways</p>
-<p>1) Add <code>ApplyOutOfSync=true</code> in manifest</p>
+<p>1) Add <code>ApplyOutOfSyncOnly=true</code> in manifest</p>
 <p>Example:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">syncPolicy</span><span class="p">:</span>
   <span class="nt">syncOptions</span><span class="p">:</span>
