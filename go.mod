@@ -27,7 +27,6 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/go-redis/cache/v8 v8.2.1
 	github.com/go-redis/redis/v8 v8.3.2
-	github.com/gobuffalo/packr v1.11.0
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.3.1

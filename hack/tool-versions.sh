@@ -15,6 +15,5 @@ ksonnet_version=0.13.1
 kubectl_version=1.17.8
 kubectx_version=0.6.3
 kustomize4_version=4.1.2
-packr_version=1.21.9
 protoc_version=3.7.1
 swagger_version=0.19.0
