@@ -90,7 +90,11 @@ spec:
 
 ```
 
+Additional note: it will be important to allow Extensions to specify their own documentation URLs to be displayed as a button or banner to users, as not to be inundated with support requests for third party extensions.
+
 ### Detailed examples
+
+TODO
 
 #### Argo Rollout Extension PoC: 
 
