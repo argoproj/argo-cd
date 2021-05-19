@@ -6,5 +6,10 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
+  ingress:
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 8082
   policyTypes:
   - Ingress
