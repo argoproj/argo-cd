@@ -1183,16 +1183,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
 		}).Stream(ws.Context())
-		if err != nil {
-			return err
-		}
 		podName := pod.Name
 		logStream := make(chan logEntry)
-		defer ioutil.Close(stream)
+		if err == nil {
+			defer ioutil.Close(stream)
+		}
 
 		streams = append(streams, logStream)
 		go func() {
-			parseLogsStream(podName, stream, logStream)
+			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
+			// then the error should be shown in the UI so that user know the reason
+			if err != nil {
+				logStream <- logEntry{line: err.Error()}
+			} else {
+				parseLogsStream(podName, stream, logStream)
+			}
 			close(logStream)
 		}()
 	}
