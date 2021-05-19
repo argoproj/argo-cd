@@ -13,6 +13,7 @@ export interface AppDetailsPreferences {
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    logLines: number;
 }
 
 export interface PodViewPreferences {
@@ -75,6 +76,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         compactDiff: false,
         resourceView: 'manifest',
         orphanedResources: false,
+        logLines: 100,
         podView: {
             sortMode: 'node'
         },
