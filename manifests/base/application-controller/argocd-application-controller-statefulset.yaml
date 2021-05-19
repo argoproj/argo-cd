@@ -25,7 +25,7 @@ spec:
         - --operation-processors
         - "10"
         env:
-        - name: RECONCILIATION_TIMEOUT
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               name: argocd-cm

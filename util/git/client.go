@@ -104,6 +104,7 @@ func init() {
 
 type ClientOpts func(c *nativeGitClient)
 
+// WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
 func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
@@ -111,6 +112,7 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	}
 }
 
+// WithEventHandlers sets the git client event handlers
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers

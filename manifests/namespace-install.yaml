@@ -531,7 +531,7 @@ spec:
         - --redis
         - argocd-redis:6379
         env:
-        - name: RECONCILIATION_TIMEOUT
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation
@@ -737,7 +737,7 @@ spec:
         - --operation-processors
         - "10"
         env:
-        - name: RECONCILIATION_TIMEOUT
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation

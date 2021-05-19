@@ -1203,7 +1203,7 @@ spec:
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
-        - name: RECONCILIATION_TIMEOUT
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation
@@ -1416,7 +1416,7 @@ spec:
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
-        - name: RECONCILIATION_TIMEOUT
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation

@@ -26,7 +26,7 @@ spec:
         - --redis
         - $(ARGOCD_REDIS_SERVICE):6379
         env:
-          - name: RECONCILIATION_TIMEOUT
+          - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:
                 name: argocd-cm

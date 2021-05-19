@@ -37,7 +37,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	var revisionCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
-	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt32), "Cache expiration for cached revision")
+	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt32), "Cache expiration for cached revision")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -78,10 +78,12 @@ func helmIndexRefsKey(repo string) string {
 	return fmt.Sprintf("helm-index|%s", repo)
 }
 
+// SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	return c.cache.SetItem(helmIndexRefsKey(repo), indexData, c.revisionCacheExpiration, false)
 }
 
+// GetHelmIndex retrieves helm repository index.yaml content from cache
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
 }
@@ -90,6 +92,7 @@ func gitRefsKey(repo string) string {
 	return fmt.Sprintf("git-refs|%s", repo)
 }
 
+// SetGitReferences saves resolved Git repository references to cache
 func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) error {
 	var input [][2]string
 	for i := range references {
@@ -98,6 +101,7 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 	return c.cache.SetItem(gitRefsKey(repo), input, c.revisionCacheExpiration, false)
 }
 
+// GetGitReferences retrieves resolved Git repository references from cache
 func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) error {
 	var input [][2]string
 	if err := c.cache.GetItem(gitRefsKey(repo), &input); err != nil {
