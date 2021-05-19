@@ -32,6 +32,7 @@ func NewMockHandler() *ArgoCDWebhookHandler {
 	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 		1*time.Minute,
+		1*time.Minute,
 	))
 }
 

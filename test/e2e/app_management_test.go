@@ -1598,3 +1598,34 @@ func TestSyncOptionReplace(t *testing.T) {
 			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
 		})
 }
+
+func TestDiscoverNewCommit(t *testing.T) {
+	var sha string
+	Given(t).
+		Path("config-map").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			sha = app.Status.Sync.Revision
+			assert.NotEmpty(t, sha)
+		}).
+		When().
+		PatchFile("config-map.yaml", `[{"op": "replace", "path": "/data/foo", "value": "hello"}]`).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// make sure new commit is not discovered immediately after push
+		And(func(app *Application) {
+			assert.Equal(t, sha, app.Status.Sync.Revision)
+		}).
+		When().
+		// make sure new commit is not discovered after refresh is requested
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			assert.NotEqual(t, sha, app.Status.Sync.Revision)
+		})
+}
