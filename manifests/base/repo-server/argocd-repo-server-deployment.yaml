@@ -42,6 +42,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -57,6 +59,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: tmp
+          mountPath: /tmp
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -68,6 +72,8 @@ spec:
           configMap:
             name: argocd-gpg-keys-cm
         - name: gpg-keyring
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
         - name: argocd-repo-server-tls
           secret:
