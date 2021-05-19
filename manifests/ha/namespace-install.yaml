@@ -262,54 +262,6 @@ subjects:
   name: argocd-server
 ---
 apiVersion: v1
-data:
-  redis_liveness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 6379 \
-        ping
-    )
-    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-  redis_readiness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 6379 \
-        ping
-    )
-    if [ "$response" != "PONG" ] ; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-  sentinel_liveness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 26379 \
-        ping
-    )
-    if [ "$response" != "PONG" ]; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-kind: ConfigMap
-metadata:
-  labels:
-    app: argocd-redis-ha
-    chart: redis-ha-4.12.15
-    heritage: Helm
-    release: argocd
-  name: argocd-redis-ha-health-configmap
-  namespace: argocd
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
@@ -754,6 +706,53 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-configmap
+---
+apiVersion: v1
+data:
+  redis_liveness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 6379 \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+  redis_readiness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 6379 \
+        ping
+    )
+    if [ "$response" != "PONG" ] ; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+  sentinel_liveness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 26379 \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+kind: ConfigMap
+metadata:
+  labels:
+    app: argocd-redis-ha
+    chart: redis-ha-4.12.15
+    heritage: Helm
+    release: argocd
+  name: argocd-redis-ha-health-configmap
 ---
 apiVersion: v1
 data:
