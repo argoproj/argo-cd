@@ -2278,7 +2278,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		} else {
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 		}
-	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" {
 		config, err = rest.InClusterConfig()
 	} else {
 		tlsClientConfig := rest.TLSClientConfig{
