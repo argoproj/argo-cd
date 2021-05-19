@@ -13,7 +13,12 @@ $num-stats: 2;
         display: flex;
         margin-bottom: 1em;
         &__section {
-            margin: 0 10px;
+            margin-left: 10px;
+            padding-right: 10px;
+            border-right: 1px solid $argo-color-gray-4;
+            &:last-child {
+                border-right: none;
+            }
         }
     }
 
@@ -151,7 +156,6 @@ $num-stats: 2;
                     height: 1em;
                     width: 1em;
                     border-radius: 5px;
-                    
                 }
             }
 
@@ -204,7 +208,6 @@ $num-stats: 2;
     }
 
     @media screen and (max-width: map-get($breakpoints, medium)) {
-
         &__node {
             width: 95%;
             &--large {
