@@ -2230,3 +2230,65 @@ func TestRemoveEnvEntry(t *testing.T) {
 		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
 }
+
+func TestIsResourceInList(t *testing.T) {
+	resourceList := []metav1.GroupKind{
+		{Group: "*.group.test", Kind: "*"},
+		{Group: "**.group2.test", Kind: "*"},
+		{Group: "group3.test", Kind: "*"},
+	}
+
+	tests := []struct {
+		name string
+		res  metav1.GroupKind
+		want bool
+	}{
+		{
+			name: "Resource present in list",
+			res:  metav1.GroupKind{Group: "sample.group.test", Kind: "Gamma"},
+			want: true,
+		},
+		{
+			name: "Resource absent in list",
+			res:  metav1.GroupKind{Group: "sample", Kind: "test"},
+			want: false,
+		},
+		{
+			name: "Valid Wildcard pattern",
+			res:  metav1.GroupKind{Group: "*.group.test", Kind: "*"},
+			want: true,
+		},
+		{
+			name: "Checking the top-level group with pattern - invalid",
+			res:  metav1.GroupKind{Group: "group.test", Kind: "test"},
+			want: false,
+		},
+		{
+			name: "Checking the top-level group with pattern - valid",
+			res:  metav1.GroupKind{Group: "sample.group2.test", Kind: "test"},
+			want: true,
+		},
+		{
+			name: "Invalid Wildcard pattern",
+			res:  metav1.GroupKind{Group: "---", Kind: "*"},
+			want: false,
+		},
+		{
+			name: "Top-level group present in the list",
+			res:  metav1.GroupKind{Group: "group2.test", Kind: "test"},
+			want: true,
+		},
+		{
+			name: "Resource present in list without wild card",
+			res:  metav1.GroupKind{Group: "group3.test", Kind: "Gamma"},
+			want: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := isResourceInList(test.res, resourceList)
+			assert.Equal(t, test.want, got)
+		})
+	}
+}

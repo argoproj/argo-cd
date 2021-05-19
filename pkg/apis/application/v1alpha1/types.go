@@ -2757,6 +2757,10 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 			if ok && err == nil {
 				return true
 			}
+			// if a super wild card (**.) is provided, match the top level group too
+			if strings.TrimPrefix(item.Group, "**.") == res.Group {
+				return true
+			}
 		}
 	}
 	return false
