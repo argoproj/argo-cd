@@ -70,7 +70,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                     </div>
                                 </div>
                             </div>
-                            {userInfo.loggedIn && (
+                            {userInfo.loggedIn && userInfo.iss === 'argocd' ? (
                                 <SlidingPanel
                                     isShown={this.showChangePassword}
                                     onClose={() => (this.showChangePassword = false)}
@@ -128,6 +128,8 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                         )}
                                     </Form>
                                 </SlidingPanel>
+                            ) : (
+                                <div />
                             )}
                         </div>
                     </Page>
