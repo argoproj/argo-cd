@@ -1833,7 +1833,7 @@ preferred version into a version of the resource stored in Git. If <code>kubectl
 reconciliation. In this case advice user-preferred resource version in Git.</p>
 </li>
 <li>
-<p>The controller polls Git every 3m by default. You can increase this duration using <code>--app-resync seconds</code> to reduce polling.</p>
+<p>The controller polls Git every 3m by default. You can increase this duration using <code>timeout.reconciliation</code> setting in the <code>argocd-cm</code> ConfigMap.</p>
 </li>
 <li>
 <p>If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
@@ -1901,15 +1901,10 @@ with the changed files specified in the webhook payload. If non of the changed f
 <p>Installations that use a different repo for each app are <strong>not</strong> subject to this behavior and will likely get no benefit from using these annotations.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Installations with a large number of apps should also set the <code>--app-resync</code> flag in the <code>argocd-application-controller</code> process to a larger value to reduce automatic refreshes based on git polling. The exact value is a trade-off between reduced work and app sync in case of a missed webhook event. For most cases <code>1800</code> (30m) or <code>3600</code> (1h) is a good trade-off.</p>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
 <p>Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos</p>
 </div>
-<ul>
-<li><strong>Relative path</strong> The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:</li>
-</ul>
+<p>I'm using <code>.Second()</code> modifier to avoid distracting users who already rely on <code>--app-resync</code> flag.
+* <strong>Relative path</strong> The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>

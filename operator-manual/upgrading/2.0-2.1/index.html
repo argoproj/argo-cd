@@ -798,6 +798,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replacing-app-resync-flag-with-timeoutreconciliation-setting" class="md-nav__link">
+    Replacing --app-resync flag with timeout.reconciliation setting
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1624,6 +1631,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replacing-app-resync-flag-with-timeoutreconciliation-setting" class="md-nav__link">
+    Replacing --app-resync flag with timeout.reconciliation setting
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1645,6 +1659,11 @@
 <h2 id="upgraded-kustomize-version">Upgraded Kustomize Version<a class="headerlink" href="#upgraded-kustomize-version" title="Permanent link">&para;</a></h2>
 <p>Note that bundled Kustomize has been upgraded to v4.1.2. Some of the flags are changed in Kustomize V4. 
 For example flag name <code>load_restrictor</code> is changed in Kustomize v4+. It is changed from <code>--load_restrictor=none</code> to <code>--load-restrictor LoadRestrictionsNone</code>. </p>
+<h2 id="replacing-app-resync-flag-with-timeoutreconciliation-setting">Replacing <code>--app-resync</code> flag with <code>timeout.reconciliation</code> setting<a class="headerlink" href="#replacing-app-resync-flag-with-timeoutreconciliation-setting" title="Permanent link">&para;</a></h2>
+<p>The<code>--app-resync</code> flag allows controlling how frequently Argo CD application controller checks resolve the target
+application revision of each application. In order to allow caching resolved revision per repository as opposed to per
+application, the <code>--app-resync</code> flag has been deprecated. Please use <code>timeout.reconciliation</code> setting in <code>argocd-cm</code> ConfigMap instead.
+See example in <a href="../../argocd-cm.yaml">argocd-cm.yaml</a>.</p>
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
                 
               
