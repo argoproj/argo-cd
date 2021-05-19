@@ -38,7 +38,6 @@ ADD ./hack/install.sh .
 ADD ./hack/installers installers
 
 RUN ./install.sh dep-linux && \
-    ./install.sh packr-linux && \
     ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
@@ -53,8 +52,7 @@ RUN ./install.sh dep-linux && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/helm2 && \
-    rm -rf /tmp/ks_* && \
-    rm -rf /tmp/packr
+    rm -rf /tmp/ks_*
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
