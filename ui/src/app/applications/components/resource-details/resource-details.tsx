@@ -59,6 +59,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
+    const [loading, setLoading] = React.useState(true);
+    const script = document.createElement('script');
+    script.src = `/extension/${selectedNode.kind.toLowerCase()}/extension.js`;
+    document.body.appendChild(script);
+    script.onload = () => {
+        setLoading(false);
+    };
+
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
@@ -133,10 +141,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs.push({
             key: 'extension',
             title: 'MORE',
-            content: (
+            content: loading ? (
+                'Loading...'
+            ) : (
                 <ErrorBoundary>
                     <React.Suspense fallback='Loading...'>
-                        <Extension name='canary-demo' namespace='rollouts-demo' />
+                        <Extension name={node.name} namespace={node.namespace} />
                     </React.Suspense>
                 </ErrorBoundary>
             )

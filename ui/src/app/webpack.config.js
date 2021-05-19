@@ -122,12 +122,11 @@ const config = {
         port: 4000,
         host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
         proxy: {
-            '/api/v1/rollouts': {target: 'http://localhost:3100', secure: false},
             '/api': proxyConf,
             '/auth': proxyConf,
             '/swagger-ui': proxyConf,
             '/swagger.json': proxyConf,
-            '/extension.js': {target: 'http://localhost:3100', secure: false}
+            '/extension': proxyConf
         }
     }
 };
