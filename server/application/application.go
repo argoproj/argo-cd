@@ -396,7 +396,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				if annotations == nil {
 					annotations = make(map[string]string)
 				}
-				if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+				if _, ok := annotations[appv1.AnnotationKeyRefresh]; !ok {
 					return &event.Application, nil
 				}
 			}
@@ -1787,11 +1787,11 @@ func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncW
 func getPropagationPolicyFinalizer(policy string) string {
 	switch strings.ToLower(policy) {
 	case backgroundPropagationPolicy:
-		return argocommon.BackgroundPropagationPolicyFinalizer
+		return appv1.BackgroundPropagationPolicyFinalizer
 	case foregroundPropagationPolicy:
-		return argocommon.ForegroundPropagationPolicyFinalizer
+		return appv1.ForegroundPropagationPolicyFinalizer
 	case "":
-		return argocommon.ResourcesFinalizerName
+		return appv1.ResourcesFinalizerName
 	default:
 		return ""
 	}

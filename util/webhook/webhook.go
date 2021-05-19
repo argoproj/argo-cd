@@ -19,7 +19,6 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -252,7 +251,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 
 func getAppRefreshPaths(app *v1alpha1.Application) []string {
 	var paths []string
-	if val, ok := app.Annotations[common.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
 		for _, item := range strings.Split(val, ";") {
 			if item == "" {
 				continue

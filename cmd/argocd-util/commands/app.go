@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -237,7 +236,7 @@ func NewReconcileCommand() *cobra.Command {
 			}
 			outputPath := args[0]
 
-			errors.CheckError(os.Setenv(common.EnvVarFakeInClusterConfig, "true"))
+			errors.CheckError(os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true"))
 			cfg, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()

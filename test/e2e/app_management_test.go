@@ -111,7 +111,7 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
-			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
+			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
 		And(func(_ *Application) {
@@ -807,10 +807,10 @@ func TestPermissions(t *testing.T) {
 
 	// make sure app cannot be created without permissions in project
 	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+		"--path", guestbookPath, "--project", "test", "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.Error(t, err)
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, DeploymentNamespace())
+	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	assert.Contains(t, err.Error(), sourceError)
 	assert.Contains(t, err.Error(), destinationError)
@@ -825,7 +825,7 @@ func TestPermissions(t *testing.T) {
 
 	// make sure controller report permissions issues in conditions
 	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+		"--path", guestbookPath, "--project", "test", "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 	assert.NoError(t, err)
 	defer func() {
 		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(context.Background(), appName, metav1.DeleteOptions{})
@@ -1398,7 +1398,7 @@ func TestCreateDisableValidation(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			_, err := RunCli("app", "create", app.Name, "--upsert", "--validate=false", "--repo", RepoURL(RepoURLTypeFile),
-				"--path", "baddir2", "--project", app.Spec.Project, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
+				"--path", "baddir2", "--project", app.Spec.Project, "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
 			assert.NoError(t, err)
 		}).
 		When().

@@ -16,7 +16,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	cachemocks "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -79,7 +78,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    common.KubernetesInternalAPIServerAddr,
+				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
 				Namespace: "default",
 			},
 		},
