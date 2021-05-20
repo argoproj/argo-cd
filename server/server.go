@@ -917,6 +917,10 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 			}
 		}
 	}
+	if claimsErr != nil {
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, claimsErr)
+	}
 
 	if claimsErr != nil {
 		argoCDSettings, err := a.settingsMgr.GetSettings()
