@@ -39,7 +39,6 @@ import (
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -66,6 +65,8 @@ const (
 type CompareWith int
 
 const (
+	// Compare live application state against state defined in latest git revision with no resolved revision caching.
+	CompareWithLatestForceResolve CompareWith = 3
 	// Compare live application state against state defined in latest git revision.
 	CompareWithLatest CompareWith = 2
 	// Compare live application state against state defined using revision of most recent comparison.
@@ -842,7 +843,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	filteredObjs := FilterObjectsForDeletion(objs)
 
 	propagationPolicy := metav1.DeletePropagationForeground
-	if app.GetPropagationPolicy() == common.BackgroundPropagationPolicyFinalizer {
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
 		propagationPolicy = metav1.DeletePropagationBackground
 	}
 	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
@@ -1199,7 +1200,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	now := metav1.Now()
-	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source,
+		refreshType == appv1.RefreshTypeHard,
+		comparisonLevel == CompareWithLatestForceResolve, localManifests)
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -1230,7 +1233,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx.Info("Sync prevented by sync window")
 	}
 
-	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
+	if app.Status.ReconciledAt == nil || comparisonLevel >= CompareWithLatest {
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
@@ -1260,9 +1263,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
+		compareWith = CompareWithLatestForceResolve
 		// user requested app refresh.
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
+	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
+		reason = "spec.source differs"
+		compareWith = CompareWithLatestForceResolve
 	} else if expired {
 		// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 		// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
@@ -1272,8 +1279,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reconciledAtStr = app.Status.ReconciledAt.String()
 		}
 		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
-	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
-		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
@@ -1356,7 +1361,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		for k, v := range orig.GetAnnotations() {
 			newAnnotations[k] = v
 		}
-		delete(newAnnotations, common.AnnotationKeyRefresh)
+		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},

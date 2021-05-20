@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -206,7 +205,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, bearerToken, awsAuthConf, execProviderConf)
 			if clusterOpts.InCluster {
-				clst.Server = common.KubernetesInternalAPIServerAddr
+				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard

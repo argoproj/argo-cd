@@ -186,7 +186,7 @@ type ArgoCDServerOpts struct {
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -725,8 +725,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
 
-	// Webhook handler for git events
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour))
+	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute))
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server
@@ -734,7 +734,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		if a.ArgoCDServerOpts.EnableGZip {
+			assetsHandler = compressHandler(assetsHandler)
+		}
+		mux.Handle("/", assetsHandler)
 	}
 	return &httpS
 }

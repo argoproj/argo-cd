@@ -24,6 +24,7 @@ func newFixtures() *fixtures {
 	return &fixtures{NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
 		1*time.Minute,
+		1*time.Minute,
 	)}
 }
 
@@ -131,6 +132,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	repoCache := NewCache(
 		cacheutil.NewCache(inMemCache),
+		1*time.Minute,
 		1*time.Minute,
 	)
 

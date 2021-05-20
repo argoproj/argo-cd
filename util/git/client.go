@@ -43,6 +43,11 @@ type Refs struct {
 	// heads and remotes are also refs, but are not needed at this time.
 }
 
+type gitRefCache interface {
+	SetGitReferences(repo string, references []*plumbing.Reference) error
+	GetGitReferences(repo string, references *[]*plumbing.Reference) error
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
@@ -58,8 +63,15 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 }
 
+type EventHandlers struct {
+	OnLsRemote func(repo string) func()
+	OnFetch    func(repo string) func()
+}
+
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
+	EventHandlers
+
 	// URL of the repository
 	repoURL string
 	// Root path of repository
@@ -70,6 +82,10 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// gitRefCache knows how to cache git refs
+	gitRefCache gitRefCache
+	// indicates if client allowed to load refs from cache
+	loadRefFromCache bool
 }
 
 var (
@@ -86,23 +102,43 @@ func init() {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
+type ClientOpts func(c *nativeGitClient)
+
+// WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
+func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.gitRefCache = cache
+		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.EventHandlers = handlers
+	}
+}
+
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, opts ...ClientOpts) (Client, error) {
 	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
-	client := nativeGitClient{
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, opts ...ClientOpts) (Client, error) {
+	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
 	}
-	return &client, nil
+	for i := range opts {
+		opts[i](client)
+	}
+	return client, nil
 }
 
 // Returns a HTTP client object suitable for go-git to use using the following
@@ -270,6 +306,11 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
+	if m.OnFetch != nil {
+		done := m.OnFetch(m.repoURL)
+		defer done()
+	}
+
 	var err error
 	if revision != "" {
 		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
@@ -345,6 +386,18 @@ func (m *nativeGitClient) Checkout(revision string) error {
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	if m.gitRefCache != nil && m.loadRefFromCache {
+		var res []*plumbing.Reference
+		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
+			return res, nil
+		}
+	}
+
+	if m.OnLsRemote != nil {
+		done := m.OnLsRemote(m.repoURL)
+		defer done()
+	}
+
 	repo, err := git.Init(memory.NewStorage(), nil)
 	if err != nil {
 		return nil, err
@@ -360,7 +413,14 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+	if err == nil && m.gitRefCache != nil {
+		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
+			log.Warnf("Failed to store git references to cache: %v", err)
+		}
+		return res, nil
+	}
+	return res, err
 }
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {

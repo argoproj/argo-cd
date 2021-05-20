@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
@@ -44,7 +43,7 @@ func Given(t *testing.T) *Context {
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
+	return &Context{t: t, destServer: v1alpha1.KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
