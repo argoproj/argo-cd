@@ -33,9 +33,7 @@ const config = {
     },
 
     externals: {
-        'extensions': 'Extension',
-        'react': 'React',
-        'react-dom': 'ReactDOM'
+        extensions: 'Extension'
     },
 
     module: {

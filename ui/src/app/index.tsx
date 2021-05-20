@@ -2,6 +2,8 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {App} from './app';
 
+window.React = React;
+
 ReactDOM.render(<App />, document.getElementById('app'));
 
 const mdl = module as any;

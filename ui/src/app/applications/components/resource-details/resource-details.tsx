@@ -14,8 +14,8 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-const Extension = React.lazy(() => import('extensions'));
 import * as AppUtils from '../utils';
+
 import './resource-details.scss';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -66,6 +66,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     script.onload = () => {
         setLoading(false);
     };
+
+    const Extension = React.lazy(() =>
+        import(`/api/extension/${selectedNode.kind.toLowerCase()}/extension.js`).then((ExtComponent: JSX.Element) => {
+            const component = (props: any) => {
+                return <ExtComponent {...props} />;
+            };
+            return {
+                default: component
+            };
+        })
+    );
 
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (state) {
