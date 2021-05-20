@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
+import {useData} from 'argo-ux';
 
 import * as models from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -36,31 +37,24 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
     const [logLinesField, setLogLinesField] = useState(null);
-    const [prefs, setPrefs] = useState<ViewPreferences>(null);
-    const [loading, setLoading] = useState(true);
-    const [fetchingPrefs, fetchPrefs] = useState(false);
+    const [maxLines, setMaxLines] = useState(100);
 
-    React.useEffect(() => {
-        const getPref = async () => {
-            const pref = await services.viewPreferences
+    const [prefs, loading, {retry: fetchPrefs}] = useData(
+        () =>
+            services.viewPreferences
                 .getPreferences()
                 .first()
-                .toPromise();
-            setPrefs(pref);
-            setLoading(false);
-            fetchPrefs(false);
-            if (loader) {
-                loader.reload();
-            }
-        };
-        getPref();
-    }, [fetchingPrefs]);
+                .toPromise(),
+        {} as ViewPreferences,
+        res => setMaxLines((res && res.appDetails && res.appDetails.logLines) || 100)
+    );
 
     React.useEffect(() => {
-        if (prefs && prefs.appDetails) {
-            setLogLinesField(prefs.appDetails.logLines);
+        setLogLinesField(maxLines);
+        if (loader) {
+            loader.reload();
         }
-    }, [prefs]);
+    }, [maxLines]);
 
     interface FilterData {
         literal: string;
@@ -93,8 +87,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
 
-    const maxLines = !loading ? prefs.appDetails.logLines || 100 : 100;
-    return loading ? (
+    return loading || !prefs || !prefs.appDetails ? (
         <div>Loading...</div>
     ) : (
         <React.Fragment>
@@ -135,7 +128,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                     )}
                 </button>
                 <button
-                    className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
+                    className={classNames(`argo-button argo-button--base${prefs && prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
                         disabled: page.number > 0
                     })}
                     style={{width: '110px'}}
@@ -148,18 +141,18 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         if (follow) {
                             setPage({number: 0, untilTimes: []});
                         }
-                        fetchPrefs(true);
+                        fetchPrefs();
                     }}>
-                    FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
+                    FOLLOW {prefs && prefs.appDetails.followLogs && <i className='fa fa-check' />}
                 </button>
                 <button
                     className='argo-button argo-button--base-o'
                     onClick={() => {
                         const inverted = prefs.appDetails.darkMode;
                         services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
-                        fetchPrefs(true);
+                        fetchPrefs();
                     }}>
-                    {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
+                    {prefs && prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                 </button>
                 <button
                     className='argo-button argo-button--base'
@@ -192,7 +185,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         className={`argo-button argo-button--base${logLinesField === maxLines ? '-o' : ''}`}
                         onClick={() => {
                             services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, logLines: logLinesField}});
-                            fetchPrefs(true);
+                            fetchPrefs();
                         }}
                         disabled={logLinesField === maxLines}>
                         <i className='fa fa-check' />
