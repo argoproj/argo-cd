@@ -734,7 +734,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		if a.ArgoCDServerOpts.EnableGZip {
+			assetsHandler = compressHandler(assetsHandler)
+		}
+		mux.Handle("/", assetsHandler)
 	}
 	return &httpS
 }
