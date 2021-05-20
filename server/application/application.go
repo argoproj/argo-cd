@@ -396,7 +396,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				if annotations == nil {
 					annotations = make(map[string]string)
 				}
-				if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+				if _, ok := annotations[appv1.AnnotationKeyRefresh]; !ok {
 					return &event.Application, nil
 				}
 			}
@@ -1183,16 +1183,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
 		}).Stream(ws.Context())
-		if err != nil {
-			return err
-		}
 		podName := pod.Name
 		logStream := make(chan logEntry)
-		defer ioutil.Close(stream)
+		if err == nil {
+			defer ioutil.Close(stream)
+		}
 
 		streams = append(streams, logStream)
 		go func() {
-			parseLogsStream(podName, stream, logStream)
+			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
+			// then the error should be shown in the UI so that user know the reason
+			if err != nil {
+				logStream <- logEntry{line: err.Error()}
+			} else {
+				parseLogsStream(podName, stream, logStream)
+			}
 			close(logStream)
 		}()
 	}
@@ -1787,11 +1792,11 @@ func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncW
 func getPropagationPolicyFinalizer(policy string) string {
 	switch strings.ToLower(policy) {
 	case backgroundPropagationPolicy:
-		return argocommon.BackgroundPropagationPolicyFinalizer
+		return appv1.BackgroundPropagationPolicyFinalizer
 	case foregroundPropagationPolicy:
-		return argocommon.ForegroundPropagationPolicyFinalizer
+		return appv1.ForegroundPropagationPolicyFinalizer
 	case "":
-		return argocommon.ResourcesFinalizerName
+		return appv1.ResourcesFinalizerName
 	default:
 		return ""
 	}

@@ -13,7 +13,7 @@ argocd-application-controller [flags]
 ### Options
 
 ```
-      --app-resync int                        Time period in seconds for application resync. (default 180)
+      --app-resync int                        Time period in seconds for application resync.
       --app-state-cache-expiration duration   Cache expiration for app state (default 1h0m0s)
       --as string                             Username to impersonate for the operation
       --as-group stringArray                  Group to impersonate for the operation, this flag can be repeated to specify multiple groups.

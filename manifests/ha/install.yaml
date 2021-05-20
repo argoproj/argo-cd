@@ -2815,54 +2815,6 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
-data:
-  redis_liveness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 6379 \
-        ping
-    )
-    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-  redis_readiness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 6379 \
-        ping
-    )
-    if [ "$response" != "PONG" ] ; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-  sentinel_liveness.sh: |
-    response=$(
-      redis-cli \
-        -h localhost \
-        -p 26379 \
-        ping
-    )
-    if [ "$response" != "PONG" ]; then
-      echo "$response"
-      exit 1
-    fi
-    echo "response=$response"
-kind: ConfigMap
-metadata:
-  labels:
-    app: argocd-redis-ha
-    chart: redis-ha-4.12.15
-    heritage: Helm
-    release: argocd
-  name: argocd-redis-ha-health-configmap
-  namespace: argocd
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
@@ -3307,6 +3259,53 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-configmap
+---
+apiVersion: v1
+data:
+  redis_liveness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 6379 \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+  redis_readiness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 6379 \
+        ping
+    )
+    if [ "$response" != "PONG" ] ; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+  sentinel_liveness.sh: |
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 26379 \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+    echo "response=$response"
+kind: ConfigMap
+metadata:
+  labels:
+    app: argocd-redis-ha
+    chart: redis-ha-4.12.15
+    heritage: Helm
+    release: argocd
+  name: argocd-redis-ha-health-configmap
 ---
 apiVersion: v1
 data:
@@ -3755,6 +3754,13 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
+        env:
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3779,6 +3785,8 @@ spec:
           capabilities:
             drop:
             - all
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -3790,6 +3798,8 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /tmp
+          name: tmp
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3802,6 +3812,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3961,6 +3973,13 @@ spec:
         - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
+        env:
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -4155,6 +4174,11 @@ kind: NetworkPolicy
 metadata:
   name: argocd-application-controller-network-policy
 spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8082
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
@@ -4244,6 +4268,10 @@ spec:
     ports:
     - port: 8081
       protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8084
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server

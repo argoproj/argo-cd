@@ -85,7 +85,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, false, syncOp.Manifests)
+	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
