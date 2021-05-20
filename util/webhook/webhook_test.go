@@ -85,6 +85,20 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler()
+	eventJSON := "{\"test\": true}"
+	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
+	req.Header.Set("X-Event-Key", "diagnostics:ping")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Ignoring webhook event"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler()

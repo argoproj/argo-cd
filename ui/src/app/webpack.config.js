@@ -18,11 +18,6 @@ const proxyConf = {
     secure: false
 };
 
-const hotLoader = isProd ? {
-    test: /\.tsx?$/,
-    loader: 'react-hot-loader/webpack'
-} : {};
-
 const config = {
     entry: './src/app/index.tsx',
     output: {
@@ -39,7 +34,10 @@ const config = {
 
     module: {
         rules: [
-            hotLoader,
+            {
+                test: /\.tsx?$/,
+                loader: [...(isProd ? [] : ['react-hot-loader/webpack'])]
+            },
             {
                 test: /\.tsx?$/,
                 loader: `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
@@ -72,9 +70,9 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
-            SYSTEM_INFO: JSON.stringify({
-                version: process.env.ARGO_VERSION || 'latest',
-            }),
+            'SYSTEM_INFO': JSON.stringify({
+                version: process.env.ARGO_VERSION || 'latest'
+            })
         }),
         new HtmlWebpackPlugin({template: 'src/app/index.html'}),
         new CopyWebpackPlugin({

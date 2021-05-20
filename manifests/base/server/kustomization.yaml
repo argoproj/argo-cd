@@ -8,3 +8,4 @@ resources:
 - argocd-server-sa.yaml
 - argocd-server-service.yaml
 - argocd-server-metrics.yaml
+- argocd-server-network-policy.yaml

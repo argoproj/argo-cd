@@ -129,6 +129,11 @@ func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	return c
 }
 
+func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
+	repos.AddHelmoOCICredentialsWithoutUserPass()
+	return c
+}
+
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
 	repos.AddHTTPSCredentialsTLSClientCert()
 	return c

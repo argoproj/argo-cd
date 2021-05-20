@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     make \
     wget \
     gcc \
+    sudo \
     zip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -27,7 +28,6 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh packr-linux
 RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
@@ -107,8 +107,6 @@ RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
 FROM golang:1.16.0 as argocd-build
-
-COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

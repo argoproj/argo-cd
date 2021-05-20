@@ -116,6 +116,13 @@ func AddHTTPSCredentialsTLSClientCert() {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
+// AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
+func AddHelmoOCICredentialsWithoutUserPass() {
+	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
+		"--enable-oci", "--type", "helm"}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
 // AddSSHRepoCredentials adds E2E fixture credentials for SSH repos to context
 func AddSSHCredentials() {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
