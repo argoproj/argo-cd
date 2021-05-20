@@ -138,7 +138,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         }}
                                         label='REFRESH'
                                         icon={faRedo}
-                                        indicateLoading
+                                        indicateLoading={true}
                                     />
                                 </React.Fragment>
                             )}

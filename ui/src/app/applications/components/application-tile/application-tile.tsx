@@ -90,11 +90,11 @@ export const ApplicationTile = (props: TileProps) => {
                     </Flexy>
                     <ApplicationURLs urls={app.status.summary.externalURLs} />
                     <InfoItemRow label='Namespace' items={[{content: app.spec.destination.namespace}]} lightweight={true} />
-                    <InfoItemRow label='Project' items={[{content: app.spec.project}]} lightweight />
+                    <InfoItemRow label='Project' items={[{content: app.spec.project}]} lightweight={true} />
                     {!props.compact && (
                         <React.Fragment>
-                            <InfoItemRow label='Repo' items={[{content: app.spec.source.repoURL, truncate: true}]} lightweight />
-                            <InfoItemRow label='Destination' items={[{content: loading ? 'Loading...' : clusterTitle(cluster), truncate: true}]} lightweight />
+                            <InfoItemRow label='Repo' items={[{content: app.spec.source.repoURL, truncate: true}]} lightweight={true} />
+                            <InfoItemRow label='Destination' items={[{content: loading ? 'Loading...' : clusterTitle(cluster), truncate: true}]} lightweight={true} />
                             <InfoItemRow
                                 label='Labels'
                                 items={
@@ -105,8 +105,8 @@ export const ApplicationTile = (props: TileProps) => {
                                         : [{content: 'None', lightweight: true}]
                                 }
                             />
-                            <InfoItemRow label='Path' items={[{content: app.spec.source.path}]} lightweight />
-                            <InfoItemRow label='Target' items={[{content: app.spec.source.targetRevision}]} lightweight />
+                            <InfoItemRow label='Path' items={[{content: app.spec.source.path}]} lightweight={true} />
+                            <InfoItemRow label='Target' items={[{content: app.spec.source.targetRevision}]} lightweight={true} />
                         </React.Fragment>
                     )}
                 </div>
