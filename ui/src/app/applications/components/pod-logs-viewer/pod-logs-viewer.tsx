@@ -1,15 +1,12 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
+import {useData} from 'argo-ux';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
-import {useData} from 'argo-ux';
-
 import * as models from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
-
 import {BASE_COLORS} from '../utils';
-
 import './pod-logs-viewer.scss';
 export interface PodLogsProps {
     namespace: string;
