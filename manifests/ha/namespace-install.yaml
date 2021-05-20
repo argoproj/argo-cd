@@ -3615,6 +3615,11 @@ kind: NetworkPolicy
 metadata:
   name: argocd-application-controller-network-policy
 spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8082
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
@@ -3704,6 +3709,10 @@ spec:
     ports:
     - port: 8081
       protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8084
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
