@@ -196,6 +196,8 @@ type Repository struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
+	Proxy string `json:"proxy,omitempty"`
 }
 
 // Credential template for accessing repositories
