@@ -137,7 +137,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod, 0, math.MaxInt32).Seconds()), "Time period in seconds for application resync.")
+	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt32).Seconds()), "Time period in seconds for application resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
