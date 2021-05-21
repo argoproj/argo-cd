@@ -28,7 +28,7 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
 
 Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest](https://github.com/argoproj/argo-cd/releases/latest). More detailed installation instructions can be found via the [CLI installation documentation](cli_installation.md).
 
-Also available in Mac Homebrew:
+Also available in Mac, Linux and WSL Homebrew:
 
 ```bash
 brew install argocd
