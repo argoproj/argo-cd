@@ -666,6 +666,18 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	app := origApp.DeepCopy()
 
 	if app.Operation != nil {
+		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
+		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
+		// This code should be deleted when https://github.com/argoproj/argo-cd/pull/6294 is implemented.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Failed to retrieve latest application state: %v", err)
+			return
+		}
+		app = freshApp
+	}
+
+	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
@@ -944,20 +956,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}()
 	terminating := false
 	if isOperationInProgress(app) {
-		// If we get here, we are about process an operation but we notice it is already in progress.
-		// We need to detect if the app object we pulled off the informer is stale and doesn't
-		// reflect the fact that the operation is completed. We don't want to perform the operation
-		// again. To detect this, always retrieve the latest version to ensure it is not stale.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
-		if err != nil {
-			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
-			return
-		}
-		if !isOperationInProgress(freshApp) {
-			logCtx.Infof("Skipping operation on stale application state")
-			return
-		}
-		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
 		// Failed  operation with retry strategy might have be in-progress and has completion time
