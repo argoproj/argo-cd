@@ -145,10 +145,10 @@ func ReadAndConfirmPassword() (string, error) {
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
 	switch strings.ToLower(logFormat) {
-	case "json":
-		os.Setenv(common.EnvLogFormat, "json")
-	case "text":
-		os.Setenv(common.EnvLogFormat, "text")
+	case utillog.JsonFormat:
+		os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+	case utillog.TextFormat:
+		os.Setenv(common.EnvLogFormat, utillog.TextFormat)
 	default:
 		log.Fatalf("Unknown log format '%s'", logFormat)
 	}

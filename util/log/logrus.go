@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+const (
+	JsonFormat = "json"
+	TextFormat = "text"
+)
+
 func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
 	return adapter.NewLoggerWithFormatter(fieldLogger, func(val interface{}) string {
 		return fmt.Sprintf("%v", val)
@@ -33,9 +38,9 @@ func NewWithCurrentConfig() *logrus.Logger {
 func CreateFormatter(logFormat string) logrus.Formatter {
 	var formatType logrus.Formatter
 	switch strings.ToLower(logFormat) {
-	case "json":
+	case JsonFormat:
 		formatType = &logrus.JSONFormatter{}
-	case "text":
+	case TextFormat:
 		if os.Getenv("FORCE_LOG_COLORS") == "1" {
 			formatType = &logrus.TextFormatter{ForceColors: true}
 		} else {
