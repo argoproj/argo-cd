@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	utillog "github.com/argoproj/argo-cd/v2/util/log"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -143,15 +144,12 @@ func ReadAndConfirmPassword() (string, error) {
 
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
+	log.SetFormatter(utillog.CreateFormatter(logFormat))
 	switch strings.ToLower(logFormat) {
 	case "json":
-		log.SetFormatter(&log.JSONFormatter{})
-	case "text":
-		if os.Getenv("FORCE_LOG_COLORS") == "1" {
-			log.SetFormatter(&log.TextFormatter{ForceColors: true})
-		}
+		os.Setenv(common.EnvLogFormat, "json")
 	default:
-		log.Fatalf("Unknown log format '%s'", logFormat)
+		os.Setenv(common.EnvLogFormat, "text")
 	}
 }
 
@@ -159,7 +157,10 @@ func SetLogFormat(logFormat string) {
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
-	log.SetLevel(level)
+	if err != nil {
+		level = log.InfoLevel
+	}
+	os.Setenv(common.EnvLogLevel, level.String())
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
