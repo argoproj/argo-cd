@@ -42,7 +42,6 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 			formatType = &logrus.TextFormatter{}
 		}
 	default:
-		logrus.Fatalf("Unknown log format '%s'", logFormat)
 		formatType = &logrus.TextFormatter{}
 	}
 

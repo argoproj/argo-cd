@@ -144,22 +144,22 @@ func ReadAndConfirmPassword() (string, error) {
 
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
-	log.SetFormatter(utillog.CreateFormatter(logFormat))
 	switch strings.ToLower(logFormat) {
 	case "json":
 		os.Setenv(common.EnvLogFormat, "json")
-	default:
+	case "text":
 		os.Setenv(common.EnvLogFormat, "text")
+	default:
+		log.Fatalf("Unknown log format '%s'", logFormat)
 	}
+
+	log.SetFormatter(utillog.CreateFormatter(logFormat))
 }
 
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
-	if err != nil {
-		level = log.InfoLevel
-	}
 	os.Setenv(common.EnvLogLevel, level.String())
 }
 
