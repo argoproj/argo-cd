@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	adapter "github.com/bombsimon/logrusr"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
@@ -26,11 +25,7 @@ func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
 func NewWithCurrentConfig() *logrus.Logger {
 	l := logrus.New()
 	l.SetFormatter(CreateFormatter(os.Getenv(common.EnvLogFormat)))
-
-	level, err := logrus.ParseLevel(os.Getenv(common.EnvLogLevel))
-	errors.CheckError(err)
-	l.SetLevel(level)
-
+	l.SetLevel(createLogLevel())
 	return l
 }
 
@@ -51,4 +46,12 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 	}
 
 	return formatType
+}
+
+func createLogLevel() logrus.Level {
+	level, err := logrus.ParseLevel(os.Getenv(common.EnvLogLevel))
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	return level
 }
