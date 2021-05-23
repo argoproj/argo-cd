@@ -1445,25 +1445,25 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	// Some git providers don't support fetching commit sha
-	if revision != "" && !git.IsCommitSHA(revision) && !git.IsTruncatedCommitSHA(revision) {
-		err = gitClient.Fetch(revision)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
-		}
-		err = gitClient.Checkout("FETCH_HEAD")
-		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
-		}
-	} else {
+	err = gitClient.Fetch(revision)
+
+	if err != nil {
+		log.Warnf("Failed to fetch revision %s: %v", revision, err)
+		log.Infof("Fallback to fetch default")
 		err = gitClient.Fetch("")
 		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to fetch %s: %v", revision, err)
+			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
 		err = gitClient.Checkout(revision)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
+			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
+		return err
+	}
+
+	err = gitClient.Checkout("FETCH_HEAD")
+	if err != nil {
+		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 	}
 
 	return err
