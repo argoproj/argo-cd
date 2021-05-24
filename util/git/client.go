@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -120,7 +121,8 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 }
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, opts ...ClientOpts) (Client, error) {
-	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
+	r := regexp.MustCompile("(/|:)")
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
