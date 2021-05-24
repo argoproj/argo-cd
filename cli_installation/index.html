@@ -1574,9 +1574,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#linux" class="md-nav__link">
-    Linux
+  <a href="#linux-and-wsl" class="md-nav__link">
+    Linux and WSL
   </a>
+  
+    <nav class="md-nav" aria-label="Linux and WSL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#homebrew" class="md-nav__link">
+    Homebrew
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-with-curl" class="md-nav__link">
+    Download With Curl
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1589,14 +1609,14 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#homebrew" class="md-nav__link">
+  <a href="#homebrew_1" class="md-nav__link">
     Homebrew
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#download-with-curl" class="md-nav__link">
+  <a href="#download-with-curl_1" class="md-nav__link">
     Download With Curl
   </a>
   
@@ -1646,7 +1666,12 @@
                 
                 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
 <p>You can download the latest Argo CD version from <a href="https://github.com/argoproj/argo-cd/releases/latest">the latest release page of this repository</a>, which will include the <code>argocd</code> CLI.</p>
-<h2 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h2>
+<h2 id="linux-and-wsl">Linux and WSL<a class="headerlink" href="#linux-and-wsl" title="Permanent link">&para;</a></h2>
+<h3 id="homebrew">Homebrew<a class="headerlink" href="#homebrew" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>brew install argocd
+</code></pre></div>
+
+<h3 id="download-with-curl">Download With Curl<a class="headerlink" href="#download-with-curl" title="Permanent link">&para;</a></h3>
 <p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
 </code></pre></div>
@@ -1661,11 +1686,11 @@
 
 <p>You should now be able to run <code>argocd</code> commands.</p>
 <h2 id="mac">Mac<a class="headerlink" href="#mac" title="Permanent link">&para;</a></h2>
-<h3 id="homebrew">Homebrew<a class="headerlink" href="#homebrew" title="Permanent link">&para;</a></h3>
+<h3 id="homebrew_1">Homebrew<a class="headerlink" href="#homebrew_1" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code>brew install argocd
 </code></pre></div>
 
-<h3 id="download-with-curl">Download With Curl<a class="headerlink" href="#download-with-curl" title="Permanent link">&para;</a></h3>
+<h3 id="download-with-curl_1">Download With Curl<a class="headerlink" href="#download-with-curl_1" title="Permanent link">&para;</a></h3>
 <p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
 </code></pre></div>
