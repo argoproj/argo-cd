@@ -57,8 +57,8 @@ const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        const {loggedIn, iss} = await services.users.get();
-        if (loggedIn && iss !== 'argocd') {
+        const {iss} = await services.users.get();
+        if (iss && iss !== 'argocd') {
             const authSettings = await services.authService.settings();
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
