@@ -2,7 +2,15 @@
 
 You can download the latest Argo CD version from [the latest release page of this repository](https://github.com/argoproj/argo-cd/releases/latest), which will include the `argocd` CLI.
 
-## Linux
+## Linux and WSL
+
+### Homebrew
+
+```bash
+brew install argocd
+```
+
+### Download With Curl
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 
