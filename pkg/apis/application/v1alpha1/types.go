@@ -2280,6 +2280,14 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		}
 	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
+	} else if c.Server == KubernetesInternalAPIServerAddr {
+		config, err = rest.InClusterConfig()
+		if err == nil {
+			config.Username = c.Config.Username
+			config.Password = c.Config.Password
+			config.BearerToken = c.Config.BearerToken
+			config.BearerTokenFile = ""
+		}
 	} else {
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
