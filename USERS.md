@@ -132,3 +132,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Sap Labs](http://sap.com)
 1. [Smilee.io](https://smilee.io)
 1. [Metanet](http://www.metanet.co.kr/en/)
+1. [Unifonic Inc](https://www.unifonic.com/)
