@@ -18,6 +18,20 @@ kubectl create ns argocd-e2e
 kubectl -n argocd-e2e apply -f <your Argo CD installation manifests>
 ```
 
+Argo CD installation manifest, for example `argocd-test.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd-test
+  namespace: argocd-e2e
+spec:
+  server:
+    route:
+      enabled: true
+```
+
 ### Give the Argo CD the appropriate RBAC permissions
 
 ```shell
