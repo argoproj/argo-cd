@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/rest"
 	"os"
 	"text/tabwriter"
 	"time"
@@ -15,6 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
