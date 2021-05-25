@@ -5,7 +5,3 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-repo-server-config
     app.kubernetes.io/part-of: argocd
-data:
-  # log.level can be one of trace, debug, info, warn or error
-  log.level: debug
-  test.value: "test"
