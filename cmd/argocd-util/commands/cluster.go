@@ -14,14 +14,17 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -151,9 +154,10 @@ func NewClusterConfig() *cobra.Command {
 
 func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		clusterOpts  cmdutil.ClusterOptions
-		bearerToken  string
-		outputFormat string
+		clusterOpts   cmdutil.ClusterOptions
+		bearerToken   string
+		generateToken bool
+		outputFormat  string
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec CONTEXT",
@@ -197,6 +201,9 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
+			} else if generateToken {
+				bearerToken, err = GenerateToken(clusterOpts, conf)
+				errors.CheckError(err)
 			} else if bearerToken == "" {
 				bearerToken = "bearer-token"
 			}
@@ -231,7 +238,21 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().StringVar(&bearerToken, "bearer-token", "", "Authentication token that should be used to access K8S API server")
+	command.Flags().BoolVar(&generateToken, "generate-bearer-token", false, "Generate authentication token that should be used to access K8S API server")
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "argocd-manager", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be used", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
+}
+
+func GenerateToken(clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
+	clientset, err := kubernetes.NewForConfig(conf)
+	errors.CheckError(err)
+
+	bearerToken, err := clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
+	if err != nil {
+		return "", err
+	}
+	return bearerToken, nil
 }
