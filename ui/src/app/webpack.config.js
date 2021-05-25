@@ -4,6 +4,7 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const GoogleFontsPlugin = require('@beyonk/google-fonts-webpack-plugin');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const webpack = require('webpack');
 const path = require('path');
 
@@ -28,15 +29,22 @@ const config = {
     devtool: 'source-map',
 
     resolve: {
-        extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: {react: require.resolve('react')}
+        extensions: ['.ts', '.tsx', '.js', '.json']
     },
 
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [...(isProd ? [] : ['react-hot-loader/webpack']), `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`]
+                loader: [...(isProd ? [] : ['react-hot-loader/webpack'])]
+            },
+            {
+                test: /\.tsx?$/,
+                loader: `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
+                options: {
+                    // disable type checker - we will use it in fork plugin
+                    transpileOnly: true
+                }
             },
             {
                 enforce: 'pre',
@@ -58,6 +66,7 @@ const config = {
         fs: 'empty'
     },
     plugins: [
+        new ForkTsCheckerWebpackPlugin(),
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
@@ -88,7 +97,8 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml']
+            languages: ['yaml'],
+            features: ['!gotoSymbol']
         }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin

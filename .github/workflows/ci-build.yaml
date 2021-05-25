@@ -252,10 +252,15 @@ jobs:
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
       - name: Install node dependencies
         run: |
-          cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
-      - name: Build UI code
+          cd ui && yarn set version berry && yarn install --immutable
+      - name: Test UI code
         run: |
           yarn test
+        env:
+          NODE_ENV: production
+        working-directory: ui/
+      - name: Build UI code
+        run: |
           yarn build
         env:
           NODE_ENV: production

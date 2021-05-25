@@ -89,11 +89,15 @@ WORKDIR /home/argocd
 FROM docker.io/library/node:12.18.4 as argocd-ui
 
 WORKDIR /src
+
+RUN yarn set version berry
+RUN echo "nodeLinker: node-modules" >> .yarnrc.yml
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
 
 RUN yarn install
 
-ADD ["ui/", "."]
+ADD ["ui/src", "./src"]
+ADD ["ui/tsconfig.json", "./"]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
