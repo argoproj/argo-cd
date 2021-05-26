@@ -40,7 +40,7 @@ argocd-application-controller [flags]
       --repo-server string                    Repo server address. (default "argocd-repo-server:8081")
       --repo-server-plaintext                 Disable TLS on connections to repo server
       --repo-server-strict-tls                Whether to use strict validation of the TLS cert presented by the repo server
-      --repo-server-timeout-seconds int       Repo server RPC call timeout seconds. (default 60)
+      --repo-server-timeout-seconds int       Repo server RPC call timeout seconds.
       --request-timeout string                The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --self-heal-timeout-seconds int         Specifies timeout between application self heal attempts (default 5)
       --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 

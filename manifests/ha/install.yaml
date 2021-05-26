@@ -4084,16 +4084,16 @@ spec:
               key: x.frame.options
               name: argocd-server-config
               optional: true
-        - name: ARGOCD_SERVER_PLAINTEXT
+        - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
           valueFrom:
             configMapKeyRef:
-              key: plaintext
+              key: repo.server.plaintext
               name: argocd-server-config
               optional: true
-        - name: ARGOCD_SERVER_STRICT_TLS
+        - name: ARGOCD_SERVER_REPO_SERVER_STRICT_TLS
           valueFrom:
             configMapKeyRef:
-              key: strict.tls
+              key: repo.server.strict.tls
               name: argocd-server-config
               optional: true
         - name: ARGOCD_TLS_MIN_VERSION
