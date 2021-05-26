@@ -275,6 +275,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sinceSeconds int64
 		untilTime    string
 		filter       string
+		container    string
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -303,6 +304,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: sinceSeconds,
 					UntilTime:    &untilTime,
 					Filter:       &filter,
+					Container:    container,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -343,6 +345,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
+	command.Flags().StringVar(&container, "container", "", "Optional container name")
 
 	return command
 }
