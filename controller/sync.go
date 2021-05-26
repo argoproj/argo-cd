@@ -146,7 +146,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
-	syncCtx, err := sync.NewSyncContext(
+	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
 		restConfig,
@@ -188,6 +188,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 	}
+
+	defer cleanup()
 
 	start := time.Now()
 
