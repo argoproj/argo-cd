@@ -19,9 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 const (

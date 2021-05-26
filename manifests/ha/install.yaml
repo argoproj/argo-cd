@@ -3374,8 +3374,8 @@ metadata:
     heritage: Helm
     release: argocd
   name: argocd-redis-ha-health-configmap
-  log.level: debug
-  test.value: test
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:

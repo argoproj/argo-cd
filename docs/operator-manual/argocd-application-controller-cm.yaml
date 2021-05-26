@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-application-controller-config
+  labels:
+    app.kubernetes.io/name: argocd-application-controller-config
+    app.kubernetes.io/part-of: argocd
+data:
+  repo.server:
+  repo.server.timeout.seconds:
+  status.processors:
+  operation.processors:
+  log.format:
+  log.level:
+  
