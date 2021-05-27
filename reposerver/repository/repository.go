@@ -1091,7 +1091,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
-		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
+		return nil, fmt.Errorf("config management plugin with name '%s' is not supported", q.ApplicationSource.Plugin.Name)
 	}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
@@ -1109,7 +1109,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
