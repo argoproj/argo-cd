@@ -3945,10 +3945,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4035,10 +4032,7 @@ func (m *TestRepositoryRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4109,10 +4103,7 @@ func (m *TestRepositoryResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4355,10 +4346,7 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4445,10 +4433,7 @@ func (m *ListRefsRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4563,10 +4548,7 @@ func (m *Refs) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4685,10 +4667,7 @@ func (m *ListAppsRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -4849,7 +4828,7 @@ func (m *AppList) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthRepository
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -4866,10 +4845,7 @@ func (m *AppList) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -5094,10 +5070,7 @@ func (m *RepoServerAppDetailsQuery) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -5324,10 +5297,7 @@ func (m *RepoAppDetailsResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -5466,10 +5436,7 @@ func (m *RepoServerRevisionMetadataRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -5664,7 +5631,7 @@ func (m *KsonnetAppSpec) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthRepository
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -5715,10 +5682,7 @@ func (m *KsonnetAppSpec) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -5933,10 +5897,7 @@ func (m *HelmAppSpec) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6019,10 +5980,7 @@ func (m *KustomizeAppSpec) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6173,10 +6131,7 @@ func (m *KsonnetEnvironment) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6291,10 +6246,7 @@ func (m *KsonnetEnvironmentDestination) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6345,10 +6297,7 @@ func (m *DirectoryAppSpec) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6435,10 +6384,7 @@ func (m *HelmChartsRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6553,10 +6499,7 @@ func (m *HelmChart) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
@@ -6641,10 +6584,7 @@ func (m *HelmChartsResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if (iNdEx + skippy) > l {
