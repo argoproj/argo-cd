@@ -7,7 +7,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.3.1-0.20210405221516-2a9c1448b292
+	github.com/argoproj/gitops-engine v0.3.1-0.20210527032620-62a7b10c2792
 	github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1
@@ -58,7 +58,7 @@ require (
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
@@ -67,6 +67,7 @@ require (
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
@@ -77,7 +78,7 @@ require (
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/code-generator v0.20.4
 	k8s.io/component-base v0.20.4
-	k8s.io/klog/v2 v2.5.0
+	k8s.io/klog/v2 v2.8.0
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/kubectl v0.20.4
 	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009
