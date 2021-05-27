@@ -89,7 +89,7 @@ func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config
 	return command.Err
 }
 
-func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
@@ -98,7 +98,7 @@ func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config
 	return obj, command.Err
 }
 
-func (k *MockKubectlCmd) UpdateResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "update")
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
@@ -107,7 +107,7 @@ func (k *MockKubectlCmd) UpdateResource(ctx context.Context, config *rest.Config
 	return obj, command.Err
 }
 
-func (k *MockKubectlCmd) ApplyResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
+func (k *MockKubectlCmd) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
 	k.SetLastValidate(validate)
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")
 	command, ok := k.Commands[obj.GetName()]
@@ -117,7 +117,7 @@ func (k *MockKubectlCmd) ApplyResource(ctx context.Context, config *rest.Config,
 	return command.Output, command.Err
 }
 
-func (k *MockKubectlCmd) ReplaceResource(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error) {
+func (k *MockKubectlCmd) ReplaceResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error) {
 	command, ok := k.Commands[obj.GetName()]
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "replace")
 	if !ok {
@@ -140,4 +140,10 @@ func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, e
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {
+}
+
+func (k *MockKubectlCmd) ManageResources(config *rest.Config) (kube.ResourceOperations, func(), error) {
+	return k, func() {
+
+	}, nil
 }

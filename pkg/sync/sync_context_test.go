@@ -59,7 +59,9 @@ func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 	sc.permissionValidator = func(un *unstructured.Unstructured, res *v1.APIResource) error {
 		return nil
 	}
-	sc.kubectl = &kubetest.MockKubectlCmd{}
+	mockKubectl := kubetest.MockKubectlCmd{}
+	sc.kubectl = &mockKubectl
+	sc.resourceOps = &mockKubectl
 	for _, opt := range opts {
 		opt(&sc)
 	}
@@ -283,7 +285,7 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	testSvc := NewService()
-	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			testSvc.GetName(): {
 				Output: "",
@@ -291,6 +293,8 @@ func TestSyncCreateFailure(t *testing.T) {
 			},
 		},
 	}
+	syncCtx.kubectl = mockKubectl
+	syncCtx.resourceOps = mockKubectl
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testSvc},
@@ -423,7 +427,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 
 func TestSyncPruneFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx(WithOperationSettings(false, true, false, false))
-	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
@@ -431,6 +435,8 @@ func TestSyncPruneFailure(t *testing.T) {
 			},
 		},
 	}
+	syncCtx.kubectl = mockKubectl
+	syncCtx.resourceOps = mockKubectl
 	testSvc := NewService()
 	testSvc.SetName("test-service")
 	testSvc.SetNamespace(FakeArgoCDNamespace)
@@ -765,9 +771,11 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 		Target: []*unstructured.Unstructured{pod},
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
-	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
 	}
+	syncCtx.kubectl = mockKubectl
+	syncCtx.resourceOps = mockKubectl
 
 	syncCtx.Sync()
 	syncCtx.Sync()
@@ -811,13 +819,15 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook}
 
-	syncCtx.kubectl = &kubetest.MockKubectlCmd{
+	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
 			pod.GetName(): {Err: fmt.Errorf("")},
 			// Fail a single SyncFail hook
 			failedSyncFailHook.GetName(): {Err: fmt.Errorf("")}},
 	}
+	syncCtx.kubectl = mockKubectl
+	syncCtx.resourceOps = mockKubectl
 
 	syncCtx.Sync()
 	syncCtx.Sync()

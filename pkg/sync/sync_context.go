@@ -187,18 +187,22 @@ func NewSyncContext(
 	kubectl kubeutil.Kubectl,
 	namespace string,
 	opts ...SyncOpt,
-) (SyncContext, error) {
+) (SyncContext, func(), error) {
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	extensionsclientset, err := clientset.NewForConfig(restConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 	ctx := &syncContext{
 		revision:            revision,
@@ -210,6 +214,7 @@ func NewSyncContext(
 		disco:               disco,
 		extensionsclientset: extensionsclientset,
 		kubectl:             kubectl,
+		resourceOps:         resourceOps,
 		namespace:           namespace,
 		log:                 klogr.New(),
 		validate:            true,
@@ -222,7 +227,7 @@ func NewSyncContext(
 	for _, opt := range opts {
 		opt(ctx)
 	}
-	return ctx, nil
+	return ctx, cleanup, nil
 }
 
 func groupResources(reconciliationResult ReconciliationResult) map[kubeutil.ResourceKey]reconciledResource {
@@ -303,6 +308,7 @@ type syncContext struct {
 	disco               discovery.DiscoveryInterface
 	extensionsclientset *clientset.Clientset
 	kubectl             kube.Kubectl
+	resourceOps         kube.ResourceOperations
 	namespace           string
 
 	dryRun                 bool
@@ -839,17 +845,17 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 			if kube.IsCRD(t.targetObj) {
 				update := t.targetObj.DeepCopy()
 				update.SetResourceVersion(t.liveObj.GetResourceVersion())
-				_, err = sc.kubectl.UpdateResource(context.TODO(), sc.rawConfig, update, t.targetObj.GetNamespace(), dryRunStrategy)
+				_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
 				if err == nil {
 					message = fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName())
 				} else {
 					message = fmt.Sprintf("error when updating: %v", err.Error())
 				}
 			} else {
-				message, err = sc.kubectl.ReplaceResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force)
+				message, err = sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
 			}
 		} else {
-			_, err = sc.kubectl.CreateResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy)
+			_, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy)
 			if err == nil {
 				message = fmt.Sprintf("%s/%s created", t.targetObj.GetKind(), t.targetObj.GetName())
 			} else {
@@ -857,7 +863,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 			}
 		}
 	} else {
-		message, err = sc.kubectl.ApplyResource(context.TODO(), sc.rawConfig, t.targetObj, t.targetObj.GetNamespace(), dryRunStrategy, force, validate)
+		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate)
 	}
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
