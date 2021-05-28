@@ -19,7 +19,7 @@ var (
 	HelmV3 = HelmVer{
 		binaryName:                  "helm",
 		templateNameArg:             "--name-template",
-		kubeVersionSupported:        false,
+		kubeVersionSupported:        true,
 		showCommand:                 "show",
 		pullCommand:                 "pull",
 		initSupported:               false,
