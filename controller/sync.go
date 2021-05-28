@@ -186,7 +186,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	if err != nil {
 		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
+		state.Message = fmt.Sprintf("failed to initialize sync context: %v", err)
+		return
 	}
 
 	defer cleanup()
