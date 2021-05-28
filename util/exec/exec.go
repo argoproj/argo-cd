@@ -6,13 +6,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v2/util/log"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 	argoexec "github.com/argoproj/pkg/exec"
 
-	tracing "github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/v2/util/log"
 )
 
 var timeout time.Duration

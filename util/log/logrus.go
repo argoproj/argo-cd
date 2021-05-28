@@ -2,12 +2,14 @@ package log
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
+	"os"
+	"strings"
+
 	adapter "github.com/bombsimon/logrusr"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
-	"os"
-	"strings"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 const (
