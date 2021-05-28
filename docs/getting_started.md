@@ -62,8 +62,8 @@ The API server can then be accessed using the localhost:8080
 ## 4. Login Using The CLI
 
 !!! warning
-    We strongly advise to change the initially generated administrative password
-    as soon as after your first login to the system.
+    We strongly advise changing the initially generated administrative password
+    immediately after you first log into the system.
 
 Depending on the Argo CD version you are installing, the method how to get the
 initial password for the `admin` user is different.
