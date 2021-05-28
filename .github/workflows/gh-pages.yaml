@@ -22,9 +22,10 @@ jobs:
           pip install -r docs/requirements.txt
           mkdocs build
       - name: deploy
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' && env.HAVE_PERSONAL_TOKEN == 'true' }}
         uses: peaceiris/actions-gh-pages@v2.5.0
         env:
+          HAVE_PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN != '' }}
           PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
           PUBLISH_BRANCH: gh-pages
           PUBLISH_DIR: ./site
