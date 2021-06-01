@@ -30,11 +30,12 @@ These two roles enable sharing on the Argo CD instance in a multi-tenant environ
 requests a new project from an administrator. The administrator creates the project, defines which repositories
 can and clusters can be used within the project which concludes the onboarding.
 
-The problem is that list of repositories and clusters often not known during the onboarding process. Developers get
+The problem is that list of repositories and clusters are often not known during the onboarding process. Developers get
 it later and have to again contact an administrator, somehow share repo/cluster credentials. This back and forth
-process takes time and creates friqtion.
+process takes time and creates friction.
 
-We want to streamline the process of adding repositories and clusters to the project and make it self-service.
+We want to streamline the process of adding repositories and clusters to the project and make it self-service. The Argo CD
+admins should be able to optionally enable self onboarding of repositories/clusters for some projects.
 
 ## Motivation
 
@@ -76,7 +77,7 @@ stringData:
   name: argocd-example-apps
   url: https://github.com/argoproj/argocd-example-apps.git
   username: ****
-  passoword: ****
+  password: ****
 ```
 
 * The project scoped repository/cluster is automatically allowed in the project.
@@ -160,9 +161,10 @@ It should be possible to automatically assign project scoped clusters to the spe
 In case of rollback to the previous version, the project scoped clusters/repositories will be treated as normal (non-scoped) clusters/repositories.
 So it is safe to rollback and then roll forward.
 
-## Drawbacks
+## Open Issues
 
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
+If the same cluster or repository required in multiple projects that there is no way to configure it without involving Argo CD admin. The end-user
+would still have to reach out to the administrator and request Argo CD config changes.
 
 ## Alternatives
 
