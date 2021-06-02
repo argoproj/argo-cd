@@ -71,7 +71,14 @@ if not isGenerationObserved(obj) then
   hs.status = "Progressing"
   hs.message = "Waiting for rollout spec update to be observed"
   return hs
-end  
+end
+
+-- Argo Rollouts v1.0 has been improved to record a phase/message in status, which Argo CD can blindly surface
+if obj.status.phase ~= nil then
+  hs.status = obj.status.phase
+  hs.message = obj.status.message
+  return hs
+end
 
 for _, condition in ipairs(obj.status.conditions) do
   if condition.type == "InvalidSpec" then
