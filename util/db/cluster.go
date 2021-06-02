@@ -122,40 +122,32 @@ func (db *db) WatchClusters(ctx context.Context,
 		common.LabelValueSecretTypeCluster,
 
 		func(secret *apiv1.Secret) {
-			if secretObj, ok := obj.(*apiv1.Secret); ok {
-				cluster := secretToCluster(secretObj)
-				if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					handleModEvent(localCls, cluster)
-					localCls = cluster
-					return
-				}
-				handleAddEvent(cluster)
+			cluster := secretToCluster(secret)
+			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+				handleModEvent(localCls, cluster)
+				localCls = cluster
+				return
 			}
+			handleAddEvent(cluster)
 		},
 
 		func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret) {
-			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
-				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
-					oldCluster := secretToCluster(oldSecretObj)
-					newCluster := secretToCluster(newSecretObj)
-					if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
-						localCls = newCluster
-					}
-					handleModEvent(oldCluster, newCluster)
-				}
+			oldCluster := secretToCluster(oldSecret)
+			newCluster := secretToCluster(newSecret)
+			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
+				localCls = newCluster
 			}
+			handleModEvent(oldCluster, newCluster)
 		},
 
 		func(secret *apiv1.Secret) {
-			if secretObj, ok := secret.(*apiv1.Secret); ok {
-				if string(secretObj.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
-					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-					handleModEvent(localCls, db.getLocalCluster())
-					localCls = db.getLocalCluster()
-				} else {
-					handleDeleteEvent(string(secretObj.Data["server"]))
-				}
+			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
+				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+				handleModEvent(localCls, db.getLocalCluster())
+				localCls = db.getLocalCluster()
+			} else {
+				handleDeleteEvent(string(secret.Data["server"]))
 			}
 		},
 	)
