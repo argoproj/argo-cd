@@ -2883,47 +2883,6 @@ metadata:
   name: argocd-cm
 ---
 apiVersion: v1
-data:
-  controller.app.state.cache.expiration: 1h0m0s
-  controller.default.cache.expiration: 24h0m0s
-  controller.log.format: text
-  controller.log.level: info
-  controller.metrics.cache.expiration: 24h0m0s
-  controller.operation.processors: "10"
-  controller.repo.server.plaintext: "false"
-  controller.repo.server.strict.tls: "false"
-  controller.self.heal.timeout.seconds: "5"
-  controller.status.processors: "20"
-  dex.server: http://argocd-dex-server:5556
-  redis: argocd-redis:6379
-  repo.server: argocd-repo-server:8081
-  reposerver.default.cache.expiration: 24h0m0s
-  reposerver.disable.tls: "false"
-  reposerver.log.format: text
-  reposerver.log.level: info
-  reposerver.parallelism.limit: "1"
-  reposerver.repo.cache.expiration: 24h0m0s
-  reposerver.tls.ciphers: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384
-  reposerver.tls.maxversion: "1.3"
-  reposerver.tls.minversion: "1.2"
-  server.app.state.cache.expiration: 1h0m0s
-  server.basehref: /
-  server.connection.status.cache.expiration: 1h0m0s
-  server.default.cache.expiration: 24h0m0s
-  server.disable.auth: "false"
-  server.enable.gzip: "false"
-  server.insecure: "false"
-  server.log.format: text
-  server.log.level: info
-  server.login.attempts.expiration: 24h0m0s
-  server.oidc.cache.expiration: 3m0s
-  server.repo.server.plaintext: "false"
-  server.repo.server.strict.tls: "false"
-  server.repo.server.timeout.seconds: "60"
-  server.tls.ciphers: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384
-  server.tls.maxversion: "1.3"
-  server.tls.minversion: "1.2"
-  server.x.frame.options: sameorigin
 kind: ConfigMap
 metadata:
   labels:
