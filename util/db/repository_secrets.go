@@ -24,10 +24,7 @@ type secretsRepositoryBackend struct {
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
-	secName, err := URIToSecretName("repoconfig", repository.Repo)
-	if err != nil {
-		return nil, err
-	}
+	secName := RepoURLToSecretName("repoconfig", repository.Repo)
 
 	repositorySecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -37,7 +34,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 
 	s.repositoryToSecret(repository, repositorySecret)
 
-	_, err = s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repositorySecret)
+	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repositorySecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
@@ -128,10 +125,7 @@ func (s *secretsRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 }
 
 func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	secName, err := URIToSecretName("repocreds", repoCreds.URL)
-	if err != nil {
-		return nil, err
-	}
+	secName := RepoURLToSecretName("repocreds", repoCreds.URL)
 
 	repoCredsSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -141,7 +135,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 
 	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
-	_, err = s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repoCredsSecret)
+	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repoCredsSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", repoCreds.URL)
