@@ -2,14 +2,10 @@ package db
 
 import (
 	"fmt"
-	"hash/fnv"
-	"strings"
-
 	"golang.org/x/net/context"
+	"hash/fnv"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -102,23 +98,6 @@ func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 // also all the secrets which actually contained the credentials.
 func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) error {
 	return (&settingRepositoryBackend{db: db}).DeleteRepoCreds(ctx, name)
-}
-
-// getRepositoryCredentialIndex returns the index of the best matching repository credential
-// configuration, i.e. the one with the longest match
-func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentials, repoURL string) int {
-	var max, idx int = 0, -1
-	repoURL = git.NormalizeGitURL(repoURL)
-	for i, cred := range repoCredentials {
-		credUrl := git.NormalizeGitURL(cred.URL)
-		if strings.HasPrefix(repoURL, credUrl) {
-			if len(credUrl) > max {
-				max = len(credUrl)
-				idx = i
-			}
-		}
-	}
-	return idx
 }
 
 // RepoURLToSecretName hashes repo URL to a secret name using a formula. This is used when

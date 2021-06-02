@@ -517,3 +517,20 @@ func (s *settingRepositoryBackend) getRepositoryIndex(repos []settings.Repositor
 	}
 	return -1
 }
+
+// getRepositoryCredentialIndex returns the index of the best matching repository credential
+// configuration, i.e. the one with the longest match
+func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentials, repoURL string) int {
+	var max, idx int = 0, -1
+	repoURL = git.NormalizeGitURL(repoURL)
+	for i, cred := range repoCredentials {
+		credUrl := git.NormalizeGitURL(cred.URL)
+		if strings.HasPrefix(repoURL, credUrl) {
+			if len(credUrl) > max {
+				max = len(credUrl)
+				idx = i
+			}
+		}
+	}
+	return idx
+}
