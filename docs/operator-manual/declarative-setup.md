@@ -7,9 +7,7 @@ Argo CD applications, projects and settings can be defined declaratively using K
 | File Name | Resource Name | Kind | Description |
 |-----------|---------------|------|-------------|
 | [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
-| [`argocd-server-cm.yaml`](argocd-server-cm.yaml) | argocd-server-cm | ConfigMap | Argo CD Server configuration |
-| [`argocd-repo-server-cm.yaml`](argocd-repo-server-cm.yaml) | argocd-repo-server-cm | ConfigMap | Argo CD Repo Server configuration |
-| [`argocd-application-controller-cm.yaml`](argocd-application-controller-cm.yaml) | argocd-application-controller-cm | ConfigMap | Argo CD Application Controller configuration |
+| [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm.yaml) | argocd-cmd-params-cm | ConfigMap | Argo CD env variables configuration |
 | [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | Password, Certificates, Signing Key |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | argocd-tls-certs-cm | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |

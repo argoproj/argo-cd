@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-server-config
-  labels:
-    app.kubernetes.io/name: argocd-server-config
-    app.kubernetes.io/part-of: argocd

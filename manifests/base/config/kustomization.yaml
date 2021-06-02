@@ -3,9 +3,7 @@ kind: Kustomization
 
 resources:
 - argocd-cm.yaml
-- argocd-repo-server-cm.yaml
-- argocd-server-cm.yaml
-- argocd-application-controller-cm.yaml
+- argocd-cmd-params-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
 - argocd-ssh-known-hosts-cm.yaml
