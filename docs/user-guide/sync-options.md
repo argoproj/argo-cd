@@ -66,7 +66,7 @@ Turning on selective sync option which will sync only out-of-sync resources.
 
 You can add this option by following ways
 
-1) Add `ApplyOutOfSync=true` in manifest
+1) Add `ApplyOutOfSyncOnly=true` in manifest
 
 Example:
 

@@ -281,7 +281,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 const orphan = deleteOptions.option === 'orphan';
                 try {
                     await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
-                    appChanged.next(await services.applications.get(application.metadata.name));
+                    if (appChanged) {
+                        appChanged.next(await services.applications.get(application.metadata.name));
+                    }
                     close();
                 } catch (e) {
                     ctx.notifications.show({

@@ -27,7 +27,7 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
                             Log out
                         </button>
                     ) : (
-                        <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto('/login')}>
+                        <button className='login-logout-button' key='login' onClick={() => ctx.navigation.goto(`/login?return_url=${encodeURIComponent(location.href)}`)}>
                             Log in
                         </button>
                     )

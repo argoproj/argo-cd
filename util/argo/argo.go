@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -95,7 +94,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	metadata := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				common.AnnotationKeyRefresh: string(refreshType),
+				argoappv1.AnnotationKeyRefresh: string(refreshType),
 			},
 		},
 	}
@@ -144,7 +143,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		if _, ok := annotations[common.AnnotationKeyRefresh]; !ok {
+		if _, ok := annotations[argoappv1.AnnotationKeyRefresh]; !ok {
 			return app, nil
 		}
 	}
@@ -480,7 +479,7 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
 	spec = spec.DeepCopy()
 	if spec.Project == "" {
-		spec.Project = common.DefaultAppProjectName
+		spec.Project = argoappv1.DefaultAppProjectName
 	}
 
 	// 3. If any app sources are their zero values, then nil out the pointers to the source spec.

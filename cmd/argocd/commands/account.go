@@ -14,7 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -68,7 +68,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
 				fmt.Print("*** Enter current password: ")
-				password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
 				currentPassword = string(password)
 				fmt.Print("\n")

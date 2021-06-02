@@ -152,7 +152,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			for {
 				header := make([]byte, frameHeaderLength)
-				if _, err := resp.Body.Read(header); err != nil {
+				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
 					if err == io.EOF {
 						err = io.ErrUnexpectedEOF
 					}

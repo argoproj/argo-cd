@@ -69,6 +69,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
+		1*time.Minute,
 	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
@@ -79,10 +80,10 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
@@ -115,7 +116,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Root").Return(root)
 	})
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 

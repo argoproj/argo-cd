@@ -25,7 +25,7 @@ import (
 var (
 	localCluster = appv1.Cluster{
 		Name:            "in-cluster",
-		Server:          common.KubernetesInternalAPIServerAddr,
+		Server:          appv1.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
 	initLocalCluster sync.Once
@@ -63,7 +63,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	for i, clusterSecret := range clusterSecrets {
 		cluster := *secretToCluster(clusterSecret)
 		clusterList.Items[i] = cluster
-		if cluster.Server == common.KubernetesInternalAPIServerAddr {
+		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
 		}
 	}
@@ -111,7 +111,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string)) error {
-	localCls, err := db.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
+	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
 	}
@@ -122,32 +122,40 @@ func (db *db) WatchClusters(ctx context.Context,
 		common.LabelValueSecretTypeCluster,
 
 		func(secret *apiv1.Secret) {
-			cluster := secretToCluster(secret)
-			if cluster.Server == common.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, cluster)
-				localCls = cluster
-				return
+			if secretObj, ok := obj.(*apiv1.Secret); ok {
+				cluster := secretToCluster(secretObj)
+				if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+					handleModEvent(localCls, cluster)
+					localCls = cluster
+					return
+				}
+				handleAddEvent(cluster)
 			}
-			handleAddEvent(cluster)
 		},
 
 		func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret) {
-			oldCluster := secretToCluster(oldSecret)
-			newCluster := secretToCluster(newSecret)
-			if newCluster.Server == common.KubernetesInternalAPIServerAddr {
-				localCls = newCluster
+			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
+				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
+					oldCluster := secretToCluster(oldSecretObj)
+					newCluster := secretToCluster(newSecretObj)
+					if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
+						localCls = newCluster
+					}
+					handleModEvent(oldCluster, newCluster)
+				}
 			}
-			handleModEvent(oldCluster, newCluster)
 		},
 
 		func(secret *apiv1.Secret) {
-			if string(secret.Data["server"]) == common.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, db.getLocalCluster())
-				localCls = db.getLocalCluster()
-			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+			if secretObj, ok := secret.(*apiv1.Secret); ok {
+				if string(secretObj.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
+					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+					handleModEvent(localCls, db.getLocalCluster())
+					localCls = db.getLocalCluster()
+				} else {
+					handleDeleteEvent(string(secretObj.Data["server"]))
+				}
 			}
 		},
 	)
@@ -172,7 +180,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, error) {
 	clusterSecret, err := db.getClusterSecret(server)
 	if err != nil {
-		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == common.KubernetesInternalAPIServerAddr {
+		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == appv1.KubernetesInternalAPIServerAddr {
 			return db.getLocalCluster(), nil
 		} else {
 			return nil, err
@@ -242,9 +250,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 		secret.Annotations = make(map[string]string)
 	}
 	if c.RefreshRequestedAt != nil {
-		secret.Annotations[common.AnnotationKeyRefresh] = c.RefreshRequestedAt.Format(time.RFC3339)
+		secret.Annotations[appv1.AnnotationKeyRefresh] = c.RefreshRequestedAt.Format(time.RFC3339)
 	} else {
-		delete(secret.Annotations, common.AnnotationKeyRefresh)
+		delete(secret.Annotations, appv1.AnnotationKeyRefresh)
 	}
 	return nil
 }
@@ -266,7 +274,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		}
 	}
 	var refreshRequestedAt *metav1.Time
-	if v, found := s.Annotations[common.AnnotationKeyRefresh]; found {
+	if v, found := s.Annotations[appv1.AnnotationKeyRefresh]; found {
 		requestedAt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
 			log.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)

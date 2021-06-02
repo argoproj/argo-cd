@@ -11,6 +11,13 @@ patchesJson6902:
     version: v1
     group: ""
     kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+    namespace: argocd
+  path: overlays/remove-namespace.yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
     name: argocd-redis-ha-configmap
     namespace: argocd
   path: overlays/remove-namespace.yaml  

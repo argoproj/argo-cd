@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	argocommon "github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -2180,9 +2178,9 @@ func TestUnSetCascadedDeletion(t *testing.T) {
 			Name: "test",
 			Finalizers: []string{
 				"alpha",
-				argocommon.ForegroundPropagationPolicyFinalizer,
+				ForegroundPropagationPolicyFinalizer,
 				"beta",
-				argocommon.BackgroundPropagationPolicyFinalizer,
+				BackgroundPropagationPolicyFinalizer,
 				"gamma",
 			},
 		},

@@ -19,3 +19,7 @@ spec:
       ports:
         - protocol: TCP
           port: 8081
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 8084
