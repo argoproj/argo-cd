@@ -337,7 +337,7 @@ export class PodView extends React.Component<PodViewProps> {
                 fullName: nodeKey(rnode),
                 metadata: {name: rnode.name},
                 spec: {nodeName: 'Unknown'},
-                health: rnode.health?.status || 'Unknown'
+                health: rnode.health ? rnode.health.status : 'Unknown'
             } as Pod;
 
             // Get node name for Pod
