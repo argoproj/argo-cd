@@ -18,7 +18,7 @@ kubectl create ns argocd-e2e
 kubectl -n argocd-e2e apply -f <your Argo CD installation manifests>
 ```
 
-Argo CD installation manifest, for example `argocd-test.yaml`
+If you're going to install Argo CD using either Argo CD Operator or OpenShift GitOps Operator, you can use this manifest to install the Argo CD instance into your namespace:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
