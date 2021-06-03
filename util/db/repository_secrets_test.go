@@ -29,7 +29,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		Repo:                  "git@github.com:argoproj/argo-cd.git",
 		Username:              "someUsername",
 		Password:              "somePassword",
-		InsecureIgnoreHostKey: true,
+		InsecureIgnoreHostKey: false,
 		EnableLFS:             true,
 	}
 
