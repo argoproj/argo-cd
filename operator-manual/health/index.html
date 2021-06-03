@@ -621,6 +621,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#argocd-app" class="md-nav__link">
+    Argocd App
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1712,6 +1719,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#argocd-app" class="md-nav__link">
+    Argocd App
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1784,6 +1798,37 @@ with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 <ul>
 <li>The <code>status.phase</code> is <code>Bound</code></li>
 </ul>
+<h3 id="argocd-app">Argocd App<a class="headerlink" href="#argocd-app" title="Permanent link">&para;</a></h3>
+<p>The health assessement of <code>argoproj.io/Application</code> CRD has been removed in argocd 1.8 (see <a href="https://github.com/argoproj/argo-cd/issues/3781">#3781</a> for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+<code>argocd-cm</code> ConfigMap:</p>
+<div class="codehilite"><pre><span></span><code><span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">argoproj.io/Application:</span>
+      <span class="no">health.lua: |</span>
+        <span class="no">hs = {}</span>
+        <span class="no">hs.status = &quot;Progressing&quot;</span>
+        <span class="no">hs.message = &quot;&quot;</span>
+        <span class="no">if obj.status ~= nil then</span>
+          <span class="no">if obj.status.health ~= nil then</span>
+            <span class="no">hs.status = obj.status.health.status</span>
+            <span class="no">if obj.status.health.message ~= nil then</span>
+              <span class="no">hs.message = obj.status.health.message</span>
+            <span class="no">end</span>
+          <span class="no">end</span>
+        <span class="no">end</span>
+        <span class="no">return hs</span>
+</code></pre></div>
+
 <h2 id="custom-health-checks">Custom Health Checks<a class="headerlink" href="#custom-health-checks" title="Permanent link">&para;</a></h2>
 <p>Argo CD supports custom health checks written in <a href="https://www.lua.org/">Lua</a>. This is useful if you:</p>
 <ul>
