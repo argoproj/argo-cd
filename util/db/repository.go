@@ -2,8 +2,9 @@ package db
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"hash/fnv"
+
+	"golang.org/x/net/context"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
