@@ -49,10 +49,10 @@ func boolOrFalse(secret *apiv1.Secret, key string) (bool, error) {
 	return strconv.ParseBool(string(val))
 }
 
-func intOrDefault(secret *apiv1.Secret, key string, def int64) (int64, error) {
+func intOrZero(secret *apiv1.Secret, key string) (int64, error) {
 	val, present := secret.Data[key]
 	if !present {
-		return def, nil
+		return 0, nil
 	}
 
 	return strconv.ParseInt(string(val), 10, 64)

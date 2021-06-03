@@ -267,13 +267,13 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 	}
 	repository.EnableOCI = enableOCI
 
-	githubAppID, err := intOrDefault(secret, "githubAppID", 0)
+	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
 		return repository, err
 	}
 	repository.GithubAppId = githubAppID
 
-	githubAppInstallationID, err := intOrDefault(secret, "githubAppInstallationID", 0)
+	githubAppInstallationID, err := intOrZero(secret, "githubAppInstallationID")
 	if err != nil {
 		return repository, err
 	}
@@ -324,13 +324,13 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.EnableOCI = enableOCI
 
-	githubAppID, err := intOrDefault(secret, "githubAppID", 0)
+	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
 		return repository, err
 	}
 	repository.GithubAppId = githubAppID
 
-	githubAppInstallationID, err := intOrDefault(secret, "githubAppInstallationID", 0)
+	githubAppInstallationID, err := intOrZero(secret, "githubAppInstallationID")
 	if err != nil {
 		return repository, err
 	}
