@@ -304,7 +304,9 @@ export class PodView extends React.Component<PodViewProps> {
         }
 
         const statusByKey = new Map<string, ResourceStatus>();
-        this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+        if (this.props.app) {
+            this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+        }
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             if (sortMode !== 'node') {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
@@ -335,7 +337,7 @@ export class PodView extends React.Component<PodViewProps> {
                 fullName: nodeKey(rnode),
                 metadata: {name: rnode.name},
                 spec: {nodeName: 'Unknown'},
-                health: rnode.health.status
+                health: rnode.health ? rnode.health.status : 'Unknown'
             } as Pod;
 
             // Get node name for Pod
