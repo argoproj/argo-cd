@@ -195,7 +195,7 @@ func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, repoCred
 }
 
 func (s *secretsRepositoryBackend) DeleteRepoCreds(ctx context.Context, name string) error {
-	secret, err := s.getRepositorySecret(name)
+	secret, err := s.getRepoCredsSecret(name)
 	if err != nil {
 		return err
 	}

@@ -312,3 +312,315 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	assert.NotNil(t, secret)
 	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoConfig])
 }
+
+func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	input := &appsv1.RepoCreds{
+		URL:       "git@github.com:argoproj",
+		Username:  "someUsername",
+		Password:  "somePassword",
+		EnableOCI: true,
+	}
+
+	output, err := testee.CreateRepoCreds(context.TODO(), input)
+	assert.NoError(t, err)
+	assert.Same(t, input, output)
+
+	secret, err := clientset.CoreV1().Secrets("test").Get(
+		context.TODO(),
+		RepoURLToSecretName("repocreds", input.URL),
+		metav1.GetOptions{},
+	)
+	assert.NotNil(t, secret)
+	assert.NoError(t, err)
+
+	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
+	assert.Equal(t, common.LabelValueSecretTypeRepoCreds, secret.Labels[common.LabelKeySecretType])
+
+	assert.Equal(t, input.URL, string(secret.Data["url"]))
+	assert.Equal(t, input.Username, string(secret.Data["username"]))
+	assert.Equal(t, input.Password, string(secret.Data["password"]))
+	assert.Equal(t, strconv.FormatBool(input.EnableOCI), string(secret.Data["enableOCI"]))
+}
+
+func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
+	repoCredSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        RepoURLToSecretName("repocreds", "git@github.com:argoproj"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@github.com:argoproj"),
+				"username": []byte("someUsername"),
+				"password": []byte("somePassword"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test",
+				Name:      "user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
+	assert.NoError(t, err)
+	assert.NotNil(t, repoCred)
+	assert.Equal(t, "git@github.com:argoproj", repoCred.URL)
+	assert.Equal(t, "someUsername", repoCred.Username)
+	assert.Equal(t, "somePassword", repoCred.Password)
+
+	repoCred, err = testee.GetRepoCreds(context.TODO(), "git@gitlab.com")
+	assert.NoError(t, err)
+	assert.NotNil(t, repoCred)
+	assert.Equal(t, "git@gitlab.com", repoCred.URL)
+	assert.Equal(t, "someOtherUsername", repoCred.Username)
+	assert.Equal(t, "someOtherPassword", repoCred.Password)
+}
+
+func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
+	repoCredSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        RepoURLToSecretName("repocreds", "git@github.com:argoproj"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@github.com:argoproj"),
+				"username": []byte("someUsername"),
+				"password": []byte("somePassword"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test",
+				Name:      "user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	repoCreds, err := testee.ListRepoCreds(context.TODO())
+	assert.NoError(t, err)
+	assert.Len(t, repoCreds, 2)
+	assert.Contains(t, repoCreds, "git@github.com:argoproj")
+	assert.Contains(t, repoCreds, "git@gitlab.com")
+}
+
+func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
+	managedCreds := &appsv1.RepoCreds{
+		URL:      "git@github.com:argoproj",
+		Username: "someUsername",
+		Password: "somePassword",
+	}
+	userProvidedCreds := &appsv1.RepoCreds{
+		URL:      "git@gitlab.com",
+		Username: "someOtherUsername",
+		Password: "someOtherPassword",
+	}
+	newCreds := &appsv1.RepoCreds{
+		URL:      "git@github.com:foobar",
+		Username: "foo",
+		Password: "bar",
+	}
+
+	managedCredsName := RepoURLToSecretName("repocreds", managedCreds.URL)
+	newCredsName := RepoURLToSecretName("repocreds", newCreds.URL)
+	repoCredSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        managedCredsName,
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte(managedCreds.URL),
+				"username": []byte(managedCreds.Username),
+				"password": []byte(managedCreds.Password),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test",
+				Name:      "user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte(userProvidedCreds.URL),
+				"username": []byte(userProvidedCreds.Username),
+				"password": []byte(userProvidedCreds.Password),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	managedCreds.Username = "newUsername"
+	updateRepoCreds, err := testee.UpdateRepoCreds(context.TODO(), managedCreds)
+	assert.NoError(t, err)
+	assert.NotSame(t, managedCreds, updateRepoCreds)
+	assert.Equal(t, managedCreds.Username, updateRepoCreds.Username)
+
+	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), managedCredsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+	assert.Equal(t, "newUsername", string(secret.Data["username"]))
+
+	userProvidedCreds.Username = "newOtherUsername"
+	updateRepoCreds, err = testee.UpdateRepoCreds(context.TODO(), userProvidedCreds)
+	assert.NoError(t, err)
+	assert.NotSame(t, userProvidedCreds, updateRepoCreds)
+	assert.Equal(t, userProvidedCreds.Username, updateRepoCreds.Username)
+
+	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+	assert.Equal(t, "newOtherUsername", string(secret.Data["username"]))
+
+	updateRepoCreds, err = testee.UpdateRepoCreds(context.TODO(), newCreds)
+	assert.NoError(t, err)
+	assert.Same(t, newCreds, updateRepoCreds)
+
+	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), newCredsName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+	assert.Equal(t, "foo", string(secret.Data["username"]))
+}
+
+func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
+	managedSecretName := RepoURLToSecretName("repoconfig", "git@github.com:argoproj/argo-cd.git")
+	repoSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        managedSecretName,
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@github.com:argoproj"),
+				"username": []byte("someUsername"),
+				"password": []byte("somePassword"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "test",
+				Name:      "user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(repoSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	err := testee.DeleteRepoCreds(context.TODO(), "git@github.com:argoproj")
+	assert.NoError(t, err)
+
+	_, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	assert.Error(t, err)
+
+	err = testee.DeleteRepoCreds(context.TODO(), "git@gitlab.com")
+	assert.NoError(t, err)
+
+	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoCreds])
+}
+
+func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
+	repoCredSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        RepoURLToSecretName("repocreds", "git@github.com:argoproj"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@github.com:argoproj"),
+				"username": []byte("someUsername"),
+				"password": []byte("somePassword"),
+				"type":     []byte("helm"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   "test",
+				Name:        RepoURLToSecretName("repocreds", "git@gitlab.com"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+				"type":     []byte("git"),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            "test",
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+	}}
+
+	repoCreds, err := testee.GetAllHelmRepoCreds(context.TODO())
+	assert.NoError(t, err)
+	assert.Len(t, repoCreds, 1)
+}
