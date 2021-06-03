@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -26,7 +26,7 @@ type secretsRepositoryBackend struct {
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
 	secName := RepoURLToSecretName("repoconfig", repository.Repo)
 
-	repositorySecret := &apiv1.Secret{
+	repositorySecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
 		},
@@ -34,7 +34,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 
 	s.repositoryToSecret(repository, repositorySecret)
 
-	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repositorySecret)
+	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepoConfig, repositorySecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
@@ -127,7 +127,7 @@ func (s *secretsRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	secName := RepoURLToSecretName("repocreds", repoCreds.URL)
 
-	repoCredsSecret := &apiv1.Secret{
+	repoCredsSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
 		},
@@ -135,7 +135,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 
 	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
-	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeCluster, repoCredsSecret)
+	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepoCreds, repoCredsSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", repoCreds.URL)
@@ -229,7 +229,7 @@ func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*
 	return helmRepoCreds, nil
 }
 
-func (s *secretsRepositoryBackend) secretToRepository(secret *apiv1.Secret) (*appsv1.Repository, error) {
+func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	repository := &appsv1.Repository{
 		Name:                       string(secret.Data["name"]),
 		Repo:                       string(secret.Data["repo"]),
@@ -282,7 +282,7 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *apiv1.Secret) (*ap
 	return repository, nil
 }
 
-func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *apiv1.Secret) {
+func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
 	data := make(map[string][]byte)
 
 	data["name"] = []byte(repository.Name)
@@ -305,7 +305,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	secret.Data = data
 }
 
-func (s *secretsRepositoryBackend) secretToRepoCred(secret *apiv1.Secret) (*appsv1.RepoCreds, error) {
+func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
 	repository := &appsv1.RepoCreds{
 		URL:                        string(secret.Data["url"]),
 		Username:                   string(secret.Data["username"]),
@@ -339,7 +339,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *apiv1.Secret) (*apps
 	return repository, nil
 }
 
-func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *apiv1.Secret) {
+func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	data := make(map[string][]byte)
 
 	data["url"] = []byte(repoCreds.URL)
@@ -358,14 +358,14 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	secret.Data = data
 }
 
-func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*apiv1.Secret, error) {
+func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, secret := range secrets {
-		if git.SameURL(string(secret.Data["url"]), repoURL) {
+		if git.SameURL(string(secret.Data["repo"]), repoURL) {
 			return secret, nil
 		}
 	}
@@ -373,7 +373,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*apiv1.S
 	return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
 }
 
-func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*apiv1.Secret, error) {
+func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
 	if err != nil {
 		return nil, err
