@@ -1093,10 +1093,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
-			// write back to informer in order to avoid stale cache
-			if err := ctrl.appInformer.GetStore().Update(patchedApp); err != nil {
-				log.Warnf("Fails to update informer: %v", err)
-			}
+		}
+		// write back to informer in order to avoid stale cache
+		if err := ctrl.appInformer.GetStore().Update(patchedApp); err != nil {
+			log.Warnf("Fails to update informer: %v", err)
 		}
 		return nil
 	})
