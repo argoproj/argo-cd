@@ -40,10 +40,10 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	return secrets, nil
 }
 
-func boolOrDefault(secret *apiv1.Secret, key string, def bool) (bool, error) {
+func boolOrFalse(secret *apiv1.Secret, key string) (bool, error) {
 	val, present := secret.Data[key]
 	if !present {
-		return def, nil
+		return false, nil
 	}
 
 	return strconv.ParseBool(string(val))

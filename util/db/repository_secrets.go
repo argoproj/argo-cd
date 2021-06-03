@@ -243,25 +243,25 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 	}
 
-	insecureIgnoreHostKey, err := boolOrDefault(secret, "insecureIgnoreHostKey", false)
+	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
 	if err != nil {
 		return repository, err
 	}
 	repository.InsecureIgnoreHostKey = insecureIgnoreHostKey
 
-	insecure, err := boolOrDefault(secret, "insecure", false)
+	insecure, err := boolOrFalse(secret, "insecure")
 	if err != nil {
 		return repository, err
 	}
 	repository.Insecure = insecure
 
-	enableLfs, err := boolOrDefault(secret, "enableLfs", false)
+	enableLfs, err := boolOrFalse(secret, "enableLfs")
 	if err != nil {
 		return repository, err
 	}
 	repository.EnableLFS = enableLfs
 
-	enableOCI, err := boolOrDefault(secret, "enableOCI", false)
+	enableOCI, err := boolOrFalse(secret, "enableOCI")
 	if err != nil {
 		return repository, err
 	}
@@ -318,7 +318,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 	}
 
-	enableOCI, err := boolOrDefault(secret, "enableOCI", false)
+	enableOCI, err := boolOrFalse(secret, "enableOCI")
 	if err != nil {
 		return repository, err
 	}
