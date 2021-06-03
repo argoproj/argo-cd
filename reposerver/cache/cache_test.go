@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 )
 
 type fixtures struct {
@@ -23,6 +23,7 @@ type fixtures struct {
 func newFixtures() *fixtures {
 	return &fixtures{NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+		1*time.Minute,
 		1*time.Minute,
 	)}
 }
@@ -131,6 +132,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	repoCache := NewCache(
 		cacheutil.NewCache(inMemCache),
+		1*time.Minute,
 		1*time.Minute,
 	)
 

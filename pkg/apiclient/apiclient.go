@@ -26,28 +26,29 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/common"
-	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey"
-	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/env"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	argoio "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/util/oidc"
-	tls_util "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -112,6 +113,7 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	KubeOverrides        *clientcmd.ConfigOverrides
 }
 
 type client struct {
@@ -191,7 +193,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
+		if opts.KubeOverrides == nil {
+			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
+		}
+		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace, opts.KubeOverrides)
 		if err != nil {
 			return nil, err
 		}

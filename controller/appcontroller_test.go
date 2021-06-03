@@ -10,7 +10,8 @@ import (
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 
-	statecache "github.com/argoproj/argo-cd/controller/cache"
+	"github.com/argoproj/argo-cd/v2/common"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -29,16 +30,16 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/test"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/settings"
+	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type namespacedResource struct {
@@ -731,7 +732,7 @@ func TestNormalizeApplication(t *testing.T) {
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
 	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
@@ -749,12 +750,12 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app1.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app1.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 
 	app2 := newFakeApp()
 	app2.Name = "app2"
 	app2.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app2.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
@@ -855,7 +856,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, CompareWithLatest, compareWith)
+	assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 
 	{
 		// refresh app using the 'latest' level if comparison expired
@@ -866,7 +867,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 
 	{
@@ -875,12 +876,12 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
 		app.Annotations = map[string]string{
-			common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+			v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
 		}
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 
 	{
@@ -898,7 +899,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 }
 

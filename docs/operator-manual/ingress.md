@@ -207,7 +207,7 @@ requires that the `--enable-ssl-passthrough` flag be added to the command line a
 #### SSL-Passthrough with cert-manager and Let's Encrypt
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
@@ -220,16 +220,19 @@ metadata:
     # If you encounter a redirect loop or are getting a 307 response code 
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
-    # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
   - host: argocd.example.com
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
-        path: /
+      - path: /
+        pathType: Prefix
+        backend:
+          service: 
+            name: argocd-server
+            port:
+              name: https
   tls:
   - hosts:
     - argocd.example.com
@@ -300,7 +303,7 @@ spec:
       containers:
       - name: argocd-server
         command:
-        - /argocd-server
+        - argocd-server
         - --staticassets
         - /shared/app
         - --repo-server
@@ -380,7 +383,7 @@ spec:
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
 
 ```yaml
-  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.14 and older 
+  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.18 and older
   kind: Ingress
   metadata:
     annotations:

@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,17 +22,17 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/reposerver/metrics"
-	fileutil "github.com/argoproj/argo-cd/test/fixture/path"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/git"
-	gitmocks "github.com/argoproj/argo-cd/util/git/mocks"
-	"github.com/argoproj/argo-cd/util/helm"
-	helmmocks "github.com/argoproj/argo-cd/util/helm/mocks"
-	"github.com/argoproj/argo-cd/util/io"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
+	"github.com/argoproj/argo-cd/v2/util/helm"
+	helmmocks "github.com/argoproj/argo-cd/v2/util/helm/mocks"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -64,30 +63,27 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 }
 
 func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
-	// root, err := filepath.Abs(root)
-	// if err != nil {
-	// 	panic(err)
-	// }
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	cf(gitClient)
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
+		1*time.Minute,
 	), RepoServerInitConstants{ParallelismLimit: 1})
 
 	chart := "my-chart"
-	version := semver.MustParse("1.1.0")
-	helmClient.On("GetIndex").Return(&helm.Index{Entries: map[string]helm.Entries{
-		chart: {{Version: "1.0.0"}, {Version: version.String()}},
+	version := "1.1.0"
+	helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
+		chart: {{Version: "1.0.0"}, {Version: version}},
 	}}, nil)
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	return service, gitClient
@@ -120,7 +116,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Root").Return(root)
 	})
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -134,7 +130,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 29
+	const countOfManifests = 33
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -353,11 +349,11 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
 					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
-					assert.True(t, !isCachedError)
+					require.False(t, isCachedError)
 
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
@@ -371,9 +367,9 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
-					assert.True(t, cachedManifestResponse != nil)
+					require.NotNil(t, cachedManifestResponse)
 					// nolint:staticcheck
-					assert.True(t, cachedManifestResponse.ManifestResponse == nil)
+					assert.Nil(t, cachedManifestResponse.ManifestResponse)
 					// nolint:staticcheck
 					assert.True(t, cachedManifestResponse.FirstFailureTimestamp != 0)
 
@@ -445,8 +441,8 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		}
 
 		if step == 2 {
-			assert.True(t, err == nil, "error ret val was non-nil on step 3")
-			assert.True(t, res != nil, "GenerateManifest ret val was nil on step 3")
+			assert.NoError(t, err, "error ret val was non-nil on step 3")
+			assert.NotNil(t, res, "GenerateManifest ret val was nil on step 3")
 		}
 	}
 }
@@ -755,6 +751,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	assert.NoError(t, err)
 	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
 	assert.NoError(t, err)
+	defer file.Close()
 
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
@@ -926,6 +923,24 @@ func TestGetAppDetailsHelm(t *testing.T) {
 
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+}
+
+func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/api-versions",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, res.Helm)
+
+	assert.Equal(t, "Helm", res.Type)
+	assert.Empty(t, res.Helm.ValueFiles)
+	assert.Equal(t, "", res.Helm.Values)
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
@@ -1110,12 +1125,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "")
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "", true)
 		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "")
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "", true)
+		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
 	})
 }
 
@@ -1192,7 +1207,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
 		service := newService(".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
 					Path: path,
@@ -1200,7 +1215,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "broken",
 			})
 			assert.Error(t, err)
-			assert.Nil(t, details)
 		})
 	})
 }
@@ -1471,4 +1485,28 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 
 	assert.ElementsMatch(t,
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
+}
+
+func TestTestRepoOCI(t *testing.T) {
+	service := newService(".")
+	_, err := service.TestRepository(context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: &argoappv1.Repository{
+			Repo:      "https://demo.goharbor.io",
+			Type:      "helm",
+			EnableOCI: true,
+		},
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+}
+
+func Test_getHelmDependencyRepos(t *testing.T) {
+	repo1 := "https://charts.bitnami.com/bitnami"
+	repo2 := "https://eventstore.github.io/EventStore.Charts"
+
+	repos, err := getHelmDependencyRepos("../../util/helm/testdata/dependency")
+	assert.NoError(t, err)
+	assert.Equal(t, len(repos), 2)
+	assert.Equal(t, repos[0].Repo, repo1)
+	assert.Equal(t, repos[1].Repo, repo2)
 }

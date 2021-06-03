@@ -16,6 +16,9 @@ func NewInMemoryCache(expiration time.Duration) *InMemoryCache {
 	}
 }
 
+// compile-time validation of adherance of the CacheClient contract
+var _ CacheClient = &InMemoryCache{}
+
 type InMemoryCache struct {
 	memCache *gocache.Cache
 }

@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // this implements the "given" part of given/when/then
@@ -40,7 +40,10 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
+	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+	// for any context.
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	return &Context{t: t, destServer: v1alpha1.KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
@@ -110,8 +113,23 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmOCIRepoAdded(name string) *Context {
+	repos.AddHelmOCIRepo(name)
+	return c
+}
+
+func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	return c
+}
+
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	repos.AddHTTPSCredentialsUserPass()
+	return c
+}
+
+func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
+	repos.AddHelmoOCICredentialsWithoutUserPass()
 	return c
 }
 

@@ -24,6 +24,13 @@ spec:
         - "20"
         - --operation-processors
         - "10"
+        env:
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cm
+              key: timeout.reconciliation
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -41,6 +48,16 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
+        volumeMounts:
+        - name: argocd-repo-server-tls
+          mountPath: /app/config/controller/tls
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -57,3 +74,15 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
+      volumes:
+      - name: argocd-repo-server-tls
+        secret:
+          secretName: argocd-repo-server-tls
+          optional: true
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt

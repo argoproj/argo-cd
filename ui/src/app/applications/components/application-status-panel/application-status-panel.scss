@@ -60,7 +60,7 @@
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        color: $argo-color-gray-6;
+        color: $argo-color-gray-7;
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
@@ -82,6 +82,10 @@
             }
 
             @include responsive-widths();
+        }
+
+        &:first-child {
+            margin-top: 7px;
         }
 
         &:not(:first-child) {
@@ -106,7 +110,7 @@
 
         label {
             display: block;
-            color: $argo-color-gray-6;
+            color: $argo-color-gray-7;
             font-size: 13px;
             margin-right: 10px;
         }
@@ -173,7 +177,6 @@
     }
     &__item-name,
     &__item-value {
-        margin-top: auto;
         overflow: hidden;
         text-overflow: ellipsis;
     }

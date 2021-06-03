@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/cluster";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster";
 
 // Cluster Service
 //
@@ -9,7 +9,7 @@ package cluster;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 
 // ClusterQuery is a query for cluster resources
@@ -21,12 +21,12 @@ message ClusterQuery {
 message ClusterResponse {}
 
 message ClusterCreateRequest {
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	bool upsert = 2;
 }
 
 message ClusterUpdateRequest {
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	repeated string updatedFields = 2;
 }
 
@@ -34,12 +34,12 @@ message ClusterUpdateRequest {
 service ClusterService {
 
 	// List returns list of clusters
-	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
+	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";
 	}
 
 	// Create creates a cluster
-	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			post: "/api/v1/clusters"
 			body: "cluster"
@@ -47,12 +47,12 @@ service ClusterService {
 	}
 
 	// Get returns a cluster by server address
-	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{server}";
 	}
 
 	// Update updates a cluster
-	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			put: "/api/v1/clusters/{cluster.server}"
 			body: "cluster"
@@ -70,7 +70,7 @@ service ClusterService {
 	}
 
 	// InvalidateCache invalidates cluster cache
-	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).post = "/api/v1/clusters/{server}/invalidate-cache";
 	}
 	

@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/argo-cd/common
+PACKAGE=github.com/argoproj/argo-cd/v2/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
@@ -13,7 +13,6 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
-PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run github.com/gobuffalo/packr/packr"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m all | grep k8s.io/client-go | cut -d ' ' -f5)
 
@@ -45,6 +44,9 @@ ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
+ARGOCD_E2E_DISABLE_AUTH?=
+
+ARGOCD_E2E_TEST_TIMEOUT?=20m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -73,6 +75,10 @@ define run-in-test-server
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
 		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-e ARGOCD_E2E_DISABLE_AUTH=$(ARGOCD_E2E_DISABLE_AUTH) \
+		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
+		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
+		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -81,6 +87,7 @@ define run-in-test-server
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
+		-p 5000:5000 \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
@@ -203,11 +210,11 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: cli-argocd
 cli-argocd:
-	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: release-cli
 release-cli: clean-debug image
@@ -220,7 +227,7 @@ release-cli: clean-debug image
 .PHONY: argocd-util
 argocd-util: clean-debug
 	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${UTIL_CLI_NAME} ./cmd
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${UTIL_CLI_NAME} ./cmd
 
 # .PHONY: dev-tools-image
 # dev-tools-image:
@@ -243,25 +250,19 @@ manifests: test-tools-image
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
-# NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
-# files into the go binary
 .PHONY: server
 server: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
 
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
 
 .PHONY: controller
 controller:
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
-
-.PHONY: packr
-packr:
-	go build -o ${DIST_DIR}/packr github.com/gobuffalo/packr/packr/
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -269,12 +270,12 @@ ifeq ($(DEV_IMAGE), true)
 # which speeds up builds. Dockerfile.dev needs to be copied into dist to perform the build, since
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
-image: packr
+image:
 	docker build -t argocd-base --target argocd-base .
 	docker build -t argocd-ui --target argocd-ui .
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 dist/packr build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
@@ -307,7 +308,7 @@ mod-download: test-tools-image
 
 .PHONY: mod-download-local
 mod-download-local:
-	go mod download
+	go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
 
 .PHONY: mod-vendor
 mod-vendor: test-tools-image
@@ -397,7 +398,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout 20m -v ./test/e2e
+	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -436,7 +437,7 @@ start-e2e-local:
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
-# Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
+# Cleans VSCode debug.test files from sub-dirs to prevent them from being included in by golang embed
 .PHONY: clean-debug
 clean-debug:
 	-find ${CURRENT_DIR} -name debug.test | xargs rm -f
@@ -524,16 +525,15 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	sudo ./hack/install.sh packr-linux
-	sudo ./hack/install.sh kustomize-linux
-	sudo ./hack/install.sh ksonnet-linux
-	sudo ./hack/install.sh helm2-linux
-	sudo ./hack/install.sh helm-linux
+	./hack/install.sh kustomize-linux
+	./hack/install.sh ksonnet-linux
+	./hack/install.sh helm2-linux
+	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
-	sudo ./hack/install.sh codegen-tools
+	./hack/install.sh codegen-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
@@ -546,3 +546,6 @@ dep-ui: test-tools-image
 
 dep-ui-local:
 	cd ui && yarn install
+
+start-test-k8s:
+	go run ./hack/k8s

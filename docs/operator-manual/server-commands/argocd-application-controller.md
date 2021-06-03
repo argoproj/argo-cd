@@ -38,6 +38,8 @@ argocd-application-controller [flags]
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redisdb int                           Redis database.
       --repo-server string                    Repo server address. (default "argocd-repo-server:8081")
+      --repo-server-plaintext                 Disable TLS on connections to repo server
+      --repo-server-strict-tls                Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int       Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --self-heal-timeout-seconds int         Specifies timeout between application self heal attempts (default 5)

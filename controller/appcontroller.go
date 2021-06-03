@@ -39,22 +39,21 @@ import (
 	// make sure to register workqueue prometheus metrics
 	_ "k8s.io/component-base/metrics/prometheus/workqueue"
 
-	"github.com/argoproj/argo-cd/common"
-	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/argo"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/glob"
-	logutils "github.com/argoproj/argo-cd/util/log"
-	settings_util "github.com/argoproj/argo-cd/util/settings"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+	logutils "github.com/argoproj/argo-cd/v2/util/log"
+	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -66,6 +65,8 @@ const (
 type CompareWith int
 
 const (
+	// Compare live application state against state defined in latest git revision with no resolved revision caching.
+	CompareWithLatestForceResolve CompareWith = 3
 	// Compare live application state against state defined in latest git revision.
 	CompareWithLatest CompareWith = 2
 	// Compare live application state against state defined using revision of most recent comparison.
@@ -413,11 +414,13 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
 		}
 	}
+
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
 	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
+
 		switch {
 		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
 			allNodesInfo[key.Name] = *info.NodeInfo
@@ -464,7 +467,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 		for _, pod := range neighbors {
 			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] {
+				if !supportedResourceNames[name] || pod.Phase == v1.PodSucceeded || pod.Phase == v1.PodFailed {
 					continue
 				}
 				info := resources[name]
@@ -515,7 +518,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			}
 			resDiffPtr, err := diff.Diff(target, live,
 				diff.WithNormalizer(comparisonResult.diffNormalizer),
-				diff.WithLogr(logutils.NewLogrusLogger(log.New())),
+				diff.WithLogr(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())),
 				diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 			if err != nil {
 				return nil, err
@@ -663,6 +666,18 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	app := origApp.DeepCopy()
 
 	if app.Operation != nil {
+		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
+		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
+		// This code should be deleted when https://github.com/argoproj/argo-cd/pull/6294 is implemented.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Failed to retrieve latest application state: %v", err)
+			return
+		}
+		app = freshApp
+	}
+
+	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
@@ -752,7 +767,6 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	for i := range apps {
 		if apps[i].Spec.GetProject() == proj.Name {
 			appsCount++
-			break
 		}
 	}
 	if appsCount == 0 {
@@ -839,9 +853,16 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	filteredObjs := FilterObjectsForDeletion(objs)
+
+	propagationPolicy := metav1.DeletePropagationForeground
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+		propagationPolicy = metav1.DeletePropagationBackground
+	}
+	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
 	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
+		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	})
 	if err != nil {
 		return objs, err
@@ -869,14 +890,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return objs, err
 	}
-	app.SetCascadedDeletion(false)
-	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"finalizers": app.Finalizers,
-		},
-	})
-	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	err = ctrl.removeCascadeFinalizer(app)
 	if err != nil {
 		return objs, err
 	}
@@ -884,6 +899,19 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	logCtx.Infof("Successfully deleted %d resources", len(objs))
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
+}
+
+func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
+	app.UnSetCascadedDeletion()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": app.Finalizers,
+		},
+	})
+
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
@@ -928,20 +956,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}()
 	terminating := false
 	if isOperationInProgress(app) {
-		// If we get here, we are about process an operation but we notice it is already in progress.
-		// We need to detect if the app object we pulled off the informer is stale and doesn't
-		// reflect the fact that the operation is completed. We don't want to perform the operation
-		// again. To detect this, always retrieve the latest version to ensure it is not stale.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
-		if err != nil {
-			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
-			return
-		}
-		if !isOperationInProgress(freshApp) {
-			logCtx.Infof("Skipping operation on stale application state")
-			return
-		}
-		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
 		// Failed  operation with retry strategy might have be in-progress and has completion time
@@ -1027,7 +1041,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(log.New()), func() error {
+	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -1184,7 +1198,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	now := metav1.Now()
-	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, refreshType == appv1.RefreshTypeHard, localManifests)
+	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source,
+		refreshType == appv1.RefreshTypeHard,
+		comparisonLevel == CompareWithLatestForceResolve, localManifests)
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -1215,7 +1231,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx.Info("Sync prevented by sync window")
 	}
 
-	if app.Status.ReconciledAt == nil || comparisonLevel == CompareWithLatest {
+	if app.Status.ReconciledAt == nil || comparisonLevel >= CompareWithLatest {
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
@@ -1245,9 +1261,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
+		compareWith = CompareWithLatestForceResolve
 		// user requested app refresh.
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
+	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
+		reason = "spec.source differs"
+		compareWith = CompareWithLatestForceResolve
 	} else if expired {
 		// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 		// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
@@ -1257,8 +1277,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reconciledAtStr = app.Status.ReconciledAt.String()
 		}
 		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
-	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
-		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
@@ -1341,7 +1359,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		for k, v := range orig.GetAnnotations() {
 			newAnnotations[k] = v
 		}
-		delete(newAnnotations, common.AnnotationKeyRefresh)
+		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},

@@ -18,16 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -63,6 +60,20 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterByRepo returns an application
+func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
+	if repo == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Source.RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByName returns an application
 func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
 	if name == "" {
@@ -83,7 +94,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	metadata := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				common.AnnotationKeyRefresh: string(refreshType),
+				argoappv1.AnnotationKeyRefresh: string(refreshType),
 			},
 		},
 	}
@@ -132,14 +143,14 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		if _, ok := annotations[common.AnnotationKeyRefresh]; !ok {
+		if _, ok := annotations[argoappv1.AnnotationKeyRefresh]; !ok {
 			return app, nil
 		}
 	}
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
@@ -148,34 +159,10 @@ func TestRepoWithKnownType(repo *argoappv1.Repository, isHelm bool, isHelmOci bo
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	return TestRepo(repo)
-}
+	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	})
 
-func TestRepo(repo *argoappv1.Repository) error {
-	checks := map[string]func() error{
-		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-		},
-		"helm": func() error {
-			if repo.EnableOCI {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
-				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex()
-				return err
-			}
-		},
-	}
-	if check, ok := checks[repo.Type]; ok {
-		return check()
-	}
-	var err error
-	for _, check := range checks {
-		err = check()
-		if err == nil {
-			return nil
-		}
-	}
 	return err
 }
 
@@ -192,6 +179,7 @@ func ValidateRepo(
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
+	proj *argoappv1.AppProject,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -208,7 +196,8 @@ func ValidateRepo(
 	}
 
 	repoAccessible := false
-	err = TestRepoWithKnownType(repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
+
+	err = TestRepoWithKnownType(ctx, repoClient, repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci())
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -233,12 +222,23 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-
+	permittedHelmRepos, err := GetPermittedRepos(proj, helmRepos)
+	if err != nil {
+		return nil, err
+	}
+	helmRepositoryCredentials, err := db.GetAllHelmRepositoryCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	if err != nil {
+		return nil, err
+	}
 	// get the app details, and populate the Ksonnet stuff from it
 	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &spec.Source,
-		Repos:            helmRepos,
+		Repos:            permittedHelmRepos,
 		KustomizeOptions: kustomizeOptions,
 	})
 	if err != nil {
@@ -269,7 +269,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, helmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups))...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), permittedHelmCredentials)...)
 
 	return conditions, nil
 }
@@ -393,6 +393,7 @@ func verifyGenerateManifests(
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 	apiVersions []string,
+	repositoryCredentials []*argoappv1.RepoCreds,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
@@ -418,6 +419,7 @@ func verifyGenerateManifests(
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
+		HelmRepoCreds:     repositoryCredentials,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)
@@ -477,7 +479,7 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
 	spec = spec.DeepCopy()
 	if spec.Project == "" {
-		spec.Project = common.DefaultAppProjectName
+		spec.Project = argoappv1.DefaultAppProjectName
 	}
 
 	// 3. If any app sources are their zero values, then nil out the pointers to the source spec.
@@ -504,6 +506,26 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		}
 	}
 	return spec
+}
+
+func GetPermittedReposCredentials(proj *argoappv1.AppProject, repoCreds []*argoappv1.RepoCreds) ([]*argoappv1.RepoCreds, error) {
+	var permittedRepoCreds []*argoappv1.RepoCreds
+	for _, v := range repoCreds {
+		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}) {
+			permittedRepoCreds = append(permittedRepoCreds, v)
+		}
+	}
+	return permittedRepoCreds, nil
+}
+
+func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository) ([]*argoappv1.Repository, error) {
+	var permittedRepos []*argoappv1.Repository
+	for _, v := range repos {
+		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.Repo}) {
+			permittedRepos = append(permittedRepos, v)
+		}
+	}
+	return permittedRepos, nil
 }
 
 func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {

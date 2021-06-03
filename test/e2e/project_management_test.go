@@ -15,10 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
 func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
@@ -290,7 +289,7 @@ func TestUseJWTToken(t *testing.T) {
 				Path:    "guestbook",
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    common.KubernetesInternalAPIServerAddr,
+				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
 				Namespace: fixture.ArgoCDNamespace,
 			},
 			Project: projectName,
@@ -300,7 +299,7 @@ func TestUseJWTToken(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: projectName},
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{{
-				Server:    common.KubernetesInternalAPIServerAddr,
+				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
 				Namespace: fixture.ArgoCDNamespace,
 			}},
 			SourceRepos: []string{"*"},
@@ -507,7 +506,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
+		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
 	assert.NoError(t, err)
@@ -517,7 +516,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 
 	//Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 
 	//App trying to sync a resource which is not blacked listed anywhere
@@ -539,7 +538,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", common.KubernetesInternalAPIServerAddr),
+		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
 	assert.NoError(t, err)
@@ -554,7 +553,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 
 	//Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", proj.Name, "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 
 	//App trying to sync a resource which is not blacked listed anywhere

@@ -9,7 +9,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 
-	util "github.com/argoproj/argo-cd/util/io"
+	util "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 const (
@@ -24,6 +24,8 @@ type userStateStorage struct {
 	lock           sync.RWMutex
 	resyncDuration time.Duration
 }
+
+var _ UserStateStorage = &userStateStorage{}
 
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{

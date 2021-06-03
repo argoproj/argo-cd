@@ -5,34 +5,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/hash"
-
-	log "github.com/sirupsen/logrus"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-	cache               *cacheutil.Cache
-	repoCacheExpiration time.Duration
+	cache                   *cacheutil.Cache
+	repoCacheExpiration     time.Duration
+	revisionCacheExpiration time.Duration
 }
 
-func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration}
+func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration) *Cache {
+	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
+	var revisionCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt32), "Cache expiration for cached revision")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -41,7 +46,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		if err != nil {
 			return nil, err
 		}
-		return NewCache(cache, repoCacheExpiration), nil
+		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
 	}
 }
 
@@ -67,6 +72,47 @@ func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 
 func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
 	return c.cache.SetItem(listApps(repoUrl, revision), apps, c.repoCacheExpiration, apps == nil)
+}
+
+func helmIndexRefsKey(repo string) string {
+	return fmt.Sprintf("helm-index|%s", repo)
+}
+
+// SetHelmIndex stores helm repository index.yaml content to cache
+func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
+	return c.cache.SetItem(helmIndexRefsKey(repo), indexData, c.revisionCacheExpiration, false)
+}
+
+// GetHelmIndex retrieves helm repository index.yaml content from cache
+func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
+	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+}
+
+func gitRefsKey(repo string) string {
+	return fmt.Sprintf("git-refs|%s", repo)
+}
+
+// SetGitReferences saves resolved Git repository references to cache
+func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) error {
+	var input [][2]string
+	for i := range references {
+		input = append(input, references[i].Strings())
+	}
+	return c.cache.SetItem(gitRefsKey(repo), input, c.revisionCacheExpiration, false)
+}
+
+// GetGitReferences retrieves resolved Git repository references from cache
+func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) error {
+	var input [][2]string
+	if err := c.cache.GetItem(gitRefsKey(repo), &input); err != nil {
+		return err
+	}
+	var res []*plumbing.Reference
+	for i := range input {
+		res = append(res, plumbing.NewReferenceFromStrings(input[i][0], input[i][1]))
+	}
+	*references = res
+	return nil
 }
 
 func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string) string {

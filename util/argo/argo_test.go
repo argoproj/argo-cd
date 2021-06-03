@@ -17,15 +17,15 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/test"
-	dbmocks "github.com/argoproj/argo-cd/util/db/mocks"
-	"github.com/argoproj/argo-cd/util/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -151,7 +151,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 
 func TestValidateChartWithoutRevision(t *testing.T) {
 	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{RepoURL: "https://kubernetes-charts-incubator.storage.googleapis.com/", Chart: "myChart", TargetRevision: ""},
+		Source: argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
 			Server: "https://kubernetes.default.svc", Namespace: "default",
 		},
@@ -235,6 +235,13 @@ func TestValidateRepo(t *testing.T) {
 			},
 		},
 	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+		},
+	}
+
 	helmRepos := []*argoappv1.Repository{{Repo: "sample helm repo"}}
 
 	repoClient := &mocks.RepoServerServiceClient{}
@@ -245,6 +252,13 @@ func TestValidateRepo(t *testing.T) {
 		KustomizeOptions: kustomizeOptions,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
+	repo.Type = "git"
+	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	}).Return(&apiclient.TestRepositoryResponse{
+		VerifiedRepository: true,
+	}, nil)
+
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
@@ -252,6 +266,7 @@ func TestValidateRepo(t *testing.T) {
 	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
 	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
 	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
+	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
@@ -260,7 +275,7 @@ func TestValidateRepo(t *testing.T) {
 		return true
 	})).Return(nil, nil)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups})
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups}, proj)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)
@@ -333,6 +348,40 @@ func TestFilterByProjects(t *testing.T) {
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
 		res := FilterByProjects(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
+	})
+}
+
+func TestFilterByRepo(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/repo.git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: argoappv1.ApplicationSource{
+					RepoURL: "git@github.com:owner/otherrepo.git",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByRepo(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/repo.git")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
+		assert.Len(t, res, 0)
 	})
 }
 

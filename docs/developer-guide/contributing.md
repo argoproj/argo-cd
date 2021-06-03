@@ -23,12 +23,12 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building ArgoCD is **v1.14.0**.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing ArgoCD is **v1.16**.
 
 * We will assume that your Go workspace is at `~/go`.
 
 !!! note
-    **Attention minikube users**: By default, minikube will create Kubernetes client configuration that uses authentication data from files. This is incompatible with the virtualized toolchain. So if you intend to use the virtualized toolchain, you have to embed this authentication data into the client configuration. To do so, issue `minikube config set embed-certs true` and restart your minikube. Please also note that minikube using the Docker driver is currently not supported with the virtualized toolchain, because the Docker driver exposes the API server on 127.0.0.1 hard-coded. If in doubt, run `make verify-kube-connect` to find out.
+    **Attention minikube users**: By default, minikube will create Kubernetes client configuration that uses authentication data from files. This is incompatible with the virtualized toolchain. So if you intend to use the virtualized toolchain, you have to embed this authentication data into the client configuration. To do so, start minikube using `minikube start --embed-certs`. Please also note that minikube using the Docker driver is currently not supported with the virtualized toolchain, because the Docker driver exposes the API server on 127.0.0.1 hard-coded. If in doubt, run `make verify-kube-connect` to find out.
 
 ## Submitting PRs
 
@@ -239,6 +239,34 @@ If you touched UI code, you should also run the Yarn linter on it:
 * Run `make lint-ui`
 * Fix any of the errors reported by it
 
+## Contributing to Argo CD UI
+
+Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls, 
+and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. 
+
+1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui).
+
+2. `cd` into your `argo-ui` directory, and then run `yarn install`. 
+
+3. Make your file changes.
+
+4. Run `yarn start` to start a [storybook](https://storybook.js.org/) dev server and view the components in your browser. Make sure all your changes work as expected. 
+
+5. Use [yarn link](https://classic.yarnpkg.com/en/docs/cli/link/) to link Argo UI package to your Argo CD repository. (Commands below assume that `argo-ui` and `argo-cd` are both located within the same parent folder)
+
+    * `cd argo-ui`
+    * `yarn link`
+    * `cd ../argo-cd/ui`
+    * `yarn link argo-ui`
+
+    Once `argo-ui` package has been successfully linked, test out changes in your local development environment. 
+
+6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
+
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd` folder and run `yarn add https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+
+8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
+
 ## Setting up a local toolchain
 
 For development, you can either use the fully virtualized toolchain provided as Docker images, or you can set up the toolchain on your local development machine. Due to the dynamic nature of requirements, you might want to stay with the virtualized environment.
@@ -291,3 +319,9 @@ The final step is running the End-to-End testsuite, which makes sure that your K
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).
+
+
+## Enhancement proposals
+
+If you are proposing a major feature, change in design or process refactor, please help define how it would look like with a new enhancement proposal as described in the enhancement proposal [template](/docs/proposals/001-proposal-template.md).
+

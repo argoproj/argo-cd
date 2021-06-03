@@ -17,6 +17,13 @@ Four sets of installation manifests are provided:
   external clusters. Will still be possible to deploy to the same cluster (kubernetes.svc.default)
   with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
 
+  > Note: Argo CD CRDs are not included into [namespace-install.yaml](namespace-install.yaml).
+  > and have to be installed separately. The CRD manifests are located in [manifests/crds](./crds) directory.
+  > Use the following command to install them:
+  > ```bash
+  > kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
+  > ```
+
 ## High Availability:
 
 * [ha/install.yaml](ha/install.yaml) - the same as install.yaml but with multiple replicas for

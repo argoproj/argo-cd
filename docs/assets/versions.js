@@ -3,7 +3,7 @@ setTimeout(function() {
   window[callbackName] = function (response) {
   const div = document.createElement('div');
   div.innerHTML = response.html;
-  document.querySelector(".md-header-nav > .md-header-nav__title").appendChild(div);
+  document.querySelector(".md-header__inner > .md-header__title").appendChild(div);
   const container = div.querySelector('.rst-versions');
   var caret = document.createElement('div');
   caret.innerHTML = "<i class='fa fa-caret-down dropdown-caret'></i>"

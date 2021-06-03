@@ -17,16 +17,17 @@ import (
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	terminal "golang.org/x/term"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	utillog "github.com/argoproj/argo-cd/v2/util/log"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -144,22 +145,22 @@ func ReadAndConfirmPassword() (string, error) {
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
 	switch strings.ToLower(logFormat) {
-	case "json":
-		log.SetFormatter(&log.JSONFormatter{})
-	case "text":
-		if os.Getenv("FORCE_LOG_COLORS") == "1" {
-			log.SetFormatter(&log.TextFormatter{ForceColors: true})
-		}
+	case utillog.JsonFormat:
+		os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+	case utillog.TextFormat:
+		os.Setenv(common.EnvLogFormat, utillog.TextFormat)
 	default:
 		log.Fatalf("Unknown log format '%s'", logFormat)
 	}
+
+	log.SetFormatter(utillog.CreateFormatter(logFormat))
 }
 
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
-	log.SetLevel(level)
+	os.Setenv(common.EnvLogLevel, level.String())
 }
 
 // SetGLogLevel set the glog level for the k8s go-client

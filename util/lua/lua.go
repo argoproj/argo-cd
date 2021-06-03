@@ -8,31 +8,23 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/resource_customizations"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/gobuffalo/packr"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	luajson "layeh.com/gopher-json"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 const (
-	incorrectReturnType              = "expect %s output from Lua script, not %s"
-	invalidHealthStatus              = "Lua returned an invalid health status"
-	resourceCustomizationBuiltInPath = "../../resource_customizations"
-	healthScriptFile                 = "health.lua"
-	actionScriptFile                 = "action.lua"
-	actionDiscoveryScriptFile        = "discovery.lua"
+	incorrectReturnType       = "expect %s output from Lua script, not %s"
+	invalidHealthStatus       = "Lua returned an invalid health status"
+	healthScriptFile          = "health.lua"
+	actionScriptFile          = "action.lua"
+	actionDiscoveryScriptFile = "discovery.lua"
 )
-
-var (
-	box packr.Box
-)
-
-func init() {
-	box = packr.NewBox(resourceCustomizationBuiltInPath)
-}
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
@@ -40,13 +32,15 @@ func (overrides ResourceHealthOverrides) GetResourceHealth(obj *unstructured.Uns
 	luaVM := VM{
 		ResourceOverrides: overrides,
 	}
-	script, err := luaVM.GetHealthScript(obj)
+	script, useOpenLibs, err := luaVM.GetHealthScript(obj)
 	if err != nil {
 		return nil, err
 	}
 	if script == "" {
 		return nil, nil
 	}
+	// enable/disable the usage of lua standard library
+	luaVM.UseOpenLibs = useOpenLibs
 	result, err := luaVM.ExecuteHealthLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -57,7 +51,7 @@ func (overrides ResourceHealthOverrides) GetResourceHealth(obj *unstructured.Uns
 // VM Defines a struct that implements the luaVM
 type VM struct {
 	ResourceOverrides map[string]appv1.ResourceOverride
-	// UseOpenLibs flag to enable open libraries. Libraries are always disabled while running, but enabled during testing to allow the use of print statements
+	// UseOpenLibs flag to enable open libraries. Libraries are disabled by default while running, but enabled during testing to allow the use of print statements
 	UseOpenLibs bool
 }
 
@@ -127,12 +121,14 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 }
 
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource
-func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, error) {
+func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, error) {
 	key := getConfigMapKey(obj)
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
-		return script.HealthLua, nil
+		return script.HealthLua, script.UseOpenLibs, nil
 	}
-	return vm.getPredefinedLuaScripts(key, healthScriptFile)
+	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
+	// standard libraries will be enabled for all built-in scripts
+	return builtInScript, true, err
 }
 
 func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
@@ -340,7 +336,7 @@ func getConfigMapKey(obj *unstructured.Unstructured) string {
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
-	data, err := box.MustBytes(filepath.Join(objKey, scriptFile))
+	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil

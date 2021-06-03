@@ -30,28 +30,27 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	argoio "github.com/argoproj/argo-cd/util/io"
-	argokube "github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/templates"
-	"github.com/argoproj/argo-cd/util/text/label"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/controller"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 var (
@@ -122,7 +121,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
 
 	# Create a Helm app from a Helm repo
-	argocd app create nginx-ingress --repo https://kubernetes-charts.storage.googleapis.com --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+	argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Create a Kustomize app
 	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
@@ -276,6 +275,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sinceSeconds int64
 		untilTime    string
 		filter       string
+		container    string
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -304,6 +304,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: sinceSeconds,
 					UntilTime:    &untilTime,
 					Filter:       &filter,
+					Container:    container,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -344,6 +345,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
+	command.Flags().StringVar(&container, "container", "", "Optional container name")
 
 	return command
 }
@@ -556,6 +558,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		namePrefix       bool
 		kustomizeVersion bool
 		kustomizeImages  []string
+		pluginEnvs       []string
 		appOpts          cmdutil.AppOptions
 	)
 	var command = &cobra.Command{
@@ -661,9 +664,22 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if !updated {
-					return
+			}
+
+			if app.Spec.Source.Plugin != nil {
+				if len(pluginEnvs) == 0 {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
 				}
+				for _, env := range pluginEnvs {
+					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
+					errors.CheckError(err)
+				}
+				updated = true
+			}
+
+			if !updated {
+				return
 			}
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
@@ -682,6 +698,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
+	command.Flags().StringArrayVar(&pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	return command
 }
 
@@ -783,6 +800,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		refresh       bool
 		hardRefresh   bool
+		exitCode      bool
 		local         string
 		revision      string
 		localRepoRoot string
@@ -886,7 +904,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					_ = cli.PrintDiff(item.key.Name, live, target)
 				}
 			}
-			if foundDiffs {
+			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
 
@@ -894,6 +912,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
+	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
@@ -936,8 +955,9 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		cascade  bool
-		noPrompt bool
+		cascade           bool
+		noPrompt          bool
+		propagationPolicy string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -962,6 +982,9 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
+				}
+				if c.Flag("propagation-policy").Changed {
+					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
 				if cascade && isTerminal && !noPrompt {
 					var confirmAnswer string = "n"
@@ -997,6 +1020,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		},
 	}
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
+	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	return command
 }
@@ -1045,6 +1069,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		output   string
 		selector string
 		projects []string
+		repo     string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1063,6 +1088,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
+			if repo != "" {
+				appList = argo.FilterByRepo(appList, repo)
+			}
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -1079,6 +1107,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
+	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	return command
 }
 
@@ -1239,8 +1268,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		force                   bool
 		async                   bool
 		retryLimit              int64
-		retryBackoffDuration    string
-		retryBackoffMaxDuration string
+		retryBackoffDuration    time.Duration
+		retryBackoffMaxDuration time.Duration
 		retryBackoffFactor      int64
 		local                   string
 		localRepoRoot           string
@@ -1370,8 +1399,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
 						Limit: retryLimit,
 						Backoff: &argoappv1.Backoff{
-							Duration:    retryBackoffDuration,
-							MaxDuration: retryBackoffMaxDuration,
+							Duration:    retryBackoffDuration.String(),
+							MaxDuration: retryBackoffMaxDuration.String(),
 							Factor:      pointer.Int64Ptr(retryBackoffFactor),
 						},
 					}
@@ -1407,9 +1436,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
-	command.Flags().StringVar(&retryBackoffDuration, "retry-backoff-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryDuration/time.Second), "Retry backoff base duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
-	command.Flags().StringVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", fmt.Sprintf("%ds", common.DefaultSyncRetryMaxDuration/time.Second), "Max retry backoff duration. Default unit is seconds, but could also be a duration (e.g. 2m, 1h)")
-	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
+	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")

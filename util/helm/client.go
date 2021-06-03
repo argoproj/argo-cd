@@ -16,17 +16,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/v2/util/cache"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 var (
 	globalLock = sync.NewKeyLock()
+	indexLock  = sync.NewKeyLock()
 )
 
 type Creds struct {
@@ -38,33 +39,53 @@ type Creds struct {
 	InsecureSkipVerify bool
 }
 
+type indexCache interface {
+	SetHelmIndex(repo string, indexData []byte) error
+	GetHelmIndex(repo string, indexData *[]byte) error
+}
+
 type Client interface {
-	CleanChartCache(chart string, version *semver.Version) error
-	ExtractChart(chart string, version *semver.Version) (string, io.Closer, error)
-	GetIndex() (*Index, error)
+	CleanChartCache(chart string, version string) error
+	ExtractChart(chart string, version string) (string, io.Closer, error)
+	GetIndex(noCache bool) (*Index, error)
 	TestHelmOCI() (bool, error)
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci)
+type ClientOpts func(c *nativeHelmChart)
+
+func WithIndexCache(indexCache indexCache) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.indexCache = indexCache
+	}
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool) Client {
-	return &nativeHelmChart{
+func NewClient(repoURL string, creds Creds, enableOci bool, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, opts...)
+}
+
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, opts ...ClientOpts) Client {
+	c := &nativeHelmChart{
 		repoURL:   repoURL,
 		creds:     creds,
 		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
 		repoLock:  repoLock,
 		enableOci: enableOci,
 	}
+	for i := range opts {
+		opts[i](c)
+	}
+	return c
 }
 
+var _ Client = &nativeHelmChart{}
+
 type nativeHelmChart struct {
-	repoPath  string
-	repoURL   string
-	creds     Creds
-	repoLock  sync.KeyLock
-	enableOci bool
+	repoPath   string
+	repoURL    string
+	creds      Creds
+	repoLock   sync.KeyLock
+	enableOci  bool
+	indexCache indexCache
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -89,11 +110,11 @@ func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
 	return nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version *semver.Version) error {
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(c.getCachedChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (string, io.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -150,13 +171,13 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 			}
 
 			// 'helm chart pull' ensures that chart is downloaded into local repository cache
-			_, err = helmCmd.ChartPull(c.repoURL, chart, version.String())
+			_, err = helmCmd.ChartPull(c.repoURL, chart, version)
 			if err != nil {
 				return "", nil, err
 			}
 
 			// 'helm chart export' copies cached chart into temp directory
-			_, err = helmCmd.ChartExport(c.repoURL, chart, version.String(), tempDest)
+			_, err = helmCmd.ChartExport(c.repoURL, chart, version, tempDest)
 			if err != nil {
 				return "", nil, err
 			}
@@ -169,7 +190,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 				return "", nil, err
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version.String(), tempDest, c.creds)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
 			if err != nil {
 				return "", nil, err
 			}
@@ -202,21 +223,38 @@ func (c *nativeHelmChart) ExtractChart(chart string, version *semver.Version) (s
 	}), nil
 }
 
-func (c *nativeHelmChart) GetIndex() (*Index, error) {
-	start := time.Now()
+func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
+	indexLock.Lock(c.repoURL)
+	defer indexLock.Unlock(c.repoURL)
 
-	data, err := c.loadRepoIndex()
-	if err != nil {
-		return nil, err
+	var data []byte
+	if !noCache && c.indexCache != nil {
+		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && err != cache.ErrCacheMiss {
+			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
+		}
+	}
+
+	if len(data) == 0 {
+		start := time.Now()
+		var err error
+		data, err = c.loadRepoIndex()
+		if err != nil {
+			return nil, err
+		}
+		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
+
+		if c.indexCache != nil {
+			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
+				log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
+			}
+		}
 	}
 
 	index := &Index{}
-	err = yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
+	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
 	if err != nil {
 		return nil, err
 	}
-
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 	return index, nil
 }
@@ -328,11 +366,16 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version *semver.Version) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%v.tgz", strings.ReplaceAll(chart, "/", "_"), version))
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) string {
+	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", strings.ReplaceAll(chart, "/", "_"), version))
 }
 
-// Only OCI registries support storing charts under sub-directories.
-func IsHelmOciChart(chart string) bool {
-	return strings.Contains(chart, "/")
+// Ensures that given OCI registries URL does not have protocol
+func IsHelmOciRepo(repoURL string) bool {
+	if repoURL == "" {
+		return false
+	}
+	parsed, err := url.Parse(repoURL)
+	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
+	return err == nil && parsed.Host == ""
 }

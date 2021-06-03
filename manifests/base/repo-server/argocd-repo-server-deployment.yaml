@@ -25,6 +25,13 @@ spec:
         - argocd-repo-server
         - --redis
         - $(ARGOCD_REDIS_SERVICE):6379
+        env:
+          - name: ARGOCD_RECONCILIATION_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cm
+                key: timeout.reconciliation
+                optional: true
         ports:
         - containerPort: 8081
         - containerPort: 8084
@@ -41,6 +48,13 @@ spec:
             port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -50,6 +64,10 @@ spec:
           mountPath: /app/config/gpg/source
         - name: gpg-keyring
           mountPath: /app/config/gpg/keys
+        - name: argocd-repo-server-tls
+          mountPath: /app/config/reposerver/tls
+        - name: tmp
+          mountPath: /tmp
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -62,6 +80,19 @@ spec:
             name: argocd-gpg-keys-cm
         - name: gpg-keyring
           emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: argocd-repo-server-tls
+          secret:
+            secretName: argocd-repo-server-tls
+            optional: true
+            items:
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+            - key: ca.crt
+              path: ca.crt
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

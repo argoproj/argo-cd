@@ -4,13 +4,31 @@
     position: relative;
     height: 25px;
 
+
+    @media (max-width: map-get($breakpoints, medium)) {
+        & {
+            position: initial;
+            height: auto;
+            text-align: center;
+        }
+
+        li.previous,
+        li.next {
+            display: none;
+        }
+
+        &__size-menu {
+            position: initial;
+        }
+    }
+
     &__paginator {
         ul {
             display: inline-block;
             margin: 0;
             padding: 0;
         }
-    
+
         li {
             display: inline-block;
             margin-right: 1em;
@@ -20,7 +38,7 @@
     li.disabled {
         a {
             cursor: default;
-            color: $argo-color-gray-4;
+            color: $argo-color-gray-5;
         }
     }
 

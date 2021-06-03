@@ -3,7 +3,6 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
-import {Observable} from 'rxjs';
 
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -43,11 +42,29 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         literal: string;
         inverse: boolean;
     }
+
+    const [filterText, setFilterText] = useState('');
     const [filter, setFilter] = useState({inverse: false, literal: ''} as FilterData);
 
-    const filterQuery = () => {
-        return filter.literal && `${filter.inverse ? '!' : ''}${filter.literal}`;
+    const formatFilter = (f: FilterData): string => {
+        return f.literal && `${f.inverse ? '!' : ''}${f.literal}`;
     };
+
+    const [filterQuery, setFilterQuery] = React.useState(formatFilter(filter));
+    React.useEffect(() => {
+        setFilterQuery(formatFilter(filter));
+        if (loader) {
+            loader.reload();
+        }
+    }, [filter]);
+
+    React.useEffect(() => {
+        const to = setTimeout(() => {
+            setFilter({...filter, literal: filterText});
+        }, 500);
+        return () => clearTimeout(to);
+    }, [filterText]);
+
     const fullscreenURL =
         `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
@@ -117,35 +134,40 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </button>
+                        <button
+                            className='argo-button argo-button--base'
+                            onClick={async () => {
+                                const downloadURL = services.applications.getDownloadLogsURL(
+                                    props.applicationName,
+                                    props.namespace,
+                                    props.podName,
+                                    {group: props.group, kind: props.kind, name: props.name},
+                                    props.containerName
+                                );
+                                window.open(downloadURL, '_blank');
+                            }}>
+                            DOWNLOAD
+                        </button>
                         {!props.fullscreen && (
                             <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
                                 <i className='fa fa-external-link-alt' />
                             </Link>
                         )}
                         <div className='pod-logs-viewer__filter'>
-                            <button
-                                className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
-                                onClick={() => setFilter({...filter, inverse: !filter.inverse})}
-                                style={{marginRight: '10px'}}>
-                                !
-                            </button>
+                            <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
+                                <button
+                                    className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                    onClick={() => setFilter({...filter, inverse: !filter.inverse})}
+                                    style={{marginRight: '10px'}}>
+                                    !
+                                </button>
+                            </Tooltip>
                             <input
-                                ref={input => {
-                                    if (input) {
-                                        Observable.fromEvent(input, 'keyup')
-                                            .debounceTime(500)
-                                            .subscribe(() => {
-                                                if (loader) {
-                                                    loader.reload();
-                                                }
-                                            });
-                                    }
-                                }}
                                 type='text'
                                 placeholder='Filter string'
                                 className='argo-field'
-                                value={filter.literal}
-                                onChange={e => setFilter({...filter, literal: e.target.value})}
+                                value={filterText}
+                                onChange={e => setFilterText(e.target.value)}
                                 style={{padding: 0}}
                             />
                         </div>
@@ -160,32 +182,39 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         )}
                         input={props.containerName}
                         load={() => {
-                            return (
-                                services.applications
-                                    .getContainerLogs(
-                                        props.applicationName,
-                                        props.namespace,
-                                        props.podName,
-                                        {group: props.group, kind: props.kind, name: props.name},
-                                        props.containerName,
-                                        maxLines * (page.number + 1),
-                                        prefs.appDetails.followLogs && page.number === 0,
-                                        page.untilTimes[page.untilTimes.length - 1],
-                                        filterQuery()
-                                    )
-                                    // show only current page lines
-                                    .scan((lines, logEntry) => {
+                            let logsSource = services.applications
+                                .getContainerLogs(
+                                    props.applicationName,
+                                    props.namespace,
+                                    props.podName,
+                                    {group: props.group, kind: props.kind, name: props.name},
+                                    props.containerName,
+                                    maxLines * (page.number + 1),
+                                    prefs.appDetails.followLogs && page.number === 0,
+                                    page.untilTimes[page.untilTimes.length - 1],
+                                    filterQuery
+                                )
+                                // show only current page lines
+                                .scan((lines, logEntry) => {
+                                    // first equal true means retry attempt so we should clear accumulated log entries
+                                    if (logEntry.first) {
+                                        lines = [logEntry];
+                                    } else {
                                         lines.push(logEntry);
-                                        if (lines.length > maxLines) {
-                                            lines.splice(0, lines.length - maxLines);
-                                        }
-                                        return lines;
-                                    }, new Array<models.LogEntry>())
-                                    // accumulate log changes and render only once every 100ms to reduce CPU usage
-                                    .bufferTime(100)
-                                    .filter(batch => batch.length > 0)
-                                    .map(batch => batch[batch.length - 1])
-                            );
+                                    }
+                                    if (lines.length > maxLines) {
+                                        lines.splice(0, lines.length - maxLines);
+                                    }
+                                    return lines;
+                                }, new Array<models.LogEntry>())
+                                // accumulate log changes and render only once every 100ms to reduce CPU usage
+                                .bufferTime(100)
+                                .filter(batch => batch.length > 0)
+                                .map(batch => batch[batch.length - 1]);
+                            if (prefs.appDetails.followLogs) {
+                                logsSource = logsSource.retryWhen(errors => errors.delay(500));
+                            }
+                            return logsSource;
                         }}>
                         {logs => {
                             logs = logs || [];

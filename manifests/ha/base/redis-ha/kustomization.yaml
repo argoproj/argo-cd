@@ -3,30 +3,24 @@ kind: Kustomization
 
 resources:
 - chart/upstream.yaml
-- overlays/redis-ha-haproxy.yaml
+- argocd-redis-ha-proxy-network-policy.yaml
+- argocd-redis-ha-server-network-policy.yaml
 
 patchesJson6902:
 - target:
     version: v1
     group: ""
     kind: ConfigMap
-    name: argocd-redis-ha-configmap
+    name: argocd-redis-ha-health-configmap
     namespace: argocd
   path: overlays/remove-namespace.yaml
 - target:
-    group: rbac.authorization.k8s.io
     version: v1
-    kind: Role
-    name: argocd-redis-ha
+    group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-configmap
     namespace: argocd
-  path: overlays/add-openshift-nonroot-scc.yaml  
-- target:
-    group: rbac.authorization.k8s.io
-    version: v1
-    kind: Role
-    name: argocd-redis-ha-haproxy
-    namespace: argocd
-  path: overlays/add-openshift-nonroot-scc.yaml     
+  path: overlays/remove-namespace.yaml  
 - target:
     version: v1
     group: ""

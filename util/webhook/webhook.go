@@ -19,18 +19,19 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver/cache"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/security"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 }
+
+var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
 	cache           *cache.Cache
@@ -250,7 +251,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 
 func getAppRefreshPaths(app *v1alpha1.Application) []string {
 	var paths []string
-	if val, ok := app.Annotations[common.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
 		for _, item := range strings.Split(val, ";") {
 			if item == "" {
 				continue
@@ -341,7 +342,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-Hook-UUID") != "":
 		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
 	case r.Header.Get("X-Event-Key") != "":
-		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent)
+		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)

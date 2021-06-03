@@ -16,14 +16,13 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
-	"github.com/argoproj/argo-cd/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-func PortForward(podSelector string, targetPort int, namespace string) (int, error) {
+func PortForward(podSelector string, targetPort int, namespace string, overrides *clientcmd.ConfigOverrides) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
 		return -1, err
@@ -68,7 +67,7 @@ func PortForward(podSelector string, targetPort int, namespace string) (int, err
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
 
-	ln, err := net.Listen("tcp", "[::]:0")
+	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return -1, err
 	}

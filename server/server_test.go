@@ -15,18 +15,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	servercache "github.com/argoproj/argo-cd/server/cache"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 func fakeServer() (*ArgoCDServer, func()) {
@@ -225,7 +225,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
@@ -239,10 +239,10 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -260,10 +260,10 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -501,7 +501,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return
@@ -517,7 +517,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultAppProjectName,
+			Name:      v1alpha1.DefaultAppProjectName,
 			Namespace: test.FakeArgoCDNamespace,
 		},
 		Spec: v1alpha1.AppProjectSpec{
@@ -538,11 +538,32 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestFileExists(t *testing.T) {
+	t.Run("File exists and path is within dir", func(t *testing.T) {
+		exists := fileExists(".", "server.go")
+		assert.True(t, exists)
+		exists = fileExists(".", "account/account.go")
+		assert.True(t, exists)
+	})
+	t.Run("File does not exist", func(t *testing.T) {
+		exists := fileExists(".", "notexist.go")
+		assert.False(t, exists)
+	})
+	t.Run("Dir does not exist", func(t *testing.T) {
+		exists := fileExists("/notexisting", "server.go")
+		assert.False(t, exists)
+	})
+	t.Run("File outside of dir", func(t *testing.T) {
+		exists := fileExists(".", "../reposerver/server.go")
+		assert.False(t, exists)
+	})
 }

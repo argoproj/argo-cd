@@ -12,10 +12,17 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
+
+func decorateDirector(director func(req *http.Request), target *url.URL) func(req *http.Request) {
+	return func(req *http.Request) {
+		director(req)
+		req.Host = target.Host
+	}
+}
 
 // NewDexHTTPReverseProxy returns a reverse proxy to the Dex server. Dex is assumed to be configured
 // with the external issuer URL muxed to the same path configured in server.go. In other words, if
@@ -25,6 +32,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 	target, err := url.Parse(serverAddr)
 	errors.CheckError(err)
 	target.Path = baseHRef
+
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
@@ -52,6 +60,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 		}
 		return nil
 	}
+	proxy.Director = decorateDirector(proxy.Director, target)
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
 	}

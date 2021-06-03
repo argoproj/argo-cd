@@ -14,11 +14,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -185,13 +185,13 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&repo.Username:            repoInfo.UsernameSecret,
-		&repo.Password:            repoInfo.PasswordSecret,
-		&repo.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
-		&repo.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
-		&repo.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&repo.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -202,14 +202,15 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 		GithubAppId:                repoInfo.GithubAppId,
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
+		EnableOCI:                  repoInfo.EnableOCI,
 	}
-	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
-		&creds.Username:            repoInfo.UsernameSecret,
-		&creds.Password:            repoInfo.PasswordSecret,
-		&creds.SSHPrivateKey:       repoInfo.SSHPrivateKeySecret,
-		&creds.TLSClientCertData:   repoInfo.TLSClientCertDataSecret,
-		&creds.TLSClientCertKey:    repoInfo.TLSClientCertKeySecret,
-		&creds.GithubAppPrivateKey: repoInfo.GithubAppPrivateKeySecret,
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }
@@ -305,6 +306,25 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 	return credential, err
 }
 
+// GetAllHelmRepositoryCredentials retrieves all repository credentials
+func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
+	var allCredentials []*appsv1.RepoCreds
+	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range repoCredentials {
+		if strings.EqualFold(v.Type, "helm") {
+			credential, err := db.credentialsToRepositoryCredentials(v)
+			if err != nil {
+				return nil, err
+			}
+			allCredentials = append(allCredentials, credential)
+		}
+	}
+	return allCredentials, err
+}
+
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	creds, err := db.settingsMgr.GetRepositoryCredentials()
@@ -322,6 +342,8 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		GithubAppId:                r.GithubAppId,
 		GithubAppInstallationId:    r.GithubAppInstallationId,
 		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
+		EnableOCI:                  r.EnableOCI,
+		Type:                       r.Type,
 	}
 
 	err = db.updateCredentialsSecret(&repoInfo, r)

@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	argocderrors "github.com/argoproj/argo-cd/util/errors"
-	argoio "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/rand"
+	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
 const (
@@ -152,7 +152,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			for {
 				header := make([]byte, frameHeaderLength)
-				if _, err := resp.Body.Read(header); err != nil {
+				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
 					if err == io.EOF {
 						err = io.ErrUnexpectedEOF
 					}

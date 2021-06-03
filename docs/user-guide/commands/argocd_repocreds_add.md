@@ -26,6 +26,7 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
+      --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
       --github-app-id int                       id of the GitHub Application
       --github-app-installation-id int          installation id of the GitHub Application
@@ -35,6 +36,7 @@ argocd repocreds add REPOURL [flags]
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
+      --type string                             type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
       --username string                         username to the repository
 ```

@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/resource"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -324,7 +324,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
-	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req}
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})

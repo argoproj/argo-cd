@@ -2,7 +2,7 @@
 
 Argo CD is largely stateless, all data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
 
-A set HA of manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and run Redis in HA mode.
+A set of HA manifests are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
 [Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests) 
 
@@ -63,7 +63,7 @@ performance. For performance reasons controller monitors and caches only preferr
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this duration using `--app-resync seconds` to reduce polling.
+* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -127,7 +127,7 @@ If the manifest generation has no side effects then requests are processed in pa
 ### Webhook and Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses repository commit SHA as a cache key. A new commit to the Git repository invalidates cache for all applications configured in the repository
-that again negatively affect mono repositories with multiple applications. You might use [webhooks ⧉](https://github.com/argoproj/argo-cd/tree/master/docs/operator-manual/webhook) and `argocd.argoproj.io/manifest-generate-paths` Application
+that again negatively affect mono repositories with multiple applications. You might use [webhooks ⧉](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and `argocd.argoproj.io/manifest-generate-paths` Application
 CRD annotation to solve this problem and improve performance.
 
 The `argocd.argoproj.io/manifest-generate-paths` contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation
@@ -136,12 +136,8 @@ with the changed files specified in the webhook payload. If non of the changed f
 Installations that use a different repo for each app are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
 !!! note
-    Installations with a large number of apps should also set the `--app-resync` flag in the `argocd-application-controller` process to a larger value to reduce automatic refreshes based on git polling. The exact value is a trade-off between reduced work and app sync in case of a missed webhook event. For most cases `1800` (30m) or `3600` (1h) is a good trade-off.
-
-
-!!! note
     Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
-
+I'm using `.Second()` modifier to avoid distracting users who already rely on `--app-resync` flag.
 * **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
 
 ```yaml

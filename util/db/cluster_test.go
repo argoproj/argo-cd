@@ -10,9 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -96,7 +96,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, secret.Annotations[common.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
+	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
 func TestDeleteUnknownCluster(t *testing.T) {

@@ -7,19 +7,21 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/cmd/util"
-	"github.com/argoproj/argo-cd/common"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/clusterauth"
-	"github.com/argoproj/argo-cd/util/errors"
-	"github.com/argoproj/argo-cd/util/io"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -56,7 +58,8 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		clusterOpts cmdutil.ClusterOptions
+		clusterOpts      cmdutil.ClusterOptions
+		skipConfirmation bool
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
@@ -74,6 +77,15 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			clstContext := config.Contexts[contextName]
 			if clstContext == nil {
 				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
+			}
+
+			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+
+			if isTerminal && !skipConfirmation {
+				message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
+				if !cli.AskToProceed(message) {
+					os.Exit(1)
+				}
 			}
 
 			overrides := clientcmd.ConfigOverrides{
@@ -117,7 +129,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
 			if clusterOpts.InCluster {
-				clst.Server = common.KubernetesInternalAPIServerAddr
+				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
@@ -135,6 +147,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
 	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
+	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }

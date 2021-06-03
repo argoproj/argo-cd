@@ -13,12 +13,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	appclient "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appclient "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 )
 
 const (

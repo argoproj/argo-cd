@@ -22,21 +22,21 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/metrics"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/argo"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/gpg"
-	argohealth "github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/argo-cd/v2/common"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	argohealth "github.com/argoproj/argo-cd/v2/util/health"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/stats"
 )
 
 type resourceInfoProviderStub struct {
@@ -75,7 +75,7 @@ func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []app
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -115,9 +115,13 @@ type appStateManager struct {
 	statusRefreshTimeout time.Duration
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, verifySignature bool) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
+	if err != nil {
+		return nil, nil, err
+	}
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -127,6 +131,14 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("repo_ms")
+	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
+	if err != nil {
+		return nil, nil, err
+	}
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	if err != nil {
+		return nil, nil, err
+	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, err
@@ -163,9 +175,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
-		Repos:             helmRepos,
+		Repos:             permittedHelmRepos,
 		Revision:          revision,
 		NoCache:           noCache,
+		NoRevisionCache:   noRevisionCache,
 		AppLabelKey:       appLabelKey,
 		AppName:           app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
@@ -175,6 +188,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		KubeVersion:       serverVersion,
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
+		HelmRepoCreds:     permittedHelmCredentials,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -275,34 +289,29 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	conditions := make([]appv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
 	if manifestInfo.VerifyResult != "" {
-		verifyResult, err := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-		if err != nil {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
-			log.Errorf("Error while verifying git commit for revision %s: %s", revision, err.Error())
-		} else {
-			switch verifyResult.Result {
-			case gpg.VerifyResultGood:
-				// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-				validKey := false
-				for _, k := range project.Spec.SignatureKeys {
-					if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-						validKey = true
-						break
-					}
+		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
+		switch verifyResult.Result {
+		case gpg.VerifyResultGood:
+			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
+			validKey := false
+			for _, k := range project.Spec.SignatureKeys {
+				if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
+					validKey = true
+					break
 				}
-				if !validKey {
-					msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-						verifyResult.Cipher, verifyResult.KeyID)
-					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-				}
-			case gpg.VerifyResultInvalid:
-				msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-					verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-			default:
-				msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+			}
+			if !validKey {
+				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
+					verifyResult.Cipher, verifyResult.KeyID)
 				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			}
+		case gpg.VerifyResultInvalid:
+			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
+				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+		default:
+			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		}
 	} else {
 		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
@@ -353,9 +362,11 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 			}
 			dr = res
 		}
-		diffResultList.Diffs[i] = *dr
-		if dr != nil && dr.Modified {
-			diffResultList.Modified = true
+		if dr != nil {
+			diffResultList.Diffs[i] = *dr
+			if dr.Modified {
+				diffResultList.Modified = true
+			}
 		}
 	}
 
@@ -365,7 +376,7 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
 	ts.AddCheckpoint("settings_ms")
@@ -399,7 +410,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, verifySignature)
+		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
