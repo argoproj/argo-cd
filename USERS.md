@@ -131,6 +131,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Witick](https://witick.io/)
 1. [WSpot](https://www.wspot.com.br/)
 1. [Yieldlab](https://www.yieldlab.de/)
+1. [Zimpler](https://www.zimpler.com/)
 1. [Sap Labs](http://sap.com)
 1. [Smilee.io](https://smilee.io)
 1. [Metanet](http://www.metanet.co.kr/en/)
