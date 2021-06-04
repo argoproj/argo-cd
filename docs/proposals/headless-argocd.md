@@ -60,11 +60,15 @@ to "upgrade" headless to full Argo CD installation.
 
 The `Headless Argo CD` is not modified Argo CD. It is Argo CD distribution that missing UI/API and CLI that provides commands for Argo CD admin.
 
+#### Not deprecating existing operational methods
+
+The `Headless Argo CD` is not intended to deprecate any of the existing operational methods.
+
 ## Proposal
 
 #### Headless Installation Manifests
 
-In order to simplify installation of Argo CD without API we need introduce `headless/install.yaml` and `headless/namespace-install.yaml` in [manifests](../../manifests) directory.
+In order to simplify installation of Argo CD without API we need introduce `headless/install.yaml` in [manifests](../../manifests) directory.
 The installation manifests should include only non HA controller, repo-server, Redis components, and RBAC.
 
 #### Headless CLI
@@ -98,7 +102,7 @@ As an Argo CD administrator, I would like to manage cluster resources using Argo
 
 ## Use case 2:
 
-As an Argo CD administrator, I would like to use Argo CD CLI commands and user interface to manage Argo CD applications/settings.
+As an Argo CD administrator, I would like to use Argo CD CLI commands and user interface to manage Argo CD applications/settings using only `kubeconf` file and without Argo CD API access.
 
 ### Security Considerations
 
@@ -111,6 +115,10 @@ TBD
 ### Upgrade / Downgrade Strategy
 
 Switching to and from Argo CD Headless does not modify any persistent data or settings. So upgrade/downgrade should be seamless by just applying the right manifest file.
+
+## Drawbacks
+
+* Embedding static resources into the binary increases it's size by ~20 mb. The image size is the same.
 
 ## Alternatives
 
