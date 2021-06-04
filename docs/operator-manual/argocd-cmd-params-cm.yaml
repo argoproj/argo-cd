@@ -13,13 +13,13 @@ data:
   dex.server: "http://argocd-dex-server:5556"
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
-  redis: "argocd-redis:6379"
+  redis.server: "argocd-redis:6379"
   # Redis database
-  redisdb:
+  redis.db:
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.
-  controller.repo.server.timeout.seconds:
+  controller.repo.server.timeout.seconds: "60"
   # Disable TLS on connections to repo server
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
@@ -47,7 +47,7 @@ data:
   # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
   server.basehref: "/"
   # Used if Argo CD is running behind reverse proxy under subpath different from /
-  server.rootpath:
+  server.rootpath: "/"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
