@@ -1685,7 +1685,7 @@ which generates different data every time <code>helm template</code> is invoked.
 <p>In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.</p>
 <h2 id="application-level-configuration">Application Level Configuration<a class="headerlink" href="#application-level-configuration" title="Permanent link">&para;</a></h2>
-<p>Argo CD allows ignoring differences at a specific JSON path, using <a href="https://tools.ietf.org/html/rfc6902">RFC6902 JSON patches</a>. The following sample application is configured to ignore differences in <code>spec.replicas</code> for all deployments:</p>
+<p>Argo CD allows ignoring differences at a specific JSON path, using <a href="https://tools.ietf.org/html/rfc6902">RFC6902 JSON patches</a> and <a href="https://stedolan.github.io/jq/manual/#path(path_expression)">JQ path expressions</a>. The following sample application is configured to ignore differences in <code>spec.replicas</code> for all deployments:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
   <span class="nt">ignoreDifferences</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps</span>
@@ -1703,6 +1703,15 @@ The diffing customization can be configured for single or multiple application r
     <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
     <span class="nt">jsonPointers</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">/spec/replicas</span>
+</code></pre></div>
+
+<p>To ignore elements of a list, you can use JQ path expressions to identify list items based on item content:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">ignoreDifferences</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+    <span class="nt">jqPathExpressions</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">.spec.template.spec.initContainers[] | select(.name == &quot;injected-init-container&quot;)</span>
 </code></pre></div>
 
 <h2 id="system-level-configuration">System-Level Configuration<a class="headerlink" href="#system-level-configuration" title="Permanent link">&para;</a></h2>
