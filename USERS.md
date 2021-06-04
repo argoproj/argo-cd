@@ -129,6 +129,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Webstores](https://www.webstores.nl)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Witick](https://witick.io/)
+1. [WSpot](https://www.wspot.com.br/)
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [Sap Labs](http://sap.com)
 1. [Smilee.io](https://smilee.io)
