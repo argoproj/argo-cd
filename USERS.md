@@ -130,7 +130,8 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Witick](https://witick.io/)
 1. [Yieldlab](https://www.yieldlab.de/)
-1. [Sap Labs](http://sap.com)
-1. [Smilee.io](https://smilee.io)
-1. [Metanet](http://www.metanet.co.kr/en/)
-1. [Unifonic Inc](https://www.unifonic.com/)
+2. [Zimpler](https://www.zimpler.com/)
+3. [Sap Labs](http://sap.com)
+4. [Smilee.io](https://smilee.io)
+5. [Metanet](http://www.metanet.co.kr/en/)
+6. [Unifonic Inc](https://www.unifonic.com/)
