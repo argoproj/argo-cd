@@ -744,6 +744,8 @@ message OrphanedResourcesMonitorSettings {
 // TODO: describe this type
 message OverrideIgnoreDiff {
   repeated string jSONPointers = 1;
+
+  repeated string jqPathExpressions = 2;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -984,6 +986,8 @@ message ResourceIgnoreDifferences {
   optional string namespace = 4;
 
   repeated string jsonPointers = 5;
+
+  repeated string jqPathExpressions = 6;
 }
 
 // ResourceNetworkingInfo holds networking resource related information

@@ -155,7 +155,9 @@ func TestGetResourceOverrides(t *testing.T) {
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err := settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
@@ -164,7 +166,10 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NotNil(t, webHookOverrides)
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"}},
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+		},
 	}, webHookOverrides)
 
 	// by default, crd status should be ignored
@@ -193,14 +198,19 @@ func TestGetResourceOverrides(t *testing.T) {
     apiextensions.k8s.io/CustomResourceDefinition:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"}}}, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
+		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+	}}, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -247,10 +257,10 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
       health.lua.useOpenLibs: true
       health.lua: |
         foo
-    cert-manager.io/Certificate: 
+    cert-manager.io/Certificate:
       health.lua: |
         foo
-    apps/Deployment: 
+    apps/Deployment:
       actions: |
         foo`,
 	}
@@ -290,6 +300,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.health.Iamrole":                             "bar",
 			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
         - bar`,
+			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
+        - bar`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -314,6 +326,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
 		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
+		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {

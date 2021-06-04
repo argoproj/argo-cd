@@ -5653,6 +5653,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -5988,6 +5994,12 @@
       "properties": {
         "group": {
           "type": "string"
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "jsonPointers": {
           "type": "array",
