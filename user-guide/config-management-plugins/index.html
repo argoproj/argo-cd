@@ -1669,7 +1669,7 @@
 <ol>
 <li>The system environment variables</li>
 <li><a href="../build-environment/">Standard build environment</a></li>
-<li>Variables in the application spec:</li>
+<li>Variables in the application spec (References to system and build variables will get interpolated in the variables' values):</li>
 </ol>
 <blockquote>
 <p>v1.2</p>
@@ -1680,6 +1680,8 @@
       <span class="nt">env</span><span class="p">:</span>
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">FOO</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">bar</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">REV</span>
+          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">test-$ARGOCD_APP_REVISION</span>
 </code></pre></div>
                 
               
