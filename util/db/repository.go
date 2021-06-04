@@ -5,6 +5,8 @@ import (
 	"hash/fnv"
 
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -46,48 +48,107 @@ type repositoryBackend interface {
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	return (&settingRepositoryBackend{db: db}).CreateRepository(ctx, r)
+	return (&secretsRepositoryBackend{db: db}).CreateRepository(ctx, r)
 }
 
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	return (&settingRepositoryBackend{db: db}).GetRepository(ctx, repoURL)
+	repo, err := (&secretsRepositoryBackend{db: db}).GetRepository(ctx, repoURL)
+	if status.Code(err) == codes.NotFound {
+		return (&settingRepositoryBackend{db: db}).GetRepository(ctx, repoURL)
+	}
+
+	return repo, err
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
-	return (&settingRepositoryBackend{db: db}).ListRepositories(ctx, nil)
+	return db.listRepositories(ctx, nil)
 }
 
 func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
-	return (&settingRepositoryBackend{db: db}).ListRepositories(ctx, repoType)
+	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
+	// 	repositories from secrets overlay repositories from settings.
+
+	secretRepositories, err := (&secretsRepositoryBackend{db: db}).ListRepositories(ctx, repoType)
+	if err != nil {
+		return nil, err
+	}
+
+	settingRepositories, err := (&settingRepositoryBackend{db: db}).ListRepositories(ctx, repoType)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(secretRepositories, settingRepositories...), nil
 }
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	return (&settingRepositoryBackend{db: db}).UpdateRepository(ctx, r)
+	repo, err := (&secretsRepositoryBackend{db: db}).UpdateRepository(ctx, r)
+	if status.Code(err) == codes.NotFound {
+		return (&settingRepositoryBackend{db: db}).UpdateRepository(ctx, r)
+	}
+
+	return repo, err
 }
 
 func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
-	return (&settingRepositoryBackend{db: db}).DeleteRepository(ctx, repoURL)
+	err := (&secretsRepositoryBackend{db: db}).DeleteRepository(ctx, repoURL)
+	if status.Code(err) == codes.NotFound {
+		return (&settingRepositoryBackend{db: db}).DeleteRepository(ctx, repoURL)
+	}
+
+	return err
 }
 
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
 func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
-	return (&settingRepositoryBackend{db: db}).ListRepoCreds(ctx)
+	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
+	// 	repositories from secrets overlay repositories from settings.
+
+	secretRepoCreds, err := (&secretsRepositoryBackend{db: db}).ListRepoCreds(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	settingRepoCreds, err := (&settingRepositoryBackend{db: db}).ListRepoCreds(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(secretRepoCreds, settingRepoCreds...), err
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
 func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
-	return (&settingRepositoryBackend{db: db}).GetRepoCreds(ctx, repoURL)
+	repoCreds, err := (&secretsRepositoryBackend{db: db}).GetRepoCreds(ctx, repoURL)
+	if status.Code(err) == codes.NotFound {
+		return (&settingRepositoryBackend{db: db}).GetRepoCreds(ctx, repoURL)
+	}
+
+	return repoCreds, err
 }
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
 func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
-	return (&settingRepositoryBackend{db: db}).GetAllHelmRepoCreds(ctx)
+	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
+	// 	repositories from secrets overlay repositories from settings.
+
+	secretRepoCreds, err := (&secretsRepositoryBackend{db: db}).GetAllHelmRepoCreds(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	settingRepoCreds, err := (&settingRepositoryBackend{db: db}).GetAllHelmRepoCreds(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(secretRepoCreds, settingRepoCreds...), nil
 }
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	return (&settingRepositoryBackend{db: db}).CreateRepoCreds(ctx, r)
+	return (&secretsRepositoryBackend{db: db}).CreateRepoCreds(ctx, r)
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
