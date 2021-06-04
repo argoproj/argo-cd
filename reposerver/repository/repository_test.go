@@ -850,13 +850,19 @@ func TestRunCustomTool(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Plugin: &argoappv1.ApplicationSourcePlugin{
 				Name: "test",
+				Env: argoappv1.Env{
+					{
+						Name:  "TEST_REVISION",
+						Value: "prefix-$ARGOCD_APP_REVISION",
+					},
+				},
 			},
 		},
 		Plugins: []*argoappv1.ConfigManagementPlugin{{
 			Name: "test",
 			Generate: argoappv1.Command{
 				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}}}"`},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$TEST_REVISION\"}}}"`},
 			},
 		}},
 		Repo: &argoappv1.Repository{
@@ -864,17 +870,19 @@ func TestRunCustomTool(t *testing.T) {
 		},
 	})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(res.Manifests))
 
 	obj := &unstructured.Unstructured{}
-	assert.Nil(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
+	assert.NoError(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
 
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
 	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
 	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
 	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
+	// Git client is mocked, so the revision is always mock.Anything
+	assert.Equal(t, map[string]string{"revision": "prefix-mock.Anything"}, obj.GetLabels())
 }
 
 func TestGenerateFromUTF16(t *testing.T) {
