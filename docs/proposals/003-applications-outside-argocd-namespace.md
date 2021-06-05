@@ -148,11 +148,11 @@ become possible in a secure manner:
   ```
 
   would allow `Application` resources that are created in either namespace
-  `foons` or `barns` to specify `some-project` in their `.spec.project`
-  field to associate themselves to the `AppProject` `some-project`. In the
-  above example, the Application `some-app` would be allowed to associate
-  to the AppProject `some-project`, but the Application `other-app` would
-  be invalid.
+  `foo-ns` or `bar-ns` to specify `some-project` in their `.spec.project`
+  field to associate themselves to the `AppProject` named `some-project`.
+  In the above example, the Application `some-app` would be allowed to associate
+  to the AppProject `some-project`, but the Application `other-app` would be
+  invalid.
 
   This method would allow to delegate certain namespaces where users have
   Kubernetes RBAC access to create `Application` resources.
@@ -222,6 +222,17 @@ wants to impose on these applications capabilities.
 As a developer, I want to have the ability to use app-of-apps for my own
 `Application` resources. For this, I will have to create `Application`
 manifests, but I'm currently not allowed to write to the `argocd` namespace.
+
+#### Use case 3: Easy onboarding of new applications and tenants
+
+As an administrator, I want to provide my tenants with a very easy way to
+create their applications from a simple commit to Git, without losing my
+ability to govern and restrict what goes into my cluster.  I want to set up
+an Argo CD application that reconciles my tenant's `Application` manifests to
+a fixed location (namespace) in my cluster, so that the tenant can just put
+their manifests into the Git repository and Argo CD will pick it up from
+there, without having to use complex tools such as Open Policy Agent to
+enforce what AppProjects my tenants are allowed to use.
 
 ### Implementation Details/Notes/Constraints [optional]
 
