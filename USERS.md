@@ -40,6 +40,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Fave](https://myfave.com)
 1. [Future PLC](https://www.futureplc.com/)
 1. [Garner](https://www.garnercorp.com)
+1. [Glovo](https://www.glovoapp.com)
 1. [GMETRI](https://gmetri.com/)
 1. [Gojek](https://www.gojek.io/)
 1. [Greenpass](https://www.greenpass.com.br/)
