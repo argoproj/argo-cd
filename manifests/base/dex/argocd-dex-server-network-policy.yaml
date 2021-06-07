@@ -18,5 +18,8 @@ spec:
           port: 5556
         - protocol: TCP
           port: 5557
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 5558
         - protocol: TCP
-          port: 5558
