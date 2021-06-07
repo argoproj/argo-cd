@@ -160,21 +160,13 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 	var customHTTPClient = &http.Client{
 		// 15 second timeout
 		Timeout: 15 * time.Second,
+		// don't follow redirect
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	proxyFunc := proxy.GetCallback(proxyURL)
-
-	if IsHTTPURL(repoURL) {
-		customHTTPClient.Transport = &http.Transport{
-			Proxy: proxyFunc,
-		}
-		return customHTTPClient
-	}
-
-	// don't follow redirect
-	customHTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -634,7 +626,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 		}
 	}
 
-	cmd.Env = proxy.AddEnvIfAbsent(cmd, m.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 
 	return executil.Run(cmd)
 }

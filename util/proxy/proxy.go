@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// AddEnvIfAbsent adds the proxy URL as an env variable if absent
-func AddEnvIfAbsent(cmd *exec.Cmd, proxy string) []string {
+// UpsertEnv removes the existing proxy env variables and adds the custom proxy variables
+func UpsertEnv(cmd *exec.Cmd, proxy string) []string {
 	envs := []string{}
 	if proxy == "" {
 		return cmd.Env
@@ -22,12 +22,7 @@ func AddEnvIfAbsent(cmd *exec.Cmd, proxy string) []string {
 		}
 		envs = append(envs, cmd.Env[i])
 	}
-	if strings.HasPrefix(proxy, "https://") {
-		envs = append(envs, httpsProxy(proxy))
-	} else {
-		envs = append(envs, httpProxy(proxy))
-	}
-	return envs
+	return append(envs, httpProxy(proxy), httpsProxy(proxy))
 }
 
 // GetCallback returns the proxy callback function

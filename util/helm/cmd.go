@@ -64,7 +64,7 @@ func (c Cmd) run(args ...string) (string, error) {
 		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
 	}
 
-	cmd.Env = proxy.AddEnvIfAbsent(cmd, c.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
 
 	return executil.RunWithRedactor(cmd, redactor)
 }

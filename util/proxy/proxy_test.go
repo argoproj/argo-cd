@@ -14,15 +14,15 @@ func TestAddProxyEnvIfAbsent(t *testing.T) {
 		proxy := "https://proxy:5000"
 		cmd := exec.Command("test")
 		cmd.Env = []string{`http_proxy="https_proxy=https://env-proxy:8888"`, "key=val"}
-		got := AddEnvIfAbsent(cmd, proxy)
-		assert.EqualValues(t, []string{"key=val", httpsProxy(proxy)}, got)
+		got := UpsertEnv(cmd, proxy)
+		assert.EqualValues(t, []string{"key=val", httpProxy(proxy), httpsProxy(proxy)}, got)
 	})
 	t.Run("proxy env variables not found", func(t *testing.T) {
 		proxy := "http://proxy:5000"
 		cmd := exec.Command("test")
 		cmd.Env = []string{"key=val"}
-		got := AddEnvIfAbsent(cmd, proxy)
-		assert.EqualValues(t, []string{"key=val", httpProxy(proxy)}, got)
+		got := UpsertEnv(cmd, proxy)
+		assert.EqualValues(t, []string{"key=val", httpProxy(proxy), httpsProxy(proxy)}, got)
 	})
 }
 
