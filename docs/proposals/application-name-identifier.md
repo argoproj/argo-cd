@@ -47,8 +47,8 @@ managed (i.e. reconciled from Git). The default label used is the well-known
 label `app.kubernetes.io/instance`.
 
 This proposal suggests to change the _value_ of this label to not use the
-literal application name, but instead use a value from a stable and collision
-free hash algorithm.
+literal application name, but instead use a value from a stable and reasonable
+collision free hash algorithm.
 
 ## Motivation
 
