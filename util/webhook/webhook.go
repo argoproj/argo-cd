@@ -22,7 +22,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -34,7 +36,9 @@ type settingsSource interface {
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
-	cache           *cache.Cache
+	repoCache       *cache.Cache
+	serverCache     *servercache.Cache
+	db              db.ArgoDB
 	ns              string
 	appClientset    appclientset.Interface
 	github          *github.Webhook
@@ -45,7 +49,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc     settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, cache *cache.Cache) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the Github webhook")
@@ -76,7 +80,9 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 		bitbucketserver: bitbucketserverWebhook,
 		gogs:            gogsWebhook,
 		settingsSrc:     settingsSrc,
-		cache:           cache,
+		repoCache:       repoCache,
+		serverCache:     serverCache,
+		db:              argoDB,
 	}
 
 	return &acdWebhook
@@ -237,16 +243,34 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 						continue
 					}
 				} else if change.shaBefore != "" && change.shaAfter != "" {
-					var cachedManifests cache.CachedManifestResponse
-					if err := a.cache.GetManifests(change.shaBefore, &app.Spec.Source, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
-						if err = a.cache.SetManifests(change.shaAfter, &app.Spec.Source, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
-							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
-						}
+					if err := a.storePreviouslyCachedManifests(&app, change, appInstanceLabelKey); err != nil {
+						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 					}
 				}
 			}
 		}
 	}
+}
+
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, appInstanceLabelKey string) error {
+	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
+	if err != nil {
+		return err
+	}
+
+	var clusterInfo v1alpha1.ClusterInfo
+	err = a.serverCache.GetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
+	if err != nil {
+		return err
+	}
+	var cachedManifests cache.CachedManifestResponse
+	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
+		return err
+	}
+	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
+		return err
+	}
+	return nil
 }
 
 func getAppRefreshPaths(app *v1alpha1.Application) []string {

@@ -768,6 +768,11 @@ func (in *ClusterInfo) DeepCopyInto(out *ClusterInfo) {
 	*out = *in
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
 	in.CacheInfo.DeepCopyInto(&out.CacheInfo)
+	if in.APIVersions != nil {
+		in, out := &in.APIVersions, &out.APIVersions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
