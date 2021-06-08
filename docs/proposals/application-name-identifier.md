@@ -359,13 +359,27 @@ and the resource would look like the first shown example above.
 
 We do see some drawbacks to this implementation:
 
-* The first one is the already mentioned possible backwards incompatibility
-  with existing tools that rely on reading the `app.kubernetes.io/instance`
-  label to map back a resource to its managing application.
+* The already mentioned possible backwards incompatibility with existing tools
+  that rely on reading the `app.kubernetes.io/instance` label to map back a
+  resource to its managing application.
 
-* The second is that this change would trigger a re-sync of each and every
-  managed resource, which may result in unexpected heavy load on Argo CD
-  and the cluster at upgrade time.
+* This change would trigger a re-sync of each and every managed resource, which
+  may result in unexpected heavy load on Argo CD and the cluster at upgrade
+  time.
+
+* People manually selecting resources from an application must create the
+  value for the label selector instead of just using the application name, e.g.
+  instead of
+
+  ```shell
+  kubectl get secrets -l app.kubernetes.io/instance=some-application --all-namespaces
+  ```
+
+  Something like the following needs to be constructed:
+
+  ```shell
+  kubectl get secrets -l app.kubernetes.io/instance=$(echo "some-application" | sha1sum | awk '{ print $1; }') --all-namespaces
+  ```
 
 * If we chose to also implement the GUID as application identifier, the GUID
   token becomes a viable part of the _state_ and needs to be backed up as
