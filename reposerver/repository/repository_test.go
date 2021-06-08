@@ -143,6 +143,31 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, 3, len(res2.Manifests))
 }
 
+func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
+	service := newService("../..")
+
+	src := argoappv1.ApplicationSource{Path: "manifests/base"}
+	q := apiclient.ManifestRequest{
+		KubeVersion: "v1.16.0",
+		Repo:        &argoappv1.Repository{}, ApplicationSource: &src,
+	}
+
+	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
+
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	assert.NoError(t, err)
+
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.Equal(t, cachedFakeResponse, res)
+
+	q.KubeVersion = "v1.17.0"
+	res, err = service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cachedFakeResponse, res)
+	assert.True(t, len(res.Manifests) > 1)
+}
+
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	service := newService(".")
@@ -267,7 +292,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
 		assert.Nil(t, err)
 		return cachedManifestResponse
 	}

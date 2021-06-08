@@ -8,6 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+
+	"github.com/argoproj/argo-cd/v2/util/db/mocks"
+
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,11 +34,12 @@ func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
 
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
-		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
-	))
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
 }
 
 func TestGitHubCommitEvent(t *testing.T) {

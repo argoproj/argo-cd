@@ -1304,6 +1304,16 @@ type ClusterInfo struct {
 	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
 	// ApplicationsCount is the number of applications managed by Argo CD on the cluster
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+	// APIVersions contains list of API versions supported by the cluster
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+}
+
+func (c *ClusterInfo) GetKubeVersion() string {
+	return c.ServerVersion
+}
+
+func (c *ClusterInfo) GetApiVersions() []string {
+	return c.APIVersions
 }
 
 // ClusterCacheInfo contains information about the cluster cache
