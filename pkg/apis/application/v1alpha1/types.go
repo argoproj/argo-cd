@@ -75,11 +75,12 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
+	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind              string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name              string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -1400,7 +1401,8 @@ type KnownTypeField struct {
 
 // TODO: describe this type
 type OverrideIgnoreDiff struct {
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
 }
 
 type rawResourceOverride struct {

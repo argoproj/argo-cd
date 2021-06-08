@@ -442,6 +442,10 @@ spec:
                   properties:
                     group:
                       type: string
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
                     jsonPointers:
                       items:
                         type: string
@@ -453,7 +457,6 @@ spec:
                     namespace:
                       type: string
                   required:
-                  - jsonPointers
                   - kind
                   type: object
                 type: array

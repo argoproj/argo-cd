@@ -1097,7 +1097,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
-		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
+		return nil, fmt.Errorf("config management plugin with name '%s' is not supported", q.ApplicationSource.Plugin.Name)
 	}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
@@ -1108,9 +1108,24 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
 	env = append(env, "KUBE_VERSION="+q.KubeVersion)
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+
+	parsedEnv := make(v1alpha1.Env, len(env))
+	for i, v := range env {
+		parsedVar, err := v1alpha1.NewEnvEntry(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse env vars")
+		}
+		parsedEnv[i] = parsedVar
+	}
+
+	pluginEnv := q.ApplicationSource.Plugin.Env
+	for i, j := range pluginEnv {
+		pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+	}
+	env = append(env, pluginEnv.Environ()...)
+
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
