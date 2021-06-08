@@ -15,9 +15,11 @@ last-updated: 2021-06-07
 
 # Change the way application resources are identified
 
-This is a proposal for using a hash value as application identifier in the
-application instance label, to allow application names longer than 63
-characters. As an additional goal, 
+This is a proposal to introduce using a hash value as application identifier
+in the application instance label. This will allow application names longer
+than 63 characters. As an additional goal, we propose to introduce a GUID as
+installation ID that will allow multiple Argo CD instances manage resources
+on the same cluster, without the need for manual reconfiguration.
 
 ## Open Questions [optional]
 
