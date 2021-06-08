@@ -87,8 +87,11 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	}
 	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets {
-		cluster := *secretToCluster(clusterSecret)
-		clusterList.Items[i] = cluster
+		cluster, err := secretToCluster(clusterSecret)
+		if err != nil {
+			log.Errorf("could not unmarshal cluster secret: %v", err)
+		}
+		clusterList.Items[i] = *cluster
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
 		}
@@ -127,7 +130,11 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		}
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
+	cluster, err := secretToCluster(clusterSecret)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret: %v", err)
+	}
+	return cluster, db.settingsMgr.ResyncInformers()
 }
 
 // ClusterEvent contains information about cluster event
@@ -152,7 +159,11 @@ func (db *db) WatchClusters(ctx context.Context,
 	clusterEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
-				cluster := secretToCluster(secretObj)
+				cluster, err := secretToCluster(secretObj)
+				if err != nil {
+					log.Errorf("could not unmarshal cluster secret: %v", err)
+					return
+				}
 				if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 					// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 					handleModEvent(localCls, cluster)
@@ -176,8 +187,16 @@ func (db *db) WatchClusters(ctx context.Context,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
-					oldCluster := secretToCluster(oldSecretObj)
-					newCluster := secretToCluster(newSecretObj)
+					oldCluster, err := secretToCluster(oldSecretObj)
+					if err != nil {
+						log.Errorf("could not unmarshal old cluster secret: %v", err)
+						return
+					}
+					newCluster, err := secretToCluster(newSecretObj)
+					if err != nil {
+						log.Errorf("could not unmarshal new cluster secret: %v", err)
+						return
+					}
 					if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
 						localCls = newCluster
 					}
@@ -205,7 +224,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if secretToCluster(clusterSecret).Server == strings.TrimRight(server, "/") {
+		if cluster, err := secretToCluster(clusterSecret); err == nil && cluster.Server == strings.TrimRight(server, "/") {
 			return clusterSecret, nil
 		}
 	}
@@ -222,7 +241,7 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 			return nil, err
 		}
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret)
 }
 
 // UpdateCluster updates a cluster
@@ -242,7 +261,12 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
+	cluster, err := secretToCluster(clusterSecret)
+	if err != nil {
+		log.Errorf("could not unmarshal cluster secret: %v", err)
+		return nil, err
+	}
+	return cluster, db.settingsMgr.ResyncInformers()
 }
 
 // Delete deletes a cluster by name
@@ -313,12 +337,12 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 }
 
 // secretToCluster converts a secret into a Cluster object
-func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
+func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	var config appv1.ClusterConfig
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -354,5 +378,5 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		RefreshRequestedAt: refreshRequestedAt,
 		Shard:              shard,
 	}
-	return &cluster
+	return &cluster, nil
 }
