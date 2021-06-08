@@ -32,3 +32,14 @@ argocd-repo-server [flags]
       --tlsminversion string                 The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```
 
+### Additional configuration methods
+
+The command can also be configured by setting the respective flag in `argocd-cmd-params-cm.yaml`. For example, to set `logformat` add below entry to the config map `argocd-cmd-params-cm.yaml`.
+
+```
+data:
+    reposerver.log.format: "text"
+```
+
+For more details on the available options, check out [argocd-cmd-params-cm.yaml](../argocd-cmd-params-cm.yaml).
+
