@@ -577,6 +577,18 @@ func TestGetDuplicatedChildren(t *testing.T) {
 	}
 }
 
+func TestGetClusterInfo(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.apiGroups = []metav1.APIGroup{{Name: "test"}}
+	cluster.serverVersion = "v1.16"
+	info := cluster.GetClusterInfo()
+	assert.Equal(t, ClusterInfo{
+		Server:     cluster.config.Host,
+		APIGroups:  cluster.apiGroups,
+		K8SVersion: cluster.serverVersion,
+	}, info)
+}
+
 func ExampleNewClusterCache_resourceUpdatedEvents() {
 	// kubernetes cluster config here
 	config := &rest.Config{}

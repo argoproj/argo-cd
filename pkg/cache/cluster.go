@@ -65,6 +65,8 @@ type ClusterInfo struct {
 	LastCacheSyncTime *time.Time
 	// SyncError holds most recent cache synchronization error
 	SyncError error
+	// APIGroups holds list of API groups supported by the cluster
+	APIGroups []metav1.APIGroup
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -942,6 +944,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		Server:            c.config.Host,
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
+		APIGroups:         c.apiGroups,
 	}
 }
 
