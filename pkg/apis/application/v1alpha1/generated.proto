@@ -249,6 +249,12 @@ message ApplicationSourceKustomize {
 
   // CommonAnnotations is a list of additional annotations to add to rendered manifests
   map<string, string> commonAnnotations = 6;
+
+  // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+  optional bool forceCommonLabels = 7;
+
+  // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+  optional bool forceCommonAnnotations = 8;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
