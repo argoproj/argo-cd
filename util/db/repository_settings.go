@@ -169,6 +169,16 @@ func (s *settingRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 	return s.db.settingsMgr.SaveRepositories(repos)
 }
 
+func (s *settingRepositoryBackend) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
+	repos, err := s.db.settingsMgr.GetRepositories()
+	if err != nil {
+		return false, err
+	}
+
+	index := s.getRepositoryIndex(repos, repoURL)
+	return index >= 0, nil
+}
+
 func (s *settingRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	/* panic("creating new repository credentials is not supported for the legacy repository backend") */
 
@@ -284,6 +294,16 @@ func (s *settingRepositoryBackend) DeleteRepoCreds(ctx context.Context, name str
 	}
 	repos = append(repos[:index], repos[index+1:]...)
 	return s.db.settingsMgr.SaveRepositoryCredentials(repos)
+}
+
+func (s *settingRepositoryBackend) RepoCredsExists(ctx context.Context, repoURL string) (bool, error) {
+	creds, err := s.db.settingsMgr.GetRepositoryCredentials()
+	if err != nil {
+		return false, err
+	}
+
+	index := getRepositoryCredentialIndex(creds, repoURL)
+	return index >= 0, nil
 }
 
 func (s *settingRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error) {
@@ -417,8 +437,6 @@ func (s *settingRepositoryBackend) tryGetRepository(ctx context.Context, repoURL
 		if err != nil {
 			return repo, errors.NewCredentialsConfigurationError(err)
 		}
-	} else {
-		return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
 	}
 
 	// Check for and copy repository credentials, if repo has none configured.

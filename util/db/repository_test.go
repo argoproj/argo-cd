@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -51,7 +49,7 @@ func TestDb_CreateRepository(t *testing.T) {
 	// New repositories should be now stored as secrets
 	secret, err := clientset.CoreV1().Secrets("test").Get(
 		context.TODO(),
-		RepoURLToSecretName("repoconfig", input.Repo),
+		RepoURLToSecretName(repoConfigSecretPrefix, input.Repo),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
@@ -126,9 +124,9 @@ func TestDb_GetRepository(t *testing.T) {
 	assert.Equal(t, "SomeRepo", repository.Name)
 
 	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git")
-	assert.Error(t, err)
-	assert.Equal(t, codes.NotFound, status.Code(err))
-	assert.Nil(t, repository)
+	assert.NoError(t, err)
+	assert.NotNil(t, repository)
+	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
 }
 
 func TestDb_ListRepositories(t *testing.T) {
@@ -270,7 +268,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	repository, err := testee.UpdateRepository(context.TODO(), settingRepository)
 	assert.NoError(t, err)
 	assert.NotNil(t, repository)
-	assert.NotSame(t, settingRepository, repository)
+	assert.Same(t, settingRepository, repository)
 
 	secret, err := clientset.CoreV1().Secrets("test").Get(
 		context.TODO(),
@@ -279,14 +277,14 @@ func TestDb_UpdateRepository(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Equal(t, "UpdatedUsername", secret.Data["username"])
+	assert.Equal(t, "OtherUpdatedUsername", string(secret.Data["username"]))
 
 	// Verify that secret-based repository can be updated
 	secretRepository.Username = "UpdatedUsername"
 	repository, err = testee.UpdateRepository(context.TODO(), secretRepository)
 	assert.NoError(t, err)
 	assert.NotNil(t, repository)
-	assert.NotSame(t, secretRepository, repository)
+	assert.Same(t, secretRepository, repository)
 
 	secret, err = clientset.CoreV1().Secrets("test").Get(
 		context.TODO(),
@@ -295,7 +293,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Equal(t, "UpdatedUsername", secret.Data["username"])
+	assert.Equal(t, "UpdatedUsername", string(secret.Data["username"]))
 }
 
 func TestDb_DeleteRepository(t *testing.T) {

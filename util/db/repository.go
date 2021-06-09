@@ -14,8 +14,12 @@ import (
 const (
 	// Prefix to use for naming repository secrets
 	repoSecretPrefix = "repo"
+	// Prefix to use for naming repository configuration secrets
+	repoConfigSecretPrefix = "repoconfig"
 	// Prefix to use for naming credential template secrets
 	credSecretPrefix = "creds"
+	// Prefix to use for naming credential template configuration secrets
+	credConfigSecretPrefix = "repocreds"
 	// The name of the key storing the username in the secret
 	username = "username"
 	// The name of the key storing the password in the secret
@@ -37,27 +41,56 @@ type repositoryBackend interface {
 	ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error)
 	UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
 	DeleteRepository(ctx context.Context, repoURL string) error
+	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
 
 	CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
 	GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error)
 	ListRepoCreds(ctx context.Context) ([]string, error)
 	UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
 	DeleteRepoCreds(ctx context.Context, name string) error
+	RepoCredsExists(ctx context.Context, repoURL string) (bool, error)
 
 	GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error)
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	return (&secretsRepositoryBackend{db: db}).CreateRepository(ctx, r)
+	secretBackend := repositoryBackend(&secretsRepositoryBackend{db: db})
+	settingBackend := repositoryBackend(&settingRepositoryBackend{db: db})
+
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.Repo)
+	if err != nil {
+		return nil, err
+	}
+	settingExists, err := settingBackend.RepositoryExists(ctx, r.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if secretExists || settingExists {
+		return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", r.Repo)
+	}
+
+	return secretBackend.CreateRepository(ctx, r)
 }
 
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repo, err := (&secretsRepositoryBackend{db: db}).GetRepository(ctx, repoURL)
-	if status.Code(err) == codes.NotFound {
-		return (&settingRepositoryBackend{db: db}).GetRepository(ctx, repoURL)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return secretsBackend.GetRepository(ctx, repoURL)
 	}
 
-	return repo, err
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepositoryExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return settingsBackend.GetRepository(ctx, repoURL)
+	}
+
+	return &appsv1.Repository{Repo: repoURL}, nil
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
@@ -83,21 +116,43 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	repo, err := (&secretsRepositoryBackend{db: db}).UpdateRepository(ctx, r)
-	if status.Code(err) == codes.NotFound {
-		return (&settingRepositoryBackend{db: db}).UpdateRepository(ctx, r)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return secretsBackend.UpdateRepository(ctx, r)
 	}
 
-	return repo, err
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepositoryExists(ctx, r.Repo)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return settingsBackend.UpdateRepository(ctx, r)
+	}
+
+	return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 }
 
 func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
-	err := (&secretsRepositoryBackend{db: db}).DeleteRepository(ctx, repoURL)
-	if status.Code(err) == codes.NotFound {
-		return (&settingRepositoryBackend{db: db}).DeleteRepository(ctx, repoURL)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	if err != nil {
+		return err
+	} else if exists {
+		return secretsBackend.DeleteRepository(ctx, repoURL)
 	}
 
-	return err
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepositoryExists(ctx, repoURL)
+	if err != nil {
+		return err
+	} else if exists {
+		return settingsBackend.DeleteRepository(ctx, repoURL)
+	}
+
+	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 }
 
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
@@ -120,12 +175,23 @@ func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 
 // GetRepositoryCredentials retrieves a repository credential set
 func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
-	repoCreds, err := (&secretsRepositoryBackend{db: db}).GetRepoCreds(ctx, repoURL)
-	if status.Code(err) == codes.NotFound {
-		return (&settingRepositoryBackend{db: db}).GetRepoCreds(ctx, repoURL)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return secretsBackend.GetRepoCreds(ctx, repoURL)
 	}
 
-	return repoCreds, err
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepoCredsExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return settingsBackend.GetRepoCreds(ctx, repoURL)
+	}
+
+	return nil, err
 }
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
@@ -148,18 +214,66 @@ func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.Re
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+	secretBackend := repositoryBackend(&secretsRepositoryBackend{db: db})
+	settingBackend := repositoryBackend(&settingRepositoryBackend{db: db})
+
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL)
+	if err != nil {
+		return nil, err
+	}
+	settingExists, err := settingBackend.RepositoryExists(ctx, r.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	if secretExists || settingExists {
+		return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", r.URL)
+	}
+
 	return (&secretsRepositoryBackend{db: db}).CreateRepoCreds(ctx, r)
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	return (&settingRepositoryBackend{db: db}).UpdateRepoCreds(ctx, r)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepoCredsExists(ctx, r.URL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return secretsBackend.UpdateRepoCreds(ctx, r)
+	}
+
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepoCredsExists(ctx, r.URL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return settingsBackend.UpdateRepoCreds(ctx, r)
+	}
+
+	return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URL)
 }
 
 // DeleteRepositoryCredentials deletes a repository credential set from config, and
 // also all the secrets which actually contained the credentials.
 func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) error {
-	return (&settingRepositoryBackend{db: db}).DeleteRepoCreds(ctx, name)
+	secretsBackend := &secretsRepositoryBackend{db: db}
+	exists, err := secretsBackend.RepoCredsExists(ctx, name)
+	if err != nil {
+		return err
+	} else if exists {
+		return secretsBackend.DeleteRepoCreds(ctx, name)
+	}
+
+	settingsBackend := &settingRepositoryBackend{db: db}
+	exists, err = settingsBackend.RepoCredsExists(ctx, name)
+	if err != nil {
+		return err
+	} else if exists {
+		return settingsBackend.DeleteRepoCreds(ctx, name)
+	}
+
+	return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
 }
 
 // RepoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
