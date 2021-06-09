@@ -135,6 +135,7 @@ type client struct {
 	proxyListener   net.Listener
 	proxyServer     *grpc.Server
 	proxyUsersCount int
+	httpClient      *http.Client
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -253,6 +254,16 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
+	}
+	c.httpClient = &http.Client{}
+	if !c.PlainText {
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		c.httpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
 	}
 	if !c.GRPCWeb {
 		//test if we need to set it to true
