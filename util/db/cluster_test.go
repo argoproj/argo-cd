@@ -241,4 +241,15 @@ func TestListClusters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 2)
 	})
+
+	t.Run("Implicit in-cluster secret", func(t *testing.T) {
+		kubeclientset := fake.NewSimpleClientset(validSecret2)
+		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		clusters, err := db.ListClusters(context.TODO())
+		require.NoError(t, err)
+		// ListClusters() should have added an implicit in-cluster secret to the list
+		assert.Len(t, clusters.Items, 2)
+	})
 }
