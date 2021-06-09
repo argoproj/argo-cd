@@ -447,6 +447,9 @@ message ClusterInfo {
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
+
+  // APIVersions contains list of API versions supported by the cluster
+  repeated string apiVersions = 5;
 }
 
 // ClusterList is a collection of Clusters.

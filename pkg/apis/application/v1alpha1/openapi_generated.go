@@ -1554,6 +1554,21 @@ func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallba
 							Format:      "int64",
 						},
 					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions contains list of API versions supported by the cluster",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"applicationsCount"},
 			},
