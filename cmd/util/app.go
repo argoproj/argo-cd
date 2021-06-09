@@ -23,50 +23,52 @@ import (
 )
 
 type AppOptions struct {
-	repoURL                    string
-	appPath                    string
-	chart                      string
-	env                        string
-	revision                   string
-	revisionHistoryLimit       int
-	destName                   string
-	destServer                 string
-	destNamespace              string
-	Parameters                 []string
-	valuesFiles                []string
-	values                     string
-	releaseName                string
-	helmSets                   []string
-	helmSetStrings             []string
-	helmSetFiles               []string
-	helmVersion                string
-	project                    string
-	syncPolicy                 string
-	syncOptions                []string
-	autoPrune                  bool
-	selfHeal                   bool
-	allowEmpty                 bool
-	namePrefix                 string
-	nameSuffix                 string
-	directoryRecurse           bool
-	configManagementPlugin     string
-	jsonnetTlaStr              []string
-	jsonnetTlaCode             []string
-	jsonnetExtVarStr           []string
-	jsonnetExtVarCode          []string
-	jsonnetLibs                []string
-	kustomizeImages            []string
-	kustomizeVersion           string
-	kustomizeCommonLabels      []string
-	kustomizeCommonAnnotations []string
-	pluginEnvs                 []string
-	Validate                   bool
-	directoryExclude           string
-	directoryInclude           string
-	retryLimit                 int64
-	retryBackoffDuration       time.Duration
-	retryBackoffMaxDuration    time.Duration
-	retryBackoffFactor         int64
+	repoURL                         string
+	appPath                         string
+	chart                           string
+	env                             string
+	revision                        string
+	revisionHistoryLimit            int
+	destName                        string
+	destServer                      string
+	destNamespace                   string
+	Parameters                      []string
+	valuesFiles                     []string
+	values                          string
+	releaseName                     string
+	helmSets                        []string
+	helmSetStrings                  []string
+	helmSetFiles                    []string
+	helmVersion                     string
+	project                         string
+	syncPolicy                      string
+	syncOptions                     []string
+	autoPrune                       bool
+	selfHeal                        bool
+	allowEmpty                      bool
+	namePrefix                      string
+	nameSuffix                      string
+	directoryRecurse                bool
+	configManagementPlugin          string
+	jsonnetTlaStr                   []string
+	jsonnetTlaCode                  []string
+	jsonnetExtVarStr                []string
+	jsonnetExtVarCode               []string
+	jsonnetLibs                     []string
+	kustomizeImages                 []string
+	kustomizeVersion                string
+	kustomizeCommonLabels           []string
+	kustomizeCommonAnnotations      []string
+	kustomizeForceCommonLabels      bool
+	kustomizeForceCommonAnnotations bool
+	pluginEnvs                      []string
+	Validate                        bool
+	directoryExclude                string
+	directoryInclude                string
+	retryLimit                      int64
+	retryBackoffDuration            time.Duration
+	retryBackoffMaxDuration         time.Duration
+	retryBackoffFactor              int64
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -108,6 +110,8 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
 	command.Flags().Int64Var(&opts.retryLimit, "sync-retry-limit", 0, "Max number of allowed sync retries")
@@ -202,6 +206,10 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
 			setKustomizeOpt(&spec.Source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+		case "kustomize-force-common-label":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
+		case "kustomize-force-common-annotation":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -306,12 +314,14 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 }
 
 type kustomizeOpts struct {
-	namePrefix        string
-	nameSuffix        string
-	images            []string
-	version           string
-	commonLabels      map[string]string
-	commonAnnotations map[string]string
+	namePrefix             string
+	nameSuffix             string
+	images                 []string
+	version                string
+	commonLabels           map[string]string
+	commonAnnotations      map[string]string
+	forceCommonLabels      bool
+	forceCommonAnnotations bool
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -332,6 +342,12 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.commonAnnotations != nil {
 		src.Kustomize.CommonAnnotations = opts.commonAnnotations
+	}
+	if opts.forceCommonLabels {
+		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
+	}
+	if opts.forceCommonAnnotations {
+		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))

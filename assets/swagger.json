@@ -4887,6 +4887,14 @@
             "type": "string"
           }
         },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
