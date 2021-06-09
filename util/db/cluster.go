@@ -57,12 +57,16 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 		return nil, err
 	}
 	clusterList := appv1.ClusterList{
-		Items: make([]appv1.Cluster, len(clusterSecrets)),
+		Items: make([]appv1.Cluster, 0),
 	}
 	hasInClusterCredentials := false
-	for i, clusterSecret := range clusterSecrets {
-		cluster := *secretToCluster(clusterSecret)
-		clusterList.Items[i] = cluster
+	for _, clusterSecret := range clusterSecrets {
+		cluster, err := secretToCluster(clusterSecret)
+		if err != nil {
+			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+			continue
+		}
+		clusterList.Items = append(clusterList.Items, *cluster)
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
 		}
@@ -98,7 +102,11 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
+	cluster, err := secretToCluster(clusterSecret)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret %s", clusterSecret.Name)
+	}
+	return cluster, db.settingsMgr.ResyncInformers()
 }
 
 // ClusterEvent contains information about cluster event
@@ -122,7 +130,11 @@ func (db *db) WatchClusters(ctx context.Context,
 		common.LabelValueSecretTypeCluster,
 
 		func(secret *apiv1.Secret) {
-			cluster := secretToCluster(secret)
+			cluster, err := secretToCluster(secret)
+			if err != nil {
+				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
+				return
+			}
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 				handleModEvent(localCls, cluster)
@@ -133,8 +145,16 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 
 		func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret) {
-			oldCluster := secretToCluster(oldSecret)
-			newCluster := secretToCluster(newSecret)
+			oldCluster, err := secretToCluster(oldSecret)
+			if err != nil {
+				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)
+				return
+			}
+			newCluster, err := secretToCluster(newSecret)
+			if err != nil {
+				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
+				return
+			}
 			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				localCls = newCluster
 			}
@@ -161,7 +181,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if secretToCluster(clusterSecret).Server == strings.TrimRight(server, "/") {
+		if cluster, err := secretToCluster(clusterSecret); err == nil && cluster.Server == strings.TrimRight(server, "/") {
 			return clusterSecret, nil
 		}
 	}
@@ -178,7 +198,7 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 			return nil, err
 		}
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret)
 }
 
 // UpdateCluster updates a cluster
@@ -198,7 +218,12 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
+	cluster, err := secretToCluster(clusterSecret)
+	if err != nil {
+		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+		return nil, err
+	}
+	return cluster, db.settingsMgr.ResyncInformers()
 }
 
 // DeleteCluster deletes a cluster by name
@@ -250,12 +275,12 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 }
 
 // secretToCluster converts a secret into a Cluster object
-func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
+func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	var config appv1.ClusterConfig
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -291,5 +316,5 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		RefreshRequestedAt: refreshRequestedAt,
 		Shard:              shard,
 	}
-	return &cluster
+	return &cluster, nil
 }

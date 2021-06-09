@@ -75,7 +75,14 @@ func NewCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			resyncDuration := time.Duration(appResyncPeriod) * time.Second
+			var resyncDuration time.Duration
+			if appResyncPeriod == 0 {
+				// Re-sync should be disabled if period is 0. Set duration to a very long duration
+				resyncDuration = time.Hour * 24 * 365 * 100
+			} else {
+				resyncDuration = time.Duration(appResyncPeriod) * time.Second
+			}
+
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,

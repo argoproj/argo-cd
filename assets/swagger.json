@@ -5179,6 +5179,13 @@
       "type": "object",
       "title": "ClusterInfo contains information about the cluster",
       "properties": {
+        "apiVersions": {
+          "type": "array",
+          "title": "APIVersions contains list of API versions supported by the cluster",
+          "items": {
+            "type": "string"
+          }
+        },
         "applicationsCount": {
           "type": "string",
           "format": "int64",
@@ -5653,6 +5660,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -5988,6 +6001,12 @@
       "properties": {
         "group": {
           "type": "string"
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "jsonPointers": {
           "type": "array",

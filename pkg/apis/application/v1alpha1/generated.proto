@@ -447,6 +447,9 @@ message ClusterInfo {
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
+
+  // APIVersions contains list of API versions supported by the cluster
+  repeated string apiVersions = 5;
 }
 
 // ClusterList is a collection of Clusters.
@@ -744,6 +747,8 @@ message OrphanedResourcesMonitorSettings {
 // TODO: describe this type
 message OverrideIgnoreDiff {
   repeated string jSONPointers = 1;
+
+  repeated string jqPathExpressions = 2;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -984,6 +989,8 @@ message ResourceIgnoreDifferences {
   optional string namespace = 4;
 
   repeated string jsonPointers = 5;
+
+  repeated string jqPathExpressions = 6;
 }
 
 // ResourceNetworkingInfo holds networking resource related information

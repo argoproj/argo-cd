@@ -3,7 +3,7 @@
 The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
 user management system and has only one built-in user `admin`. The `admin` user is a superuser and
 it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md). 
-Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can man be mapped to roles.
+Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
 ## Basic Built-in Roles
 
