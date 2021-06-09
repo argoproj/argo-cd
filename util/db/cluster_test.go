@@ -96,7 +96,7 @@ func TestUpdateCluster(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, secret.Annotations[common.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
+	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
 
 func TestDeleteUnknownCluster(t *testing.T) {

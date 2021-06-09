@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:20.10
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.16.2 as builder
+FROM docker.io/library/golang:1.16.4 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -28,7 +28,6 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh packr-linux
 RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
@@ -104,8 +103,6 @@ RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
 FROM golang:1.16.0 as argocd-build
-
-COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

@@ -205,11 +205,12 @@ func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCre
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
 	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:          repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:          repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:     repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}: repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:  repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }

@@ -67,7 +67,7 @@ func PortForward(podSelector string, targetPort int, namespace string, overrides
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
 
-	ln, err := net.Listen("tcp", "[::]:0")
+	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return -1, err
 	}

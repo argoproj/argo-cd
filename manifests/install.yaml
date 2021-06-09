@@ -443,6 +443,10 @@ spec:
                   properties:
                     group:
                       type: string
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
                     jsonPointers:
                       items:
                         type: string
@@ -454,7 +458,6 @@ spec:
                     namespace:
                       type: string
                   required:
-                  - jsonPointers
                   - kind
                   type: object
                 type: array
@@ -3083,6 +3086,13 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
+        env:
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3107,6 +3117,8 @@ spec:
           capabilities:
             drop:
             - all
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -3118,6 +3130,8 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /tmp
+          name: tmp
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3130,6 +3144,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3282,6 +3298,13 @@ spec:
         - "20"
         - --operation-processors
         - "10"
+        env:
+        - name: ARGOCD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3328,6 +3351,11 @@ kind: NetworkPolicy
 metadata:
   name: argocd-application-controller-network-policy
 spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8082
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
@@ -3349,8 +3377,11 @@ spec:
       protocol: TCP
     - port: 5557
       protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
     - port: 5558
-      protocol: TCP
+    - protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
@@ -3398,6 +3429,10 @@ spec:
     ports:
     - port: 8081
       protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8084
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
@@ -3409,6 +3444,8 @@ kind: NetworkPolicy
 metadata:
   name: argocd-server-network-policy
 spec:
+  ingress:
+  - {}
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-server

@@ -186,7 +186,7 @@ type ArgoCDServerOpts struct {
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -725,8 +725,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
 
-	// Webhook handler for git events
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour))
+	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
+	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	// Serve cli binaries directly from API server
@@ -734,7 +735,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
+		if a.ArgoCDServerOpts.EnableGZip {
+			assetsHandler = compressHandler(assetsHandler)
+		}
+		mux.Handle("/", assetsHandler)
 	}
 	return &httpS
 }
@@ -903,29 +908,7 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-
-	// Extract the token from the calling context (if present)
-	tokenString, ok, tokenErr := a.getTokenString(ctx)
-	if !ok {
-		// Failed to find a token.
-		// We may still be fine if the settings allow anonymous access though
-		argoCDSettings, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
-		}
-		if argoCDSettings.AnonymousUserEnabled {
-			return ctx, nil
-		}
-		return ctx, tokenErr
-	}
-
-	// Extract and verify the claims in the token
-	claims, newToken, claimsErr := a.getClaims(tokenString)
-	if claimsErr != nil {
-		// Failed to validate token
-		return ctx, claimsErr
-	}
-
+	claims, newToken, claimsErr := a.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
@@ -939,23 +922,33 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 			}
 		}
 	}
+	if claimsErr != nil {
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, claimsErr)
+	}
+
+	if claimsErr != nil {
+		argoCDSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+		}
+		if !argoCDSettings.AnonymousUserEnabled {
+			return ctx, claimsErr
+		}
+	}
 
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getTokenString(ctx context.Context) (string, bool, error) {
+func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", false, ErrNoSession
+		return nil, "", ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return "", false, ErrNoSession
+		return nil, "", ErrNoSession
 	}
-	return tokenString, true, nil
-}
-
-func (a *ArgoCDServer) getClaims(tokenString string) (jwt.Claims, string, error) {
 	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)

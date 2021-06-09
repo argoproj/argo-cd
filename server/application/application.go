@@ -177,8 +177,8 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 
-	s.projectLock.Lock(q.Application.Spec.Project)
-	defer s.projectLock.Unlock(q.Application.Spec.Project)
+	s.projectLock.RLock(q.Application.Spec.Project)
+	defer s.projectLock.RUnlock(q.Application.Spec.Project)
 
 	a := q.Application
 	validate := true
@@ -396,7 +396,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				if annotations == nil {
 					annotations = make(map[string]string)
 				}
-				if _, ok := annotations[argocommon.AnnotationKeyRefresh]; !ok {
+				if _, ok := annotations[appv1.AnnotationKeyRefresh]; !ok {
 					return &event.Application, nil
 				}
 			}
@@ -453,8 +453,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 }
 
 func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool) (*appv1.Application, error) {
-	s.projectLock.Lock(newApp.Spec.GetProject())
-	defer s.projectLock.Unlock(newApp.Spec.GetProject())
+	s.projectLock.RLock(newApp.Spec.GetProject())
+	defer s.projectLock.RUnlock(newApp.Spec.GetProject())
 
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(ctx, newApp.Name, metav1.GetOptions{})
 	if err != nil {
@@ -633,8 +633,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	s.projectLock.Lock(a.Spec.Project)
-	defer s.projectLock.Unlock(a.Spec.Project)
+	s.projectLock.RLock(a.Spec.Project)
+	defer s.projectLock.RUnlock(a.Spec.Project)
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
 		return nil, err
@@ -1183,16 +1183,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
 		}).Stream(ws.Context())
-		if err != nil {
-			return err
-		}
 		podName := pod.Name
 		logStream := make(chan logEntry)
-		defer ioutil.Close(stream)
+		if err == nil {
+			defer ioutil.Close(stream)
+		}
 
 		streams = append(streams, logStream)
 		go func() {
-			parseLogsStream(podName, stream, logStream)
+			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
+			// then the error should be shown in the UI so that user know the reason
+			if err != nil {
+				logStream <- logEntry{line: err.Error()}
+			} else {
+				parseLogsStream(podName, stream, logStream)
+			}
 			close(logStream)
 		}()
 	}
@@ -1787,11 +1792,11 @@ func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncW
 func getPropagationPolicyFinalizer(policy string) string {
 	switch strings.ToLower(policy) {
 	case backgroundPropagationPolicy:
-		return argocommon.BackgroundPropagationPolicyFinalizer
+		return appv1.BackgroundPropagationPolicyFinalizer
 	case foregroundPropagationPolicy:
-		return argocommon.ForegroundPropagationPolicyFinalizer
+		return appv1.ForegroundPropagationPolicyFinalizer
 	case "":
-		return argocommon.ResourcesFinalizerName
+		return appv1.ResourcesFinalizerName
 	default:
 		return ""
 	}
