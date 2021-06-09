@@ -83,15 +83,16 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 		return nil, err
 	}
 	clusterList := appv1.ClusterList{
-		Items: make([]appv1.Cluster, len(clusterSecrets)),
+		Items: make([]appv1.Cluster, 0),
 	}
 	hasInClusterCredentials := false
-	for i, clusterSecret := range clusterSecrets {
+	for _, clusterSecret := range clusterSecrets {
 		cluster, err := secretToCluster(clusterSecret)
 		if err != nil {
 			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+			continue
 		}
-		clusterList.Items[i] = *cluster
+		clusterList.Items = append(clusterList.Items, *cluster)
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
 		}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -178,4 +179,66 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 		assert.Fail(t, "Failed due to timeout")
 	}
 
+}
+
+func TestListClusters(t *testing.T) {
+	validSecret1 := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster1",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte(appv1.KubernetesInternalAPIServerAddr),
+			"name":   []byte("in-cluster"),
+		},
+	}
+
+	validSecret2 := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster2",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster2"),
+			"name":   []byte("mycluster2"),
+		},
+	}
+
+	invalidSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster3",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster3"),
+			"config": []byte("{'tlsClientConfig':{'insecure':false}}"),
+		},
+	}
+
+	t.Run("Valid clusters", func(t *testing.T) {
+		kubeclientset := fake.NewSimpleClientset(validSecret1, validSecret2)
+		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		clusters, err := db.ListClusters(context.TODO())
+		require.NoError(t, err)
+		assert.Len(t, clusters.Items, 2)
+	})
+
+	t.Run("Cluster list with invalid cluster", func(t *testing.T) {
+		kubeclientset := fake.NewSimpleClientset(validSecret1, validSecret2, invalidSecret)
+		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		clusters, err := db.ListClusters(context.TODO())
+		require.NoError(t, err)
+		assert.Len(t, clusters.Items, 2)
+	})
 }
