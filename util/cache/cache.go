@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"math"
 	"os"
@@ -33,16 +34,24 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
 	redisDB := 0
+	redisUseTLS := false
+	var redisTLSConfig *tls.Config
 	var defaultCacheExpiration time.Duration
 
 	cmd.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
 	cmd.Flags().IntVar(&redisDB, "redisdb", 0, "Redis database.")
+	cmd.Flags().BoolVar(&redisUseTLS, "redis-use-tls", false, "Whether to use TLS encryption to communicate with redis.")
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
 	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", 24*time.Hour, "Cache expiration default")
 	return func() (*Cache, error) {
 		password := os.Getenv(envRedisPassword)
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
+
+		if redisUseTLS {
+			redisTLSConfig = &tls.Config{}
+		}
+
 		if len(sentinelAddresses) > 0 {
 			client := redis.NewFailoverClient(&redis.FailoverOptions{
 				MasterName:    sentinelMaster,
@@ -50,6 +59,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 				DB:            redisDB,
 				Password:      password,
 				MaxRetries:    maxRetries,
+				TLSConfig:     redisTLSConfig,
 			})
 			for i := range opts {
 				opts[i](client)
@@ -65,6 +75,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			Password:   password,
 			DB:         redisDB,
 			MaxRetries: maxRetries,
+			TLSConfig:  redisTLSConfig,
 		})
 		for i := range opts {
 			opts[i](client)
