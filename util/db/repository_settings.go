@@ -417,6 +417,8 @@ func (s *settingRepositoryBackend) tryGetRepository(ctx context.Context, repoURL
 		if err != nil {
 			return repo, errors.NewCredentialsConfigurationError(err)
 		}
+	} else {
+		return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
 	}
 
 	// Check for and copy repository credentials, if repo has none configured.
