@@ -33,7 +33,6 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
-	argohealth "github.com/argoproj/argo-cd/v2/util/health"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/stats"
@@ -57,20 +56,6 @@ type managedResource struct {
 	Name            string
 	Hook            bool
 	ResourceVersion string
-}
-
-func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
-	liveObjs := make([]*unstructured.Unstructured, 0)
-	resStatuses := make([]*appv1.ResourceStatus, 0)
-	for i, resource := range resources {
-		if resource.Target != nil && hookutil.Skip(resource.Target) {
-			continue
-		}
-
-		liveObjs = append(liveObjs, resource.Live)
-		resStatuses = append(resStatuses, &statuses[i])
-	}
-	return resStatuses, liveObjs
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -621,11 +606,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	resSumForAppHealth, liveObjsForAppHealth := GetLiveObjsForApplicationHealth(managedResources, resourceSummaries)
-	healthStatus, err := argohealth.SetApplicationHealth(resSumForAppHealth, liveObjsForAppHealth, resourceOverrides, func(obj *unstructured.Unstructured) bool {
-		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
-	})
-
+	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
