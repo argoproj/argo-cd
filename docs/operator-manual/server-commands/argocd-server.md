@@ -61,16 +61,6 @@ argocd-server [flags]
       --username string                               Username for basic authentication to the API server
       --x-frame-options value                         Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
 ```
-### Additional configuration methods
-
-The command can also be configured by setting the respective flag in `argocd-cmd-params-cm.yaml`. For example, to set `logformat` add below entry to the config map `argocd-cmd-params-cm.yaml`.
-
-```
-data:
-    server.log.format: "text"
-```
-
-For more details on the available options, check out [argocd-cmd-params-cm.yaml](../argocd-cmd-params-cm.yaml).
 
 ### SEE ALSO
 
