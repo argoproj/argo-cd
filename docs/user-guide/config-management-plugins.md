@@ -15,6 +15,7 @@ data:
       generate:                      # Command to generate manifests YAML
         command: ["sample command"]
         args: ["sample args"]
+      lockRepo: true                 # Defaults to false. See below.
 ```
 
 The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
@@ -26,6 +27,12 @@ argocd app create <appName> --config-management-plugin <pluginName>
 ```
 
 More config management plugin examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).
+
+!!!note "Repository locking"
+    If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
+    `lockRepo` to `true` so that your plugin will have exclusive access to the
+    repository at the time it is executed. Otherwise, two applications synced
+    at the same time may result in a race condition and sync failure.
 
 ## Environment
 
