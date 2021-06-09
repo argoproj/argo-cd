@@ -89,7 +89,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	for i, clusterSecret := range clusterSecrets {
 		cluster, err := secretToCluster(clusterSecret)
 		if err != nil {
-			log.Errorf("could not unmarshal cluster secret: %v", err)
+			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 		}
 		clusterList.Items[i] = *cluster
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -132,7 +132,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 	cluster, err := secretToCluster(clusterSecret)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret %s", clusterSecret.Name)
 	}
 	return cluster, db.settingsMgr.ResyncInformers()
 }
@@ -161,7 +161,7 @@ func (db *db) WatchClusters(ctx context.Context,
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				cluster, err := secretToCluster(secretObj)
 				if err != nil {
-					log.Errorf("could not unmarshal cluster secret: %v", err)
+					log.Errorf("could not unmarshal cluster secret %s", secretObj.Name)
 					return
 				}
 				if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -189,12 +189,12 @@ func (db *db) WatchClusters(ctx context.Context,
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					oldCluster, err := secretToCluster(oldSecretObj)
 					if err != nil {
-						log.Errorf("could not unmarshal old cluster secret: %v", err)
+						log.Errorf("could not unmarshal cluster secret %s", oldSecretObj.Name)
 						return
 					}
 					newCluster, err := secretToCluster(newSecretObj)
 					if err != nil {
-						log.Errorf("could not unmarshal new cluster secret: %v", err)
+						log.Errorf("could not unmarshal cluster secret %s", newSecretObj.Name)
 						return
 					}
 					if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -263,7 +263,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 	cluster, err := secretToCluster(clusterSecret)
 	if err != nil {
-		log.Errorf("could not unmarshal cluster secret: %v", err)
+		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 		return nil, err
 	}
 	return cluster, db.settingsMgr.ResyncInformers()
