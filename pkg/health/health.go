@@ -3,6 +3,7 @@ package health
 import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Represents resource health status
@@ -41,8 +42,8 @@ var healthOrder = []HealthStatusCode{
 	HealthStatusHealthy,
 	HealthStatusSuspended,
 	HealthStatusProgressing,
-	HealthStatusDegraded,
 	HealthStatusMissing,
+	HealthStatusDegraded,
 	HealthStatusUnknown,
 }
 
@@ -84,70 +85,77 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 		}
 	}
 
-	gvk := obj.GroupVersionKind()
+	if healthCheck := GetHealthCheckFunc(obj.GroupVersionKind()); healthCheck != nil {
+		if health, err = healthCheck(obj); err != nil {
+			health = &HealthStatus{
+				Status:  HealthStatusUnknown,
+				Message: err.Error(),
+			}
+		}
+	}
+	return health, err
+
+}
+
+// GetHealthCheckFunc returns built-in health check function or nil if health check is not supported
+func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unstructured) (*HealthStatus, error) {
 	switch gvk.Group {
 	case "apps":
 		switch gvk.Kind {
 		case kube.DeploymentKind:
-			health, err = getDeploymentHealth(obj)
+			return getDeploymentHealth
 		case kube.StatefulSetKind:
-			health, err = getStatefulSetHealth(obj)
+			return getStatefulSetHealth
 		case kube.ReplicaSetKind:
-			health, err = getReplicaSetHealth(obj)
+			return getReplicaSetHealth
 		case kube.DaemonSetKind:
-			health, err = getDaemonSetHealth(obj)
+			return getDaemonSetHealth
 		}
 	case "extensions":
 		switch gvk.Kind {
 		case kube.DeploymentKind:
-			health, err = getDeploymentHealth(obj)
+			return getDeploymentHealth
 		case kube.IngressKind:
-			health, err = getIngressHealth(obj)
+			return getIngressHealth
 		case kube.ReplicaSetKind:
-			health, err = getReplicaSetHealth(obj)
+			return getReplicaSetHealth
 		case kube.DaemonSetKind:
-			health, err = getDaemonSetHealth(obj)
+			return getDaemonSetHealth
 		}
 	case "argoproj.io":
 		switch gvk.Kind {
 		case "Workflow":
-			health, err = getArgoWorkflowHealth(obj)
+			return getArgoWorkflowHealth
 		}
 	case "apiregistration.k8s.io":
 		switch gvk.Kind {
 		case kube.APIServiceKind:
-			health, err = getAPIServiceHealth(obj)
+			return getAPIServiceHealth
 		}
 	case "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
-			health, err = getIngressHealth(obj)
+			return getIngressHealth
 		}
 	case "":
 		switch gvk.Kind {
 		case kube.ServiceKind:
-			health, err = getServiceHealth(obj)
+			return getServiceHealth
 		case kube.PersistentVolumeClaimKind:
-			health, err = getPVCHealth(obj)
+			return getPVCHealth
 		case kube.PodKind:
-			health, err = getPodHealth(obj)
+			return getPodHealth
 		}
 	case "batch":
 		switch gvk.Kind {
 		case kube.JobKind:
-			health, err = getJobHealth(obj)
+			return getJobHealth
 		}
 	case "autoscaling":
 		switch gvk.Kind {
 		case kube.HorizontalPodAutoscalerKind:
-			health, err = getHPAHealth(obj)
+			return getHPAHealth
 		}
 	}
-	if err != nil {
-		health = &HealthStatus{
-			Status:  HealthStatusUnknown,
-			Message: err.Error(),
-		}
-	}
-	return health, err
+	return nil
 }
