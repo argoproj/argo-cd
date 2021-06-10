@@ -119,7 +119,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return Math.sign(numberA - numberB);
     }
     function getRevision(a: ResourceTreeNode) {
-        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        const filtered = (a.info || []).filter(b => b.name === 'Revision' && b)[0];
         if (filtered == null) {
             return '';
         }
