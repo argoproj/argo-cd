@@ -219,6 +219,9 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 	if creds.Password != "" {
 		args = append(args, "--password", creds.Password)
 	}
+	if creds.InsecureSkipVerify {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
 
 	args = append(args, "--repo", repo, chartName)
 
