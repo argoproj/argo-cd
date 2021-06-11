@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -132,6 +133,9 @@ var (
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
 	enableGRPCTimeHistogram         = true
+	// Sets connection idle time to 55 seconds which is less than typical load balancer timeout.
+	// It ensure that gRPC periodically closes idle connections that prevents abruptly closed connections by load balancer.
+	grpcIdleTimeout = env.ParseDurationFromEnv("ARGOCD_GRPC_IDLE_TIMEOUT", 55*time.Second, 0, 24*time.Hour)
 )
 
 func init() {
@@ -497,6 +501,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.ConnectionTimeout(300 * time.Second),
+		grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionIdle: grpcIdleTimeout}),
 	}
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                          true,

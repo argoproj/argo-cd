@@ -103,6 +103,10 @@ The `argocd-server` is stateless and probably least likely to cause issues. You 
 * The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
 The default value is 200. You might need to increase for an Argo CD instance that manages 3000+ applications.    
 
+* The `ARGOCD_GRPC_IDLE_TIMEOUT` controls the max duration for the amount of time after which an idle connection would be closed by API server.
+  It is important to use the timeout that is less than the timeout of a load balancer in front of the API server.
+  The default value is 55 seconds (less than 1 minute which is a typical load balancer default).
+
 ### argocd-dex-server, argocd-redis
 
 The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data. `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
