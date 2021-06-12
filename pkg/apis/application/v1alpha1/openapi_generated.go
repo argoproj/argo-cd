@@ -955,6 +955,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"forceCommonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"forceCommonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

@@ -366,6 +366,10 @@ type ApplicationSourceKustomize struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
+	// ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
+	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time

@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/resource_customizations"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/resource_customizations"
 )
 
 const (
@@ -122,7 +122,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, error) {
-	key := getConfigMapKey(obj)
+	key := GetConfigMapKey(obj.GroupVersionKind())
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
@@ -281,7 +281,7 @@ func noAvailableActions(jsonBytes []byte) bool {
 }
 
 func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
-	key := getConfigMapKey(obj)
+	key := GetConfigMapKey(obj.GroupVersionKind())
 	override, ok := vm.ResourceOverrides[key]
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
@@ -300,7 +300,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string,
 
 // GetResourceAction attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
-	key := getConfigMapKey(obj)
+	key := GetConfigMapKey(obj.GroupVersionKind())
 	override, ok := vm.ResourceOverrides[key]
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
@@ -326,13 +326,11 @@ func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string
 	}, nil
 }
 
-func getConfigMapKey(obj *unstructured.Unstructured) string {
-	gvk := obj.GroupVersionKind()
+func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	if gvk.Group == "" {
 		return gvk.Kind
 	}
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
-
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
