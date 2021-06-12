@@ -139,3 +139,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Metanet](http://www.metanet.co.kr/en/)
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
+1. [Kaltura](https://corp.kaltura.com/)
