@@ -27,6 +27,7 @@ jobs:
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
           git checkout -b $CODEGEN_BRANCH
           git remote add bot "https://$TOKEN@github.com/argo-bot/argo-cd"
+          git log
           git push bot $CODEGEN_BRANCH --force
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
