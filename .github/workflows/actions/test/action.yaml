@@ -1,7 +1,0 @@
-name: 'codegen'
-runs:
-  using: "composite"
-  steps:
-    - shell: bash
-      run: |
-        touch changes

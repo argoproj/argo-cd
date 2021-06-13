@@ -1,0 +1,8 @@
+name: 'codegen'
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        mkdir -p ~/go/src/github.com/argoproj
+        cp -a ../argo-cd ~/go/src/github.com/argoproj
