@@ -1,0 +1,17 @@
+name: Codegen PR
+on:
+  workflow_dispatch:
+
+jobs:
+  codegen:
+    name: Check changes to generated code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.16.2'
+      - name: Codegen
+        uses: ./.github/workflows/actions/codegen
