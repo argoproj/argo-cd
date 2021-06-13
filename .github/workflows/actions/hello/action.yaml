@@ -4,5 +4,9 @@ runs:
   steps:
     - shell: bash
       run: |
+        mkdir -p ~/go/src/github.com/argoproj
+        cp -a ../argo-cd ~/go/src/github.com/argoproj
+    - shell: bash
+      run: |
         touch hello
       working-directory: /home/runner/go/src/github.com/argoproj/argo-cd

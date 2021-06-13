@@ -12,9 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Full Clone
-        run: |
-          git clone "https://$TOKEN@github.com/argo-bot/argo-cd" ~/go/src/github.com/argoproj/argo-cd
+        with:
+          fetch-depth: 0
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
@@ -25,12 +24,12 @@ jobs:
       - run: |
           git config --global user.email 'argoproj@gmail.com'
           git config --global user.name 'Argo Bot'
+          git remote add bot "https://$TOKEN@github.com/argo-bot/argo-cd" ~/go/src/github.com/argoproj/argo-cd
           git add .
           git commit -m "Run codegen"
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
           git checkout -b $CODEGEN_BRANCH
-          git remote
-          git remote get-url origin
+          git push bot $CODEGEN_BRANCH
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
           TOKEN: ${{ secrets.TOKEN }}
