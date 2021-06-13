@@ -20,4 +20,4 @@ jobs:
         # uses: ./.github/workflows/actions/codegen
         uses: ./.github/workflows/actions/test
       - run: |
-        git status
+          git status
