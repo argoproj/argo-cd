@@ -19,3 +19,5 @@ jobs:
       - name: Codegen
         # uses: ./.github/workflows/actions/codegen
         uses: ./.github/workflows/actions/hello
+      - run: |
+          git status
