@@ -21,3 +21,4 @@ jobs:
         uses: ./.github/workflows/actions/hello
       - run: |
           git status
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
