@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Checkout code
+      - name: Full Clone
         run: |
           git clone "https://$TOKEN@github.com/argo-bot/argo-cd" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
@@ -23,13 +23,13 @@ jobs:
         # uses: ./.github/workflows/actions/codegen
         uses: ./.github/workflows/actions/hello
       - run: |
-          git config --global user.email 'ci@argoproj.com'
-          git config --global user.name 'CI'
+          git config --global user.email 'argoproj@gmail.com'
+          git config --global user.name 'Argo Bot'
           git add .
           git commit -m "Run codegen"
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
           git checkout -b $CODEGEN_BRANCH
-          git push origin $CODEGEN_BRANCH 
+          git remote
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
           TOKEN: ${{ secrets.TOKEN }}
