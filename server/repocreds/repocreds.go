@@ -3,6 +3,7 @@ package repocreds
 import (
 	"reflect"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -91,6 +92,11 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		} else if q.Upsert {
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
 		} else {
+			log.Errorln("==============================")
+			log.Errorln("EXISTING:", existing)
+			log.Errorln("R:       ", r)
+			log.Errorln("==============================")
+
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository credentials spec is different; use upsert flag to force update")
 		}
 	}
