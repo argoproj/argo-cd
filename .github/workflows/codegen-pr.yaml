@@ -29,7 +29,6 @@ jobs:
           git commit -m "Run codegen"
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
           git checkout -b $CODEGEN_BRANCH
-          git log
           git push origin $CODEGEN_BRANCH 
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
