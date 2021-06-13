@@ -5,4 +5,3 @@ runs:
     - shell: bash
       run: |
         touch changes
-      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
