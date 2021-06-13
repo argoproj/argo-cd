@@ -144,7 +144,7 @@ func (s *secretsRepositoryBackend) DeleteRepository(ctx context.Context, repoURL
 }
 
 func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
-	_, err := s.getRepositorySecret(repoURL)
+	secret, err := s.getRepositorySecret(repoURL)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return false, nil
@@ -153,7 +153,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL
 		return false, err
 	}
 
-	return true, nil
+	return secret != nil, nil
 }
 
 func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {

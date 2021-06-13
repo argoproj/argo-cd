@@ -214,8 +214,8 @@ func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.Re
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	secretBackend := repositoryBackend(&secretsRepositoryBackend{db: db})
-	settingBackend := repositoryBackend(&settingRepositoryBackend{db: db})
+	settingBackend := &settingRepositoryBackend{db: db}
+	secretBackend := &secretsRepositoryBackend{db: db}
 
 	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL)
 	if err != nil {
@@ -230,7 +230,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", r.URL)
 	}
 
-	return (&secretsRepositoryBackend{db: db}).CreateRepoCreds(ctx, r)
+	return secretBackend.CreateRepoCreds(ctx, r)
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
