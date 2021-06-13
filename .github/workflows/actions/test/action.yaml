@@ -1,0 +1,8 @@
+name: 'codegen'
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        touch changes
+      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
