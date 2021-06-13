@@ -1,6 +1,9 @@
 name: Codegen PR
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'codegen-painkiller'
 
 jobs:
   codegen:
