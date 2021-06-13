@@ -1,0 +1,40 @@
+name: 'codegen'
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        mkdir -p ~/go/src/github.com/argoproj
+        cp -a ../argo-cd ~/go/src/github.com/argoproj
+    - shell: bash
+      run: |
+        echo "/home/runner/go/bin" >> $GITHUB_PATH
+    - shell: bash
+      run: |
+        echo "/usr/local/bin" >> $GITHUB_PATH
+    - shell: bash
+      run: |
+        # We need to vendor go modules for codegen yet
+        go mod download
+        go mod vendor -v
+      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+    - shell: bash
+      run: |
+        make install-codegen-tools-local
+        make install-go-tools-local
+      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+    - shell: bash
+      run: |
+        helm2 init --client-only
+    - shell: bash
+      run: |
+        set -x
+        export GOPATH=$(go env GOPATH)
+        git checkout -- go.mod go.sum
+        make codegen-local
+      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+    - shell: bash
+      run: |
+        set -xo pipefail
+        git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
+      working-directory: /home/runner/go/src/github.com/argoproj/argo-cd

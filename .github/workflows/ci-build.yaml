@@ -197,42 +197,8 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: '1.16.2'
-      - name: Create symlink in GOPATH
-        run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-cd ~/go/src/github.com/argoproj
-      - name: Add ~/go/bin to PATH
-        run: |
-          echo "/home/runner/go/bin" >> $GITHUB_PATH
-      - name: Add /usr/local/bin to PATH
-        run: |
-          echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Download & vendor dependencies
-        run: |
-          # We need to vendor go modules for codegen yet
-          go mod download
-          go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
-      - name: Install toolchain for codegen
-        run: |
-          make install-codegen-tools-local
-          make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
-      - name: Initialize local Helm
-        run: |
-          helm2 init --client-only
-      - name: Run codegen
-        run: |
-          set -x
-          export GOPATH=$(go env GOPATH)
-          git checkout -- go.mod go.sum
-          make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
-      - name: Check nothing has changed
-        run: |
-          set -xo pipefail
-          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Codegen
+        uses: ./.github/workflows/codegen
 
   build-ui:
     name: Build, test & lint UI code
