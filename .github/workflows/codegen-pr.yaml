@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Checkout code
         run: |
           git clone "https://$TOKEN@github.com/argo-bot/argo-cd" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
