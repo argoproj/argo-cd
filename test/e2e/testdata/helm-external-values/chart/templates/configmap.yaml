@@ -6,6 +6,7 @@ data:
   foo: "{{  .Values.default }}"
 
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,6 +15,7 @@ data:
   foo: "{{  .Values.external1Override }}"
 
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
