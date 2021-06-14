@@ -114,6 +114,29 @@ func TestHelmRepo(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestHelmExternalValuesAdded(t *testing.T) {
+	Given(t).
+		Path("helm-external-values/chart").
+		When().
+		Declarative("helm-external-values/app.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, []string{"helm-external-values/chart/values_external.yaml"}, app.Spec.Source.Helm.ExternalValueFiles[0].ValueFiles)
+			assert.Equal(t, []string{"helm-external-values/chart/values_external2.yaml"}, app.Spec.Source.Helm.ExternalValueFiles[1].ValueFiles)
+		}).
+		And(func(app *Application) {
+			output, err := RunCli("app", "manifests", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, output, "defaultValue")
+			assert.Contains(t, output, "external1Value")
+			assert.Contains(t, output, "external2Value")
+		})
+}
+
 func TestHelmValues(t *testing.T) {
 	Given(t).
 		Path("helm").

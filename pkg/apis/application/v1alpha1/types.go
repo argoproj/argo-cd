@@ -75,11 +75,12 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
+	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind              string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name              string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -233,6 +234,18 @@ type ApplicationSourceHelm struct {
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	// ValuesFilesExternalValueFiles is a list of Helm value files to use when generating a template that come from an external git repo
+	ExternalValueFiles []HelmExternalValue `json:"externalValueFiles,omitempty" protobuf:"bytes,7,opt,name=externalValueFiles"`
+}
+
+// HelmExternalValue are values from other git repositories
+type HelmExternalValue struct {
+	// RepoURL is the URL of the external git repo
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
+	// TargetRevision is the revision of the git repo
+	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,2,opt,name=targetRevision"`
+	// FileParameters are file parameters to the helm template
+	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,3,opt,name=valueFiles"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -365,6 +378,10 @@ type ApplicationSourceKustomize struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
+	// ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
+	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -1303,6 +1320,16 @@ type ClusterInfo struct {
 	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
 	// ApplicationsCount is the number of applications managed by Argo CD on the cluster
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+	// APIVersions contains list of API versions supported by the cluster
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+}
+
+func (c *ClusterInfo) GetKubeVersion() string {
+	return c.ServerVersion
+}
+
+func (c *ClusterInfo) GetApiVersions() []string {
+	return c.APIVersions
 }
 
 // ClusterCacheInfo contains information about the cluster cache
@@ -1400,7 +1427,8 @@ type KnownTypeField struct {
 
 // TODO: describe this type
 type OverrideIgnoreDiff struct {
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
 }
 
 type rawResourceOverride struct {
@@ -2280,6 +2308,14 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		}
 	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
+	} else if c.Server == KubernetesInternalAPIServerAddr {
+		config, err = rest.InClusterConfig()
+		if err == nil {
+			config.Username = c.Config.Username
+			config.Password = c.Config.Password
+			config.BearerToken = c.Config.BearerToken
+			config.BearerTokenFile = ""
+		}
 	} else {
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,

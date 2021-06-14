@@ -145,7 +145,7 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
             (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
             (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
             (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server.includes(app.spec.destination.server || app.spec.destination.name))) &&
+            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server === (app.spec.destination.server || app.spec.destination.name))) &&
             (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
     );
 }

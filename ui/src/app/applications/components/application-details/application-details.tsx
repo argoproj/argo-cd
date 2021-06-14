@@ -151,11 +151,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-                            const filteredRes = application.status.resources.filter(res => {
-                                const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
-                                resNode.root = resNode;
-                                return this.filterTreeNode(resNode, treeFilter);
-                            });
+
+                            const statusByKey = new Map<string, appModels.ResourceStatus>();
+                            const visibleOrphans = (pref.orphanedResources && tree.orphanedNodes) || [];
+                            if (visibleOrphans.length > 0) {
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                            }
+                            const orphans = visibleOrphans.map(orphan => statusByKey.get(AppUtils.nodeKey(orphan)));
+
+                            const filteredRes = application.status.resources
+                                .filter(res => {
+                                    const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
+                                    resNode.root = resNode;
+                                    return this.filterTreeNode(resNode, treeFilter);
+                                })
+                                .concat(orphans);
+
                             return (
                                 <div className='application-details'>
                                     <Page

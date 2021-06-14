@@ -161,6 +161,10 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvRepoServerConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
+	// EnvLogFormat log format that is defined by `--logformat` option
+	EnvLogFormat = "ARGOCD_LOG_FORMAT"
+	// EnvLogLevel log level that is defined by `--loglevel` option
+	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 )
 
 const (

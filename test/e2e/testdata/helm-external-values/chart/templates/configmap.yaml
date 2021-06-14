@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: default
+data:
+  foo: "{{  .Values.default }}"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external1Override
+data:
+  foo: "{{  .Values.external1Override }}"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external2Override
+data:
+  foo: "{{  .Values.external2Override }}"

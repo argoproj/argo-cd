@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -28,6 +30,14 @@ type Cache struct {
 	revisionCacheExpiration time.Duration
 }
 
+// ClusterRuntimeInfo holds cluster runtime information
+type ClusterRuntimeInfo interface {
+	// GetApiVersions returns supported api versions
+	GetApiVersions() []string
+	// GetKubeVersion returns cluster API version
+	GetKubeVersion() string
+}
+
 func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration) *Cache {
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
@@ -36,7 +46,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 
-	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", 24*time.Hour, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt32), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt32), "Cache expiration for cached revision")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
@@ -58,6 +68,17 @@ func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
 	}
 	appSrcStr, _ := json.Marshal(appSrc)
 	return hash.FNVa(string(appSrcStr))
+}
+
+func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
+	if info == nil {
+		return 0
+	}
+	apiVersions := info.GetApiVersions()
+	sort.Slice(apiVersions, func(i, j int) bool {
+		return apiVersions[i] < apiVersions[j]
+	})
+	return hash.FNVa(info.GetKubeVersion() + "|" + strings.Join(apiVersions, ","))
 }
 
 func listApps(repoURL, revision string) string {
@@ -115,12 +136,12 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	return nil
 }
 
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appName, revision, namespace, appSourceKey(appSrc))
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res)
 
 	if err != nil {
 		return err
@@ -135,7 +156,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, n
 	if hash != res.CacheEntryHash {
 		log.Warnf("Manifest hash did not match expected value, treating as a cache miss: %s", appName)
 
-		err = c.DeleteManifests(revision, appSrc, namespace, appLabelKey, appName)
+		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
@@ -150,7 +171,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, n
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
@@ -162,11 +183,11 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, n
 		res.CacheEntryHash = hash
 	}
 
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), res, c.repoCacheExpiration, res == nil)
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string) error {
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName), "", c.repoCacheExpiration, true)
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string) error {
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {

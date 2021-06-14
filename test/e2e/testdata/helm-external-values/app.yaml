@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{.Name}}
+  namespace: {{.ArgoCDNamespace}}
+spec:
+  project: {{.Project}}
+  source:
+    repoURL: {{.RepoURL}}
+    targetRevision: HEAD
+    path: {{.Path}}
+    helm:
+      valueFiles:
+        - values.yaml
+      externalValueFiles:
+        - repoURL: {{.RepoURL}}
+          targetRevision: HEAD
+          valueFiles:
+            - {{.Path}}/values_external.yaml
+        - repoURL: {{.RepoURL}}
+          targetRevision: HEAD
+          valueFiles:
+            - {{.Path}}/values_external2.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{.DeploymentNamespace}}

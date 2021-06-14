@@ -207,6 +207,9 @@ message ApplicationSourceHelm {
 
   // Version is the Helm version to use for templating (either "2" or "3")
   optional string version = 6;
+
+  // ValuesFilesExternalValueFiles is a list of Helm value files to use when generating a template that come from an external git repo
+  repeated HelmExternalValue externalValueFiles = 7;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -249,6 +252,12 @@ message ApplicationSourceKustomize {
 
   // CommonAnnotations is a list of additional annotations to add to rendered manifests
   map<string, string> commonAnnotations = 6;
+
+  // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+  optional bool forceCommonLabels = 7;
+
+  // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+  optional bool forceCommonAnnotations = 8;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -447,6 +456,9 @@ message ClusterInfo {
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
+
+  // APIVersions contains list of API versions supported by the cluster
+  repeated string apiVersions = 5;
 }
 
 // ClusterList is a collection of Clusters.
@@ -565,6 +577,18 @@ message HealthStatus {
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
+}
+
+// HelmExternalValue are values from other git repositories
+message HelmExternalValue {
+  // RepoURL is the URL of the external git repo
+  optional string repoURL = 1;
+
+  // TargetRevision is the revision of the git repo
+  optional string targetRevision = 2;
+
+  // FileParameters are file parameters to the helm template
+  repeated string valueFiles = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
@@ -744,6 +768,8 @@ message OrphanedResourcesMonitorSettings {
 // TODO: describe this type
 message OverrideIgnoreDiff {
   repeated string jSONPointers = 1;
+
+  repeated string jqPathExpressions = 2;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -984,6 +1010,8 @@ message ResourceIgnoreDifferences {
   optional string namespace = 4;
 
   repeated string jsonPointers = 5;
+
+  repeated string jqPathExpressions = 6;
 }
 
 // ResourceNetworkingInfo holds networking resource related information
