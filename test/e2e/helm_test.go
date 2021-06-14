@@ -126,7 +126,7 @@ func TestHelmExternalValuesAdded(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, []string{"helm-external-values/chart/values_external.yaml"}, app.Spec.Source.Helm.ExternalValueFiles[0].ValueFiles)
-			assert.Equal(t, []string{"helm-external-values/chart/values_external2.yaml"}, app.Spec.Source.Helm.ExternalValueFiles[1].ValueFiles)
+			assert.Equal(t, []string{"helm-external-values/chart/values_external_2.yaml"}, app.Spec.Source.Helm.ExternalValueFiles[1].ValueFiles)
 		}).
 		And(func(app *Application) {
 			output, err := RunCli("app", "manifests", app.Name)
