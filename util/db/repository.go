@@ -170,7 +170,7 @@ func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	return append(secretRepoCreds, settingRepoCreds...), err
+	return append(secretRepoCreds, settingRepoCreds...), nil
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
@@ -191,7 +191,7 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 		return settingsBackend.GetRepoCreds(ctx, repoURL)
 	}
 
-	return nil, err
+	return nil, nil
 }
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
