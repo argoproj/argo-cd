@@ -3102,7 +3102,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:6.2.1-alpine
+        image: redis:6.2.4-alpine
         imagePullPolicy: Always
         name: redis
         ports:
