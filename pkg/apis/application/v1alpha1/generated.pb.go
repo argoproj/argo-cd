@@ -18540,6 +18540,7 @@ func (m *HealthStatus) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
+
 				return ErrInvalidLengthGenerated
 			}
 			if (iNdEx + skippy) > l {
