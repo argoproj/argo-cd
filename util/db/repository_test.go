@@ -370,6 +370,51 @@ func TestDb_DeleteRepository(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDb_GetRepositoryCredentials(t *testing.T) {
+	repositoryCredentialsSettings := `
+- type: git
+  url: git@github.com:argoproj
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+`
+	repoCredsSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "some-repocreds-secret",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"type":     []byte("git"),
+			"url":      []byte("git@gitlab.com"),
+			"username": []byte("someUsername"),
+			"password": []byte("somePassword"),
+		},
+	}
+
+	clientset := getClientset(map[string]string{"repository.credentials": repositoryCredentialsSettings}, newManagedSecret(), repoCredsSecret)
+	testee := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
+
+	repoCreds, err := testee.GetRepositoryCredentials(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	assert.NoError(t, err)
+	assert.NotNil(t, repoCreds)
+	assert.Equal(t, "git@github.com:argoproj", repoCreds.URL)
+
+	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@gitlab.com:someorg/foobar.git")
+	assert.NoError(t, err)
+	assert.NotNil(t, repoCreds)
+	assert.Equal(t, "git@gitlab.com", repoCreds.URL)
+
+	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@github.com:example/not-existing.git")
+	assert.NoError(t, err)
+	assert.Nil(t, repoCreds)
+}
+
 func TestRepoURLToSecretName(t *testing.T) {
 	tables := map[string]string{
 		"git://git@github.com:argoproj/ARGO-cd.git": "repo-83273445",
