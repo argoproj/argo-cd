@@ -60,21 +60,6 @@ func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL st
 		return nil, err
 	}
 
-	// Check for and copy repository credentials, if repo has none configured.
-	if !repository.HasCredentials() {
-		creds, err := s.GetRepoCreds(ctx, repoURL)
-		if err == nil {
-			if creds != nil {
-				repository.CopyCredentialsFrom(creds)
-				repository.InheritedCreds = true
-			}
-		} else {
-			return repository, err
-		}
-	} else {
-		log.Debugf("%s has credentials", repository.Repo)
-	}
-
 	return repository, err
 }
 

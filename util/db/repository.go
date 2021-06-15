@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hash/fnv"
 
+	log "github.com/sirupsen/logrus"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -74,6 +76,19 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 }
 
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	repository, err := db.getRepository(ctx, repoURL)
+	if err != nil {
+		return repository, err
+	}
+
+	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+		return repository, err
+	}
+
+	return repository, err
+}
+
+func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	secretsBackend := &secretsRepositoryBackend{db: db}
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
@@ -111,7 +126,12 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 		return nil, err
 	}
 
-	return append(secretRepositories, settingRepositories...), nil
+	repositories := append(secretRepositories, settingRepositories...)
+	if err := db.enrichCredsToRepos(ctx, repositories); err != nil {
+		return nil, err
+	}
+
+	return repositories, nil
 }
 
 // UpdateRepository updates a repository
@@ -274,6 +294,33 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 	}
 
 	return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
+}
+
+func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Repository) error {
+	for _, repository := range repositories {
+		if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Repository) error {
+	if !repository.HasCredentials() {
+		creds, err := db.GetRepositoryCredentials(ctx, repository.Repo)
+		if err == nil {
+			if creds != nil {
+				repository.CopyCredentialsFrom(creds)
+				repository.InheritedCreds = true
+			}
+		} else {
+			return err
+		}
+	} else {
+		log.Debugf("%s has credentials", repository.Repo)
+	}
+
+	return nil
 }
 
 // RepoURLToSecretName hashes repo URL to a secret name using a formula. This is used when

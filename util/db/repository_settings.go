@@ -439,21 +439,6 @@ func (s *settingRepositoryBackend) tryGetRepository(ctx context.Context, repoURL
 		}
 	}
 
-	// Check for and copy repository credentials, if repo has none configured.
-	if !repo.HasCredentials() {
-		creds, err := s.GetRepoCreds(ctx, repoURL)
-		if err == nil {
-			if creds != nil {
-				repo.CopyCredentialsFrom(creds)
-				repo.InheritedCreds = true
-			}
-		} else {
-			return repo, err
-		}
-	} else {
-		log.Debugf("%s has credentials", repo.Repo)
-	}
-
 	return repo, err
 }
 
