@@ -212,20 +212,15 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 		return nil, nil, fmt.Errorf("Failed to write kubeconfig: %v", err)
 	}
 	fact := kubeCmdFactory(f.Name(), "")
-	openAPISchema, err := fact.OpenAPISchema()
-	if err != nil {
-		return nil, nil, err
-	}
 	cleanup := func() {
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlResourceOperations{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        k.Tracer,
-		log:           k.Log,
-		onKubectlRun:  k.OnKubectlRun,
+		config:       config,
+		fact:         fact,
+		tracer:       k.Tracer,
+		log:          k.Log,
+		onKubectlRun: k.OnKubectlRun,
 	}, cleanup, nil
 }
 
