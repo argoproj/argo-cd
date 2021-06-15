@@ -16,11 +16,11 @@ spec:
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - {{.Path}}/chart/values_external.yaml
+            - "{{.Path}}/values_external.yaml"
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - {{.Path}}/chart/values_external_2.yaml
+            - "{{.Path}}/values_external_2.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{.DeploymentNamespace}}
