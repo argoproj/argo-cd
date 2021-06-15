@@ -10,7 +10,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: external1Override
+  name: external-override-1
 data:
   foo: "{{  .Values.external1Override }}"
 
@@ -19,6 +19,6 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: external2Override
+  name: external-override-2
 data:
   foo: "{{  .Values.external2Override }}"
