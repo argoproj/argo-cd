@@ -11,7 +11,7 @@ redis-ha:
     image:
       tag: 2.0.20-alpine
   image:
-    tag: 6.2.1-alpine
+    tag: 6.2.4-alpine
   sentinel:
     config:
       replaceme: "0.0.0.0"
