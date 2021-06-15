@@ -16,11 +16,11 @@ spec:
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - argo-e2e/testdata/helm-external-values/values_external.yaml
+            - helm-external-values/values_external.yaml
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - argo-e2e/testdata/helm-external-values/values_external.yaml
+            - helm-external-values/values_external.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: {{.DeploymentNamespace}}
