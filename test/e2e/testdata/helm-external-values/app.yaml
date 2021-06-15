@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: {{.RepoURL}}
     targetRevision: HEAD
-    path: {{.Path}}/chart
+    path: {{.Path}}
     helm:
       valueFiles:
         - values.yaml
