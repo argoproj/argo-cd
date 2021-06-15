@@ -15,6 +15,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -33,6 +34,14 @@ const (
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
+
+func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetOpenAPISchema(), nil
+}
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
@@ -146,6 +155,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
+	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+		return
+	}
+
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -153,6 +169,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		rawConfig,
 		m.kubectl,
 		app.Spec.Destination.Namespace,
+		openAPISchema,
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
