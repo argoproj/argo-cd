@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: {{.RepoURL}}
     targetRevision: HEAD
-    path: {{.Path}}
+    path: {{.Path}}/chart
     helm:
       valueFiles:
         - values.yaml
@@ -16,11 +16,11 @@ spec:
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - {{.Path}}/values_external.yaml
+            - {{.Path}}/chart/values_external.yaml
         - repoURL: {{.RepoURL}}
           targetRevision: HEAD
           valueFiles:
-            - {{.Path}}/values_external_2.yaml
+            - {{.Path}}/chart/values_external_2.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: {{.DeploymentNamespace}}
