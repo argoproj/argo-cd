@@ -651,7 +651,13 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Values = append(templateOpts.Values, val)
 		}
 		for _, exVal := range appHelm.ExternalValueFiles {
-			repoFilePath := filepath.Join(os.TempDir(), strings.Replace(git.NormalizeGitURL(exVal.RepoURL), "/", "_", -1))
+			repoFilePath := ""
+			if strings.HasPrefix(exVal.RepoURL, "file://") {
+				repoFilePath = exVal.RepoURL
+			} else {
+				repoFilePath = filepath.Join(os.TempDir(), strings.Replace(git.NormalizeGitURL(exVal.RepoURL), "/", "_", -1))
+			}
+
 			for _, file := range exVal.ValueFiles {
 				valueFilePath := filepath.Join(repoFilePath, file)
 				templateOpts.Values = append(templateOpts.Values, valueFilePath)
