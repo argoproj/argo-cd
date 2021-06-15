@@ -1734,8 +1734,8 @@ of a <code>MutatingWebhookConfiguration</code> webhooks:</p>
   <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">admissionregistration.k8s.io/MutatingWebhookConfiguration:</span>
       <span class="no">ignoreDifferences: |</span>
-        <span class="no">jsonPointers:</span>
-        <span class="no">- /webhooks/0/clientConfig/caBundle</span>
+        <span class="no">jqPathExpressions:</span>
+        <span class="no">- &#39;.webhooks[]?.clientConfig.caBundle&#39;</span>
 </code></pre></div>
 
 <p>The <code>status</code> field of <code>CustomResourceDefinitions</code> is often stored in Git/Helm manifest and should be ignored during diffing. The <code>ignoreResourceStatusField</code> setting simplifies
