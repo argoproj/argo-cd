@@ -80,6 +80,7 @@ message RepoServerAppDetailsQuery {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 3;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
     string appName = 5;
+    bool noCache = 6;
 }
 
 // RepoAppDetailsResponse application details
