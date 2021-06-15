@@ -77,7 +77,7 @@ func (s *settingRepositoryBackend) CreateRepository(ctx context.Context, r *apps
 }
 
 func (s *settingRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repository, err := s.tryGetRepository(ctx, repoURL)
+	repository, err := s.tryGetRepository(repoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (s *settingRepositoryBackend) ListRepositories(ctx context.Context, repoTyp
 	var repos []*appsv1.Repository
 	for _, inRepo := range inRepos {
 		if repoType == nil || *repoType == inRepo.Type {
-			r, err := s.tryGetRepository(ctx, inRepo.URL)
+			r, err := s.tryGetRepository(inRepo.URL)
 			if err != nil {
 				if r != nil && errors.IsCredentialsConfigurationError(err) {
 					modifiedTime := metav1.Now()
@@ -424,7 +424,7 @@ func (s *settingRepositoryBackend) upsertSecret(name string, data map[string][]b
 // It provides the same functionality as GetRepository, with the additional behaviour of still returning a repository,
 // even if an error occurred during the resolving of credentials for the repository. Otherwise this function behaves
 // just as one would expect.
-func (s *settingRepositoryBackend) tryGetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+func (s *settingRepositoryBackend) tryGetRepository(repoURL string) (*appsv1.Repository, error) {
 	repos, err := s.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
