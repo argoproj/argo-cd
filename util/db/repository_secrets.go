@@ -275,6 +275,7 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 		Type:                       string(secret.Data["type"]),
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+		Proxy:                      string(secret.Data["proxy"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
@@ -335,6 +336,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	data["githubAppID"] = []byte(strconv.FormatInt(repository.GithubAppId, 10))
 	data["githubAppInstallationID"] = []byte(strconv.FormatInt(repository.GithubAppInstallationId, 10))
 	data["githubAppEnterpriseBaseUrl"] = []byte(repository.GitHubAppEnterpriseBaseURL)
+	data["proxy"] = []byte(repository.Proxy)
 
 	secret.Data = data
 }

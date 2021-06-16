@@ -37,20 +37,6 @@ func (s *settingRepositoryBackend) CreateRepository(ctx context.Context, r *apps
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
 
-	data := make(map[string][]byte)
-	if r.Username != "" {
-		data[username] = []byte(r.Username)
-	}
-	if r.Password != "" {
-		data[password] = []byte(r.Password)
-	}
-	if r.SSHPrivateKey != "" {
-		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
-	}
-	if r.GithubAppPrivateKey != "" {
-		data[githubAppPrivateKey] = []byte(r.GithubAppPrivateKey)
-	}
-
 	repoInfo := settings.Repository{
 		URL:                        r.Repo,
 		Type:                       r.Type,
@@ -62,6 +48,7 @@ func (s *settingRepositoryBackend) CreateRepository(ctx context.Context, r *apps
 		GithubAppId:                r.GithubAppId,
 		GithubAppInstallationId:    r.GithubAppInstallationId,
 		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
+		Proxy:                      r.Proxy,
 	}
 	err = s.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
@@ -135,6 +122,7 @@ func (s *settingRepositoryBackend) UpdateRepository(ctx context.Context, r *apps
 	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
 	repoInfo.Insecure = r.IsInsecure()
 	repoInfo.EnableLFS = r.EnableLFS
+	repoInfo.Proxy = r.Proxy
 
 	repos[index] = repoInfo
 	err = s.db.settingsMgr.SaveRepositories(repos)
@@ -454,6 +442,7 @@ func (s *settingRepositoryBackend) credentialsToRepository(repoInfo settings.Rep
 		GithubAppId:                repoInfo.GithubAppId,
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
+		Proxy:                      repoInfo.Proxy,
 	}
 	err := s.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
 		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
