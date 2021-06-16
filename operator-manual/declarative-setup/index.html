@@ -432,6 +432,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#configure-repositories-with-proxy" class="md-nav__link">
+    Configure repositories with proxy
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1840,6 +1847,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#configure-repositories-with-proxy" class="md-nav__link">
+    Configure repositories with proxy
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2402,6 +2416,29 @@ definition as a Kubernetes manifest.</li>
 <p class="admonition-title">Note</p>
 <p>The <code>argocd-ssh-known-hosts-cm</code> ConfigMap will be mounted as a volume at the mount path <code>/app/config/ssh</code> in the pods of <code>argocd-server</code> and <code>argocd-repo-server</code>. It will create a file <code>ssh_known_hosts</code> in that directory, which contains the SSH known hosts data used by ArgoCD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.</p>
 </div>
+<h3 id="configure-repositories-with-proxy">Configure repositories with proxy<a class="headerlink" href="#configure-repositories-with-proxy" title="Permanent link">&para;</a></h3>
+<p>Proxy for your repository can be specified in the <code>proxy</code> field of the <code>argocd-cm</code> config map, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.</p>
+<p>An example repository with proxy:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">labels</span><span class="p">:</span>
+    <span class="nt">app.kubernetes.io/name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+    <span class="nt">app.kubernetes.io/part-of</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: https://github.com/argoproj/my-private-repository</span>
+      <span class="no">proxy: https://proxy-server-url:8888                         </span>
+      <span class="no">passwordSecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: password</span>
+      <span class="no">usernameSecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: username</span>
+</code></pre></div>
+
 <h2 id="clusters">Clusters<a class="headerlink" href="#clusters" title="Permanent link">&para;</a></h2>
 <p>Cluster credentials are stored in secrets same as repository credentials but does not require entry in <code>argocd-cm</code> config map. Each secret must have label
 <code>argocd.argoproj.io/secret-type: cluster</code>.</p>
