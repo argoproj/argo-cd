@@ -50,7 +50,7 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y git git-lfs python3-pip tini gpg && \
+    apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
     apt-get clean && \
     pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
