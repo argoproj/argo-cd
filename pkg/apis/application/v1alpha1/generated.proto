@@ -877,6 +877,9 @@ message Repository {
 
   // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 18;
+
+  // Proxy specifies the HTTP/HTTPS proxy used to access the repo
+  optional string proxy = 19;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
