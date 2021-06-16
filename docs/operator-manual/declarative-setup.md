@@ -484,6 +484,33 @@ data:
 !!! note
     The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by ArgoCD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
+### Configure repositories with proxy
+
+Proxy for your repository can be specified in the `proxy` field of the `argocd-cm` config map, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.
+
+An example repository with proxy:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  repositories: |
+    - url: https://github.com/argoproj/my-private-repository
+      proxy: https://proxy-server-url:8888                         
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+```
+
 ## Clusters
 
 Cluster credentials are stored in secrets same as repository credentials but does not require entry in `argocd-cm` config map. Each secret must have label

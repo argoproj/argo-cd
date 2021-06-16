@@ -2857,6 +2857,12 @@
             "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
             "name": "githubAppEnterpriseBaseUrl",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5835,6 +5841,10 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
         },
         "repo": {
           "type": "string",
