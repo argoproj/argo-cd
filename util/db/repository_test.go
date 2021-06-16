@@ -7,24 +7,52 @@ import (
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func TestDb_CreateRepository(t *testing.T) {
-	clientset := fake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-		Namespace: "test",
-		Name:      common.ArgoCDConfigMapName,
-		Labels: map[string]string{
-			"app.kubernetes.io/part-of": "argocd",
+const (
+	repoArgoProj = `
+- name: OtherRepo
+  url: git@github.com:argoproj/argoproj.git
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+  type: git`
+)
+
+var (
+	repoArgoCD = &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "some-repo-secret",
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
+			},
 		},
-	}})
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, "test")
+		Data: map[string][]byte{
+			"name":     []byte("SomeRepo"),
+			"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("someUsername"),
+			"password": []byte("somePassword"),
+			"type":     []byte("git"),
+		},
+	}
+)
+
+func TestDb_CreateRepository(t *testing.T) {
+	clientset := getClientset(map[string]string{})
+	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
 	testee := &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
@@ -47,7 +75,7 @@ func TestDb_CreateRepository(t *testing.T) {
 	assert.Empty(t, settingRepositories)
 
 	// New repositories should be now stored as secrets
-	secret, err := clientset.CoreV1().Secrets("test").Get(
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
 		RepoURLToSecretName(repoConfigSecretPrefix, input.Repo),
 		metav1.GetOptions{},
@@ -57,58 +85,10 @@ func TestDb_CreateRepository(t *testing.T) {
 }
 
 func TestDb_GetRepository(t *testing.T) {
-	clientset := fake.NewSimpleClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      common.ArgoCDConfigMapName,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
-				"repositories": `
-- name: OtherRepo
-  url: git@github.com:argoproj/argoproj.git
-  usernameSecret:
-    name: credentials-secret
-    key: username
-  passwordSecret:
-    name: credentials-secret
-    key: password
-  type: git`,
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "credentials-secret",
-			},
-			Data: map[string][]byte{
-				"username": []byte("otherUsername"),
-				"password": []byte("otherPassword"),
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "some-repo-secret",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
-				},
-			},
-			Data: map[string][]byte{
-				"name":     []byte("SomeRepo"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
-				"username": []byte("someUsername"),
-				"password": []byte("somePassword"),
-				"type":     []byte("git"),
-			},
-		},
-	)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, "test")
+	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
+	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
 	testee := &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
@@ -130,58 +110,10 @@ func TestDb_GetRepository(t *testing.T) {
 }
 
 func TestDb_ListRepositories(t *testing.T) {
-	clientset := fake.NewSimpleClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      common.ArgoCDConfigMapName,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
-				"repositories": `
-- name: OtherRepo
-  url: git@github.com:argoproj/argoproj.git
-  usernameSecret:
-    name: credentials-secret
-    key: username
-  passwordSecret:
-    name: credentials-secret
-    key: password
-  type: git`,
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "credentials-secret",
-			},
-			Data: map[string][]byte{
-				"username": []byte("otherUsername"),
-				"password": []byte("otherPassword"),
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "some-repo-secret",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
-				},
-			},
-			Data: map[string][]byte{
-				"name":     []byte("SomeRepo"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
-				"username": []byte("someUsername"),
-				"password": []byte("somePassword"),
-				"type":     []byte("git"),
-			},
-		},
-	)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, "test")
+	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
+	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
 	testee := &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
@@ -207,58 +139,10 @@ func TestDb_UpdateRepository(t *testing.T) {
 		Type:     "git",
 	}
 
-	clientset := fake.NewSimpleClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      common.ArgoCDConfigMapName,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
-				"repositories": `
-- name: OtherRepo
-  url: git@github.com:argoproj/argoproj.git
-  usernameSecret:
-    name: credentials-secret
-    key: username
-  passwordSecret:
-    name: credentials-secret
-    key: password
-  type: git`,
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "credentials-secret",
-			},
-			Data: map[string][]byte{
-				"username": []byte(settingRepository.Username),
-				"password": []byte(settingRepository.Password),
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "some-repo-secret",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
-				},
-			},
-			Data: map[string][]byte{
-				"name":     []byte(secretRepository.Name),
-				"repo":     []byte(secretRepository.Repo),
-				"username": []byte(secretRepository.Username),
-				"password": []byte(secretRepository.Password),
-				"type":     []byte(secretRepository.Type),
-			},
-		},
-	)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, "test")
+	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
+	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
 	testee := &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
@@ -270,9 +154,9 @@ func TestDb_UpdateRepository(t *testing.T) {
 	assert.NotNil(t, repository)
 	assert.Same(t, settingRepository, repository)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		"credentials-secret",
+		"managed-secret",
 		metav1.GetOptions{},
 	)
 	assert.NoError(t, err)
@@ -286,7 +170,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	assert.NotNil(t, repository)
 	assert.Same(t, secretRepository, repository)
 
-	secret, err = clientset.CoreV1().Secrets("test").Get(
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
 		"some-repo-secret",
 		metav1.GetOptions{},
@@ -297,61 +181,10 @@ func TestDb_UpdateRepository(t *testing.T) {
 }
 
 func TestDb_DeleteRepository(t *testing.T) {
-	clientset := fake.NewSimpleClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      common.ArgoCDConfigMapName,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
-				"repositories": `
-- name: OtherRepo
-  url: git@github.com:argoproj/argoproj.git
-  usernameSecret:
-    name: credentials-secret
-    key: username
-  passwordSecret:
-    name: credentials-secret
-    key: password
-  type: git`,
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "credentials-secret",
-			},
-			Data: map[string][]byte{
-				"username": []byte("otherUsername"),
-				"password": []byte("otherPassword"),
-			},
-		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
-				Name:      "some-repo-secret",
-				Annotations: map[string]string{
-					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-				},
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
-				},
-			},
-			Data: map[string][]byte{
-				"name":     []byte("SomeRepo"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
-				"username": []byte("someUsername"),
-				"password": []byte("somePassword"),
-				"type":     []byte("git"),
-			},
-		},
-	)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, "test")
+	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
+	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
 	testee := &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
@@ -366,7 +199,7 @@ func TestDb_DeleteRepository(t *testing.T) {
 	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
 	assert.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
 	assert.Error(t, err)
 }
 

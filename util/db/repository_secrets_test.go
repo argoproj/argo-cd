@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -17,11 +16,11 @@ import (
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := getClientset(map[string]string{})
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	input := &appsv1.Repository{
@@ -37,7 +36,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, input, output)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
 		RepoURLToSecretName(repoConfigSecretPrefix, input.Repo),
 		metav1.GetOptions{},
@@ -60,7 +59,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
@@ -74,7 +73,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -87,11 +86,11 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoSecrets...)
+	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
@@ -115,7 +114,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
@@ -129,7 +128,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -142,11 +141,11 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoSecrets...)
+	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	repositories, err := testee.ListRepositories(context.TODO(), nil)
@@ -193,7 +192,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        managedSecretName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
@@ -207,7 +206,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -220,11 +219,11 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoSecrets...)
+	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	managedRepository.Username = "newUsername"
@@ -233,7 +232,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	assert.Same(t, managedRepository, updateRepository)
 	assert.Equal(t, managedRepository.Username, updateRepository.Username)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsername", string(secret.Data["username"]))
@@ -244,7 +243,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	assert.Same(t, userProvidedRepository, updateRepository)
 	assert.Equal(t, userProvidedRepository.Username, updateRepository.Username)
 
-	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newOtherUsername", string(secret.Data["username"]))
@@ -253,7 +252,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, newRepository, updateRepository)
 
-	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), newSecretName, metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), newSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "foo", string(secret.Data["username"]))
@@ -264,7 +263,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        managedSecretName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
@@ -278,7 +277,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -291,34 +290,34 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoSecrets...)
+	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
 	assert.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
 	assert.Error(t, err)
 
 	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
 	assert.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoConfig])
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := getClientset(map[string]string{})
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	input := &appsv1.RepoCreds{
@@ -332,7 +331,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, input, output)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
 		RepoURLToSecretName(credConfigSecretPrefix, input.URL),
 		metav1.GetOptions{},
@@ -353,7 +352,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -366,7 +365,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -378,11 +377,11 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
@@ -404,7 +403,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -417,7 +416,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -429,11 +428,11 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	repoCreds, err := testee.ListRepoCreds(context.TODO())
@@ -465,7 +464,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        managedCredsName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -478,7 +477,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -490,11 +489,11 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	managedCreds.Username = "newUsername"
@@ -503,7 +502,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	assert.NotSame(t, managedCreds, updateRepoCreds)
 	assert.Equal(t, managedCreds.Username, updateRepoCreds.Username)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), managedCredsName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedCredsName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsername", string(secret.Data["username"]))
@@ -514,7 +513,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	assert.NotSame(t, userProvidedCreds, updateRepoCreds)
 	assert.Equal(t, userProvidedCreds.Username, updateRepoCreds.Username)
 
-	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newOtherUsername", string(secret.Data["username"]))
@@ -523,7 +522,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, newCreds, updateRepoCreds)
 
-	secret, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), newCredsName, metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), newCredsName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "foo", string(secret.Data["username"]))
@@ -534,7 +533,7 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        managedSecretName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -547,7 +546,7 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "test",
+				Namespace: testNamespace,
 				Name:      "user-managed",
 				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -559,23 +558,23 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoSecrets...)
+	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	err := testee.DeleteRepoCreds(context.TODO(), "git@github.com:argoproj")
 	assert.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets("test").Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
 	assert.Error(t, err)
 
 	err = testee.DeleteRepoCreds(context.TODO(), "git@gitlab.com")
 	assert.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets("test").Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoCreds])
@@ -585,7 +584,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -599,7 +598,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   "test",
+				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@gitlab.com"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
@@ -613,11 +612,11 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(repoCredSecrets...)
+	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
-		ns:            "test",
+		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, "test"),
+		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
 	}}
 
 	repoCreds, err := testee.GetAllHelmRepoCreds(context.TODO())
