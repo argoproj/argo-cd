@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2/klogr"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -178,7 +179,7 @@ func WithReplace(replace bool) SyncOpt {
 	}
 }
 
-//  NewSyncContext creates new instance of a SyncContext
+// NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
 	reconciliationResult ReconciliationResult,
@@ -186,6 +187,7 @@ func NewSyncContext(
 	rawConfig *rest.Config,
 	kubectl kubeutil.Kubectl,
 	namespace string,
+	openAPISchema openapi.Resources,
 	opts ...SyncOpt,
 ) (SyncContext, func(), error) {
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
@@ -200,7 +202,7 @@ func NewSyncContext(
 	if err != nil {
 		return nil, nil, err
 	}
-	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig)
+	resourceOps, cleanup, err := kubectl.ManageResources(rawConfig, openAPISchema)
 	if err != nil {
 		return nil, nil, err
 	}

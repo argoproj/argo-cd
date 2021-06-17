@@ -25,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/io"
@@ -40,11 +41,12 @@ type ResourceOperations interface {
 }
 
 type kubectlResourceOperations struct {
-	config       *rest.Config
-	log          logr.Logger
-	tracer       tracing.Tracer
-	onKubectlRun OnKubectlRunFunc
-	fact         cmdutil.Factory
+	config        *rest.Config
+	log           logr.Logger
+	tracer        tracing.Tracer
+	onKubectlRun  OnKubectlRunFunc
+	fact          cmdutil.Factory
+	openAPISchema openapi.Resources
 }
 
 type commandExecutor func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error
@@ -247,10 +249,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	if err != nil {
 		return nil, err
 	}
-	o.OpenAPISchema, err = k.fact.OpenAPISchema()
-	if err != nil {
-		return nil, err
-	}
+	o.OpenAPISchema = k.openAPISchema
 	o.Validator, err = k.fact.Validator(validate)
 	if err != nil {
 		return nil, err

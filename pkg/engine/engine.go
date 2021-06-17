@@ -84,7 +84,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, err
 	}
 	opts = append(opts, sync.WithSkipHooks(!diffRes.Modified))
-	syncCtx, cleanup, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, opts...)
+	syncCtx, cleanup, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, e.cache.GetOpenAPISchema(), opts...)
 	if err != nil {
 		return nil, err
 	}

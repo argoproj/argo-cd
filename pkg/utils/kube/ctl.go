@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	utils "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
@@ -24,7 +25,8 @@ type CleanupFunc func()
 type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
-	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
+	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
+	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -101,6 +103,15 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 		}
 	}
 	return false
+}
+
+func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error) {
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
 }
 
 func (k *KubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
@@ -201,7 +212,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
-func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, func(), error) {
+func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error) {
 	f, err := ioutil.TempFile(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
@@ -216,11 +227,12 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlResourceOperations{
-		config:       config,
-		fact:         fact,
-		tracer:       k.Tracer,
-		log:          k.Log,
-		onKubectlRun: k.OnKubectlRun,
+		config:        config,
+		fact:          fact,
+		openAPISchema: openAPISchema,
+		tracer:        k.Tracer,
+		log:           k.Log,
+		onKubectlRun:  k.OnKubectlRun,
 	}, cleanup, nil
 }
 

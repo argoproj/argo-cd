@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
@@ -139,10 +140,14 @@ func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, e
 	return k.APIGroups, nil
 }
 
+func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error) {
+	return nil, nil
+}
+
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {
 }
 
-func (k *MockKubectlCmd) ManageResources(config *rest.Config) (kube.ResourceOperations, func(), error) {
+func (k *MockKubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (kube.ResourceOperations, func(), error) {
 	return k, func() {
 
 	}, nil

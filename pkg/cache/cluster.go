@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/tools/pager"
 	watchutil "k8s.io/client-go/tools/watch"
 	"k8s.io/klog/v2/klogr"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
@@ -86,6 +87,8 @@ type ClusterCache interface {
 	GetServerVersion() string
 	// GetAPIGroups returns information about observed API groups
 	GetAPIGroups() []metav1.APIGroup
+	// GetOpenAPISchema returns open API schema of supported API resources
+	GetOpenAPISchema() openapi.Resources
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
@@ -173,6 +176,7 @@ type clusterCache struct {
 	populateResourceInfoHandler OnPopulateResourceInfoHandler
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
+	openAPISchema               openapi.Resources
 }
 
 type clusterCacheSync struct {
@@ -241,10 +245,18 @@ func (c *clusterCache) GetServerVersion() string {
 
 // GetAPIGroups returns information about observed API groups
 func (c *clusterCache) GetAPIGroups() []metav1.APIGroup {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	return c.apiGroups
 }
 
-func (c *clusterCache) AppendAPIGroups(apiGroup metav1.APIGroup) {
+// GetOpenAPISchema returns open API schema of supported API resources
+func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
+	return c.openAPISchema
+}
+
+func (c *clusterCache) appendAPIGroups(apiGroup metav1.APIGroup) {
 	exists := false
 	for i := range c.apiGroups {
 		if c.apiGroups[i].Name == apiGroup.Name {
@@ -559,7 +571,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					} else {
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added && nameOK && nameErr == nil {
-							c.AppendAPIGroups(apiGroup)
+							c.appendAPIGroups(apiGroup)
 						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
@@ -567,6 +579,17 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 						if err != nil {
 							c.log.Error(err, "Failed to start missing watch")
 						}
+					}
+					err = runSynced(&c.lock, func() error {
+						openAPISchema, err := c.kubectl.LoadOpenAPISchema(c.config)
+						if err != nil {
+							return err
+						}
+						c.openAPISchema = openAPISchema
+						return nil
+					})
+					if err != nil {
+						c.log.Error(err, "Failed to reload open api schema")
 					}
 				}
 			}
@@ -614,6 +637,13 @@ func (c *clusterCache) sync() error {
 		return err
 	}
 	c.apiGroups = groups
+
+	openAPISchema, err := c.kubectl.LoadOpenAPISchema(config)
+	if err != nil {
+		return err
+	}
+	c.openAPISchema = openAPISchema
+
 	apis, err := c.kubectl.GetAPIResources(c.config, c.settings.ResourcesFilter)
 
 	if err != nil {
