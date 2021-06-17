@@ -31,9 +31,9 @@ This proposal is to provide a mechanism to extend Argo CD such that it can provi
 
 ## Motivation
 
-Argo CD is commonly used as a dashboard to Kubernetes applications. The current UI is limited in that it only displays very general information about Kubernetes objects. Any special visualizations can currently only be done native Kubernetes kinds.
+Argo CD is commonly used as a dashboard to Kubernetes applications. The current UI is limited in that it only displays very general information about Kubernetes objects. Any special visualizations can currently only be done for native Kubernetes kinds.
 
-For custom resources, Argo CD does not by default have any special handling or understanding of CRs, such as how to assess health of the object or visualizations. When examining a resource, a user can only see a YAML view of the object, which is not helpful unless they are familiar with the object's spec and status information.
+For custom resources, Argo CD does not by default have any special handling or understanding of CRs, such as how to assess the health of the object or visualizations. When examining a resource, a user can only see a YAML view of the object, which is not helpful unless they are familiar with the object's spec and status information.
 
 Note that Argo CD does currently have a resource customizations feature, which allows operators to define health checks and actions via lua scripts in the argocd-cm ConfigMap. However, the current mechanism of configuring resource customizations is difficult and highly error prone.
 
@@ -58,12 +58,12 @@ As an operator, I would like to configure Argo CD to perform pre-defined actions
 - Extensions can be configured by operators at runtime, without a feature being built directly into Argo CD, and with no need to recompile UI code.
 - Extensions should be easy to develop and install.
 - Loose coupling between Argo CD and extensions.
-- Replace current resource customizations in argocd-cm ConfigMap with extensions
+- Replace current resource customizations in `argocd-cm` ConfigMap with extensions
 
 
 ## Proposal
  
-A new ArgoCDExtension CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. Aas such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
+A new `ArgoCDExtension` CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. Aas such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
 
 It is proposed that a git repository be used to contain the javascript code, as well as the lua scripts necessary to assess health or perform actions of a resource.
 
