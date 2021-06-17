@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	math "math"
@@ -19,6 +21,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron"
+	containerv1 "google.golang.org/api/container/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -30,6 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/v2/util/helm"
 )
@@ -1336,6 +1340,12 @@ type ClusterList struct {
 	Items           []Cluster `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// GCPAuthConfig is a GCP IAM authentication configuration
+type GCPAuthConfig struct {
+	// ProjectID contains GCP Project the cluster lives in
+	ProjectID string `json:"projectID,omitempty" protobuf:"bytes,1,opt,name=projectID"`
+}
+
 // AWSAuthConfig is an AWS IAM authentication configuration
 type AWSAuthConfig struct {
 	// ClusterName contains AWS cluster name
@@ -1384,6 +1394,9 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
+
+	// GCPAuthConfig ...
+	GCPAuthConfig *GCPAuthConfig `json:"gcpAuthConfig,omitempty" protobuf:"bytes,7,opt,name=gcpAuthConfig"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2346,6 +2359,66 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 					Env:         env,
 					InstallHint: c.Config.ExecProviderConfig.InstallHint,
 				},
+			}
+		} else if c.Config.GCPAuthConfig != nil {
+			svc, err := containerv1.NewService(context.Background())
+			if err != nil {
+				panic(fmt.Errorf("container.NewService: %w", err))
+			}
+
+			// Basic config structure
+			cfg := &clientcmdapi.Config{
+				APIVersion: "v1",
+				Kind:       "Config",
+				Clusters:   map[string]*api.Cluster{},
+				AuthInfos:  map[string]*api.AuthInfo{},
+				Contexts:   map[string]*api.Context{},
+			}
+
+			resp, err := svc.Projects.Zones.Clusters.Get(c.Config.GCPAuthConfig.ProjectID, "-", c.Name).
+				Context(context.Background()).
+				Do()
+			if err != nil {
+				panic(fmt.Errorf("clusters get cluster=%s project=%s: %w", c.Name, c.Config.GCPAuthConfig.ProjectID, err))
+			}
+
+			name := fmt.Sprintf("gke_%s_%s_%s", c.Config.GCPAuthConfig.ProjectID, resp.Zone, resp.Name)
+			cert, err := base64.StdEncoding.DecodeString(resp.MasterAuth.ClusterCaCertificate)
+			if err != nil {
+				panic(fmt.Errorf("invalid certificate cluster=%s cert=%s: %w", name, resp.MasterAuth.ClusterCaCertificate, err))
+			}
+
+			// example: gke_my-project_us-central1-b_cluster-1 => https://XX.XX.XX.XX
+			cfg.Clusters[name] = &api.Cluster{
+				CertificateAuthorityData: cert,
+				Server:                   "https://" + resp.Endpoint,
+			}
+
+			// Reuse the context name as an auth name.
+			cfg.Contexts[name] = &api.Context{
+				Cluster:  name,
+				AuthInfo: name,
+			}
+
+			// GCP specific configuration; Need to use cloud-platform scope
+			cfg.AuthInfos[name] = &api.AuthInfo{
+				AuthProvider: &api.AuthProviderConfig{
+					Name: "gcp",
+					Config: map[string]string{
+						"scopes": "https://www.googleapis.com/auth/cloud-platform",
+					},
+				},
+			}
+
+			config, err = clientcmd.NewNonInteractiveClientConfig(
+				*cfg,
+				c.Name,
+				&clientcmd.ConfigOverrides{CurrentContext: c.Name},
+				nil,
+			).ClientConfig()
+
+			if err != nil {
+				panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 			}
 		} else {
 			config = &rest.Config{

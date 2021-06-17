@@ -5177,6 +5177,9 @@
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },
+        "gcpAuthConfig": {
+          "$ref": "#/definitions/v1alpha1GCPAuthConfig"
+        },
         "password": {
           "type": "string"
         },
@@ -5323,6 +5326,16 @@
         "installHint": {
           "type": "string",
           "title": "This text is shown to the user when the executable doesn't seem to be present"
+        }
+      }
+    },
+    "v1alpha1GCPAuthConfig": {
+      "type": "object",
+      "title": "GCPAuthConfig is a GCP IAM authentication configuration",
+      "properties": {
+        "projectID": {
+          "type": "string",
+          "title": "ProjectID contains GCP Project the cluster lives in"
         }
       }
     },

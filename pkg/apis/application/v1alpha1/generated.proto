@@ -438,6 +438,9 @@ message ClusterConfig {
 
   // ExecProviderConfig contains configuration for an exec provider
   optional ExecProviderConfig execProviderConfig = 6;
+
+  // GCPAuthConfig ...
+  optional GCPAuthConfig gcpAuthConfig = 7;
 }
 
 // ClusterInfo contains information about the cluster
@@ -537,6 +540,12 @@ message ExecProviderConfig {
 
   // This text is shown to the user when the executable doesn't seem to be present
   optional string installHint = 5;
+}
+
+// GCPAuthConfig is a GCP IAM authentication configuration
+message GCPAuthConfig {
+  // ProjectID contains GCP Project the cluster lives in
+  optional string projectID = 1;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key

@@ -16,6 +16,7 @@ argocd cluster add CONTEXT [flags]
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable
       --exec-command-env stringToString    Environment vars to set when running the --exec-command executable (default [])
       --exec-command-install-hint string   Text shown to the user when the --exec-command executable doesn't seem to be present
+      --gcp-project-id string              GCP Project ID if set GCP auth plugin will be used to access cluster
   -h, --help                               help for add
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)
       --kubeconfig string                  use a particular kubeconfig file

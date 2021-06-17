@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"

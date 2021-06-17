@@ -47,6 +47,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState":                  schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry":                         schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig":               schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GCPAuthConfig":                    schema_pkg_apis_application_v1alpha1_GCPAuthConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey":                   schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKeyList":               schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
@@ -1523,12 +1524,18 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig"),
 						},
 					},
+					"gcpAuthConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCPAuthConfig ...",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GCPAuthConfig"),
+						},
+					},
 				},
 				Required: []string{"tlsClientConfig"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AWSAuthConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AWSAuthConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GCPAuthConfig", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig"},
 	}
 }
 
@@ -1889,6 +1896,26 @@ func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.Referenc
 					"installHint": {
 						SchemaProps: spec.SchemaProps{
 							Description: "This text is shown to the user when the executable doesn't seem to be present",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GCPAuthConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GCPAuthConfig is a GCP IAM authentication configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"projectID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProjectID contains GCP Project the cluster lives in",
 							Type:        []string{"string"},
 							Format:      "",
 						},

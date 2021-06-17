@@ -55,7 +55,7 @@ func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
+func NewCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, gcpAuthProvider *argoappv1.GCPAuthConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -87,6 +87,7 @@ func NewCluster(name string, namespaces []string, conf *rest.Config, managerBear
 			TLSClientConfig:    tlsClientConfig,
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
+			GCPAuthConfig:      gcpAuthProvider,
 		},
 	}
 
@@ -115,6 +116,7 @@ type ClusterOptions struct {
 	ExecProviderEnv         map[string]string
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
+	GCPProjectID            string
 }
 
 func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
@@ -129,4 +131,5 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringToStringVar(&opts.ExecProviderEnv, "exec-command-env", nil, "Environment vars to set when running the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
+	command.Flags().StringVar(&opts.GCPProjectID, "gcp-project-id", "", "GCP Project ID if set GCP auth plugin will be used to access cluster")
 }
