@@ -4363,8 +4363,13 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd
+          name: argocd-home
+        workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
+      - emptyDir: {}
+        name: argocd-home
       - name: argocd-repo-server-tls
         secret:
           items:
