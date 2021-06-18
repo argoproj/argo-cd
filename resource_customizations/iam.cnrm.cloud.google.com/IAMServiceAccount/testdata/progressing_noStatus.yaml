@@ -1,0 +1,58 @@
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  annotations:
+    cnrm.cloud.google.com/management-conflict-prevention-policy: none
+    cnrm.cloud.google.com/project-id: test-project
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"iam.cnrm.cloud.google.com/v1beta1","kind":"IAMServiceAccount","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"test-health-iam-sa"},"name":"short-name","namespace":"test-project"},"spec":{"displayName":"Test"}}
+  creationTimestamp: "2021-05-17T12:28:50Z"
+  finalizers:
+    - cnrm.cloud.google.com/finalizer
+    - cnrm.cloud.google.com/deletion-defender
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: test-health-iam-sa
+  managedFields:
+    - apiVersion: iam.cnrm.cloud.google.com/v1beta1
+      fieldsType: FieldsV1
+      fieldsV1:
+        "f:metadata":
+          "f:annotations":
+            .: {}
+            "f:kubectl.kubernetes.io/last-applied-configuration": {}
+          "f:labels":
+            .: {}
+            "f:app.kubernetes.io/instance": {}
+        "f:spec":
+          .: {}
+          "f:displayName": {}
+      manager: argocd-application-controller
+      operation: Update
+      time: "2021-05-17T12:28:50Z"
+    - apiVersion: iam.cnrm.cloud.google.com/v1beta1
+      fieldsType: FieldsV1
+      fieldsV1:
+        "f:metadata":
+          "f:finalizers":
+            .: {}
+            'v:"cnrm.cloud.google.com/deletion-defender"': {}
+            'v:"cnrm.cloud.google.com/finalizer"': {}
+        "f:status":
+          .: {}
+          "f:conditions": {}
+          "f:email": {}
+          "f:name": {}
+          "f:observedGeneration": {}
+          "f:uniqueId": {}
+      manager: cnrm-controller-manager
+      operation: Update
+      time: "2021-06-13T23:51:13Z"
+  name: short-name
+  namespace: test-project
+  resourceVersion: "70317695"
+  selfLink: >-
+    /apis/iam.cnrm.cloud.google.com/v1beta1/namespaces/test-project/iamserviceaccounts/short-name
+  uid: 5fb08bd9-c81d-4e65-acd9-499c0ebe0176
+spec:
+  displayName: Test

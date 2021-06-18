@@ -1,0 +1,32 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message:
+        'Update call failed: error applying desired state: summary: Error creating
+        service account: googleapi: Error 400: The account ID "name-with-more-than-thirty-characters"
+        does not have a length between 6 and 30., badRequest, detail: '
+    inputPath: testdata/degraded_nameTooLong.yaml
+  - healthStatus:
+      status: Healthy
+      message: "The resource is up to date"
+    inputPath: testdata/healthy_upToDate.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Successfully deleted"
+    inputPath: testdata/progressing_deleted.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Deletion in progress"
+    inputPath: testdata/progressing_deleting.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning IAMServiceAccount..."
+    inputPath: testdata/progressing_noStatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning IAMServiceAccount..."
+    inputPath: testdata/progressing_StatusGeneration.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Update in progress"
+    inputPath: testdata/progressing_updating.yaml
