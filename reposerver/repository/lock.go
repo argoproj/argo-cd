@@ -43,27 +43,24 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 
 	for {
 		state.cond.L.Lock()
+		defer state.cond.L.Unlock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
 			if err := init(); err != nil {
-				state.cond.L.Unlock()
 				return nil, err
 			}
 
 			state.revision = revision
 			state.processCount = 1
 			state.allowConcurrent = allowConcurrent
-			state.cond.L.Unlock()
 			return closer, nil
 		} else if state.revision == revision && state.allowConcurrent && allowConcurrent {
 			// same revision already processing and concurrent processing allowed. Increment process count and go ahead.
 			state.processCount++
-			state.cond.L.Unlock()
 			return closer, nil
 		} else {
 			state.cond.Wait()
 			// wait when all in-flight processes of this revision complete and try again
-			state.cond.L.Unlock()
 		}
 	}
 }
