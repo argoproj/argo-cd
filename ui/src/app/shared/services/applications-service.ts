@@ -149,6 +149,7 @@ export class ApplicationsService {
             .repeat()
             .retry()
             .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
+            .filter(watchEvent => query && watchEvent.application.metadata.name === query.name)
             .map(watchEvent => {
                 watchEvent.application = this.parseAppFields(watchEvent.application);
                 return watchEvent;
