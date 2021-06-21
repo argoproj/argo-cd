@@ -56,19 +56,19 @@ type repositoryBackend interface {
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	secretBackend := repositoryBackend(&secretsRepositoryBackend{db: db})
-	settingBackend := repositoryBackend(&settingRepositoryBackend{db: db})
+	secretBackend := db.repoBackend()
+	legacyBackend := db.legacyRepoBackend()
 
 	secretExists, err := secretBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
 	}
-	settingExists, err := settingBackend.RepositoryExists(ctx, r.Repo)
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	if secretExists || settingExists {
+	if secretExists || legacyExists {
 		return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", r.Repo)
 	}
 
@@ -89,7 +89,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 }
 
 func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
@@ -97,12 +97,12 @@ func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return secretsBackend.GetRepository(ctx, repoURL)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepositoryExists(ctx, repoURL)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
 	} else if exists {
-		return settingsBackend.GetRepository(ctx, repoURL)
+		return legacyBackend.GetRepository(ctx, repoURL)
 	}
 
 	return &appsv1.Repository{Repo: repoURL}, nil
@@ -113,20 +113,20 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 }
 
 func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
-	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
-	// 	repositories from secrets overlay repositories from settings.
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
 
-	secretRepositories, err := (&secretsRepositoryBackend{db: db}).ListRepositories(ctx, repoType)
+	secretRepositories, err := db.repoBackend().ListRepositories(ctx, repoType)
 	if err != nil {
 		return nil, err
 	}
 
-	settingRepositories, err := (&settingRepositoryBackend{db: db}).ListRepositories(ctx, repoType)
+	legacyRepositories, err := db.legacyRepoBackend().ListRepositories(ctx, repoType)
 	if err != nil {
 		return nil, err
 	}
 
-	repositories := append(secretRepositories, settingRepositories...)
+	repositories := append(secretRepositories, legacyRepositories...)
 	if err := db.enrichCredsToRepos(ctx, repositories); err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
@@ -144,19 +144,19 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return secretsBackend.UpdateRepository(ctx, r)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepositoryExists(ctx, r.Repo)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
 	} else if exists {
-		return settingsBackend.UpdateRepository(ctx, r)
+		return legacyBackend.UpdateRepository(ctx, r)
 	}
 
 	return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 }
 
 func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return err
@@ -164,12 +164,12 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 		return secretsBackend.DeleteRepository(ctx, repoURL)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepositoryExists(ctx, repoURL)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return err
 	} else if exists {
-		return settingsBackend.DeleteRepository(ctx, repoURL)
+		return legacyBackend.DeleteRepository(ctx, repoURL)
 	}
 
 	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
@@ -177,25 +177,25 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
 func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
-	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
-	// 	repositories from secrets overlay repositories from settings.
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
 
-	secretRepoCreds, err := (&secretsRepositoryBackend{db: db}).ListRepoCreds(ctx)
+	secretRepoCreds, err := db.repoBackend().ListRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	settingRepoCreds, err := (&settingRepositoryBackend{db: db}).ListRepoCreds(ctx)
+	legacyRepoCreds, err := db.legacyRepoBackend().ListRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return append(secretRepoCreds, settingRepoCreds...), nil
+	return append(secretRepoCreds, legacyRepoCreds...), nil
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
 func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
@@ -203,12 +203,12 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 		return secretsBackend.GetRepoCreds(ctx, repoURL)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepoCredsExists(ctx, repoURL)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
 	} else if exists {
-		return settingsBackend.GetRepoCreds(ctx, repoURL)
+		return legacyBackend.GetRepoCreds(ctx, repoURL)
 	}
 
 	return nil, nil
@@ -216,37 +216,37 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
 func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
-	// TODO It would be nice to check for duplicates between secret and setting repositories and make it so that
-	// 	repositories from secrets overlay repositories from settings.
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
 
-	secretRepoCreds, err := (&secretsRepositoryBackend{db: db}).GetAllHelmRepoCreds(ctx)
+	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	settingRepoCreds, err := (&settingRepositoryBackend{db: db}).GetAllHelmRepoCreds(ctx)
+	legacyRepoCreds, err := db.legacyRepoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return append(secretRepoCreds, settingRepoCreds...), nil
+	return append(secretRepoCreds, legacyRepoCreds...), nil
 }
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	settingBackend := &settingRepositoryBackend{db: db}
-	secretBackend := &secretsRepositoryBackend{db: db}
+	legacyBackend := db.legacyRepoBackend()
+	secretBackend := db.repoBackend()
 
 	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
 	}
-	settingExists, err := settingBackend.RepositoryExists(ctx, r.URL)
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	if secretExists || settingExists {
+	if secretExists || legacyExists {
 		return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", r.URL)
 	}
 
@@ -255,7 +255,7 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
@@ -263,12 +263,12 @@ func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 		return secretsBackend.UpdateRepoCreds(ctx, r)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepoCredsExists(ctx, r.URL)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
 	} else if exists {
-		return settingsBackend.UpdateRepoCreds(ctx, r)
+		return legacyBackend.UpdateRepoCreds(ctx, r)
 	}
 
 	return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URL)
@@ -277,7 +277,7 @@ func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 // DeleteRepositoryCredentials deletes a repository credential set from config, and
 // also all the secrets which actually contained the credentials.
 func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) error {
-	secretsBackend := &secretsRepositoryBackend{db: db}
+	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, name)
 	if err != nil {
 		return err
@@ -285,12 +285,12 @@ func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) erro
 		return secretsBackend.DeleteRepoCreds(ctx, name)
 	}
 
-	settingsBackend := &settingRepositoryBackend{db: db}
-	exists, err = settingsBackend.RepoCredsExists(ctx, name)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, name)
 	if err != nil {
 		return err
 	} else if exists {
-		return settingsBackend.DeleteRepoCreds(ctx, name)
+		return legacyBackend.DeleteRepoCreds(ctx, name)
 	}
 
 	return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
@@ -303,6 +303,14 @@ func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Rep
 		}
 	}
 	return nil
+}
+
+func (db *db) repoBackend() repositoryBackend {
+	return &secretsRepositoryBackend{db: db}
+}
+
+func (db *db) legacyRepoBackend() repositoryBackend {
+	return &legacyRepositoryBackend{db: db}
 }
 
 func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Repository) error {

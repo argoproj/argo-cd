@@ -58,6 +58,24 @@ func intOrZero(secret *apiv1.Secret, key string) (int64, error) {
 	return strconv.ParseInt(string(val), 10, 64)
 }
 
+func updateSecretBool(secret *apiv1.Secret, key string, value bool) {
+	if _, present := secret.Data[key]; present || value {
+		secret.Data[key] = []byte(strconv.FormatBool(value))
+	}
+}
+
+func updateSecretInt(secret *apiv1.Secret, key string, value int64) {
+	if _, present := secret.Data[key]; present || value != 0 {
+		secret.Data[key] = []byte(strconv.FormatInt(value, 10))
+	}
+}
+
+func updateSecretString(secret *apiv1.Secret, key, value string) {
+	if _, present := secret.Data[key]; present || len(value) > 0 {
+		secret.Data[key] = []byte(value)
+	}
+}
+
 func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1.Secret) (*apiv1.Secret, error) {
 	if secret.Annotations == nil {
 		secret.Annotations = map[string]string{}

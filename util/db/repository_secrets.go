@@ -1,7 +1,6 @@
 package db
 
 import (
-	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -318,27 +317,27 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 }
 
 func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
-	data := make(map[string][]byte)
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
 
-	data["name"] = []byte(repository.Name)
-	data["url"] = []byte(repository.Repo)
-	data["username"] = []byte(repository.Username)
-	data["password"] = []byte(repository.Password)
-	data["sshPrivateKey"] = []byte(repository.SSHPrivateKey)
-	data["insecureIgnoreHostKey"] = []byte(strconv.FormatBool(repository.InsecureIgnoreHostKey))
-	data["insecure"] = []byte(strconv.FormatBool(repository.Insecure))
-	data["enableLfs"] = []byte(strconv.FormatBool(repository.EnableLFS))
-	data["enableOCI"] = []byte(strconv.FormatBool(repository.EnableOCI))
-	data["tlsClientCertData"] = []byte(repository.TLSClientCertData)
-	data["tlsClientCertKey"] = []byte(repository.TLSClientCertKey)
-	data["type"] = []byte(repository.Type)
-	data["githubAppPrivateKey"] = []byte(repository.GithubAppPrivateKey)
-	data["githubAppID"] = []byte(strconv.FormatInt(repository.GithubAppId, 10))
-	data["githubAppInstallationID"] = []byte(strconv.FormatInt(repository.GithubAppInstallationId, 10))
-	data["githubAppEnterpriseBaseUrl"] = []byte(repository.GitHubAppEnterpriseBaseURL)
-	data["proxy"] = []byte(repository.Proxy)
-
-	secret.Data = data
+	updateSecretString(secret, "name", repository.Name)
+	updateSecretString(secret, "url", repository.Repo)
+	updateSecretString(secret, "username", repository.Username)
+	updateSecretString(secret, "password", repository.Password)
+	updateSecretString(secret, "sshPrivateKey", repository.SSHPrivateKey)
+	updateSecretBool(secret, "enableOCI", repository.EnableOCI)
+	updateSecretString(secret, "tlsClientCertData", repository.TLSClientCertData)
+	updateSecretString(secret, "tlsClientCertKey", repository.TLSClientCertKey)
+	updateSecretString(secret, "type", repository.Type)
+	updateSecretString(secret, "githubAppPrivateKey", repository.GithubAppPrivateKey)
+	updateSecretInt(secret, "githubAppID", repository.GithubAppId)
+	updateSecretInt(secret, "githubAppInstallationID", repository.GithubAppInstallationId)
+	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repository.GitHubAppEnterpriseBaseURL)
+	updateSecretBool(secret, "insecureIgnoreHostKey", repository.InsecureIgnoreHostKey)
+	updateSecretBool(secret, "insecure", repository.Insecure)
+	updateSecretBool(secret, "enableLfs", repository.EnableLFS)
+	updateSecretString(secret, "proxy", repository.Proxy)
 }
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
@@ -376,22 +375,22 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 }
 
 func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
-	data := make(map[string][]byte)
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
 
-	data["url"] = []byte(repoCreds.URL)
-	data["username"] = []byte(repoCreds.Username)
-	data["password"] = []byte(repoCreds.Password)
-	data["sshPrivateKey"] = []byte(repoCreds.SSHPrivateKey)
-	data["enableOCI"] = []byte(strconv.FormatBool(repoCreds.EnableOCI))
-	data["tlsClientCertData"] = []byte(repoCreds.TLSClientCertData)
-	data["tlsClientCertKey"] = []byte(repoCreds.TLSClientCertKey)
-	data["type"] = []byte(repoCreds.Type)
-	data["githubAppPrivateKey"] = []byte(repoCreds.GithubAppPrivateKey)
-	data["githubAppID"] = []byte(strconv.FormatInt(repoCreds.GithubAppId, 10))
-	data["githubAppInstallationID"] = []byte(strconv.FormatInt(repoCreds.GithubAppInstallationId, 10))
-	data["githubAppEnterpriseBaseUrl"] = []byte(repoCreds.GitHubAppEnterpriseBaseURL)
-
-	secret.Data = data
+	updateSecretString(secret, "url", repoCreds.URL)
+	updateSecretString(secret, "username", repoCreds.Username)
+	updateSecretString(secret, "password", repoCreds.Password)
+	updateSecretString(secret, "sshPrivateKey", repoCreds.SSHPrivateKey)
+	updateSecretBool(secret, "enableOCI", repoCreds.EnableOCI)
+	updateSecretString(secret, "tlsClientCertData", repoCreds.TLSClientCertData)
+	updateSecretString(secret, "tlsClientCertKey", repoCreds.TLSClientCertKey)
+	updateSecretString(secret, "type", repoCreds.Type)
+	updateSecretString(secret, "githubAppPrivateKey", repoCreds.GithubAppPrivateKey)
+	updateSecretInt(secret, "githubAppID", repoCreds.GithubAppId)
+	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
+	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
