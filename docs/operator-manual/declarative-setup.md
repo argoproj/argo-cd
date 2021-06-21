@@ -4,21 +4,33 @@ Argo CD applications, projects and settings can be defined declaratively using K
 
 ## Quick Reference
 
-| File Name | Resource Name | Kind | Description |
-|-----------|---------------|------|-------------|
+All resources, including `Application` and `AppProject` specs, have to be installed in the Argo CD namespace (by default `argocd`).
+
+### Atomic configuration
+
+| Sample File | Resource Name | Kind | Description |
+|-------------|---------------|------|-------------|
 | [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
 | [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm.yaml) | argocd-cmd-params-cm | ConfigMap | Argo CD env variables configuration |
-| [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | Password, Certificates, Signing Key |
+| [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm.yaml) | argocd-tls-certs-cm | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later) |
 | [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm.yaml) | argocd-ssh-known-hosts-cm | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later) |
-| [`application.yaml`](application.yaml) | - | Application | Example application spec |
-| [`project.yaml`](project.yaml) | - | AppProject | Example project spec |
 
-All resources, including `Application` and `AppProject` specs, have to be installed in the ArgoCD namespace (by default `argocd`). Also, ConfigMap and Secret resources need to be named as shown in the table above. For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within ArgoCD. This also means that application and project names are unique within the same ArgoCD installation - you cannot i.e. have the same application name for two different applications.
+For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
 !!!warning "A note about ConfigMap resources"
-    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise ArgoCD will not be able to use them.
+    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
+
+### Multiple configuration objects
+
+| Sample File | Kind | Description |
+|-------------|------|-------------|
+| [`application.yaml`](application.yaml) | Application | Example application spec |
+| [`project.yaml`](project.yaml) | AppProject | Example project spec |
+| - | Secret | Repository credentials |
+
+For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
 ## Applications
 
@@ -26,7 +38,7 @@ The Application CRD is the Kubernetes resource object representing a deployed ap
 in an environment. It is defined by two key pieces of information:
 
 * `source` reference to the desired state in Git (repository, revision, path, environment)
-* `destination` reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Behind the hood when the server is missing, it is being calculated based on the name and then the server is used for any operations.
+* `destination` reference to the target cluster and namespace. For the cluster one of server or name can be used, but not both (which will result in an error). Under the hood when the server is missing, it is calculated based on the name and used for any operations.
 
 A minimal Application spec is as follows:
 
@@ -47,10 +59,10 @@ spec:
     namespace: guestbook
 ```
 
-See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can already apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
+See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
 !!! note
-    The namespace must match the namespace of your Argo cd, typically this is `argocd`.
+    The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
 
 !!! note
     When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
@@ -63,7 +75,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
 
 ```yaml
 metadata:
@@ -74,7 +86,7 @@ metadata:
 ### App of Apps
 
 You can create an app that creates other apps, which in turn can create other apps.
-This allows you to declaratively manage a group of app that can be deployed and configured in concert.
+This allows you to declaratively manage a group of apps that can be deployed and configured in concert.
 
 See [cluster bootstrapping](cluster-bootstrapping.md).
 
@@ -84,7 +96,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the name field, only server is being matched).
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
 An example spec is as follows:
@@ -150,14 +162,14 @@ spec:
 !!!note
     Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
     specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
-    adapt your repository URL to be suffixed with `.git`.
+    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
+    adjust your repository URL to be suffixed with `.git`.
 
-Repository credentials are stored in secret. Use following steps to configure a repo:
+Repository credentials are stored in secrets. Use following steps to configure a repo:
 
-1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
+1. Create a secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret
 definition as a Kubernetes manifest.
-2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `usernameSecret` and `passwordSecret` (for HTTPS), `sshPrivateKeySecret` (for SSH), `githubAppPrivateKeySecret` (for GitHub App).
+2. Register the repository in the `argocd-cm` config map. Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `usernameSecret` and `passwordSecret` (for HTTPS), `sshPrivateKeySecret` (for SSH), or `githubAppPrivateKeySecret` (for GitHub App).
 
 Example for HTTPS:
 
@@ -235,108 +247,6 @@ data:
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 ### Repository Credentials
- 
-> Earlier than v1.4
-
-If you want to use the same credentials for multiple repositories, you can use `repository.credentials`:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: https://github.com/argoproj/private-repo
-    - url: https://github.com/argoproj/other-private-repo
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-    - url: git@github.com:argoproj-labs
-      sshPrivateKeySecret:
-        name: my-secret
-        key: sshPrivateKey
-    - url: https://github.com/argoproj
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
-    - url: https://ghe.example.com/argoproj
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
-```
-
-Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
-
-A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
-
-!!! tip
-    Order your credentials with the most specific at the top and the least specific at the bottom.
-
-A complete example.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    # this has it's own credentials
-    - url: https://github.com/argoproj/private-repo
-      passwordSecret:
-        name: private-repo-secret
-        key: password
-      usernameSecret:
-        name: private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: private-repo-secret
-        key: sshPrivateKey
-    - url: https://github.com/argoproj/other-private-repo
-    - url: https://github.com/otherproj/another-private-repo
-  repository.credentials: |
-    # this will be used for the second repo
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: other-private-repo-secret
-        key: password
-      usernameSecret:
-        name: other-private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: other-private-repo-secret
-        key: sshPrivateKey
-    # this will be used for the third repo
-    - url: https://github.com
-      passwordSecret:
-        name: another-private-repo-secret
-        key: password
-      usernameSecret:
-        name: another-private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: another-private-repo-secret
-        key: sshPrivateKey
-```
 
 > v1.4 or later
 
@@ -367,7 +277,7 @@ data:
 
 In the above example, every repository accessed via HTTPS whose URL is prefixed with `https://github.com/argoproj` would use a username stored in the key `username` and a password stored in the key `password` of the secret `my-secret` for connecting to Git.
 
-In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:
+In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKeySecret`, `usernameSecret`, `passwordSecret` )
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
@@ -457,7 +367,7 @@ data:
 
 ### SSH known host public keys
 
-If you are connecting repositories via SSH, ArgoCD will need to know the SSH known hosts public key of the repository servers. You can manage the SSH known hosts data in the ConfigMap named `argocd-ssh-known-hosts-cm`. This ConfigMap contains a single key/value pair, with `ssh_known_hosts` as the key and the actual public keys of the SSH servers as data. As opposed to TLS configuration, the public key(s) of each single repository server ArgoCD will connect via SSH must be configured, otherwise the connections to the repository will fail. There is no fallback. The data can be copied from any existing `ssh_known_hosts` file, or from the output of the `ssh-keyscan` utility. The basic format is `<servername> <keydata>`, one entry per line.
+If you are connecting repositories via SSH, Argo CD will need to know the SSH known hosts public key of the repository servers. You can manage the SSH known hosts data in the ConfigMap named `argocd-ssh-known-hosts-cm`. This ConfigMap contains a single key/value pair, with `ssh_known_hosts` as the key and the actual public keys of the SSH servers as data. As opposed to TLS configuration, the public key(s) of each single repository server Argo CD will connect via SSH must be configured, otherwise the connections to the repository will fail. There is no fallback. The data can be copied from any existing `ssh_known_hosts` file, or from the output of the `ssh-keyscan` utility. The basic format is `<servername> <keydata>`, one entry per line.
 
 An example ConfigMap object:
 
@@ -482,7 +392,7 @@ data:
 ```
 
 !!! note
-    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by ArgoCD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### Configure repositories with proxy
 
@@ -561,7 +471,7 @@ tlsClientConfig:
     serverName: string
 ```
 
-Note that if you specify a command to run under `execProviderConfig`, that command must be available in the ArgoCD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -605,10 +515,6 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  # v1.2 or earlier use `helm.repositories`
-  helm.repositories: |
-    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-      name: istio.io
   # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
@@ -636,11 +542,11 @@ data:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
-* There are many of a kind of resources that impacts ArgoCD's performance.
-* Restrict ArgoCD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
+* There are many of a kind of resources that impacts Argo CD's performance.
+* Restrict Argo CD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
 
 To configure this, edit the `argcd-cm` config map:
 
@@ -666,7 +572,7 @@ kind: ConfigMap
 The `resource.exclusions` node is a list of objects. Each object can have:
 
 * `apiGroups` A list of globs to match the API group.
-* `kinds` A list of kinds to match. Can be "*" to match all.
+* `kinds` A list of kinds to match. Can be `"*"` to match all.
 * `cluster` A list of globs to match the cluster.
 
 If all three match, then the resource is ignored.
@@ -726,4 +632,4 @@ The live example of self managed Argo CD config is available at [https://cd.apps
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
 
 !!! note
-    You will need to sign-in using your github account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+    You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
