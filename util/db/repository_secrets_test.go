@@ -48,7 +48,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	assert.Equal(t, common.LabelValueSecretTypeRepoConfig, secret.Labels[common.LabelKeySecretType])
 
 	assert.Equal(t, input.Name, string(secret.Data["name"]))
-	assert.Equal(t, input.Repo, string(secret.Data["repo"]))
+	assert.Equal(t, input.Repo, string(secret.Data["url"]))
 	assert.Equal(t, input.Username, string(secret.Data["username"]))
 	assert.Equal(t, input.Password, string(secret.Data["password"]))
 	assert.Equal(t, strconv.FormatBool(input.InsecureIgnoreHostKey), string(secret.Data["insecureIgnoreHostKey"]))
@@ -66,7 +66,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
+				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 				"username": []byte("someUsername"),
 				"password": []byte("somePassword"),
 			},
@@ -79,7 +79,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
-				"repo":     []byte("git@github.com:argoproj/argoproj.git"),
+				"url":      []byte("git@github.com:argoproj/argoproj.git"),
 				"username": []byte("someOtherUsername"),
 				"password": []byte("someOtherPassword"),
 			},
@@ -121,7 +121,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
+				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 				"username": []byte("someUsername"),
 				"password": []byte("somePassword"),
 			},
@@ -134,7 +134,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
-				"repo":     []byte("git@github.com:argoproj/argoproj.git"),
+				"url":      []byte("git@github.com:argoproj/argoproj.git"),
 				"username": []byte("someOtherUsername"),
 				"password": []byte("someOtherPassword"),
 			},
@@ -199,7 +199,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte(managedRepository.Name),
-				"repo":     []byte(managedRepository.Repo),
+				"url":      []byte(managedRepository.Repo),
 				"username": []byte(managedRepository.Username),
 				"password": []byte(managedRepository.Password),
 			},
@@ -212,7 +212,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte(userProvidedRepository.Name),
-				"repo":     []byte(userProvidedRepository.Repo),
+				"url":      []byte(userProvidedRepository.Repo),
 				"username": []byte(userProvidedRepository.Username),
 				"password": []byte(userProvidedRepository.Password),
 			},
@@ -270,7 +270,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
-				"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
+				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 				"username": []byte("someUsername"),
 				"password": []byte("somePassword"),
 			},
@@ -283,7 +283,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
-				"repo":     []byte("git@github.com:argoproj/argoproj.git"),
+				"url":      []byte("git@github.com:argoproj/argoproj.git"),
 				"username": []byte("someOtherUsername"),
 				"password": []byte("someOtherPassword"),
 			},

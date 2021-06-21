@@ -40,7 +40,7 @@ var (
 		},
 		Data: map[string][]byte{
 			"name":     []byte("SomeRepo"),
-			"repo":     []byte("git@github.com:argoproj/argo-cd.git"),
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 			"username": []byte("someUsername"),
 			"password": []byte("somePassword"),
 			"type":     []byte("git"),

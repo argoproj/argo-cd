@@ -266,7 +266,7 @@ func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*
 func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	repository := &appsv1.Repository{
 		Name:                       string(secret.Data["name"]),
-		Repo:                       string(secret.Data["repo"]),
+		Repo:                       string(secret.Data["url"]),
 		Username:                   string(secret.Data["username"]),
 		Password:                   string(secret.Data["password"]),
 		SSHPrivateKey:              string(secret.Data["sshPrivateKey"]),
@@ -321,7 +321,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	data := make(map[string][]byte)
 
 	data["name"] = []byte(repository.Name)
-	data["repo"] = []byte(repository.Repo)
+	data["url"] = []byte(repository.Repo)
 	data["username"] = []byte(repository.Username)
 	data["password"] = []byte(repository.Password)
 	data["sshPrivateKey"] = []byte(repository.SSHPrivateKey)
@@ -401,7 +401,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.
 	}
 
 	for _, secret := range secrets {
-		if git.SameURL(string(secret.Data["repo"]), repoURL) {
+		if git.SameURL(string(secret.Data["url"]), repoURL) {
 			return secret, nil
 		}
 	}
