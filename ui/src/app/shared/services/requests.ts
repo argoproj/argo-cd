@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
+import {filter} from 'rxjs/operators';
 
 type Callback = (data: any) => void;
 
@@ -46,7 +47,7 @@ export default {
     },
     agent,
     toAbsURL,
-    onError: onError.asObservable().filter(err => err != null),
+    onError: onError.asObservable().pipe(filter(err => err != null)),
     get(url: string) {
         return initHandlers(agent.get(`${apiRoot()}${url}`));
     },
