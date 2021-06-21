@@ -3,7 +3,8 @@ import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
-import {BehaviorSubject, Observable} from 'rxjs';
+import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
+import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
@@ -85,23 +86,25 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences(), q).map(items => {
-                                const pref = items[1].appDetails;
-                                const params = items[2];
-                                if (params.get('resource') != null) {
-                                    pref.resourceFilter = params
-                                        .get('resource')
-                                        .split(',')
-                                        .filter(item => !!item);
-                                }
-                                if (params.get('view') != null) {
-                                    pref.view = params.get('view') as AppsDetailsViewType;
-                                }
-                                if (params.get('orphaned') != null) {
-                                    pref.orphanedResources = params.get('orphaned') === 'true';
-                                }
-                                return {...items[0], pref};
-                            })
+                            combineLatest([this.loadAppInfo(name), services.viewPreferences.getPreferences(), q]).pipe(
+                                map(items => {
+                                    const pref = items[1].appDetails;
+                                    const params = items[2];
+                                    if (params.get('resource') != null) {
+                                        pref.resourceFilter = params
+                                            .get('resource')
+                                            .split(',')
+                                            .filter(item => !!item);
+                                    }
+                                    if (params.get('view') != null) {
+                                        pref.view = params.get('view') as AppsDetailsViewType;
+                                    }
+                                    if (params.get('orphaned') != null) {
+                                        pref.orphanedResources = params.get('orphaned') === 'true';
+                                    }
+                                    return {...items[0], pref};
+                                })
+                            )
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
@@ -114,7 +117,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const noKindsFilter = pref.resourceFilter.filter(item => item.indexOf('kind:') !== 0);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
 
-                            const filter: TopBarFilter<string> = {
+                            const filterTopBar: TopBarFilter<string> = {
                                 items: [
                                     {content: () => <span>Sync</span>},
                                     {value: 'sync:Synced', label: 'Synced'},
@@ -172,7 +175,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     <Page
                                         title='Application Details'
                                         toolbar={{
-                                            filter,
+                                            filter: filterTopBar,
                                             breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
                                             actionMenu: {items: this.getApplicationActionMenu(application)},
                                             tools: (
@@ -456,55 +459,59 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[]; health: string[]; sync: string[]}): boolean {
-        const syncStatuses = filter.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
+    private filterTreeNode(node: ResourceTreeNode, filterInput: {kind: string[]; health: string[]; sync: string[]}): boolean {
+        const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
 
         return (
-            (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
+            (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
-            (filter.health.length === 0 || node.root.hook || (node.root.health && filter.health.indexOf(node.root.health.status) > -1))
+            (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1))
         );
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return Observable.fromPromise(services.applications.get(name))
-            .flatMap(app => {
-                const fallbackTree = {
-                    nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                    orphanedNodes: [],
-                    hosts: []
-                } as appModels.ApplicationTree;
-                return Observable.combineLatest(
-                    Observable.merge(
-                        Observable.from([app]),
-                        this.appChanged.filter(item => !!item),
-                        AppUtils.handlePageVisibility(() =>
-                            services.applications
-                                .watch({name})
-                                .map(watchEvent => {
-                                    if (watchEvent.type === 'DELETED') {
-                                        this.onAppDeleted();
-                                    }
-                                    return watchEvent.application;
-                                })
-                                .repeat()
-                                .retryWhen(errors => errors.delay(500))
+        return from(services.applications.get(name))
+            .pipe(
+                mergeMap(app => {
+                    const fallbackTree = {
+                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                        orphanedNodes: [],
+                        hosts: []
+                    } as appModels.ApplicationTree;
+                    return combineLatest(
+                        merge(
+                            from([app]),
+                            this.appChanged.pipe(filter(item => !!item)),
+                            AppUtils.handlePageVisibility(() =>
+                                services.applications
+                                    .watch({name})
+                                    .pipe(
+                                        map(watchEvent => {
+                                            if (watchEvent.type === 'DELETED') {
+                                                this.onAppDeleted();
+                                            }
+                                            return watchEvent.application;
+                                        })
+                                    )
+                                    .pipe(repeat())
+                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                            )
+                        ),
+                        merge(
+                            from([fallbackTree]),
+                            services.applications.resourceTree(name).catch(() => fallbackTree),
+                            AppUtils.handlePageVisibility(() =>
+                                services.applications
+                                    .watchResourceTree(name)
+                                    .pipe(repeat())
+                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                            )
                         )
-                    ),
-                    Observable.merge(
-                        Observable.from([fallbackTree]),
-                        services.applications.resourceTree(name).catch(() => fallbackTree),
-                        AppUtils.handlePageVisibility(() =>
-                            services.applications
-                                .watchResourceTree(name)
-                                .repeat()
-                                .retryWhen(errors => errors.delay(500))
-                        )
-                    )
-                );
-            })
-            .filter(([application, tree]) => !!application && !!tree)
-            .map(([application, tree]) => ({application, tree}));
+                    );
+                })
+            )
+            .pipe(filter(([application, tree]) => !!application && !!tree))
+            .pipe(map(([application, tree]) => ({application, tree})));
     }
 
     private onAppDeleted() {
@@ -528,11 +535,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeByKey;
     }
 
-    private getTreeFilter(filter: string[]): {kind: string[]; health: string[]; sync: string[]} {
+    private getTreeFilter(filterInput: string[]): {kind: string[]; health: string[]; sync: string[]} {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
-        for (const item of filter) {
+        for (const item of filterInput) {
             const [type, val] = item.split(':');
             switch (type) {
                 case 'kind':

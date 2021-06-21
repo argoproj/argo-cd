@@ -1,5 +1,7 @@
 import * as React from 'react';
-import {Observable} from 'rxjs';
+import {combineLatest} from 'rxjs';
+import {map} from 'rxjs/operators';
+
 import {DataLoader} from '../shared/components';
 import {services, ViewPreferences} from '../shared/services';
 import './ui-banner.scss';
@@ -9,9 +11,11 @@ export const Banner = (props: React.Props<any>) => {
     return (
         <DataLoader
             load={() =>
-                Observable.combineLatest(services.authService.settings(), services.viewPreferences.getPreferences()).map(items => {
-                    return {content: items[0].uiBannerContent, url: items[0].uiBannerURL, prefs: items[1]};
-                })
+                combineLatest([services.authService.settings(), services.viewPreferences.getPreferences()]).pipe(
+                    map(items => {
+                        return {content: items[0].uiBannerContent, url: items[0].uiBannerURL, prefs: items[1]};
+                    })
+                )
             }>
             {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
                 let show = false;
