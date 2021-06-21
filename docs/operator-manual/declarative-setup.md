@@ -153,237 +153,299 @@ spec:
     repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
     adapt your repository URL to be suffixed with `.git`.
 
-Repository credentials are stored in secret. Use following steps to configure a repo:
-
-1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
-definition as a Kubernetes manifest.
-2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `usernameSecret` and `passwordSecret` (for HTTPS), `sshPrivateKeySecret` (for SSH), `githubAppPrivateKeySecret` (for GitHub App).
+Repository details are stored in secrets. To configure a repository, create secret which contains repository details.
+Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret definition as a Kubernetes manifest.
+Each repository must have `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `usernameSecret` and `passwordSecret` (for HTTPS), `sshPrivateKeySecret` (for SSH), `githubAppPrivateKeySecret` (for GitHub App).
 
 Example for HTTPS:
 
 ```yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/private-repo
+  password: my-password
+  username: my-username
 ```
 
 Example for SSH:
 
 ```yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: git@github.com:argoproj/my-private-repository
-      sshPrivateKeySecret:
-        name: my-secret
-        key: sshPrivateKey
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: git@github.com:argoproj/my-private-repository
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
 ```
-
-> v1.9 or later
 
 Example for GitHub App:
 
 ```yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
-
-    - url: https://ghe.example.com/argoproj/my-private-repository
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/my-private-repository
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppPrivateKeySecret: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-selfhosted-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://ghe.example.com/argoproj/my-private-repository
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+  githubAppPrivateKeySecret: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
 ```
 
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 ### Repository Credentials
- 
-> Earlier than v1.4
 
 If you want to use the same credentials for multiple repositories, you can use `repository.credentials`:
 
 ```yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: https://github.com/argoproj/private-repo
-    - url: https://github.com/argoproj/other-private-repo
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-    - url: git@github.com:argoproj-labs
-      sshPrivateKeySecret:
-        name: my-secret
-        key: sshPrivateKey
-    - url: https://github.com/argoproj
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
-    - url: https://ghe.example.com/argoproj
-      githubAppID: 1
-      githubAppInstallationID: 2
-      githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
-      githubAppPrivateKeySecret:
-        name: my-secret
-        key: githubAppPrivateKey
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/private-repo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: other-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/other-private-repo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: http-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: https://github.com/argoproj
+  password: my-password
+  username: my-username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: git@github.com:argoproj-labs
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gh-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: https://github.com/argoproj
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppPrivateKeySecret: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: selfhosted-gh-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: https://ghe.example.com/argoproj
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+  githubAppPrivateKeySecret: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
 ```
 
-Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed in `repositories`.
+Argo CD will only use the credentials if you omit `username`, `password`, and `sshPrivateKey` fields (`insecureIgnoreHostKey` is ignored) or if your repository is not listed as a secret.
 
 A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
 
 !!! tip
     Order your credentials with the most specific at the top and the least specific at the bottom.
 
-A complete example.
+A complete example:
+
+```yaml
+# this has it's own credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/private-repo
+  password: my-password
+  username: my-username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: other-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/other-private-repo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: another-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/another-private-repo
+---
+# this will be used for the second repo
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argoproj-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: https://github.com/argoproj
+  password: my-password
+  username: my-username
+---
+# this will be used for the third repo
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+data:
+  repo: https://github.com
+  password: my-password
+  username: my-username
+  sshPrivateKeySecret: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+
+```
+
+If you want to use the same credentials for multiple repositories, you can use `repo-creds` to configure credential templates. Credential templates can carry the same credentials information as repositories.
 
 ```yaml
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    # this has it's own credentials
-    - url: https://github.com/argoproj/private-repo
-      passwordSecret:
-        name: private-repo-secret
-        key: password
-      usernameSecret:
-        name: private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: private-repo-secret
-        key: sshPrivateKey
-    - url: https://github.com/argoproj/other-private-repo
-    - url: https://github.com/otherproj/another-private-repo
-  repository.credentials: |
-    # this will be used for the second repo
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: other-private-repo-secret
-        key: password
-      usernameSecret:
-        name: other-private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: other-private-repo-secret
-        key: sshPrivateKey
-    # this will be used for the third repo
-    - url: https://github.com
-      passwordSecret:
-        name: another-private-repo-secret
-        key: password
-      usernameSecret:
-        name: another-private-repo-secret
-        key: username
-      sshPrivateKeySecret:
-        name: another-private-repo-secret
-        key: sshPrivateKey
-```
-
-> v1.4 or later
-
-If you want to use the same credentials for multiple repositories, you can use `repository.credentials` to configure credential templates. Credential templates can carry the same credentials information as repositories.
-
-```yaml
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/private-repo
+---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: argocd-cm
+  name: other-private-repo
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
-    app.kubernetes.io/part-of: argocd
-data:
-  repositories: |
-    - url: https://github.com/argoproj/private-repo
-    - url: https://github.com/argoproj/other-private-repo
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/other-private-rep
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: other-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  repo: https://github.com/argoproj
+  password: my-password
+  username: my-username
 ```
 
-In the above example, every repository accessed via HTTPS whose URL is prefixed with `https://github.com/argoproj` would use a username stored in the key `username` and a password stored in the key `password` of the secret `my-secret` for connecting to Git.
+In the above example, every repository accessed via HTTPS whose URL is prefixed with `https://github.com/argoproj` would use the username `my-username` and the password stored `my-password` for connecting to Git.
 
 In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:
 
-* The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKeySecret`, `usernameSecret`, `passwordSecret` )
+* The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
 
 !!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence.
 
 The following keys are valid to refer to credential secrets:
 
 #### SSH repositories
 
-* `sshPrivateKeySecret` refers to a secret where an SSH private key is stored for accessing the repositories
+* `sshPrivateKey` refers to an SSH private key is stored for accessing the repositories
 
 #### HTTPS repositories
 
-* `usernameSecret` and `passwordSecret` refer to secrets where username and/or password are stored for accessing the repositories
+* `username` and `password` refer to username and/or password for accessing the repositories
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing the repositories
 
 #### GitHub App repositories
@@ -492,6 +554,27 @@ An example repository with proxy:
 
 ```yaml
 apiVersion: v1
+kind: Secret
+metadata:
+  name: my-private-repository
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-config
+stringData:
+  repo: https://github.com/argoproj/my-private-repository
+  proxy: https://proxy-server-url:8888
+  password: my-password
+  username: my-username
+```
+
+### Legacy behaviour
+
+In Argo CD version 2.0 and earlier, repositories where stored as part of the `argocd-cm` config map. For
+backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
+configuration is deprecated and support for it will be removed in a future version.
+
+```yaml
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
@@ -502,13 +585,29 @@ metadata:
 data:
   repositories: |
     - url: https://github.com/argoproj/my-private-repository
-      proxy: https://proxy-server-url:8888                         
       passwordSecret:
         name: my-secret
         key: password
       usernameSecret:
         name: my-secret
         key: username
+  repository.credentials: |
+    - url: https://github.com/argoproj
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+stringData:
+  password: my-password
+  username: my-username
 ```
 
 ## Clusters
