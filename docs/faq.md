@@ -189,7 +189,7 @@ fixed CRD if you want this feature to work at all.
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v2.0.0` ArgoCD picks up that status condition to derive a health status for the `SealedSecret`.
 
-Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
+Versions before `v0.16.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
 enabled by starting the `SealedSecret` controller with the `--update-status` command line parameter or by setting
 the `SEALED_SECRETS_UPDATE_STATUS` environment variable.
