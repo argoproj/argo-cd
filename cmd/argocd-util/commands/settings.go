@@ -256,14 +256,12 @@ var validatorsByGroup = map[string]settingValidator{
 		return summary, err
 	},
 	"repositories": joinValidators(func(manager *settings.SettingsManager) (string, error) {
-		// TODO Jan Graefen: Here we read the argocd-cm. This needs to be extended to also get the magic secrets.
 		repos, err := manager.GetRepositories()
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("%d repositories", len(repos)), nil
 	}, func(manager *settings.SettingsManager) (string, error) {
-		// TODO Jan Graefen: Here we read the argocd-cm. This needs to be extended to also get the magic secrets.
 		creds, err := manager.GetRepositoryCredentials()
 		if err != nil {
 			return "", err
