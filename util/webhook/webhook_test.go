@@ -8,11 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+
+	"github.com/argoproj/argo-cd/v2/util/db/mocks"
+
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -29,10 +34,12 @@ func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
 
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
-		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+		cacheClient,
 		1*time.Minute,
-	))
+		1*time.Minute,
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -175,7 +182,7 @@ func getApp(annotation string, sourcePath string) *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				common.AnnotationKeyManifestGeneratePaths: annotation,
+				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{

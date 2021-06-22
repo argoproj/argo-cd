@@ -1,7 +1,7 @@
 package assets
 
 import (
-	"github.com/gobuffalo/packr"
+	"github.com/argoproj/argo-cd/v2/assets"
 )
 
 var (
@@ -12,22 +12,24 @@ var (
 )
 
 func init() {
-	var err error
-	box := packr.NewBox("../../assets")
-	BuiltinPolicyCSV, err = box.MustString("builtin-policy.csv")
+	data, err := assets.Embedded.ReadFile("builtin-policy.csv")
 	if err != nil {
 		panic(err)
 	}
-	ModelConf, err = box.MustString("model.conf")
+	BuiltinPolicyCSV = string(data)
+	data, err = assets.Embedded.ReadFile("model.conf")
 	if err != nil {
 		panic(err)
 	}
-	SwaggerJSON, err = box.MustString("swagger.json")
+	ModelConf = string(data)
+	data, err = assets.Embedded.ReadFile("swagger.json")
 	if err != nil {
 		panic(err)
 	}
-	BadgeSVG, err = box.MustString("badge.svg")
+	SwaggerJSON = string(data)
+	data, err = assets.Embedded.ReadFile("badge.svg")
 	if err != nil {
 		panic(err)
 	}
+	BadgeSVG = string(data)
 }

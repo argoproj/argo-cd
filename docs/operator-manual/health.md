@@ -19,6 +19,40 @@ with at least one value for `hostname` or `IP`.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
+### Argocd App
+
+The health assessement of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+`argocd-cm` ConfigMap:
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |
+        hs = {}
+        hs.status = "Progressing"
+        hs.message = ""
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = obj.status.health.status
+            if obj.status.health.message ~= nil then
+              hs.message = obj.status.health.message
+            end
+          end
+        end
+        return hs
+```
+
 ## Custom Health Checks
 
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:

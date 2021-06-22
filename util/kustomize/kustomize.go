@@ -120,7 +120,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
-			cmd := exec.Command(k.getBinaryPath(), append([]string{"edit", "add", "label"}, mapToEditAddArgs(opts.CommonLabels)...)...)
+			args := []string{"edit", "add", "label"}
+			if opts.ForceCommonLabels {
+				args = append(args, "--force")
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -130,7 +134,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 		if len(opts.CommonAnnotations) > 0 {
 			//  edit add annotation foo:bar
-			cmd := exec.Command(k.getBinaryPath(), append([]string{"edit", "add", "annotation"}, mapToEditAddArgs(opts.CommonAnnotations)...)...)
+			args := []string{"edit", "add", "annotation"}
+			if opts.ForceCommonAnnotations {
+				args = append(args, "--force")
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {

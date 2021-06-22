@@ -51,20 +51,6 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
 
-	data := make(map[string][]byte)
-	if r.Username != "" {
-		data[username] = []byte(r.Username)
-	}
-	if r.Password != "" {
-		data[password] = []byte(r.Password)
-	}
-	if r.SSHPrivateKey != "" {
-		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
-	}
-	if r.GithubAppPrivateKey != "" {
-		data[githubAppPrivateKey] = []byte(r.GithubAppPrivateKey)
-	}
-
 	repoInfo := settings.Repository{
 		URL:                        r.Repo,
 		Type:                       r.Type,
@@ -76,6 +62,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		GithubAppId:                r.GithubAppId,
 		GithubAppInstallationId:    r.GithubAppInstallationId,
 		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
+		Proxy:                      r.Proxy,
 	}
 	err = db.updateRepositorySecrets(&repoInfo, r)
 	if err != nil {
@@ -184,6 +171,7 @@ func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Rep
 		GithubAppId:                repoInfo.GithubAppId,
 		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
+		Proxy:                      repoInfo.Proxy,
 	}
 	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
 		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
@@ -237,6 +225,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
 	repoInfo.Insecure = r.IsInsecure()
 	repoInfo.EnableLFS = r.EnableLFS
+	repoInfo.Proxy = r.Proxy
 
 	repos[index] = repoInfo
 	err = db.settingsMgr.SaveRepositories(repos)

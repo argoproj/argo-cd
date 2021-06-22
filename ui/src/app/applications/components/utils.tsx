@@ -3,7 +3,8 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
-import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
+import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime} from 'rxjs/operators';
 import {AppContext} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -291,7 +292,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 const orphan = deleteOptions.option === 'orphan';
                 try {
                     await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
-                    appChanged.next(await services.applications.get(application.metadata.name));
+                    if (appChanged) {
+                        appChanged.next(await services.applications.get(application.metadata.name));
+                    }
                     close();
                 } catch (e) {
                     ctx.notifications.show({
@@ -317,7 +320,7 @@ export function renderResourceMenu(
     let menuItems: Observable<ActionMenuItem[]>;
 
     if (isAppNode(resource) && resource.name === application.metadata.name) {
-        menuItems = Observable.from([getApplicationActionMenu()]);
+        menuItems = from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
@@ -368,7 +371,7 @@ export function renderResourceMenu(
                 )
             )
             .catch(() => items);
-        menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
+        menuItems = merge(from([items]), from(resourceActions));
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -864,9 +867,9 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
             start();
         }
 
-        const visibilityChangeSubscription = Observable.fromEvent(document, 'visibilitychange')
+        const visibilityChangeSubscription = fromEvent(document, 'visibilitychange')
             // wait until user stop clicking back and forth to avoid restarting observable too often
-            .debounceTime(500)
+            .pipe(debounceTime(500))
             .subscribe(() => {
                 if (document.hidden && subscription) {
                     ensureUnsubscribed();

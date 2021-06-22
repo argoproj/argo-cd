@@ -11,6 +11,7 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -20,26 +21,27 @@ type Cmd struct {
 	WorkDir   string
 	IsLocal   bool
 	IsHelmOci bool
+	proxy     string
 }
 
-func NewCmd(workDir string, version string) (*Cmd, error) {
+func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
 
 	switch version {
 	case "v2":
-		return NewCmdWithVersion(workDir, HelmV2, false)
+		return NewCmdWithVersion(workDir, HelmV2, false, proxy)
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
-		return NewCmdWithVersion(workDir, HelmV3, false)
+		return NewCmdWithVersion(workDir, HelmV3, false, proxy)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
-func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool, proxy string) (*Cmd, error) {
 	tmpDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci, proxy: proxy}, err
 }
 
 var redactor = func(text string) string {
@@ -61,6 +63,9 @@ func (c Cmd) run(args ...string) (string, error) {
 	if c.IsHelmOci {
 		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
 	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
+
 	return executil.RunWithRedactor(cmd, redactor)
 }
 

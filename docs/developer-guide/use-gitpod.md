@@ -8,8 +8,8 @@ for Argo CD development.
 
 1. Fork [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd) repository
 1. Create Gitpod workspace by opening the following url in the browser:
-   https://gitpod.io/#https://github.com/<USERNAME>/argo-cd
-   `The <USERNAME> is your Github username`
+   `https://gitpod.io/#https://github.com/<USERNAME>/argo-cd` where
+   `<USERNAME>` is your Github username.
 
 1. Once workspace is created you should see VSCode editor in the browser as well as workspace initialization
    logs in the VSCode terminal. The initialization process downloads all backend and UI dependencies as well
