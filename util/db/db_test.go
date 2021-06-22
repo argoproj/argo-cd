@@ -81,7 +81,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(credConfigSecretPrefix, creds.URL), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(credSecretPrefix, creds.URL), metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])

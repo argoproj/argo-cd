@@ -333,7 +333,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		RepoURLToSecretName(credConfigSecretPrefix, input.URL),
+		RepoURLToSecretName(credSecretPrefix, input.URL),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
@@ -459,8 +459,8 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		Password: "bar",
 	}
 
-	managedCredsName := RepoURLToSecretName(credConfigSecretPrefix, managedCreds.URL)
-	newCredsName := RepoURLToSecretName(credConfigSecretPrefix, newCreds.URL)
+	managedCredsName := RepoURLToSecretName(credSecretPrefix, managedCreds.URL)
+	newCredsName := RepoURLToSecretName(credSecretPrefix, newCreds.URL)
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
