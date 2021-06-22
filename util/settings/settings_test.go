@@ -148,6 +148,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
 	}}
+	ignoreCRDFields := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status", "/spec/preserveUnknownFields"},
+	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -175,7 +178,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	// by default, crd status should be ignored
 	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreStatus, crdOverrides)
+	assert.Equal(t, ignoreCRDFields, crdOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -208,7 +211,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
@@ -272,7 +275,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
 		assert.Equal(t, 5, len(overrides))
-		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
@@ -310,8 +313,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
 		assert.Equal(t, 8, len(overrides))
-		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
