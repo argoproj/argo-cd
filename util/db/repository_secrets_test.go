@@ -38,7 +38,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		RepoURLToSecretName(repoConfigSecretPrefix, input.Repo),
+		RepoURLToSecretName(repoSecretPrefix, input.Repo),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
@@ -60,7 +60,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -115,7 +115,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
 			},
@@ -187,8 +187,8 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		Password: "bar",
 	}
 
-	managedSecretName := RepoURLToSecretName(repoConfigSecretPrefix, managedRepository.Repo)
-	newSecretName := RepoURLToSecretName(repoConfigSecretPrefix, newRepository.Repo)
+	managedSecretName := RepoURLToSecretName(repoSecretPrefix, managedRepository.Repo)
+	newSecretName := RepoURLToSecretName(repoSecretPrefix, newRepository.Repo)
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -259,7 +259,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
-	managedSecretName := RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git")
+	managedSecretName := RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git")
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -353,7 +353,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -404,7 +404,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -529,7 +529,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
-	managedSecretName := RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj/argo-cd.git")
+	managedSecretName := RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git")
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -585,7 +585,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@github.com:argoproj"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},
@@ -599,7 +599,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoConfigSecretPrefix, "git@gitlab.com"),
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@gitlab.com"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
 				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			},

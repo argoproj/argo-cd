@@ -23,7 +23,7 @@ type secretsRepositoryBackend struct {
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
-	secName := RepoURLToSecretName(repoConfigSecretPrefix, repository.Repo)
+	secName := RepoURLToSecretName(repoSecretPrefix, repository.Repo)
 
 	repositorySecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

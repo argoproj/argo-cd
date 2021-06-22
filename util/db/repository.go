@@ -16,8 +16,6 @@ import (
 const (
 	// Prefix to use for naming repository secrets
 	repoSecretPrefix = "repo"
-	// Prefix to use for naming repository configuration secrets
-	repoConfigSecretPrefix = "repoconfig"
 	// Prefix to use for naming credential template secrets
 	credSecretPrefix = "creds"
 	// Prefix to use for naming credential template configuration secrets

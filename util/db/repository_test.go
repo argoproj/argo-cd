@@ -77,7 +77,7 @@ func TestDb_CreateRepository(t *testing.T) {
 	// New repositories should be now stored as secrets
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		RepoURLToSecretName(repoConfigSecretPrefix, input.Repo),
+		RepoURLToSecretName(repoSecretPrefix, input.Repo),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
