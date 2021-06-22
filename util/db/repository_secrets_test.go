@@ -51,7 +51,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	assert.Equal(t, input.Repo, string(secret.Data["url"]))
 	assert.Equal(t, input.Username, string(secret.Data["username"]))
 	assert.Equal(t, input.Password, string(secret.Data["password"]))
-	assert.Equal(t, strconv.FormatBool(input.InsecureIgnoreHostKey), string(secret.Data["insecureIgnoreHostKey"]))
+	assert.Equal(t, "", string(secret.Data["insecureIgnoreHostKey"]))
 	assert.Equal(t, strconv.FormatBool(input.EnableLFS), string(secret.Data["enableLfs"]))
 }
 
