@@ -4560,7 +4560,7 @@ spec:
     - namespaceSelector: {}
     ports:
     - port: 5558
-    - protocol: TCP
+      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
