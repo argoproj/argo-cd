@@ -1987,6 +1987,18 @@
 <td>General Argo CD configuration</td>
 </tr>
 <tr>
+<td><a href="../argocd-repositories.yaml"><code>argocd-repositories.yaml</code></a></td>
+<td>my-private-repo / istio-helm-repo / private-helm-repo / private-repo</td>
+<td>Secrets</td>
+<td>Sample repository connection details</td>
+</tr>
+<tr>
+<td><a href="../argocd-repo-creds.yaml"><code>argocd-repo-creds.yaml</code></a></td>
+<td>argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds</td>
+<td>Secrets</td>
+<td>Sample repository credential templates</td>
+</tr>
+<tr>
 <td><a href="../argocd-cmd-params-cm.yaml"><code>argocd-cmd-params-cm.yaml</code></a></td>
 <td>argocd-cmd-params-cm</td>
 <td>ConfigMap</td>
@@ -2185,7 +2197,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">private-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/private-repo</span>
   <span class="nt">password</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-password</span>
@@ -2199,7 +2211,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">private-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">git@github.com:argoproj/my-private-repository</span>
   <span class="nt">sshPrivateKey</span><span class="p">:</span> <span class="p p-Indicator">|</span>
@@ -2214,7 +2226,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">github-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">repo</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/my-private-repository</span>
   <span class="nt">githubAppID</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
@@ -2230,7 +2242,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">github-enterprise-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">repo</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://ghe.example.com/argoproj/my-private-repository</span>
   <span class="nt">githubAppID</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
@@ -2254,7 +2266,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">first-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/private-repo</span>
 <span class="nn">---</span>
@@ -2264,7 +2276,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">second-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/other-private-repo</span>
 <span class="nn">---</span>
@@ -2401,7 +2413,7 @@ Each repository must have a <code>url</code> field and, depending on whether you
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">private-repo</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://github.com/argoproj/private-repo</span>
   <span class="nt">proxy</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://proxy-server-url:8888</span>
@@ -2523,7 +2535,7 @@ Each repository must have <code>url</code>, <code>type</code> and <code>name</co
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">istio</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">istio.io</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts</span>
@@ -2535,7 +2547,7 @@ Each repository must have <code>url</code>, <code>type</code> and <code>name</co
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-helm</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
   <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repo-config</span>
+    <span class="nt">argocd.argoproj.io/secret-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">repository</span>
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo</span>
   <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argoproj.github.io/argo-helm</span>

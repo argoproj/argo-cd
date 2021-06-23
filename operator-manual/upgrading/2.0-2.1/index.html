@@ -817,6 +817,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replacing-repositories-and-repositorycredentials-with-secrets" class="md-nav__link">
+    Replacing repositories and repository.credentials with Secrets
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1650,6 +1657,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#replacing-repositories-and-repositorycredentials-with-secrets" class="md-nav__link">
+    Replacing repositories and repository.credentials with Secrets
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1677,6 +1691,11 @@ application revision of each application. In order to allow caching resolved rev
 application, the <code>--app-resync</code> flag has been deprecated. Please use <code>timeout.reconciliation</code> setting in <code>argocd-cm</code> ConfigMap instead.
 See example in <a href="../../argocd-cm.yaml">argocd-cm.yaml</a>.</p>
 <p>From here on you can follow the <a href="../overview/">regular upgrade process</a>.</p>
+<h2 id="replacing-repositories-and-repositorycredentials-with-secrets">Replacing <code>repositories</code> and <code>repository.credentials</code> with Secrets<a class="headerlink" href="#replacing-repositories-and-repositorycredentials-with-secrets" title="Permanent link">&para;</a></h2>
+<p>The configuration of repositories and repository credential templates via the <code>argocd-cm</code> has been deprecated.
+Repositories and repository credentials are now discovered via Secrets that are labeled with <code>argocd.argoproj.io/secret-type=repository</code>
+or <code>argocd.argoproj.io/secret-type=repo-creds</code> respectively. See the examples in <a href="../../argocd-repositories.yaml">argocd-repositories.yaml</a>
+and <a href="../../argocd-repo-creds.yaml">argocd-repo-creds.yaml</a>.</p>
                 
               
               
