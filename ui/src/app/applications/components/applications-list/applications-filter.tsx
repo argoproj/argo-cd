@@ -88,12 +88,20 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
-    const [projects] = useData(() => services.projects.list('items.metadata.name'));
+    const [projects, loading, error] = useData(() => services.projects.list('items.metadata.name'), null, () => null);
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
     });
     return (
-        <Filter label='PROJECTS' selected={props.pref.projectsFilter} setSelected={s => props.onChange({...props.pref, projectsFilter: s})} field={true} options={projectOptions} />
+        <Filter
+            label='PROJECTS'
+            selected={props.pref.projectsFilter}
+            setSelected={s => props.onChange({...props.pref, projectsFilter: s})}
+            field={true}
+            options={projectOptions}
+            error={error.state}
+            loading={loading}
+        />
     );
 };
 

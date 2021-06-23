@@ -1967,10 +1967,10 @@ are-we-there-yet@~1.1.2:
     typescript "^4.0.3"
     xterm "2.4.0"
 
-argo-ux@^1.1.11:
-  version "1.1.12"
-  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.12.tgz#4d4bdfcb41df4e15ef9f4001d939dc3d40bb6879"
-  integrity sha512-WWFgdkeARcvShFOnmk81Ha3+ikC+Xtmzl2BikkgKkl7MZfH/TfsklQvDz1OwJY1z6vfa1GeAj4x2yCls3aWZJQ==
+argo-ux@^1.1.13:
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.13.tgz#43a43a43b282fab0c023bc45669b7241d4bfa714"
+  integrity sha512-bLKmdUmRGyoWXC5jgwdWZXQIlrcRZqTsV6WFSSCIo8bWGcsMAU90LHg000gbrOEY6uiMeh+ucwypUd2//Iifng==
   dependencies:
     "@fortawesome/fontawesome-free" "^5.15.2"
     "@testing-library/react" "^11.1.0"

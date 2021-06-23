@@ -1,4 +1,4 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ux';
+import {Autocomplete, CheckboxOption, CheckboxRow, Tooltip} from 'argo-ux';
 import * as React from 'react';
 
 import './filter.scss';
@@ -7,7 +7,17 @@ interface FilterMap {
     [label: string]: boolean;
 }
 
-export const Filter = (props: {selected: string[]; setSelected: (items: string[]) => void; options?: CheckboxOption[]; label?: string; field?: boolean}) => {
+interface FilterProps {
+    selected: string[];
+    setSelected: (items: string[]) => void;
+    options?: CheckboxOption[];
+    label?: string;
+    field?: boolean;
+    error?: boolean;
+    loading?: boolean;
+}
+
+export const Filter = (props: FilterProps) => {
     const init = {} as FilterMap;
     props.selected.forEach(s => (init[s] = true));
 
@@ -45,39 +55,59 @@ export const Filter = (props: {selected: string[]; setSelected: (items: string[]
                     <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 )}
             </div>
-            {!collapsed && (
-                <React.Fragment>
-                    {props.field && (
-                        <Autocomplete
-                            placeholder={props.label}
-                            items={(props.options || []).map(opt => {
-                                return opt.label;
-                            })}
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onItemClick={val => {
-                                const update = {...values};
-                                update[val] = true;
-                                setValues(update);
-                            }}
-                            style={{width: '100%'}}
-                            inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
-                        />
-                    )}
-                    {((props.field ? tags : props.options) || []).map((opt, i) => (
-                        <CheckboxRow
-                            key={i}
-                            value={values[opt.label]}
-                            onChange={val => {
-                                const update = {...values};
-                                update[opt.label] = val;
-                                setValues(update);
-                            }}
-                            option={opt}
-                        />
-                    ))}
-                </React.Fragment>
-            )}
+            {!collapsed &&
+                (props.loading ? (
+                    <FilterLoading />
+                ) : props.error ? (
+                    <FilterError />
+                ) : (
+                    <React.Fragment>
+                        {props.field && (
+                            <Autocomplete
+                                placeholder={props.label}
+                                items={(props.options || []).map(opt => {
+                                    return opt.label;
+                                })}
+                                value={input}
+                                onChange={e => setInput(e.target.value)}
+                                onItemClick={val => {
+                                    const update = {...values};
+                                    update[val] = true;
+                                    setValues(update);
+                                    setInput('');
+                                }}
+                                style={{width: '100%'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
+                            />
+                        )}
+                        {((props.field ? tags : props.options) || []).map((opt, i) => (
+                            <Tooltip content={opt.label}>
+                                <CheckboxRow
+                                    key={i}
+                                    value={values[opt.label]}
+                                    onChange={val => {
+                                        const update = {...values};
+                                        update[opt.label] = val;
+                                        setValues(update);
+                                    }}
+                                    option={opt}
+                                />
+                            </Tooltip>
+                        ))}
+                    </React.Fragment>
+                ))}
         </div>
     );
 };
+
+const FilterError = () => (
+    <div className='filter__error'>
+        <i className='fa fa-exclamation-circle' /> ERROR LOADING FILTER
+    </div>
+);
+
+const FilterLoading = () => (
+    <div className='filter__loading'>
+        <i className='fa fa-circle-notch fa-spin' /> LOADING
+    </div>
+);

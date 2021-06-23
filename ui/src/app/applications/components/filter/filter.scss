@@ -24,4 +24,16 @@
         color: $argo-color-gray-7;
         font-size: 20px;
     }
+
+    &__error {
+        color: $argo-failed-color-dark;
+    }
+
+    &__loading {
+        color: $argo-running-color;
+    }
+
+    &__error, &__loading {
+        text-align: center;
+    }
 }
