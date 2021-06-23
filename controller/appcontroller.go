@@ -226,7 +226,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (kube.CleanupFun
 func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 	gvk := ref.GroupVersionKind()
 	return ref.UID == app.UID &&
-		ref.Name == app.InstanceName() &&
+		ref.Name == app.Name &&
 		ref.Namespace == app.Namespace &&
 		gvk.Group == application.Group &&
 		gvk.Kind == application.ApplicationKind
@@ -258,7 +258,6 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 	for appName, isManagedResource := range managedByApp {
 		obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(strings.ReplaceAll(appName, "_", "/"))
 		app, ok := obj.(*appv1.Application)
-
 		// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
 		if exists && err == nil && ok && isSelfReferencedApp(app, ref) {
 			continue
@@ -379,7 +378,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {
-					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appName); exists && err == nil {
+					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(strings.ReplaceAll(appName, "_", "/")); exists && err == nil {
 						belongToAnotherApp = true
 					}
 				}
