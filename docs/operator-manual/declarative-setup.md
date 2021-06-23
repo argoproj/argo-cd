@@ -178,7 +178,7 @@ metadata:
   name: private-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/private-repo
   password: my-password
@@ -194,7 +194,7 @@ metadata:
   name: private-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
@@ -211,7 +211,7 @@ metadata:
   name: github-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   repo: https://github.com/argoproj/my-private-repository
   githubAppID: 1
@@ -227,7 +227,7 @@ metadata:
   name: github-enterprise-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   repo: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: 1
@@ -253,7 +253,7 @@ metadata:
   name: first-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/private-repo
 ---
@@ -263,7 +263,7 @@ metadata:
   name: second-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/other-private-repo
 ---
@@ -412,7 +412,7 @@ metadata:
   name: private-repo
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
@@ -547,7 +547,7 @@ metadata:
   name: istio
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   name: istio.io
   url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
@@ -559,7 +559,7 @@ metadata:
   name: argo-helm
   namespace: argocd
   labels:
-    argocd.argoproj.io/secret-type: repo-config
+    argocd.argoproj.io/secret-type: repository
 stringData:
   name: argo
   url: https://argoproj.github.io/argo-helm
