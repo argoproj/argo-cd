@@ -8,7 +8,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	gohttputil "net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -707,40 +706,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	extensions := make(map[string]string)
-
-	extensions["rollout"] = "http://localhost:3100"
-
-	extensionApiPath := "/extension/"
-	director := func(req *http.Request) {
-		path := req.URL.Path
-		extensionName := ""
-		if len(extensionApiPath) <= len(req.URL.Path) {
-			pathWithExtension := strings.TrimPrefix(req.URL.Path, extensionApiPath)
-
-			extensionName = ""
-			if idx := strings.Index(pathWithExtension, "/"); idx != -1 {
-				extensionName = pathWithExtension[:idx]
-				path = strings.TrimPrefix(pathWithExtension, extensionName)
-			}
-		}
-
-		if extensionLocation, ok := extensions[extensionName]; ok {
-			extension, err := url.Parse(extensionLocation)
-			if err != nil {
-				log.Errorf("Error parsing Extension URL: %s", err)
-			}
-			req.URL.Host = extension.Host
-		}
-		
-		req.URL.Scheme = "http"
-		req.URL.Path = path
-	}
-	proxy := &gohttputil.ReverseProxy{
-		Director: director,	
-	}
-	mux.Handle(extensionApiPath, proxy)
-
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -767,10 +732,18 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
 
+	// Serve extensions
+	var extensionsApiPath = "/extensions/"
+	var extensionsSharedPath = "/tmp/extensions/"
+
+	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
+	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
+
 	return &httpS
 }
 

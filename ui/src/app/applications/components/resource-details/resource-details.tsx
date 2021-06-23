@@ -14,6 +14,7 @@ import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+const Extension = React.lazy(() => import('extensions'));
 import * as AppUtils from '../utils';
 
 import './resource-details.scss';
@@ -61,22 +62,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
     const [loading, setLoading] = React.useState(true);
     const script = document.createElement('script');
-    script.src = `/extension/${selectedNode.kind.toLowerCase()}/extension.js`;
+    script.src = `/extensions/${selectedNode ? selectedNode.kind.toLowerCase() : ''}/extension.js`;
     document.body.appendChild(script);
     script.onload = () => {
         setLoading(false);
     };
-
-    const Extension = React.lazy(() =>
-        import(`/api/extension/${selectedNode.kind.toLowerCase()}/extension.js`).then((ExtComponent: JSX.Element) => {
-            const component = (props: any) => {
-                return <ExtComponent {...props} />;
-            };
-            return {
-                default: component
-            };
-        })
-    );
 
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (state) {
@@ -157,7 +147,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             ) : (
                 <ErrorBoundary>
                     <React.Suspense fallback='Loading...'>
-                        <Extension name={node.name} namespace={node.namespace} />
+                        <Extension tree={tree} resource={node} state={state} />
                     </React.Suspense>
                 </ErrorBoundary>
             )

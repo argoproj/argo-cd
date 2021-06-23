@@ -126,6 +126,10 @@ const config = {
             '/swagger.json': proxyConf,
             '/extension': proxyConf
         }
+    },
+    watchOptions: {
+        poll: 1000,
+        ignored: ['node_modules']
     }
 };
 
