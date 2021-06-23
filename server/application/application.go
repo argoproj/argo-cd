@@ -907,7 +907,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			return errors.New(argoutil.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:    pointer.StringPtr(a.InstanceName()),
+			Name:    pointer.StringPtr(a.QualifiedName()),
 			Refresh: pointer.StringPtr(string(appv1.RefreshTypeNormal)),
 		})
 		if err != nil {
