@@ -960,7 +960,7 @@ func TestSelfManagedApps(t *testing.T) {
 
 			reconciledCount := 0
 			var lastReconciledAt *metav1.Time
-			for event := range ArgoCDClientset.WatchApplicationWithRetry(ctx, a.Name, a.ResourceVersion) {
+			for event := range ArgoCDClientset.WatchApplicationWithRetry(ctx, a.QualifiedName(), a.ResourceVersion) {
 				reconciledAt := event.Application.Status.ReconciledAt
 				if reconciledAt == nil {
 					reconciledAt = &metav1.Time{}
