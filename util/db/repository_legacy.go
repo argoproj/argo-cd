@@ -332,8 +332,7 @@ func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]by
 			}
 		}
 		if len(secret.Data) == 0 {
-			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD) ||
-				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
+			isManagedByArgo := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD
 			if isManagedByArgo {
 				return l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
