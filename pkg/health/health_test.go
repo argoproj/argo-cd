@@ -147,4 +147,18 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, HealthStatusHealthy, health.Status)
 	assert.Equal(t, "This node is has succeeded", health.Message)
+
+	sampleWorkflow = unstructured.Unstructured{Object: map[string]interface{}{
+		"spec": map[string]interface{}{
+			"entrypoint":    "sampleEntryPoint",
+			"extraneousKey": "we are agnostic to extraneous keys",
+		},
+	},
+	}
+
+	health, err = getArgoWorkflowHealth(&sampleWorkflow)
+	require.NoError(t, err)
+	assert.Equal(t, HealthStatusProgressing, health.Status)
+	assert.Equal(t, "", health.Message)
+
 }
