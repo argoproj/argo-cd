@@ -11,6 +11,8 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 | Sample File | Resource Name | Kind | Description |
 |-------------|---------------|------|-------------|
 | [`argocd-cm.yaml`](argocd-cm.yaml) | argocd-cm | ConfigMap | General Argo CD configuration |
+| [`argocd-repositories.yaml`](argocd-repositories.yaml) | my-private-repo / istio-helm-repo / private-helm-repo / private-repo | Secrets | Sample repository connection details |
+| [`argocd-repo-creds.yaml`](argocd-repo-creds.yaml) | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets | Sample repository credential templates |
 | [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm.yaml) | argocd-cmd-params-cm | ConfigMap | Argo CD env variables configuration |
 | [`argocd-secret.yaml`](argocd-secret.yaml) | argocd-secret | Secret | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | argocd-rbac-cm | ConfigMap | RBAC Configuration |
