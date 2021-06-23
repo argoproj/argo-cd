@@ -374,10 +374,13 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(app.Spec.GetProject())
 	if err != nil {
 		return nil, err
+	}
+	if !projOrig.IsAppNamespacePermitted(app, ns) {
+		return nil, fmt.Errorf("application %s in namespace %s is not allowed to associate to project %s", app.Name, app.Namespace, projOrig.Name)
 	}
 	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
@@ -440,6 +443,7 @@ func verifyGenerateManifests(
 
 // SetAppOperation updates an application with the specified operation, retrying conflict errors
 func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+	log.Warnf("In set AppOperation")
 	for {
 		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
@@ -620,4 +624,22 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
 
 	return proj
+}
+
+// ParseAppNamespacedName parses a namespaced name in the format namespace/name
+// and returns the components. If name wasn't namespaced, defaultNs will be
+// returned as namespace component.
+func ParseAppNamespacedName(name string, defaultNs string) (string, string) {
+	var ns string
+	var appName string
+	t := strings.SplitN(name, "/", 2)
+	if len(t) == 2 {
+		ns = t[0]
+		appName = t[1]
+	} else {
+		ns = defaultNs
+		appName = t[0]
+	}
+
+	return appName, ns
 }

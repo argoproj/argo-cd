@@ -424,6 +424,9 @@ func EnsureCleanState(t *testing.T) {
 	// delete resources
 	// kubectl delete apps --all
 	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	if ns := os.Getenv("ARGOCD_E2E_APP_NAMESPACE"); ns != "" {
+		CheckError(AppClientset.ArgoprojV1alpha1().Applications(ns).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	}
 	// kubectl delete appprojects --field-selector metadata.name!=default
 	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
@@ -451,6 +454,7 @@ func EnsureCleanState(t *testing.T) {
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Create separate project for testing gpg signature verification
@@ -461,6 +465,7 @@ func EnsureCleanState(t *testing.T) {
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Recreate temp dir
@@ -623,7 +628,7 @@ func Declarative(filename string, values interface{}) (string, error) {
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
 	defer tmpFile.Close()
-	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
+	return Run("", "kubectl", "-n", AppNamespace(), "apply", "-f", tmpFile.Name())
 }
 
 func CreateSubmoduleRepos(repoType string) {
@@ -739,4 +744,12 @@ func RecordTestRun(t *testing.T) {
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
+}
+
+func AppNamespace() string {
+	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", TestNamespace())
+}
+
+func QualifiedName() string {
+	return AppNamespace() + "/" + Name()
 }

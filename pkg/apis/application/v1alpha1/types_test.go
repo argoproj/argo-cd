@@ -2228,3 +2228,72 @@ func TestRemoveEnvEntry(t *testing.T) {
 		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
 }
+
+func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
+	app1 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app1",
+			Namespace: "argocd",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app2 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app3 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "",
+		},
+		Spec: ApplicationSpec{},
+	}
+	t.Run("App in same namespace as controller", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{},
+			},
+		}
+		// app1 is installed to argocd namespace, controller as well
+		assert.True(t, proj.IsAppNamespacePermitted(app1, "argocd"))
+		// app2 is installed to some-ns namespace, controller as well
+		assert.True(t, proj.IsAppNamespacePermitted(app2, "some-ns"))
+		// app3 has no namespace set, so will be implicitly created in controller's namespace
+		assert.True(t, proj.IsAppNamespacePermitted(app3, "argocd"))
+	})
+	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{},
+			},
+		}
+		// app2 is installed to some-ns, controller running in argocd
+		assert.False(t, proj.IsAppNamespacePermitted(app2, "argocd"))
+	})
+
+	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{"some-ns"},
+			},
+		}
+		// app2 is installed to some-ns, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app2, "argocd"))
+	})
+
+}

@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,14 +72,18 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	_, err = tmpFile.Write([]byte(data))
 	errors.CheckError(err)
 
-	args := append([]string{
+	args := []string{
 		"app", "create",
 		"-f", tmpFile.Name(),
 		"--name", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
-	}, flags...)
+	}
+	if os.Getenv("ARGOCD_E2E_APP_NAMESPACE") != "" {
+		args = append(args, "--app-namespace", os.Getenv("ARGOCD_E2E_APP_NAMESPACE"))
+	}
+	args = append(args, flags...)
 	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
@@ -87,7 +92,8 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	a.context.t.Helper()
 	app := &Application{
 		ObjectMeta: v1.ObjectMeta{
-			Name: a.context.name,
+			Name:      a.context.name,
+			Namespace: fixture.AppNamespace(),
 		},
 		Spec: ApplicationSpec{
 			Project: a.context.project,
@@ -200,6 +206,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if ns := os.Getenv("ARGOCD_E2E_APP_NAMESPACE"); ns != "" {
+		args = append(args, "--app-namespace", ns)
+	}
 	return args
 }
 
@@ -211,7 +220,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
 	values := map[string]interface{}{
-		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
+		"ArgoCDNamespace":     fixture.AppNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.name,
 		"Path":                a.context.path,
@@ -225,13 +234,13 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 
 func (a *Actions) PatchApp(patch string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "patch", a.context.name, "--patch", patch)
+	a.runCli("app", "patch", a.context.AppName(), "--patch", patch)
 	return a
 }
 
 func (a *Actions) AppSet(flags ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "set", a.context.name}
+	args := []string{"app", "set", a.context.AppName()}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a
@@ -239,7 +248,7 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 
 func (a *Actions) AppUnSet(flags ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "unset", a.context.name}
+	args := []string{"app", "unset", a.context.AppName()}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a
@@ -249,7 +258,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	a.context.t.Helper()
 	args = append([]string{"app", "sync"}, args...)
 	if a.context.name != "" {
-		args = append(args, a.context.name)
+		args = append(args, a.context.AppName())
 	}
 	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
@@ -282,7 +291,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 func (a *Actions) TerminateOp() *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "terminate-op", a.context.name)
+	a.runCli("app", "terminate-op", a.context.AppName())
 	return a
 }
 
@@ -293,14 +302,14 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 		RefreshTypeHard:   "--hard-refresh",
 	}[refreshType]
 
-	a.runCli("app", "get", a.context.name, flag)
+	a.runCli("app", "get", a.context.AppName(), flag)
 
 	return a
 }
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	a.runCli("app", "delete", a.context.AppName(), fmt.Sprintf("--cascade=%v", cascade), "--yes")
 	return a
 }
 

@@ -141,6 +141,7 @@ func NewCommand() *cobra.Command {
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
 				RedisClient:         redisClient,
+				WatchAllNamespaces:  true,
 			}
 
 			stats.RegisterStackDumper()

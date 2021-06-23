@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -36,6 +37,15 @@ type Context struct {
 	revision               string
 	force                  bool
 	directoryRecurse       bool
+}
+
+// AppName gets the full qualified name to refer to an application.
+func (c *Context) AppName() string {
+	ns := os.Getenv("ARGOCD_E2E_APP_NAMESPACE")
+	if ns != "" {
+		return ns + "/" + c.name
+	}
+	return c.name
 }
 
 func Given(t *testing.T) *Context {
@@ -155,6 +165,10 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 
 func (c *Context) GetName() string {
 	return c.name
+}
+
+func (c *Context) GetInstanceName() string {
+	return fixture.AppNamespace() + "_" + c.name
 }
 
 func (c *Context) Name(name string) *Context {

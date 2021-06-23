@@ -22,7 +22,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
+			manifests, err := RunCli("app", "manifests", app.QualifiedName(), "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
@@ -52,7 +52,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
+			manifests, err := RunCli("app", "manifests", app.QualifiedName(), "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)

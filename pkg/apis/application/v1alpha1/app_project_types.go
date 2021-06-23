@@ -361,6 +361,24 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	return false
 }
 
+// IsAppNamespacePermitted checks whether an application that associates with
+// this AppProject is allowed by comparing the Application's namespace with
+// the list of allowed namespaces in the AppProject.
+func (proj AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
+	// Applications in the installation namespace are always permitted
+	// At Application creation time, its namespace may yet be empty to indicate
+	// that is will be created in the controller's namespace.
+	if app.Namespace == "" || app.Namespace == controllerNs {
+		return true
+	}
+	for _, ns := range proj.Spec.SourceNamespaces {
+		if ns == app.Namespace {
+			return true
+		}
+	}
+	return false
+}
+
 // TODO: document this method
 func (proj *AppProject) NormalizeJWTTokens() bool {
 	needNormalize := false

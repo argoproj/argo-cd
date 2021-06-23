@@ -54,7 +54,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusHealthy))
 }
 
-func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
+func TestProgressingDeplIsSucceededAndSynced(t *testing.T) {
 	Given(t).
 		Path("one-deployment").
 		When().
@@ -75,7 +75,7 @@ func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
 		Expect(ResourceResultNumbering(1))
 }
 
-func TestDegradedDeploymentIsSucceededAndSynced(t *testing.T) {
+func TestDegDeploymentIsSucceededAndSynced(t *testing.T) {
 	Given(t).
 		Path("one-deployment").
 		When().

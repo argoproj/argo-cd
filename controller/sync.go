@@ -87,7 +87,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr)
+	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -129,7 +129,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	atomic.AddUint64(&syncIdPrefix, 1)
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
 
-	logEntry := log.WithFields(log.Fields{"application": app.Name, "syncId": syncId})
+	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
 	initialResourcesRes := make([]common.ResourceSyncResult, 0)
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
