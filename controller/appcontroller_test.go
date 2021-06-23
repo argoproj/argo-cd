@@ -250,7 +250,7 @@ metadata:
   name: test-cm
   namespace: invalid
   labels:
-    app.kubernetes.io/instance: my-app
+    app.kubernetes.io/instance: ` + test.FakeArgoCDNamespace + `_my-app
 data:
 `
 
@@ -731,18 +731,34 @@ func TestNormalizeApplication(t *testing.T) {
 }
 
 func TestHandleAppUpdated(t *testing.T) {
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
-	isRequested, level := ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
-	isRequested, level = ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	isRequested, level = ctrl.isRefreshRequested(app.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }

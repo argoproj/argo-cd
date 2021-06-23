@@ -365,7 +365,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 				ResourceNode: argoappv1.ResourceNode{
 					ResourceRef: argoappv1.ResourceRef{Kind: kube.DeploymentKind, Name: "guestbook", Namespace: app2.Namespace},
 				},
-				AppName: "app2",
+				AppName: test.FakeArgoCDNamespace + "_app2",
 			},
 		},
 	})
@@ -398,6 +398,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.SourceNamespaces = []string{"default"}
 
 	app := newFakeApp()
 	app.Namespace = "default"
