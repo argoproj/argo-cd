@@ -45,7 +45,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, common.LabelValueSecretTypeRepoConfig, secret.Labels[common.LabelKeySecretType])
+	assert.Equal(t, common.LabelValueSecretTypeRepository, secret.Labels[common.LabelKeySecretType])
 
 	assert.Equal(t, input.Name, string(secret.Data["name"]))
 	assert.Equal(t, input.Repo, string(secret.Data["url"]))
@@ -62,7 +62,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
@@ -75,7 +75,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
 				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
@@ -117,7 +117,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 				Namespace:   testNamespace,
 				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git"),
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
@@ -130,7 +130,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
 				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
@@ -195,7 +195,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 				Namespace:   testNamespace,
 				Name:        managedSecretName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte(managedRepository.Name),
@@ -208,7 +208,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
 				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte(userProvidedRepository.Name),
@@ -266,7 +266,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 				Namespace:   testNamespace,
 				Name:        managedSecretName,
 				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
@@ -279,7 +279,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
 				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig},
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
@@ -309,7 +309,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoConfig])
+	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepository])
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {

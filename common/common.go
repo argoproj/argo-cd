@@ -107,8 +107,6 @@ const (
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository
 	LabelValueSecretTypeRepository = "repository"
-	// LabelValueSecretTypeRepoConfig indicates a secret type of repository configuration
-	LabelValueSecretTypeRepoConfig = "repo-config"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 

@@ -35,7 +35,7 @@ var (
 				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoConfig,
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 			},
 		},
 		Data: map[string][]byte{

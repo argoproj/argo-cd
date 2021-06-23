@@ -33,7 +33,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 
 	s.repositoryToSecret(repository, repositorySecret)
 
-	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepoConfig, repositorySecret)
+	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepository, repositorySecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
@@ -65,7 +65,7 @@ func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL st
 func (s *secretsRepositoryBackend) ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
 	var repos []*appsv1.Repository
 
-	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoConfig)
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
-	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoConfig)
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepository)
 	if err != nil {
 		return nil, err
 	}
