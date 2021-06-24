@@ -9,6 +9,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {COLORS, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
+import {ApplicationTree} from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
@@ -28,6 +29,16 @@ require('./application-details.scss');
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+}
+
+interface FilterInput {
+    kind: string[];
+    health: string[];
+    sync: string[];
+    namespace: string[];
+    createdWithin: number[]; // number of minutes the resource must be created within
+    label: string[]; // label name with optional label value (i.e. `name` or `name=value`) i.e. basic label selector
+    ownership: string[];
 }
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
@@ -118,6 +129,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
+                            const setFilter = (items: string[]) => {
+                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')});
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
+                            };
+                            const clearFilter = () => setFilter([]);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
@@ -139,7 +155,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 .filter(res => {
                                     const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                     resNode.root = resNode;
-                                    return this.filterTreeNode(resNode, treeFilter);
+                                    return this.filterTreeNode(tree, resNode, treeFilter);
                                 })
                                 .concat(orphans);
 
@@ -220,7 +236,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                    nodeFilter={node => this.filterTreeNode(tree, node, treeFilter)}
                                                     selectedNodeFullName={this.selectedNodeKey}
                                                     onNodeClick={fullName => this.selectNode(fullName)}
                                                     nodeMenu={node =>
@@ -232,10 +248,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     app={application}
                                                     showOrphanedResources={pref.orphanedResources}
                                                     useNetworkingHierarchy={pref.view === 'network'}
-                                                    onClearFilter={() => {
-                                                        this.appContext.apis.navigation.goto('.', {resource: ''});
-                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: []}});
-                                                    }}
+                                                    onClearFilter={clearFilter}
                                                 />
                                             )) ||
                                                 (pref.view === 'pods' && (
@@ -299,7 +312,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             selectedResource={syncResourceKey}
                                         />
                                         <SlidingPanel isShown={this.showFilters} onClose={() => (this.showFilters = false)} isNarrow={true}>
-                                            <Filters pref={pref} tree={tree} />
+                                            <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
@@ -440,15 +453,43 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(node: ResourceTreeNode, filterInput: {kind: string[]; health: string[]; sync: string[]; namespace: string[]}): boolean {
+    private filterTreeNode(tree: ApplicationTree, node: ResourceTreeNode, filterInput: FilterInput, ownership?: string): boolean {
         const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
 
-        return (
+        const minutesAgo = (m: number) => {
+            const d = new Date();
+            d.setTime(d.getTime() - m * 60000);
+            return d;
+        };
+        const createdAt = new Date(node.createdAt); // will be falsely if the node has not been created, and so will not appear
+        const createdWithin = (n: number) => createdAt.getTime() > minutesAgo(n).getTime();
+        const labels = Object.entries(node.labels || {}).map(([name, value]) => name + '=' + value);
+
+        if (
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
             (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1)) &&
-            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
-        );
+            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
+            (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v))) &&
+            (filterInput.label.length === 0 || !!filterInput.label.find(v => labels.includes(v)))
+        ) {
+            return true;
+        }
+
+        if (filterInput.ownership.includes('Owns') && ownership !== 'Owners') {
+            const owned = tree.nodes.filter(n => (node.parentRefs || []).find(r => r.uid === n.uid));
+            if (owned.find(n => this.filterTreeNode(tree, n, filterInput, 'Owns'))) {
+                return true;
+            }
+        }
+        if (filterInput.ownership.includes('Owners') && ownership !== 'Owns') {
+            const owners = tree.nodes.filter(n => (n.parentRefs || []).find(r => r.uid === node.uid));
+            if (owners.find(n => this.filterTreeNode(tree, n, filterInput, 'Owners'))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
@@ -517,11 +558,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeByKey;
     }
 
-    private getTreeFilter(filterInput: string[]): {kind: string[]; health: string[]; sync: string[]; namespace: string[]} {
+    private getTreeFilter(filterInput: string[]): FilterInput {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
         const namespace = new Array<string>();
+        const createdWithin = new Array<number>();
+        const label = new Array<string>();
+        const ownership = new Array<string>();
         for (const item of filterInput) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -537,9 +581,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'namespace':
                     namespace.push(val);
                     break;
+                case 'createdWithin':
+                    createdWithin.push(parseInt(val, 10));
+                    break;
+                case 'label':
+                    label.push(val);
+                    break;
+                case 'ownership':
+                    ownership.push(val);
+                    break;
             }
         }
-        return {kind, health, sync, namespace};
+        return {kind, health, sync, namespace, createdWithin, label, ownership};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {

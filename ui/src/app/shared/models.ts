@@ -331,6 +331,7 @@ export interface ResourceNode extends ResourceRef {
     images?: string[];
     resourceVersion: string;
     createdAt?: models.Time;
+    labels?: {[name: string]: string};
 }
 
 export interface ApplicationTree {
