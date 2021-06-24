@@ -18,6 +18,9 @@ last-updated: 2021-06-05
 Improve Argo CDs multi-tenancy model to allow Application CRs to be created
 and consumed from different namespaces than the control plane's namespace.
 
+Related issues:
+- https://github.com/argoproj/argo-cd/issues/3474
+
 ## Open Questions [optional]
 
 * The major open question is, how to name `Application`s in a scenario where
