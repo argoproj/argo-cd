@@ -1,4 +1,4 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -6,7 +6,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {COLORS, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
@@ -21,6 +21,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
+import {Filters} from './filters';
 
 require('./application-details.scss');
 
@@ -72,6 +73,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return NodeInfo(new URLSearchParams(this.props.history.location.search).get('node'));
     }
 
+    private get showFilters() {
+        return new URLSearchParams(this.props.history.location.search).get('showFilters') === 'true';
+    }
+
+    private set showFilters(showFilters: boolean) {
+        this.appContext.apis.navigation.goto('.', {showFilters});
+    }
+
     private get selectedNodeKey() {
         const nodeContainer = this.selectedNodeInfo;
         return nodeContainer.key;
@@ -108,44 +117,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
-                            const kindsSet = new Set<string>(tree.nodes.map(item => item.kind));
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
-                            treeFilter.kind.forEach(kind => {
-                                kindsSet.add(kind);
-                            });
-                            const kinds = Array.from(kindsSet);
-                            const noKindsFilter = pref.resourceFilter.filter(item => item.indexOf('kind:') !== 0);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
-
-                            const filterTopBar: TopBarFilter<string> = {
-                                items: [
-                                    {content: () => <span>Sync</span>},
-                                    {value: 'sync:Synced', label: 'Synced'},
-                                    // Unhealthy includes 'Unknown' and 'OutOfSync'
-                                    {value: 'sync:OutOfSync', label: 'OutOfSync'},
-                                    {content: () => <span>Health</span>},
-                                    {value: 'health:Healthy', label: 'Healthy'},
-                                    {value: 'health:Progressing', label: 'Progressing'},
-                                    {value: 'health:Degraded', label: 'Degraded'},
-                                    {value: 'health:Missing', label: 'Missing'},
-                                    {value: 'health:Unknown', label: 'Unknown'},
-                                    {
-                                        content: setSelection => (
-                                            <div>
-                                                Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map(kind => `kind:${kind}`)))}>all</a> /{' '}
-                                                <a onClick={() => setSelection(noKindsFilter)}>none</a>
-                                            </div>
-                                        )
-                                    },
-                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind}))
-                                ],
-                                selectedValues: pref.resourceFilter,
-                                selectionChanged: items => {
-                                    this.appContext.apis.navigation.goto('.', {resource: `${items.join(',')}`});
-                                    services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
-                                }
-                            };
-
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
                             const isAppSelected = selectedItem === application;
@@ -175,12 +148,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     <Page
                                         title='Application Details'
                                         toolbar={{
-                                            filter: filterTopBar,
                                             breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
                                             actionMenu: {items: this.getApplicationActionMenu(application)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
+                                                        <i
+                                                            style={{color: pref.resourceFilter.length > 0 && COLORS.health.progressing}}
+                                                            className={classNames('fa fa-filter', {selected: this.showFilters})}
+                                                            title='Filter'
+                                                            onClick={() => (this.showFilters = true)}
+                                                        />
                                                         <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
@@ -320,6 +298,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             hide={() => AppUtils.showDeploy(null, this.appContext)}
                                             selectedResource={syncResourceKey}
                                         />
+                                        <SlidingPanel isShown={this.showFilters} onClose={() => (this.showFilters = false)} isNarrow={true}>
+                                            <Filters pref={pref} tree={tree} />
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
@@ -459,13 +440,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(node: ResourceTreeNode, filterInput: {kind: string[]; health: string[]; sync: string[]}): boolean {
+    private filterTreeNode(node: ResourceTreeNode, filterInput: {kind: string[]; health: string[]; sync: string[]; namespace: string[]}): boolean {
         const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
 
         return (
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
-            (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1))
+            (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1)) &&
+            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
         );
     }
 
@@ -535,10 +517,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeByKey;
     }
 
-    private getTreeFilter(filterInput: string[]): {kind: string[]; health: string[]; sync: string[]} {
+    private getTreeFilter(filterInput: string[]): {kind: string[]; health: string[]; sync: string[]; namespace: string[]} {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
+        const namespace = new Array<string>();
         for (const item of filterInput) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -551,9 +534,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'sync':
                     sync.push(val);
                     break;
+                case 'namespace':
+                    namespace.push(val);
+                    break;
             }
         }
-        return {kind, health, sync};
+        return {kind, health, sync, namespace};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
