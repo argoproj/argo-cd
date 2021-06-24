@@ -1271,6 +1271,8 @@ type Cluster struct {
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
+	// Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -1293,6 +1295,10 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		otherShard = *other.Shard
 	}
 	if shard != otherShard {
+		return false
+	}
+
+	if c.ClusterResources != other.ClusterResources {
 		return false
 	}
 	return reflect.DeepEqual(c.Config, other.Config)

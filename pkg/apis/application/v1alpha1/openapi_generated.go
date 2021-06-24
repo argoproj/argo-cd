@@ -1433,6 +1433,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "int64",
 						},
 					},
+					"clusterResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
