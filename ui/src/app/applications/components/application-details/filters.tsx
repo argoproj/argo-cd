@@ -84,7 +84,7 @@ export const Filters = ({
                 <i className='fa fa-filter' />
                 Filters{' '}
                 <small>
-                    <a onClick={() => onClearFilter()}>Clear all filters</a>
+                    <a onClick={() => onClearFilter()}>clear all</a>
                 </small>
             </h4>
             <hr />
