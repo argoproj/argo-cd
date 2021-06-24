@@ -1796,7 +1796,8 @@ Turning on selective sync option which will sync only out-of-sync resources. </p
 
 <h2 id="resources-prune-deletion-propagation-policy">Resources Prune Deletion Propagation Policy<a class="headerlink" href="#resources-prune-deletion-propagation-policy" title="Permanent link">&para;</a></h2>
 <p>By default, extraneous resources get pruned using foreground deletion policy. The propagation policy can be controlled
-using <code>PrunePropagationPolicy</code> sync option. Supported policies are background, foreground and orphan.</p>
+using <code>PrunePropagationPolicy</code> sync option. Supported policies are background, foreground and orphan.
+More information about those policies could be found <a href="https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents">here</a>.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">syncOptions</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">PrunePropagationPolicy=foreground</span>
 </code></pre></div>
