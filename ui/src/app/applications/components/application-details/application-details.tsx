@@ -6,7 +6,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {COLORS, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {ApplicationTree} from '../../../shared/models';
@@ -82,14 +82,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private get selectedNodeInfo() {
         return NodeInfo(new URLSearchParams(this.props.history.location.search).get('node'));
-    }
-
-    private get showFilters() {
-        return new URLSearchParams(this.props.history.location.search).get('showFilters') === 'true';
-    }
-
-    private set showFilters(showFilters: boolean) {
-        this.appContext.apis.navigation.goto('.', {showFilters});
     }
 
     private get selectedNodeKey() {
@@ -170,12 +162,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            style={{color: (pref.resourceFilter||[]).length > 0 && COLORS.health.progressing}}
-                                                            className={classNames('fa fa-filter', {selected: this.showFilters})}
-                                                            title='Filter'
-                                                            onClick={() => (this.showFilters = true)}
-                                                        />
-                                                        <i
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
@@ -221,6 +207,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                            <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
                                             {(tree.orphanedNodes || []).length > 0 && (
                                                 <div className='application-details__orphaned-filter'>
                                                     <ArgoCheckbox
@@ -311,9 +298,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             hide={() => AppUtils.showDeploy(null, this.appContext)}
                                             selectedResource={syncResourceKey}
                                         />
-                                        <SlidingPanel isShown={this.showFilters} onClose={() => (this.showFilters = false)} isNarrow={true}>
-                                            <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
-                                        </SlidingPanel>
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
@@ -465,10 +449,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const createdWithin = (n: number) => createdAt.getTime() > minutesAgo(n).getTime();
         const labels = Object.entries(node.labels || {}).map(([name, value]) => name + '=' + value);
 
+        const root = node.root || ({} as ResourceTreeNode);
+        const hook = root && root.hook;
         if (
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
-            (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
-            (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1)) &&
+            (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
+            (filterInput.health.length === 0 || hook || (root.health && filterInput.health.indexOf(root.health.status) > -1)) &&
             (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
             (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v))) &&
             (filterInput.label.length === 0 || !!filterInput.label.find(v => labels.includes(v)))
@@ -476,13 +462,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             return true;
         }
 
-        if (filterInput.ownership.includes('Owns') && ownership !== 'Owners') {
+        if (filterInput.ownership.includes('Owned') && ownership !== 'Owners') {
             const owned = tree.nodes.filter(n => (node.parentRefs || []).find(r => r.uid === n.uid));
-            if (owned.find(n => this.filterTreeNode(tree, n, filterInput, 'Owns'))) {
+            if (owned.find(n => this.filterTreeNode(tree, n, filterInput, 'Owned'))) {
                 return true;
             }
         }
-        if (filterInput.ownership.includes('Owners') && ownership !== 'Owns') {
+        if (filterInput.ownership.includes('Owners') && ownership !== 'Owned') {
             const owners = tree.nodes.filter(n => (n.parentRefs || []).find(r => r.uid === node.uid));
             if (owners.find(n => this.filterTreeNode(tree, n, filterInput, 'Owners'))) {
                 return true;
