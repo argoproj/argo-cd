@@ -17,10 +17,11 @@ export const Filters = ({
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
 }) => {
-    const isIncluded = (prefix: string, suffix: string) => pref.resourceFilter.includes(`${prefix}:${suffix}`);
+    const resourceFilter = pref.resourceFilter || [];
+    const isIncluded = (prefix: string, suffix: string) => resourceFilter.includes(`${prefix}:${suffix}`);
     const setIncluded = (prefix: string, suffixes: string[], v: boolean) => {
         const filters = suffixes.map(suffix => `${prefix}:${suffix}`);
-        const items = pref.resourceFilter.filter(y => !filters.includes(y));
+        const items = resourceFilter.filter(y => !filters.includes(y));
         if (v) {
             items.push(...filters);
         }
@@ -28,11 +29,11 @@ export const Filters = ({
     };
     // this is smarter than it looks at first glance, rather than just un-checked known items,
     // it instead finds out what is enabled, and then removes them, which will be tolerant to weird or unknown items
-    const clear = (prefix: string) => setIncluded(prefix, pref.resourceFilter.filter(v => v.startsWith(prefix + ':')).map(v => v.replace(prefix + ':', '')), false);
+    const clear = (prefix: string) => setIncluded(prefix, resourceFilter.filter(v => v.startsWith(prefix + ':')).map(v => v.replace(prefix + ':', '')), false);
 
     // we need to include ones that might have been filter in other apps that do not apply to the current app,
     // otherwise the user will not be able to clear them from this panel
-    const alreadyFilteredOn = (prefix: string) => pref.resourceFilter.filter(v => v.startsWith(prefix + ':')).map(v => v.replace(prefix + ':', ''));
+    const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(v => v.startsWith(prefix + ':')).map(v => v.replace(prefix + ':', ''));
 
     const kinds = tree.nodes
         .map(x => x.kind)

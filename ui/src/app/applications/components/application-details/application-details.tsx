@@ -170,7 +170,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            style={{color: pref.resourceFilter.length > 0 && COLORS.health.progressing}}
+                                                            style={{color: (pref.resourceFilter||[]).length > 0 && COLORS.health.progressing}}
                                                             className={classNames('fa fa-filter', {selected: this.showFilters})}
                                                             title='Filter'
                                                             onClick={() => (this.showFilters = true)}
@@ -566,7 +566,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const createdWithin = new Array<number>();
         const label = new Array<string>();
         const ownership = new Array<string>();
-        for (const item of filterInput) {
+        for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
                 case 'kind':
