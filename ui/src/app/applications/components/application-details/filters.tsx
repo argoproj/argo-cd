@@ -82,7 +82,10 @@ export const Filters = ({
         <div style={{overflow: 'scroll'}}>
             <h4>
                 <i className='fa fa-filter' />
-                Filters
+                Filters{' '}
+                <small>
+                    <a onClick={() => onClearFilter()}>Clear all filters</a>
+                </small>
             </h4>
             <hr />
             <div>
@@ -177,10 +180,6 @@ export const Filters = ({
                         )}
                     </div>
                 ))}
-            </div>
-            <hr />
-            <div>
-                <a onClick={() => onClearFilter()}>Clear all filters</a>
             </div>
         </div>
     );
