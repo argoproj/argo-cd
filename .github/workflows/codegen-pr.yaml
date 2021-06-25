@@ -31,6 +31,7 @@ jobs:
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
           git checkout -b $CODEGEN_BRANCH
           git push bot $CODEGEN_BRANCH
+          gh pr create --fill
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
           TOKEN: ${{ secrets.CODEGEN_PRS_TOKEN }}
