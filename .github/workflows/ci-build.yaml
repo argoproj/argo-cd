@@ -6,12 +6,11 @@ on:
       - 'release-*'
       - '!release-1.4'
       - '!release-1.5'
-      # for testing
-      - 'codegen-pr-automationg'
   pull_request:
     branches:
       - 'master'
-
+      # for testing
+      - 'codegen-pr-automationg'
 jobs:
   build-docker:
     name: Build Docker image
