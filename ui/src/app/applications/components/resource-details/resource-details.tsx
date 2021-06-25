@@ -37,7 +37,6 @@ class ErrorBoundary extends React.Component<{}, {hasError: boolean}> {
     }
 
     static getDerivedStateFromError(error: Error) {
-        console.log(error);
         return {hasError: true};
     }
 
@@ -60,7 +59,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const [loading, setLoading] = React.useState(true);
+    const [, setLoading] = React.useState(true);
     const script = document.createElement('script');
     script.src = `/extensions/${selectedNode ? selectedNode.kind.toLowerCase() : ''}/extension.js`;
     document.body.appendChild(script);
@@ -142,9 +141,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs.push({
             key: 'extension',
             title: 'MORE',
-            content: loading ? (
-                'Loading...'
-            ) : (
+            icon: 'fa-puzzle-piece',
+            content: (
                 <ErrorBoundary>
                     <React.Suspense fallback='Loading...'>
                         <Extension tree={tree} resource={node} state={state} />
