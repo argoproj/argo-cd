@@ -159,7 +159,8 @@ type ApplicationSource struct {
 	// ConfigManagementPlugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
-	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+	Chart        string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+	OneMoreField string `json:"oneMoreField,omitempty" protobuf:"bytes,13,opt,name=oneMoreField"`
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
