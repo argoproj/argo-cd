@@ -1605,6 +1605,26 @@
     Download With Curl
   </a>
   
+    <nav class="md-nav" aria-label="Download With Curl">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-latest-version" class="md-nav__link">
+    Download latest version
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-concrete-version" class="md-nav__link">
+    Download concrete version
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
       </ul>
@@ -1684,16 +1704,16 @@
 </code></pre></div>
 
 <h3 id="download-with-curl">Download With Curl<a class="headerlink" href="#download-with-curl" title="Permanent link">&para;</a></h3>
-<p>You can view the latest version of Argo CD at the link above or run the following command to grab the version:</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>curl --silent <span class="s2">&quot;https://api.github.com/repos/argoproj/argo-cd/releases/latest&quot;</span> <span class="p">|</span> grep <span class="s1">&#39;&quot;tag_name&quot;&#39;</span> <span class="p">|</span> sed -E <span class="s1">&#39;s/.*&quot;([^&quot;]+)&quot;.*/\1/&#39;</span><span class="k">)</span>
+<h4 id="download-latest-version">Download latest version<a class="headerlink" href="#download-latest-version" title="Permanent link">&para;</a></h4>
+<div class="codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
 </code></pre></div>
 
-<p>Replace <code>VERSION</code> in the command below with the version of Argo CD you would like to download:</p>
-<div class="codehilite"><pre><span></span><code>curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-linux-amd64
-</code></pre></div>
-
-<p>Make the <code>argocd</code> CLI executable:</p>
-<div class="codehilite"><pre><span></span><code>chmod +x /usr/local/bin/argocd
+<h4 id="download-concrete-version">Download concrete version<a class="headerlink" href="#download-concrete-version" title="Permanent link">&para;</a></h4>
+<p>Set <code>VERSION</code> replacing <code>&lt;TAG&gt;</code> in the command below with the version of Argo CD you would like to download:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">VERSION</span><span class="o">=</span>&lt;TAG&gt; <span class="c1"># Select desired TAG from https://github.com/argoproj/argo-cd/releases</span>
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/<span class="nv">$VERSION</span>/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
 </code></pre></div>
 
 <p>You should now be able to run <code>argocd</code> commands.</p>
