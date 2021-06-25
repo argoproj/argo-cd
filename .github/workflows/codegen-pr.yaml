@@ -25,6 +25,7 @@ jobs:
           git config --global user.email 'argoproj@gmail.com'
           git config --global user.name 'Argo Bot'
           git remote add bot "https://$TOKEN@github.com/argo-bot/argo-cd"
+          git fetch bot 
           git add .
           git commit -m "Run codegen"
           CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
