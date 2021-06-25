@@ -32,4 +32,4 @@ jobs:
           git push bot $CODEGEN_BRANCH
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         env:
-          TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+          TOKEN: ${{ secrets.CODEGEN_PRS_TOKEN }}
