@@ -233,6 +233,22 @@ jobs:
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Create PR with codegen changes
+        if: failure()
+        run: |
+          git config --global user.email 'argoproj@gmail.com'
+          git config --global user.name 'Argo Bot'
+          git remote add bot "https://$TOKEN@github.com/argo-bot/argo-cd"
+          git fetch bot 
+          git add .
+          git commit -m "Run codegen"
+          CODEGEN_BRANCH=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')-codegen
+          git checkout -b $CODEGEN_BRANCH
+          git push bot $CODEGEN_BRANCH
+          gh pr create --fill
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        env:
+          TOKEN: ${{ secrets.CODEGEN_PRS_TOKEN }}
 
   build-ui:
     name: Build, test & lint UI code
