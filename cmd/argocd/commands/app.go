@@ -351,7 +351,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
-	fmt.Printf(printOpFmtStr, "Name:", app.Name)
+	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
 	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
@@ -537,7 +537,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     &app.Name,
+				Name:     &appName,
 				Spec:     app.Spec,
 				Validate: &appOpts.Validate,
 			})
@@ -685,7 +685,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     &app.Name,
+				Name:     pointer.StringPtr(app.QualifiedName()),
 				Spec:     app.Spec,
 				Validate: &appOpts.Validate,
 			})
@@ -748,7 +748,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 	res, err := repository.GenerateManifests(local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
-		AppName:           app.Name,
+		AppName:           app.InstanceName(),
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &app.Spec.Source,
 		KustomizeOptions:  kustomizeOptions,
@@ -840,7 +840,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
 				localObjs := groupObjsByKey(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins), liveObjs, app.Spec.Destination.Namespace)
-				items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
+				items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName())
 			} else if revision != "" {
 				var unstructureds []*unstructured.Unstructured
 				q := applicationpkg.ApplicationManifestQuery{
@@ -855,7 +855,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					unstructureds = append(unstructureds, obj)
 				}
 				groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-				items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
+				items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName())
 			} else {
 				for i := range resources.Items {
 					res := resources.Items[i]
@@ -1029,7 +1029,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // Print simple list of application names
 func printApplicationNames(apps []argoappv1.Application) {
 	for _, app := range apps {
-		fmt.Println(app.Name)
+		fmt.Println(app.QualifiedName())
 	}
 }
 
@@ -1047,7 +1047,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
 		vals := []interface{}{
-			app.Name,
+			app.QualifiedName(),
 			app.Spec.Destination.Server,
 			app.Spec.Destination.Namespace,
 			app.Spec.GetProject(),
@@ -1067,10 +1067,11 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output   string
-		selector string
-		projects []string
-		repo     string
+		output    string
+		selector  string
+		projects  []string
+		repo      string
+		namespace string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1109,6 +1110,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
+	command.Flags().StringVarP(&namespace, "namespace", "n", "", "List only apps in given namespace")
 	return command
 }
 
@@ -1228,7 +1230,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
 				errors.CheckError(err)
 				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
+					appNames = append(appNames, i.Namespace+"/"+i.Name)
 				}
 			}
 			for _, appName := range appNames {
@@ -1315,7 +1317,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatalf("no apps match selector %v", selector)
 				}
 				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
+					appNames = append(appNames, i.QualifiedName())
 				}
 			}
 
@@ -1413,7 +1415,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if !async {
 					app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 					errors.CheckError(err)
-
 					if !dryRun {
 						if !app.Status.OperationState.Phase.Successful() {
 							log.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
@@ -1662,12 +1663,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			// Wait on the application as a whole
 			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
-
 		if selectedResourcesAreReady && (!operationInProgress || !watchOperation) {
 			app = printFinalStatus(app)
 			return app, nil
 		}
-
 		newStates := groupResourceStates(app, selectedResources)
 		for _, newState := range newStates {
 			var doPrint bool

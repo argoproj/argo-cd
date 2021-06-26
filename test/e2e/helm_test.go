@@ -442,7 +442,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 				"--key-file", "../fixture/certs/argocd-test-client.key",
 				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
 			))
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.QualifiedName(), "--local", "testdata/helm")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }

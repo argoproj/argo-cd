@@ -219,10 +219,10 @@ func pods() (*v1.PodList, error) {
 
 func Event(reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{
+		list, err := fixture.KubeClientset.CoreV1().Events(fixture.AppNamespace()).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      c.context.name,
-				"involvedObject.namespace": fixture.ArgoCDNamespace,
+				"involvedObject.namespace": fixture.AppNamespace(),
 			}).String(),
 		})
 		if err != nil {

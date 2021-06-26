@@ -377,6 +377,21 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"sourceNamespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceNamespaces contains list of allowed Application namespaces",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

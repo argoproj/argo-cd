@@ -2,7 +2,6 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: test-self-managed-apps
-  namespace: argocd-e2e
 spec:
   project: default
 

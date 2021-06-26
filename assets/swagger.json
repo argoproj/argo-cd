@@ -4637,6 +4637,13 @@
             "$ref": "#/definitions/v1alpha1SignatureKey"
           }
         },
+        "sourceNamespaces": {
+          "type": "array",
+          "title": "SourceNamespaces contains list of allowed Application namespaces",
+          "items": {
+            "type": "string"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",

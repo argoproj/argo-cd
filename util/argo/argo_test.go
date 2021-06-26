@@ -73,7 +73,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
+	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }

@@ -188,9 +188,9 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "sync", app.QualifiedName(), "--local", "testdata/guestbook"))
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "diff", app.QualifiedName(), "--local", "testdata/guestbook"))
 		})
 }

@@ -543,6 +543,15 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	return ioutil.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
+func appNameWithoutPrefix(appName string) string {
+	t := strings.SplitN(appName, "_", 2)
+	if len(t) == 2 {
+		return t[1]
+	} else {
+		return appName
+	}
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
@@ -551,7 +560,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	templateOpts := &helm.TemplateOpts{
-		Name:        q.AppName,
+		Name:        appNameWithoutPrefix(q.AppName),
 		Namespace:   q.Namespace,
 		KubeVersion: text.SemVer(q.KubeVersion),
 		APIVersions: q.ApiVersions,
@@ -796,7 +805,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: appNameWithoutPrefix(q.AppName)},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},

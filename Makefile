@@ -79,6 +79,7 @@ define run-in-test-server
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
+		-e ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -100,6 +101,7 @@ define run-in-test-client
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRC_MOUNT} \
@@ -112,9 +114,13 @@ define run-in-test-client
 		bash -c "$(1)"
 endef
 
-# 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec -it -u $(shell id -u):$(shell id -g) \
+		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) \
+		-e ARGOCD_E2E_APP_NAMESPACE=$(ARGOCD_E2E_APP_NAMESPACE) \
+		-e ARGOCD_E2E_TEST_TIMEOUT=$(ARGOCD_E2E_TEST_TIMEOUT) \
+	       	argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack

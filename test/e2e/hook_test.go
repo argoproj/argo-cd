@@ -55,8 +55,8 @@ func TestHookDiff(t *testing.T) {
 		When().
 		Create().
 		Then().
-		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", Name())
+		And(func(app *Application) {
+			output, err := RunCli("app", "diff", app.QualifiedName())
 			assert.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
@@ -185,7 +185,7 @@ spec:
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
-func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
+func TestSyncFailHookPodFailureSyncFail(t *testing.T) {
 	// Tests that a failing SyncFail hook will successfully be marked as failed
 	Given(t).
 		Path("hook").
@@ -234,7 +234,7 @@ spec:
 }
 
 // make sure that we delete the hook on success
-func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
+func TestHookDeletePolicyHookSucceededExit0(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
@@ -247,7 +247,7 @@ func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 }
 
 // make sure that we delete the hook on failure, if policy is set
-func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
+func TestHookDeletePolicyHookSucceededExit1(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
@@ -263,7 +263,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 }
 
 // make sure that we do NOT delete the hook on success if failure policy is set
-func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
+func TestHookDeletePolicyHookFailedExit0(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
@@ -277,7 +277,7 @@ func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 }
 
 // make sure that we do delete the hook on failure if failure policy is set
-func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
+func TestHookDeletePolicyHookFailedExit1(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().

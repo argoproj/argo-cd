@@ -181,6 +181,7 @@ type ArgoCDServerOpts struct {
 	RedisClient         *redis.Client
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
+	WatchAllNamespaces  bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -212,12 +213,17 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
+	watchNamespace := opts.Namespace
+	if opts.WatchAllNamespaces {
+		log.Warnf("Watching all namespaces for applications")
+		watchNamespace = ""
+	}
+	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, watchNamespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
 
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
+	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(watchNamespace)
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, userStateStorage)

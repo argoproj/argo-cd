@@ -48,6 +48,7 @@ type AppOptions struct {
 	allowEmpty                      bool
 	namePrefix                      string
 	nameSuffix                      string
+	namespace                       string
 	directoryRecurse                bool
 	configManagementPlugin          string
 	jsonnetTlaStr                   []string
@@ -118,6 +119,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().StringVar(&opts.namespace, "app-namespace", "", "create application in given namespace instead of the default one")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -583,6 +585,9 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
+	}
+	if appOpts.namespace != "" {
+		app.Namespace = appOpts.namespace
 	}
 	return &app, nil
 }

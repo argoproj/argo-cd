@@ -1634,6 +1634,8 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// SourceNamespaces contains list of allowed Application namespaces
+	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,name=sourceNamespaces"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2416,4 +2418,14 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 		dest.Server = ""
 	}
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
+}
+
+// InstanceName returns the string that is as the instance label name for an application
+func (app *Application) InstanceName() string {
+	return app.Namespace + "_" + app.Name
+}
+
+// QualifiedName returns the qualified name of the application in the format namespace/name
+func (app *Application) QualifiedName() string {
+	return app.Namespace + "/" + app.Name
 }

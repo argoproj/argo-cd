@@ -165,7 +165,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		NoCache:           noCache,
 		NoRevisionCache:   noRevisionCache,
 		AppLabelKey:       appLabelKey,
-		AppName:           app.Name,
+		AppName:           app.InstanceName(),
 		Namespace:         app.Spec.Destination.Namespace,
 		ApplicationSource: &source,
 		Plugins:           tools,
@@ -185,7 +185,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithField("application", app.QualifiedName())
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -387,7 +387,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithField("application", app.QualifiedName())
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
@@ -463,10 +463,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
-			if appInstanceName != "" && appInstanceName != app.Name {
+			if appInstanceName != "" && appInstanceName != app.InstanceName() {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.InstanceName(), appInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
@@ -497,7 +497,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
 
-	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
+	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.InstanceName(), &cachedDiff) != nil {
 		// (rare) cache miss
 		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
 	} else {
@@ -664,7 +664,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if err != nil {
 		return err
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 

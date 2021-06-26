@@ -18,7 +18,7 @@ func TestCliAppCommand(t *testing.T) {
 		When().
 		Create().
 		And(func() {
-			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
+			output, err := RunCli("app", "sync", QualifiedName(), "--timeout", "90")
 			assert.NoError(t, err)
 			vars := map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
