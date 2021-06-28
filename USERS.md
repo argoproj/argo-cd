@@ -31,6 +31,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [CROZ d.o.o.](https://croz.net/)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [Cybozu](https://cybozu-global.com)
+1. [Chargetrip](https://chargetrip.com)
 1. [D2iQ](https://www.d2iq.com)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [EDF Renewables](https://www.edf-re.com/)
@@ -142,3 +143,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
 1. [Kaltura](https://corp.kaltura.com/)
+1. [Boticario](https://www.boticario.com.br/)
+1. [Beleza Na Web](https://www.belezanaweb.com.br/)
