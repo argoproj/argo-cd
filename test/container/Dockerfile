@@ -22,6 +22,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         wget \
         gcc \
         sudo \
+        tini \
         zip && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -100,6 +101,7 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
     ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg
+    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
