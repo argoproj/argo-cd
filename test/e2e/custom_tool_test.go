@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -192,5 +193,74 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
+		})
+}
+func startCMPServer(configFile string) {
+	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-file-path", configFile))
+}
+
+func TestCMP(t *testing.T) {
+	go startCMPServer("./testdata/cmp")
+
+	time.Sleep(1 * time.Second)
+	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+
+	Given(t).
+		Path("guestbook").
+		When().
+		Create("--config-management-plugin", Name()).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithEnv(t *testing.T) {
+	go startCMPServer("./testdata/cmp-env")
+
+	time.Sleep(1 * time.Second)
+	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+
+	Given(t).
+		Path("cmp-env").
+		When().
+		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			assert.NoError(t, err)
+			assert.Equal(t, "baz", output)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
+			assert.NoError(t, err)
+			assert.Equal(t, "bar", output)
+		}).
+		And(func(app *Application) {
+			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			assert.NoError(t, err)
+			assert.Equal(t, expectedKubeVersion, output)
+		}).
+		And(func(app *Application) {
+			expectedApiVersion := GetApiVersions()
+			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
+			sort.Strings(expectedApiVersionSlice)
+
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			assert.NoError(t, err)
+			outputSlice := strings.Split(output, ",")
+			sort.Strings(outputSlice)
+
+			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
 		})
 }
