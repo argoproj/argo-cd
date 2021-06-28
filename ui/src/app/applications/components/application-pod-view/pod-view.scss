@@ -87,9 +87,7 @@ $num-stats: 2;
             &__pods {
                 display: flex;
                 flex-wrap: wrap;
-                max-height: $pod-container-height;
                 width: 100%;
-                overflow: auto;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
                 padding: $gutter * 2;

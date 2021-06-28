@@ -146,7 +146,7 @@ Commands have access to
 
 1. The system environment variables
 2. [Standard build environment](build-environment.md)
-3. Variables in the application spec:
+3. Variables in the application spec (References to system and build variables will get interpolated in the variables' values):
 
 > v1.2
 
@@ -157,4 +157,6 @@ spec:
       env:
         - name: FOO
           value: bar
+        - name: REV
+          value: test-$ARGOCD_APP_REVISION
 ```

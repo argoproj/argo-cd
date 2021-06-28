@@ -15,7 +15,7 @@ metadata:
 spec:
   generators:
   - list:
-      items:
+      elements:
       - cluster: engineering-dev
         url: https://1.2.3.4
       - cluster: engineering-prod

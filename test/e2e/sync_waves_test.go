@@ -28,7 +28,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(HealthIs(health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-1", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusDegraded)).

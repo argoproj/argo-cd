@@ -2857,6 +2857,12 @@
             "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
             "name": "githubAppEnterpriseBaseUrl",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4887,6 +4893,14 @@
             "type": "string"
           }
         },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
@@ -5179,6 +5193,13 @@
       "type": "object",
       "title": "ClusterInfo contains information about the cluster",
       "properties": {
+        "apiVersions": {
+          "type": "array",
+          "title": "APIVersions contains list of API versions supported by the cluster",
+          "items": {
+            "type": "string"
+          }
+        },
         "applicationsCount": {
           "type": "string",
           "format": "int64",
@@ -5653,6 +5674,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -5814,6 +5841,10 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
         },
         "repo": {
           "type": "string",
@@ -5988,6 +6019,12 @@
       "properties": {
         "group": {
           "type": "string"
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "jsonPointers": {
           "type": "array",
