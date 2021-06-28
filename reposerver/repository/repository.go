@@ -743,7 +743,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		var cmpManifests []string
 		var cmpErr error
 		if err != nil && strings.HasPrefix(err.Error(), pluginNotSupported) {
-			if cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q); cmpErr == nil {
+			if cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds()); cmpErr == nil {
 				return &apiclient.ManifestResponse{
 					Manifests:  cmpManifests,
 					SourceType: string(appSourceType),
@@ -1121,6 +1121,26 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 	if plugin == nil {
 		return nil, fmt.Errorf(pluginNotSupported+" plugin name %s", q.ApplicationSource.Plugin.Name)
 	}
+
+	env, err := getPluginEnvs(envVars, q, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	if plugin.Init != nil {
+		_, err := runCommand(*plugin.Init, appPath, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out, err := runCommand(plugin.Generate, appPath, env)
+	if err != nil {
+		return nil, err
+	}
+	return kube.SplitYAML([]byte(out))
+}
+
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
@@ -1147,21 +1167,9 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
 	}
 	env = append(env, pluginEnv.Environ()...)
-
-	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
-		if err != nil {
-			return nil, err
-		}
-	}
-	out, err := runCommand(plugin.Generate, appPath, env)
-	if err != nil {
-		return nil, err
-	}
-	return kube.SplitYAML([]byte(out))
+	return env, nil
 }
-
-func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	// detect config management plugin server (sidecar)
 	conn, cmpClient, err := detectConfigManagementPlugin(appPath)
 	if err != nil {
@@ -1170,8 +1178,10 @@ func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alph
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env := append(os.Environ(), envVars.Environ()...)
-	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
+	env, err := getPluginEnvs(envVars, q, creds)
+	if err != nil {
+		return nil, err
+	}
 	cmpManifests, err := cmpClient.GenerateManifest(context.Background(), &pluginclient.ManifestRequest{
 		AppPath:  appPath,
 		RepoPath: repoPath,
