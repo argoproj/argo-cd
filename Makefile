@@ -159,7 +159,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli image argocd-util
+all: cli image
 
 # We have some legacy requirements for being checked out within $GOPATH.
 # The ensure-gopath target can be used as dependency to ensure we are running
@@ -212,10 +212,6 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
-.PHONY: cli-argocd
-cli-argocd:
-	go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
-
 .PHONY: release-cli
 release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
@@ -223,16 +219,6 @@ release-cli: clean-debug image
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd-darwin-amd64 ${DIST_DIR}/argocd-darwin-amd64
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd-windows-amd64.exe ${DIST_DIR}/argocd-windows-amd64.exe
 	docker rm tmp-argocd-linux
-
-.PHONY: argocd-util
-argocd-util: clean-debug
-	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${UTIL_CLI_NAME} ./cmd
-
-# .PHONY: dev-tools-image
-# dev-tools-image:
-# 	docker build -t $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) . -f hack/Dockerfile.dev-tools
-# 	docker tag $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION)
 
 .PHONY: test-tools-image
 test-tools-image:

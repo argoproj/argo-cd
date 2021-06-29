@@ -48,13 +48,15 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward {
+			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Headless {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			if globalClientOpts.PortForward {
 				server = "port-forward"
+			} else if globalClientOpts.Headless {
+				server = "headless"
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
@@ -86,9 +88,6 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
 			}
-			acdClient := argocdclient.NewClientOrDie(&clientOpts)
-			setConn, setIf := acdClient.NewSettingsClientOrDie()
-			defer io.Close(setConn)
 
 			if ctxName == "" {
 				ctxName = server
@@ -101,28 +100,32 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !sso {
-				tokenString = passwordLogin(acdClient, username, password)
-			} else {
-				ctx := context.Background()
-				httpClient, err := acdClient.HTTPClient()
+			if !globalClientOpts.Headless {
+				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				defer io.Close(setConn)
+				if !sso {
+					tokenString = passwordLogin(acdClient, username, password)
+				} else {
+					ctx := context.Background()
+					httpClient, err := acdClient.HTTPClient()
+					errors.CheckError(err)
+					ctx = oidc.ClientContext(ctx, httpClient)
+					acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
+					errors.CheckError(err)
+					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
+					errors.CheckError(err)
+					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+				}
+				parser := &jwt.Parser{
+					ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
+				}
+				claims := jwt.MapClaims{}
+				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				ctx = oidc.ClientContext(ctx, httpClient)
-				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-				errors.CheckError(err)
-				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
-			parser := &jwt.Parser{
-				ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-			}
-			claims := jwt.MapClaims{}
-			_, _, err := parser.ParseUnverified(tokenString, &claims)
-			errors.CheckError(err)
-
-			fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			// login successful. Persist the config
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckError(err)
@@ -135,6 +138,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
+				Headless:        globalClientOpts.Headless,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
