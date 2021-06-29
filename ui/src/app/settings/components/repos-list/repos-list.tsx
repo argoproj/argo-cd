@@ -19,6 +19,7 @@ interface NewSSHRepoParams {
     sshPrivateKey: string;
     insecure: boolean;
     enableLfs: boolean;
+    proxy: string;
 }
 
 interface NewHTTPSRepoParams {
@@ -31,6 +32,7 @@ interface NewHTTPSRepoParams {
     tlsClientCertKey: string;
     insecure: boolean;
     enableLfs: boolean;
+    proxy: string;
 }
 
 interface NewGitHubAppRepoParams {
@@ -45,6 +47,7 @@ interface NewGitHubAppRepoParams {
     tlsClientCertKey: string;
     insecure: boolean;
     enableLfs: boolean;
+    proxy: string;
 }
 
 interface NewSSHRepoCredsParams {
@@ -305,6 +308,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                         </div>
                                     </React.Fragment>
                                 )}
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                </div>
                             </form>
                         )}
                     </Form>
@@ -362,6 +368,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 <div className='argo-form-row'>
                                     <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                     <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                 </div>
                             </form>
                         )}
@@ -452,6 +461,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                         </div>
                                     </React.Fragment>
                                 )}
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                </div>
                             </form>
                         )}
                     </Form>

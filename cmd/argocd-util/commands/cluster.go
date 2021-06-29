@@ -329,7 +329,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			_, err = argoDB.CreateCluster(context.Background(), clst)
 			errors.CheckError(err)
 
-			secName, err := db.ServerToSecretName(clst.Server)
+			secName, err := db.URIToSecretName("cluster", clst.Server)
 			errors.CheckError(err)
 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), secName, v1.GetOptions{})

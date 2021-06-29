@@ -3,22 +3,14 @@ package db
 import (
 	"fmt"
 	"hash/fnv"
-	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v2/common"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -40,89 +32,76 @@ const (
 	githubAppPrivateKey = "githubAppPrivateKey"
 )
 
+// repositoryBackend defines the API for types that wish to provide interaction with repository storage
+type repositoryBackend interface {
+	CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
+	GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error)
+	ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error)
+	UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
+	DeleteRepository(ctx context.Context, repoURL string) error
+	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
+
+	CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
+	GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error)
+	ListRepoCreds(ctx context.Context) ([]string, error)
+	UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
+	DeleteRepoCreds(ctx context.Context, name string) error
+	RepoCredsExists(ctx context.Context, repoURL string) (bool, error)
+
+	GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error)
+}
+
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	repos, err := db.settingsMgr.GetRepositories()
+	secretBackend := db.repoBackend()
+	legacyBackend := db.legacyRepoBackend()
+
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.Repo)
+	if err != nil {
+		return nil, err
+	}
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryIndex(repos, r.Repo)
-	if index > -1 {
-		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
+	if secretExists || legacyExists {
+		return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", r.Repo)
 	}
 
-	repoInfo := settings.Repository{
-		URL:                        r.Repo,
-		Type:                       r.Type,
-		Name:                       r.Name,
-		InsecureIgnoreHostKey:      r.IsInsecure(),
-		Insecure:                   r.IsInsecure(),
-		EnableLFS:                  r.EnableLFS,
-		EnableOci:                  r.EnableOCI,
-		GithubAppId:                r.GithubAppId,
-		GithubAppInstallationId:    r.GithubAppInstallationId,
-		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
-		Proxy:                      r.Proxy,
-	}
-	err = db.updateRepositorySecrets(&repoInfo, r)
-	if err != nil {
-		return nil, err
-	}
-
-	repos = append(repos, repoInfo)
-	err = db.settingsMgr.SaveRepositories(repos)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return secretBackend.CreateRepository(ctx, r)
 }
 
-// GetRepository returns a repository by URL. If the repository doesn't have any
-// credentials attached to it, checks if a credential set for the repo's URL is
-// configured and copies them to the returned repository data.
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repository, err := db.tryGetRepository(ctx, repoURL)
+	repository, err := db.getRepository(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return repository, err
 	}
-	return repository, nil
+
+	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+		return repository, err
+	}
+
+	return repository, err
 }
 
-// tryGetRepository returns a repository by URL.
-// It provides the same functionality as GetRepository, with the additional behaviour of still returning a repository,
-// even if an error occurred during the resolving of credentials for the repository. Otherwise this function behaves
-// just as one would expect.
-func (db *db) tryGetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repos, err := db.settingsMgr.GetRepositories()
+func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
+	} else if exists {
+		return secretsBackend.GetRepository(ctx, repoURL)
 	}
 
-	repo := &appsv1.Repository{Repo: repoURL}
-	index := getRepositoryIndex(repos, repoURL)
-	if index >= 0 {
-		repo, err = db.credentialsToRepository(repos[index])
-		if err != nil {
-			return repo, errors.NewCredentialsConfigurationError(err)
-		}
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return legacyBackend.GetRepository(ctx, repoURL)
 	}
 
-	// Check for and copy repository credentials, if repo has none configured.
-	if !repo.HasCredentials() {
-		creds, err := db.GetRepositoryCredentials(ctx, repoURL)
-		if err == nil {
-			if creds != nil {
-				repo.CopyCredentialsFrom(creds)
-				repo.InheritedCreds = true
-			}
-		} else {
-			return repo, err
-		}
-	} else {
-		log.Debugf("%s has credentials", repo.Repo)
-	}
-
-	return repo, err
+	return &appsv1.Repository{Repo: repoURL}, nil
 }
 
 func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
@@ -130,427 +109,222 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 }
 
 func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
-	inRepos, err := db.settingsMgr.GetRepositories()
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
+
+	secretRepositories, err := db.repoBackend().ListRepositories(ctx, repoType)
 	if err != nil {
 		return nil, err
 	}
 
-	var repos []*appsv1.Repository
-	for _, inRepo := range inRepos {
-		if repoType == nil || *repoType == inRepo.Type {
-			r, err := db.tryGetRepository(ctx, inRepo.URL)
-			if err != nil {
-				if r != nil && errors.IsCredentialsConfigurationError(err) {
-					modifiedTime := metav1.Now()
-					r.ConnectionState = appsv1.ConnectionState{
-						Status:     appsv1.ConnectionStatusFailed,
-						Message:    "Configuration error - please check the server logs",
-						ModifiedAt: &modifiedTime,
-					}
-
-					log.Warnf("could not retrieve repo: %s", err.Error())
-				} else {
-					return nil, err
-				}
-			}
-			repos = append(repos, r)
-		}
+	legacyRepositories, err := db.legacyRepoBackend().ListRepositories(ctx, repoType)
+	if err != nil {
+		return nil, err
 	}
-	return repos, nil
-}
 
-func (db *db) credentialsToRepository(repoInfo settings.Repository) (*appsv1.Repository, error) {
-	repo := &appsv1.Repository{
-		Repo:                       repoInfo.URL,
-		Type:                       repoInfo.Type,
-		Name:                       repoInfo.Name,
-		InsecureIgnoreHostKey:      repoInfo.InsecureIgnoreHostKey,
-		Insecure:                   repoInfo.Insecure,
-		EnableLFS:                  repoInfo.EnableLFS,
-		EnableOCI:                  repoInfo.EnableOci,
-		GithubAppId:                repoInfo.GithubAppId,
-		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
-		Proxy:                      repoInfo.Proxy,
+	repositories := append(secretRepositories, legacyRepositories...)
+	if err := db.enrichCredsToRepos(ctx, repositories); err != nil {
+		return nil, err
 	}
-	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
-	}, make(map[string]*apiv1.Secret))
-	return repo, err
-}
 
-func (db *db) credentialsToRepositoryCredentials(repoInfo settings.RepositoryCredentials) (*appsv1.RepoCreds, error) {
-	creds := &appsv1.RepoCreds{
-		URL:                        repoInfo.URL,
-		GithubAppId:                repoInfo.GithubAppId,
-		GithubAppInstallationId:    repoInfo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
-		EnableOCI:                  repoInfo.EnableOCI,
-	}
-	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
-	}, make(map[string]*apiv1.Secret))
-	return creds, err
+	return repositories, nil
 }
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	repos, err := db.settingsMgr.GetRepositories()
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
+	} else if exists {
+		return secretsBackend.UpdateRepository(ctx, r)
 	}
 
-	index := getRepositoryIndex(repos, r.Repo)
-	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
-	}
-
-	repoInfo := repos[index]
-	err = db.updateRepositorySecrets(&repoInfo, r)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, r.Repo)
 	if err != nil {
 		return nil, err
+	} else if exists {
+		return legacyBackend.UpdateRepository(ctx, r)
 	}
 
-	// Update boolean settings
-	repoInfo.InsecureIgnoreHostKey = r.IsInsecure()
-	repoInfo.Insecure = r.IsInsecure()
-	repoInfo.EnableLFS = r.EnableLFS
-	repoInfo.Proxy = r.Proxy
-
-	repos[index] = repoInfo
-	err = db.settingsMgr.SaveRepositories(repos)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 }
 
-// Delete updates a repository
 func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
-	repos, err := db.settingsMgr.GetRepositories()
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return err
+	} else if exists {
+		return secretsBackend.DeleteRepository(ctx, repoURL)
 	}
 
-	index := getRepositoryIndex(repos, repoURL)
-	if index < 0 {
-		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
-	}
-	err = db.updateRepositorySecrets(&repos[index], &appsv1.Repository{
-		SSHPrivateKey:       "",
-		Password:            "",
-		Username:            "",
-		TLSClientCertData:   "",
-		TLSClientCertKey:    "",
-		GithubAppPrivateKey: "",
-	})
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
 		return err
+	} else if exists {
+		return legacyBackend.DeleteRepository(ctx, repoURL)
 	}
-	repos = append(repos[:index], repos[index+1:]...)
-	return db.settingsMgr.SaveRepositories(repos)
+
+	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 }
 
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
 func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
-	repos, err := db.settingsMgr.GetRepositoryCredentials()
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
+
+	secretRepoCreds, err := db.repoBackend().ListRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	urls := make([]string, len(repos))
-	for i := range repos {
-		urls[i] = repos[i].URL
+	legacyRepoCreds, err := db.legacyRepoBackend().ListRepoCreds(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	return urls, nil
+	return append(secretRepoCreds, legacyRepoCreds...), nil
 }
 
 // GetRepositoryCredentials retrieves a repository credential set
 func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
-	var credential *appsv1.RepoCreds
-
-	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
 		return nil, err
-	}
-	index := getRepositoryCredentialIndex(repoCredentials, repoURL)
-	if index >= 0 {
-		credential, err = db.credentialsToRepositoryCredentials(repoCredentials[index])
-		if err != nil {
-			return nil, err
-		}
+	} else if exists {
+		return secretsBackend.GetRepoCreds(ctx, repoURL)
 	}
 
-	return credential, err
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	} else if exists {
+		return legacyBackend.GetRepoCreds(ctx, repoURL)
+	}
+
+	return nil, nil
 }
 
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
 func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.RepoCreds, error) {
-	var allCredentials []*appsv1.RepoCreds
-	repoCredentials, err := db.settingsMgr.GetRepositoryCredentials()
+	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
+	// 	repositories from secrets overlay repositories from legacys.
+
+	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range repoCredentials {
-		if strings.EqualFold(v.Type, "helm") {
-			credential, err := db.credentialsToRepositoryCredentials(v)
-			if err != nil {
-				return nil, err
-			}
-			allCredentials = append(allCredentials, credential)
-		}
+
+	legacyRepoCreds, err := db.legacyRepoBackend().GetAllHelmRepoCreds(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return allCredentials, err
+
+	return append(secretRepoCreds, legacyRepoCreds...), nil
 }
 
 // CreateRepositoryCredentials creates a repository credential set
 func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	creds, err := db.settingsMgr.GetRepositoryCredentials()
+	legacyBackend := db.legacyRepoBackend()
+	secretBackend := db.repoBackend()
+
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL)
+	if err != nil {
+		return nil, err
+	}
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	index := getRepositoryCredentialIndex(creds, r.URL)
-	if index > -1 {
-		return nil, status.Errorf(codes.AlreadyExists, "repository credentials for '%s' already exists", r.URL)
+	if secretExists || legacyExists {
+		return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", r.URL)
 	}
 
-	repoInfo := settings.RepositoryCredentials{
-		URL:                        r.URL,
-		GithubAppId:                r.GithubAppId,
-		GithubAppInstallationId:    r.GithubAppInstallationId,
-		GithubAppEnterpriseBaseURL: r.GitHubAppEnterpriseBaseURL,
-		EnableOCI:                  r.EnableOCI,
-		Type:                       r.Type,
-	}
-
-	err = db.updateCredentialsSecret(&repoInfo, r)
-	if err != nil {
-		return nil, err
-	}
-
-	creds = append(creds, repoInfo)
-	err = db.settingsMgr.SaveRepositoryCredentials(creds)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return secretBackend.CreateRepoCreds(ctx, r)
 }
 
 // UpdateRepositoryCredentials updates a repository credential set
 func (db *db) UpdateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	repos, err := db.settingsMgr.GetRepositoryCredentials()
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepoCredsExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
+	} else if exists {
+		return secretsBackend.UpdateRepoCreds(ctx, r)
 	}
 
-	index := getRepositoryCredentialIndex(repos, r.URL)
-	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URL)
-	}
-
-	repoInfo := repos[index]
-	err = db.updateCredentialsSecret(&repoInfo, r)
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, r.URL)
 	if err != nil {
 		return nil, err
+	} else if exists {
+		return legacyBackend.UpdateRepoCreds(ctx, r)
 	}
 
-	repos[index] = repoInfo
-	err = db.settingsMgr.SaveRepositoryCredentials(repos)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
-
+	return nil, status.Errorf(codes.NotFound, "repository credentials '%s' not found", r.URL)
 }
 
 // DeleteRepositoryCredentials deletes a repository credential set from config, and
 // also all the secrets which actually contained the credentials.
 func (db *db) DeleteRepositoryCredentials(ctx context.Context, name string) error {
-	repos, err := db.settingsMgr.GetRepositoryCredentials()
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepoCredsExists(ctx, name)
 	if err != nil {
 		return err
+	} else if exists {
+		return secretsBackend.DeleteRepoCreds(ctx, name)
 	}
 
-	index := getRepositoryCredentialIndex(repos, name)
-	if index < 0 {
-		return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
-	}
-	err = db.updateCredentialsSecret(&repos[index], &appsv1.RepoCreds{
-		SSHPrivateKey:       "",
-		Password:            "",
-		Username:            "",
-		TLSClientCertData:   "",
-		TLSClientCertKey:    "",
-		GithubAppPrivateKey: "",
-	})
+	legacyBackend := db.legacyRepoBackend()
+	exists, err = legacyBackend.RepoCredsExists(ctx, name)
 	if err != nil {
 		return err
+	} else if exists {
+		return legacyBackend.DeleteRepoCreds(ctx, name)
 	}
-	repos = append(repos[:index], repos[index+1:]...)
-	return db.settingsMgr.SaveRepositoryCredentials(repos)
+
+	return status.Errorf(codes.NotFound, "repository credentials '%s' not found", name)
 }
 
-func (db *db) updateCredentialsSecret(credsInfo *settings.RepositoryCredentials, c *appsv1.RepoCreds) error {
-	r := &appsv1.Repository{
-		Repo:                       c.URL,
-		Username:                   c.Username,
-		Password:                   c.Password,
-		SSHPrivateKey:              c.SSHPrivateKey,
-		TLSClientCertData:          c.TLSClientCertData,
-		TLSClientCertKey:           c.TLSClientCertKey,
-		GithubAppPrivateKey:        c.GithubAppPrivateKey,
-		GithubAppId:                c.GithubAppId,
-		GithubAppInstallationId:    c.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: c.GitHubAppEnterpriseBaseURL,
-	}
-	secretsData := make(map[string]map[string][]byte)
-
-	credsInfo.UsernameSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.UsernameSecret, r.Username, username)
-	credsInfo.PasswordSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.PasswordSecret, r.Password, password)
-	credsInfo.SSHPrivateKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
-	credsInfo.TLSClientCertDataSecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
-	credsInfo.TLSClientCertKeySecret = setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	credsInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
-	for k, v := range secretsData {
-		err := db.upsertSecret(k, v)
-		if err != nil {
+func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Repository) error {
+	for _, repository := range repositories {
+		if err := db.enrichCredsToRepo(ctx, repository); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (db *db) updateRepositorySecrets(repoInfo *settings.Repository, r *appsv1.Repository) error {
-	secretsData := make(map[string]map[string][]byte)
+func (db *db) repoBackend() repositoryBackend {
+	return &secretsRepositoryBackend{db: db}
+}
 
-	repoInfo.UsernameSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.UsernameSecret, r.Username, username)
-	repoInfo.PasswordSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.PasswordSecret, r.Password, password)
-	repoInfo.SSHPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
-	repoInfo.TLSClientCertDataSecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
-	repoInfo.TLSClientCertKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
-	repoInfo.GithubAppPrivateKeySecret = setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
-	for k, v := range secretsData {
-		err := db.upsertSecret(k, v)
-		if err != nil {
+func (db *db) legacyRepoBackend() repositoryBackend {
+	return &legacyRepositoryBackend{db: db}
+}
+
+func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Repository) error {
+	if !repository.HasCredentials() {
+		creds, err := db.GetRepositoryCredentials(ctx, repository.Repo)
+		if err == nil {
+			if creds != nil {
+				repository.CopyCredentialsFrom(creds)
+				repository.InheritedCreds = true
+			}
+		} else {
 			return err
-		}
-	}
-	return nil
-}
-
-// Set data to be stored in a given secret used for repository credentials and templates.
-// The name of the secret is a combination of the prefix given, and a calculated value
-// from the repository or template URL.
-func setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
-	if secretKey == nil && value != "" {
-		secretKey = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url)},
-			Key:                  defaultKeyName,
-		}
-	}
-
-	if secretKey != nil {
-		data, ok := secretsData[secretKey.Name]
-		if !ok {
-			data = map[string][]byte{}
-		}
-		if value != "" {
-			data[secretKey.Key] = []byte(value)
-		}
-		secretsData[secretKey.Name] = data
-	}
-
-	if value == "" {
-		secretKey = nil
-	}
-
-	return secretKey
-}
-
-func (db *db) upsertSecret(name string, data map[string][]byte) error {
-	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			if len(data) == 0 {
-				return nil
-			}
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(context.Background(), &apiv1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
-					Annotations: map[string]string{
-						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-					},
-				},
-				Data: data,
-			}, metav1.CreateOptions{})
-			if err != nil {
-				return err
-			}
 		}
 	} else {
-		for _, key := range []string{username, password, sshPrivateKey, tlsClientCertData, tlsClientCertKey, githubAppPrivateKey} {
-			if secret.Data == nil {
-				secret.Data = make(map[string][]byte)
-			}
-			if val, ok := data[key]; ok && len(val) > 0 {
-				secret.Data[key] = val
-			} else {
-				delete(secret.Data, key)
-			}
-		}
-		if len(secret.Data) == 0 {
-			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD) ||
-				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
-			if isManagedByArgo {
-				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
-			}
-			return nil
-		} else {
-			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			}
-		}
+		log.Debugf("%s has credentials", repository.Repo)
 	}
+
 	return nil
-}
-
-func getRepositoryIndex(repos []settings.Repository, repoURL string) int {
-	for i, repo := range repos {
-		if git.SameURL(repo.URL, repoURL) {
-			return i
-		}
-	}
-	return -1
-}
-
-// getRepositoryCredentialIndex returns the index of the best matching repository credential
-// configuration, i.e. the one with the longest match
-func getRepositoryCredentialIndex(repoCredentials []settings.RepositoryCredentials, repoURL string) int {
-	var max, idx int = 0, -1
-	repoURL = git.NormalizeGitURL(repoURL)
-	for i, cred := range repoCredentials {
-		credUrl := git.NormalizeGitURL(cred.URL)
-		if strings.HasPrefix(repoURL, credUrl) {
-			if len(credUrl) > max {
-				max = len(credUrl)
-				idx = i
-			}
-		}
-	}
-	return idx
 }
 
 // RepoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
