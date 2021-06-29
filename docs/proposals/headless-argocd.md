@@ -74,23 +74,30 @@ The installation manifests should include only non HA controller, repo-server, R
 #### Headless CLI
 
 Without the API server, users won't be able to take advantage of Argo CD UI and `argocd` CLI so the user experience won't be complete. To fill that gap
-we need to introduce CLI that provides the same set of commands as `argocd` (except `argocd login/relogin`) but talks directly to Kubernetes. The [argo-cd#6361](https://github.com/argoproj/argo-cd/pull/6361)
+we need to change the `argocd` CLI that and support talking directly to Kubernetes without requiring Argo CD API Server. The [argo-cd#6361](https://github.com/argoproj/argo-cd/pull/6361)
 demonstrates required changes:
 
-* In runtime "copies" existing `argocd` commands into existing `argocd-util` ([cmd/argocd-util/commands/app.go](https://github.com/alexmt/argo-cd/blob/37f45c285704ee715aa2d22e7f68f7e6e78a0d61/cmd/argocd-util/commands/app.go#L56))
-* Adds pre-run function that starts "local" Argo CD API server ([argocd-util/commands/headless/headless.go](https://github.com/alexmt/argo-cd/blob/37f45c285704ee715aa2d22e7f68f7e6e78a0d61/cmd/argocd-util/commands/headless/headless.go#L67))
-* Finally on-demand port-forwards to Redis and repo server. ([argocd-util/commands/headless/forward.go](https://github.com/alexmt/argo-cd/blob/headless-argo-cd/cmd/argocd-util/commands/headless/forward.go))
+* Adds `--headless` flag to `argocd` commands
+* If the `--headless` flag is set to true then pre-run function that starts "local" Argo CD API server and points CLI to locally running instance
+* Finally on-demand port-forwards to Redis and repo server.
 
-The PR adds Headless commands into the existing `argocd-util` CLI since this is the closes CLI we have but the name of CLI is confusing. The `argocd-util` no longer explains the purpose of the CLI.
-It is proposed to rename `argocd-util` to `argocd-admin`. Other options considered:
-
-* use `argocd` with `ARGOCD_HEADLESS=true` environment variable; **pros:** users already familiar with `argocd`; **cons**: it is not convenient to set env variable every time.
-* use existing `argocd-util`; **pros:** `argocd-util` is meant for admins with full cluster access; **cons**: The `argocd-util` is not the best name;
+The user should be able to store `--headless` flag in config in order to avoid specifying the flag for every command. It is proposed to use `argocd login --headless` to generate
+"headless" config.
 
 #### Local UI
 
-In addition to exposing CLI commands the PR introduces `argocd-util dashboard` command. The new command starts API server locally and exposes Argo CD UI locally.
+In addition to exposing CLI commands the PR introduces `argocd admin dashboard` command. The new command starts API server locally and exposes Argo CD UI locally.
 In order to make this possible the static assets have been embedded into Argo CD binary.
+
+### Merge Argo CD Util
+
+The potential users of "headless" mode will benefit from `argocd-util` commands. The experience won't be smooth since they will need to switch back and forth
+between `argocd` and `argocd-util`. Given that we still have not finalized how users are supposed to get `argocd-util` binary (https://github.com/argoproj/argo-cd/issues/5307)
+it is proposed to deprecate `argocd-util` and merge in into `argocd` CLI under admin subcommand:
+
+```
+argocd admin app generate-spec guestbook --repo https://github.com/argoproj/argocd-example-apps
+```
 
 ### Use cases
 
