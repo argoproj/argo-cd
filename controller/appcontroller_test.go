@@ -118,6 +118,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelApp()
 	clusterCacheMock := mocks.ClusterCache{}
 	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
 
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache

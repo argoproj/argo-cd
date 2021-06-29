@@ -37,8 +37,8 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string) (Helm, error) {
-	cmd, err := NewCmd(workDir, version)
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string) (Helm, error) {
+	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
 		return nil, err
 	}

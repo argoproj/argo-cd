@@ -406,9 +406,10 @@ func verifyGenerateManifests(
 
 	req := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{
-			Repo: spec.Source.RepoURL,
-			Type: repoRes.Type,
-			Name: repoRes.Name,
+			Repo:  spec.Source.RepoURL,
+			Type:  repoRes.Type,
+			Name:  repoRes.Name,
+			Proxy: repoRes.Proxy,
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,

@@ -7,7 +7,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.3.1-0.20210610000233-6884d330a049
+	github.com/argoproj/gitops-engine v0.3.1-0.20210617175936-b067bd7463e7
 	github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1

@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 var (
@@ -59,17 +60,18 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:   repoURL,
 		creds:     creds,
 		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
 		repoLock:  repoLock,
 		enableOci: enableOci,
+		proxy:     proxy,
 	}
 	for i := range opts {
 		opts[i](c)
@@ -86,6 +88,7 @@ type nativeHelmChart struct {
 	repoLock   sync.KeyLock
 	enableOci  bool
 	indexCache indexCache
+	proxy      string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -121,7 +124,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 	}
 
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci, c.proxy)
 
 	if err != nil {
 		return "", nil, err
@@ -268,7 +271,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
 	if err != nil {
 		return false, err
 	}
@@ -310,8 +313,9 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           proxy.GetCallback(c.proxy),
 		TLSClientConfig: tlsConf,
 	}
 	client := http.Client{Transport: tr}
