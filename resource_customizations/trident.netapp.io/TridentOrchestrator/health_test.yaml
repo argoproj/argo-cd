@@ -1,5 +1,9 @@
 tests:
 - healthStatus:
+    status: Degraded
+    message: "Trident is bound to another CR 'trident'"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
     status: Progressing
     message: "Waiting for trident installation"
   inputPath: testdata/progressing.yaml
