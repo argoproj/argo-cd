@@ -48,6 +48,7 @@ export const Filter = (props: FilterProps) => {
                         style={{marginLeft: 'auto'}}
                         onClick={() => {
                             setValues({} as FilterMap);
+                            setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR
                     </div>
@@ -73,8 +74,8 @@ export const Filter = (props: FilterProps) => {
                                 onItemClick={val => {
                                     const update = {...values};
                                     update[val] = true;
-                                    setValues(update);
                                     setInput('');
+                                    setValues(update);
                                 }}
                                 style={{width: '100%'}}
                                 inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
