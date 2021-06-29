@@ -10,7 +10,6 @@ package version
 
 import (
 	"context"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"net/http"
 
