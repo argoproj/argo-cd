@@ -2,7 +2,13 @@
 
 ## Preface
 
-We want to make contributing to ArgoCD as simple and smooth as possible.
+!!!note "Before you start"
+    The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organisations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
+
+    We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
+    [enhancement process](enhancements.md) before you start to write code or submit a PR.
+
+We want to make contributing to Argo CD as simple and smooth as possible.
 
 This guide shall help you in setting up your build & test environment, so that you can start developing and testing bug fixes and feature enhancements without having to make too much effort in setting up a local toolchain.
 
@@ -10,11 +16,11 @@ If you want to submit a PR, please read this document carefully, as it contains 
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of ArgoCD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-dev` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-contributors` channel!
 
 ## Before you start
 
-You will need at least the following things in your toolchain in order to develop and test ArgoCD locally:
+You will need at least the following things in your toolchain in order to develop and test Argo CD locally:
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
@@ -23,7 +29,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing ArgoCD is **v1.16**.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.16**.
 
 * We will assume that your Go workspace is at `~/go`.
 
@@ -32,15 +38,15 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 ## Submitting PRs
 
-When you submit a PR against ArgoCD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
+### Continuous Integration process
 
-In general, it might be beneficial to only submit a PR for an existing issue. Especially for larger changes, an Enhancement Proposal should exist before.
+When you submit a PR against Argo CD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
 !!!note
 
-    Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from ArgoCD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
+    Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
-Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to ArgoCD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
+Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
 
 The following read will help you to submit a PR that meets the standards of our CI tests:
 
@@ -53,13 +59,13 @@ We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-req
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
 * `docs` - Your PR improves the documentation
-* `chore` - Your PR improves any internals of ArgoCD, such as the build process, unit tests, etc
+* `chore` - Your PR improves any internals of Argo CD, such as the build process, unit tests, etc
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
 
 ### Contributor License Agreement
 
-Every contributor to ArgoCD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.
+Every contributor to Argo CD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.
 
 You can read the current version of the CLA [here](https://cla-assistant.io/argoproj/argo-cd).
 
@@ -96,7 +102,7 @@ ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% 
 
 ## Local vs Virtualized toolchain
 
-ArgoCD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.
+Argo CD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.
 
 Most relevant targets for the build & test cycles in the `Makefile` provide two variants, one of them suffixed with `-local`. For example, `make test` will run unit tests in the Docker container, `make test-local` will run it natively on your local system.
 
@@ -118,7 +124,7 @@ The Docker container for the virtualized toolchain will use the following local 
 
 The following steps are required no matter whether you chose to use a virtualized or a local toolchain.
 
-### Clone the ArgoCD repository from your personal fork on GitHub
+### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`
 * `cd ~/go/src/github.com/argoproj`
@@ -127,7 +133,7 @@ The following steps are required no matter whether you chose to use a virtualize
 
 ### Optional: Setup an additional Git remote
 
-While everyone has their own Git workflow, the author of this document recommends to create a remote called `upstream` in your local copy pointing to the original ArgoCD repository. This way, you can easily keep your local branches up-to-date by merging in latest changes from the ArgoCD repository, i.e. by doing a `git pull upstream master` in your locally checked out branch. To create the remote, run `git remote add upstream https://github.com/argoproj/argo-cd`
+While everyone has their own Git workflow, the author of this document recommends to create a remote called `upstream` in your local copy pointing to the original Argo CD repository. This way, you can easily keep your local branches up-to-date by merging in latest changes from the Argo CD repository, i.e. by doing a `git pull upstream master` in your locally checked out branch. To create the remote, run `git remote add upstream https://github.com/argoproj/argo-cd`
 
 ### Install the must-have requirements
 
@@ -198,14 +204,14 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep-ui`
 
-ArgoCD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:
+Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:
 
 * `make mod-download` will download all required Go modules and
-* `make mod-vendor` will vendor those dependencies into the ArgoCD source tree
+* `make mod-vendor` will vendor those dependencies into the Argo CD source tree
 
 ### Generate API glue code and other assets
 
-ArgoCD relies on Google's [Protocol Buffers](https://developers.google.com/protocol-buffers) for its API, and this makes heavy use of auto-generated glue code and stubs. Whenever you touched parts of the API code, you must re-generate the auto generated code.
+Argo CD relies on Google's [Protocol Buffers](https://developers.google.com/protocol-buffers) for its API, and this makes heavy use of auto-generated glue code and stubs. Whenever you touched parts of the API code, you must re-generate the auto generated code.
 
 * Run `make codegen`, this might take a while
 * Check if something has changed by running `git status` or `git diff`
@@ -276,7 +282,7 @@ For development, you can either use the fully virtualized toolchain provided as 
 !!!note
     The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.
 
-For installing the tools required to build and test ArgoCD on your local system, we provide convenient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
+For installing the tools required to build and test Argo CD on your local system, we provide convenient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
 
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
@@ -313,7 +319,7 @@ The next thing is to make sure that unit tests are running correctly on your sys
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the ArgoCD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.

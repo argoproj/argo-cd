@@ -109,6 +109,7 @@ nav:
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
+    - developer-guide/enhancements.md
     - developer-guide/contributing.md
     - developer-guide/running-locally.md
     - developer-guide/debugging-remote-environment.md
