@@ -857,12 +857,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 				message, err = sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
 			}
 		} else {
-			_, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy)
-			if err == nil {
-				message = fmt.Sprintf("%s/%s created", t.targetObj.GetKind(), t.targetObj.GetName())
-			} else {
-				message = fmt.Sprintf("error when creating: %v", err.Error())
-			}
+			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
 		}
 	} else {
 		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate)

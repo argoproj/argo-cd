@@ -90,13 +90,13 @@ func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config
 	return command.Err
 }
 
-func (k *MockKubectlCmd) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error) {
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {
-		return obj, nil
+		return "", nil
 	}
-	return obj, command.Err
+	return command.Output, command.Err
 }
 
 func (k *MockKubectlCmd) UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/auth"
+	"k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -36,7 +38,7 @@ import (
 type ResourceOperations interface {
 	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error)
 	ReplaceResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error)
-	CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
+	CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error)
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 }
 
@@ -158,33 +160,33 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	})
 }
 
-func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error) {
 	gvk := obj.GroupVersionKind()
 	span := k.tracer.StartSpan("CreateResource")
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	dynamicIf, err := dynamic.NewForConfig(k.config)
-	if err != nil {
-		return nil, err
-	}
-	disco, err := discovery.NewDiscoveryClientForConfig(k.config)
-	if err != nil {
-		return nil, err
-	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
-	if err != nil {
-		return nil, err
-	}
-	resource := gvk.GroupVersion().WithResource(apiResource.Name)
-	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, obj.GetNamespace())
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
+		cleanup, err := k.processKubectlRun("create")
+		if err != nil {
+			return err
+		}
+		defer cleanup()
 
-	createOptions := metav1.CreateOptions{}
-	switch dryRunStrategy {
-	case cmdutil.DryRunClient, cmdutil.DryRunServer:
-		createOptions.DryRun = []string{metav1.DryRunAll}
-	}
-	return resourceIf.Create(ctx, obj, createOptions)
+		createOptions, err := newCreateOptions(k.config, ioStreams, fileName, dryRunStrategy)
+		if err != nil {
+			return err
+		}
+		command := &cobra.Command{}
+		dummy := false
+		command.Flags().BoolVar(&dummy, "save-config", false, "")
+		command.Flags().BoolVar(&dummy, "validate", false, "")
+		if validate {
+			_ = command.Flags().Set("validate", "true")
+		}
+
+		return createOptions.RunCreate(f, command)
+	})
 }
 
 func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
@@ -285,6 +287,51 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	o.Namespace = obj.GetNamespace()
 	o.DeleteOptions.ForceDeletion = force
 	o.DryRunStrategy = dryRunStrategy
+	return o, nil
+}
+
+func newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
+	o := create.NewCreateOptions(ioStreams)
+
+	recorder, err := o.RecordFlags.ToRecorder()
+	if err != nil {
+		return nil, err
+	}
+	o.Recorder = recorder
+
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
+
+	switch dryRunStrategy {
+	case cmdutil.DryRunClient:
+		err = o.PrintFlags.Complete("%s (dry run)")
+		if err != nil {
+			return nil, err
+		}
+	case cmdutil.DryRunServer:
+		err = o.PrintFlags.Complete("%s (server dry run)")
+		if err != nil {
+			return nil, err
+		}
+	}
+	o.DryRunStrategy = dryRunStrategy
+
+	printer, err := o.PrintFlags.ToPrinter()
+	if err != nil {
+		return nil, err
+	}
+	o.PrintObj = func(obj runtime.Object) error {
+		return printer.PrintObj(obj, o.Out)
+	}
+	o.FilenameOptions.Filenames = []string{fileName}
 	return o, nil
 }
 
