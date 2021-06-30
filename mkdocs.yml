@@ -110,6 +110,7 @@ nav:
   - Developer Guide:
     - developer-guide/index.md
     - developer-guide/contributing.md
+    - developer-guide/release-process-and-cadence.md
     - developer-guide/running-locally.md
     - developer-guide/debugging-remote-environment.md
     - developer-guide/use-gitpod.md
