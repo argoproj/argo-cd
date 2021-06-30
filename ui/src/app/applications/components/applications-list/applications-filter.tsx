@@ -148,7 +148,6 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         const handleResize = () => {
             if (window.innerWidth >= 1440) {
                 setHidden(false);
-                console.log('hello');
             }
         };
 
