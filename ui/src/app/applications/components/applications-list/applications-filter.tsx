@@ -1,4 +1,4 @@
-import {ActionButton, useData} from 'argo-ux';
+import {ActionButton, debounce, useData} from 'argo-ux';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
@@ -143,6 +143,18 @@ const NamespaceFilter = (props: AppFilterProps) => {
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
     const [hidden, setHidden] = React.useState(false);
+
+    React.useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1440) {
+                setHidden(false);
+                console.log('hello');
+            }
+        };
+
+        window.addEventListener('resize', debounce(handleResize, 1000));
+        return () => window.removeEventListener('resize', handleResize);
+    });
     return (
         <React.Fragment>
             <div className='applications-list__filters__title'>

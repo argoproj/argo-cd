@@ -1,4 +1,4 @@
-import {Autocomplete, CheckboxOption, CheckboxRow, Tooltip} from 'argo-ux';
+import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ux';
 import * as React from 'react';
 
 import './filter.scss';
@@ -82,18 +82,16 @@ export const Filter = (props: FilterProps) => {
                             />
                         )}
                         {((props.field ? tags : props.options) || []).map((opt, i) => (
-                            <Tooltip content={opt.label}>
-                                <CheckboxRow
-                                    key={i}
-                                    value={values[opt.label]}
-                                    onChange={val => {
-                                        const update = {...values};
-                                        update[opt.label] = val;
-                                        setValues(update);
-                                    }}
-                                    option={opt}
-                                />
-                            </Tooltip>
+                            <CheckboxRow
+                                key={i}
+                                value={values[opt.label]}
+                                onChange={val => {
+                                    const update = {...values};
+                                    update[opt.label] = val;
+                                    setValues(update);
+                                }}
+                                option={opt}
+                            />
                         ))}
                     </React.Fragment>
                 ))}

@@ -1974,10 +1974,10 @@ are-we-there-yet@~1.1.2:
     typescript "^4.0.3"
     xterm "2.4.0"
 
-argo-ux@^1.1.14:
-  version "1.1.14"
-  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.14.tgz#213c01e16af2f34b87a99d9de008ab442f0d2209"
-  integrity sha512-K1D1kbFmbNp8lHncyXIiEC8Y0I8MY2Q+6fozGvoTDwMA6PZprdksKhIYkfTTfcmMiXtrk5ogYC+ias86LPxemg==
+argo-ux@^1.1.15:
+  version "1.1.15"
+  resolved "https://registry.yarnpkg.com/argo-ux/-/argo-ux-1.1.15.tgz#69d8e51f26da063fd7fa3baa7d382c197e80d662"
+  integrity sha512-rcvyuAccu2Fj2BdqmWS8uRqHIiFTdkRrg/bNiHdWqVk5bYVmjQ7hBhe8IDH/y1o/QtbUKLD6RTVD05qu/g0f3g==
   dependencies:
     "@fortawesome/fontawesome-free" "^5.15.2"
     "@testing-library/react" "^11.1.0"
@@ -1992,7 +1992,6 @@ argo-ux@^1.1.14:
     portable-fetch "^3.0.0"
     react-helmet "^6.1.0"
     react-hot-loader "^3.1.3"
-    react-keyhooks "^0.2.2"
     react-router-dom "^5.2.0"
     typescript "^4.1.2"
     web-vitals "^1.0.1"
@@ -8237,14 +8236,6 @@ react-keyhooks@^0.2.0:
   dependencies:
     "@types/react" "^17.0.2"
     react "^17.0.1"
-
-react-keyhooks@^0.2.2:
-  version "0.2.3"
-  resolved "https://registry.yarnpkg.com/react-keyhooks/-/react-keyhooks-0.2.3.tgz#57050244d9c501e5b812e2ee3156d8fb967afda9"
-  integrity sha512-1gzHAf5u/JFJ1xUT4Evz9q++eK4px52dhyz8EQ/BXYz4Sb9+idu9IHmq+aGVVoQMFDaO+zLkENoX9sdnVgJ3RQ==
-  dependencies:
-    "@types/react" "^16.9.3"
-    react "^16.9.3"
 
 react-lifecycles-compat@^3.0.0, react-lifecycles-compat@^3.0.2, react-lifecycles-compat@^3.0.4:
   version "3.0.4"
