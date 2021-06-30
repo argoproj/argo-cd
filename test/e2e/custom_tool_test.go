@@ -196,17 +196,25 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		})
 }
 func startCMPServer(configFile string) {
+	pluginSockFilePath := TmpDir + PluginSockFilePath
 	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
+	os.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
+	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
+		// path/to/whatever does not exist
+		err := os.Mkdir(pluginSockFilePath, 0700)
+		CheckError(err)
+	}
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-file-path", configFile))
 }
 
 func TestCMP(t *testing.T) {
-	go startCMPServer("./testdata/cmp")
-
-	time.Sleep(1 * time.Second)
-	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-
 	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path("guestbook").
 		When().
 		Create("--config-management-plugin", Name()).
@@ -218,12 +226,12 @@ func TestCMP(t *testing.T) {
 }
 
 func TestCMPWithEnv(t *testing.T) {
-	go startCMPServer("./testdata/cmp-env")
-
-	time.Sleep(1 * time.Second)
-	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-
 	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-env")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path("cmp-env").
 		When().
 		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").

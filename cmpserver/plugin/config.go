@@ -83,9 +83,10 @@ func ValidatePluginConfig(config PluginConfig) error {
 
 func (cfg *PluginConfig) Address() string {
 	var address string
-	address = fmt.Sprintf("%s/%s.sock", common.DefaultPluginSockFilePath, cfg.Metadata.Name)
+	pluginSockFilePath := common.GetPluginSockFilePath()
+	address = fmt.Sprintf("%s/%s.sock", pluginSockFilePath, cfg.Metadata.Name)
 	if cfg.Spec.Version != "" {
-		address = fmt.Sprintf("%s/%s-%s.sock", common.DefaultPluginSockFilePath, cfg.Metadata.Name, cfg.Spec.Version)
+		address = fmt.Sprintf("%s/%s-%s.sock", pluginSockFilePath, cfg.Metadata.Name, cfg.Spec.Version)
 	}
 	return address
 }

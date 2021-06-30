@@ -56,7 +56,6 @@ const (
 	DefaultAppConfigPath = "/app/config"
 	// Default path to cmp server plugin socket file
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
-	//DefaultPluginSockFilePath = "/Users/mayz985/go/src/github.com/argoproj/argo-cd/test/e2e/mayCMPSock"
 	// Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
 )
@@ -174,6 +173,8 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
+	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
+	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
 )
 
 const (
@@ -192,5 +193,14 @@ func GetGnuPGHomePath() string {
 		return DefaultGnuPgHomePath
 	} else {
 		return gnuPgHome
+	}
+}
+
+// GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
+func GetPluginSockFilePath() string {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
 	}
 }

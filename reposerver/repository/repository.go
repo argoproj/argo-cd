@@ -1609,7 +1609,8 @@ func detectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	var conn io.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
-	files, err := os.ReadDir(common.DefaultPluginSockFilePath)
+	pluginSockFilePath := common.GetPluginSockFilePath()
+	files, err := os.ReadDir(pluginSockFilePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1617,7 +1618,7 @@ func detectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	var connFound bool
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
-			address := fmt.Sprintf("%s/%s", strings.TrimRight(common.DefaultPluginSockFilePath, "/"), file.Name())
+			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
 			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()

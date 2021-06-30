@@ -3,6 +3,7 @@ package commands
 import (
 	"time"
 
+	"github.com/argoproj/pkg/stats"
 	"github.com/spf13/cobra"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -11,7 +12,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/pkg/stats"
 )
 
 const (
