@@ -33,7 +33,7 @@ argocd-application-controller [flags]
       --metrics-cache-expiration duration     Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                      Start metrics server on given port (default 8082)
   -n, --namespace string                      If present, the namespace scope for this CLI request
-      --operation-processors int              Number of application operation processors (default 1)
+      --operation-processors int              Number of application operation processors (default 10)
       --password string                       Password for basic authentication to the API server
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redisdb int                           Redis database.
@@ -46,7 +46,7 @@ argocd-application-controller [flags]
       --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
-      --status-processors int                 Number of application status processors (default 1)
+      --status-processors int                 Number of application status processors (default 20)
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use

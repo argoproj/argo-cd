@@ -789,10 +789,7 @@ func (m *GnuPGPublicKeyQuery) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthGpgkey
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthGpgkey
 			}
 			if (iNdEx + skippy) > l {
@@ -899,10 +896,7 @@ func (m *GnuPGPublicKeyCreateRequest) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthGpgkey
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthGpgkey
 			}
 			if (iNdEx + skippy) > l {
@@ -1021,10 +1015,7 @@ func (m *GnuPGPublicKeyCreateResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthGpgkey
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthGpgkey
 			}
 			if (iNdEx + skippy) > l {
@@ -1075,10 +1066,7 @@ func (m *GnuPGPublicKeyResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthGpgkey
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthGpgkey
 			}
 			if (iNdEx + skippy) > l {

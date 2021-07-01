@@ -1,4 +1,4 @@
-package resource_customizations
+package lua
 
 import (
 	"io/ioutil"
@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 type TestStructure struct {
@@ -35,7 +34,7 @@ func getObj(path string) *unstructured.Unstructured {
 }
 
 func TestLuaHealthScript(t *testing.T) {
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
@@ -49,7 +48,7 @@ func TestLuaHealthScript(t *testing.T) {
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(test.InputPath, func(t *testing.T) {
-				vm := lua.VM{
+				vm := VM{
 					UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))

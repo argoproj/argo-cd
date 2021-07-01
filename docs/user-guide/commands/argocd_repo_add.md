@@ -52,6 +52,7 @@ argocd repo add REPOURL [flags]
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
       --password string                         password to the repository
+      --proxy string                            use proxy to access repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)

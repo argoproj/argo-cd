@@ -1,4 +1,4 @@
-package resource_customizations
+package lua
 
 import (
 	"fmt"
@@ -18,7 +18,6 @@ import (
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 type testNormalizer struct{}
@@ -61,7 +60,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.DiscoveryTests[i]
 			testName := fmt.Sprintf("discovery/%s", test.InputPath)
 			t.Run(testName, func(t *testing.T) {
-				vm := lua.VM{
+				vm := VM{
 					UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
@@ -78,7 +77,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.ActionTests[i]
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 			t.Run(testName, func(t *testing.T) {
-				vm := lua.VM{
+				vm := VM{
 					// Uncomment the following line if you need to use lua libraries debugging
 					// purposes. Otherwise, leave this false to ensure tests reflect the same
 					// privileges that API server has.

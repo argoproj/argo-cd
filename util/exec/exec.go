@@ -6,13 +6,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v2/util/log"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 	argoexec "github.com/argoproj/pkg/exec"
 
-	tracing "github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/v2/util/log"
 )
 
 var timeout time.Duration
@@ -35,7 +32,7 @@ func Run(cmd *exec.Cmd) (string, error) {
 
 func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, error) {
 	opts := argoexec.CmdOpts{Timeout: timeout}
-	span := tracing.NewLoggingTracer(log.NewLogrusLogger(logrus.New())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
+	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", fmt.Sprintf("%v", cmd.Dir))
 	if redactor != nil {
 		span.SetBaggageItem("args", redactor(fmt.Sprintf("%v", cmd.Args)))
