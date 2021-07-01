@@ -23,13 +23,18 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string  `yaml:"version"`
-	Init             Command `yaml:"init,omitempty"`
-	Generate         Command `yaml:"generate"`
-	Find             Command `yaml:"find"`
-	Check            Command `yaml:"check"`
-	AllowConcurrency bool    `yaml:"allowConcurrency"`
-	LockRepo         bool    `yaml:"lockRepo"`
+	Version          string   `yaml:"version"`
+	Init             Command  `yaml:"init,omitempty"`
+	Generate         Command  `yaml:"generate"`
+	Discover         Discover `yaml:"discover"`
+	AllowConcurrency bool     `yaml:"allowConcurrency"`
+	LockRepo         bool     `yaml:"lockRepo"`
+}
+
+//Discover holds find and fileName
+type Discover struct {
+	Find     Command `yaml:"find"`
+	FileName string  `yaml:"fileName"`
 }
 
 // Command holds binary path and arguments list
@@ -75,8 +80,8 @@ func ValidatePluginConfig(config PluginConfig) error {
 	if len(config.Spec.Generate.Command) == 0 {
 		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
-	if config.Spec.Find.Glob == "" && len(config.Spec.Find.Command) == 0 {
-		return fmt.Errorf("invalid plugin configuration file. atleast one of find.command or find.glob should be non-empty")
+	if config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command) == 0 && config.Spec.Discover.FileName == "" {
+		return fmt.Errorf("invalid plugin configuration file. atleast one of discover.find.command or discover.find.glob or discover.fineName should be non-empty")
 	}
 	return nil
 }

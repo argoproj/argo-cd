@@ -208,10 +208,29 @@ func startCMPServer(configFile string) {
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-file-path", configFile))
 }
 
-func TestCMP(t *testing.T) {
+//Discover by fileName
+func TestCMPDiscoverWithFileName(t *testing.T) {
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp")
+			go startCMPServer("./testdata/cmp-fileName")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("cmp-fileName").
+		When().
+		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+//Discover by Find glob
+func TestCMPDiscoverWithFindGlob(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
@@ -225,14 +244,15 @@ func TestCMP(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-func TestCMPWithEnv(t *testing.T) {
+//Discover by Find command
+func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp-env")
+			go startCMPServer("./testdata/cmp-find-command")
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path("cmp-env").
+		Path("cmp-find-command").
 		When().
 		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").
 		Sync().

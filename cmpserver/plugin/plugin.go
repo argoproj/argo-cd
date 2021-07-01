@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -102,8 +103,19 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
 	var repoResponse apiclient.RepositoryResponse
 	config := s.initConstants.PluginConfig
-	if config.Spec.Find.Glob != "" {
-		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Find.Glob, "/")
+	if config.Spec.Discover.FileName != "" {
+		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.FileName, "/")
+		matches, err := filepath.Glob(pattern)
+		if err != nil || len(matches) == 0 {
+			return &repoResponse, err
+		} else if len(matches) > 0 {
+			repoResponse.IsSupported = true
+			return &repoResponse, nil
+		}
+	}
+
+	if config.Spec.Discover.Find.Glob != "" {
+		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.Find.Glob, "/")
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
@@ -115,7 +127,7 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 		}
 	}
 
-	find, err := runCommand(config.Spec.Find, q.Path, os.Environ())
+	find, err := runCommand(config.Spec.Discover.Find, q.Path, os.Environ())
 	if err != nil {
 		return &repoResponse, err
 	}
