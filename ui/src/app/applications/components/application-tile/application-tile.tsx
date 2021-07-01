@@ -1,4 +1,3 @@
-import {faRedo, faSync, faTimesCircle} from '@fortawesome/free-solid-svg-icons';
 import {ActionButton, Checkbox, Flexy, InfoItemRow, useData} from 'argo-ux';
 import * as React from 'react';
 import {ClusterCtx, clusterTitle, GetCluster} from '../../../shared/components';
@@ -27,11 +26,11 @@ const TileActions = (props: TileProps) => {
     const {app, compact, syncApplication, refreshApplication, deleteApplication, refreshing} = props;
     return (
         <Flexy className={`application-tile__actions ${props.compact ? 'application-tile__actions--compact' : ''}`}>
-            <ActionButton label='SYNC' action={() => syncApplication(app.metadata.name)} icon={faSync} short={compact} transparent={compact} tooltip={compact && 'SYNC'} />
+            <ActionButton label='SYNC' action={() => syncApplication(app.metadata.name)} icon='fa-sync' short={compact} transparent={compact} tooltip={compact && 'SYNC'} />
             <ActionButton
                 label='REFRESH'
                 action={() => refreshApplication(app.metadata.name)}
-                icon={faRedo}
+                icon='fa-redo'
                 {...refreshLinkAttrs(app)}
                 indicateLoading={true}
                 short={compact}
@@ -42,7 +41,7 @@ const TileActions = (props: TileProps) => {
             <ActionButton
                 label='DELETE'
                 action={() => deleteApplication(app.metadata.name)}
-                icon={faTimesCircle}
+                icon='fa-times-circle'
                 shouldConfirm={true}
                 indicateLoading={true}
                 short={compact}

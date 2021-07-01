@@ -1,4 +1,3 @@
-import {faCheckDouble, faCompress, faExpand, faRedo, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {ActionButton, Flexy, useTimeout} from 'argo-ux';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
@@ -137,16 +136,16 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             refreshApplication(Object.keys(checkedApps));
                                         }}
                                         label='REFRESH'
-                                        icon={faRedo}
+                                        icon='fa-redo'
                                         indicateLoading={true}
                                     />
                                 </React.Fragment>
                             )}
-                            {(Object.keys(checkedApps) || []).length > 0 && <ActionButton label='DESELECT ALL' icon={faTimes} action={deselectAll} />}
-                            {!allSelected && <ActionButton label='SELECT ALL' icon={faCheckDouble} action={selectAll} />}
+                            {(Object.keys(checkedApps) || []).length > 0 && <ActionButton label='DESELECT ALL' icon='fa-times' action={deselectAll} />}
+                            {!allSelected && <ActionButton label='SELECT ALL' icon='fa-check-double' action={selectAll} />}
                             <ActionButton
                                 label={`${compact ? 'NORMAL' : 'COMPACT'} VIEW`}
-                                icon={compact ? faExpand : faCompress}
+                                icon={compact ? 'fa-expand' : 'fa-compress'}
                                 action={() => {
                                     setCompact(!compact);
                                 }}
