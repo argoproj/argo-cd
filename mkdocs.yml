@@ -109,8 +109,8 @@ nav:
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
-    - developer-guide/enhancements.md
-    - developer-guide/contributing.md
+    - Code Contribution Guide: developer-guide/code-contributions.md
+    - Toolchain Guide: developer-guide/toolchain-guide.md
     - developer-guide/running-locally.md
     - developer-guide/debugging-remote-environment.md
     - developer-guide/use-gitpod.md
