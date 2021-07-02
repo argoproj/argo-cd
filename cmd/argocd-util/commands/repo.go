@@ -36,6 +36,7 @@ func NewRepoCommand() *cobra.Command {
 		},
 	}
 	command.AddCommand(NewGenRepoSpecCommand())
+	command.AddCommand(NewGitCredsHelperCommand())
 
 	return command
 }
