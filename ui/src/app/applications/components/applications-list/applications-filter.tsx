@@ -1,4 +1,4 @@
-import {ActionButton, debounce, useData} from 'argo-ux';
+import {ActionButton, debounce, useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';

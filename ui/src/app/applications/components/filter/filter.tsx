@@ -1,4 +1,4 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ux';
+import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
 import * as React from 'react';
 
 import './filter.scss';
