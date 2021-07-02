@@ -812,79 +812,100 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
-	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
-	if err != nil {
-		return nil, err
-	}
+	// validDestination is true if the Application destination points to a cluster that is managed by Argo CD
+	// (and thus either a cluster secret exists for it, or it's local); validDestination is false otherwise.
+	validDestination := true
 
-	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
-	if err != nil {
-		return nil, err
+	// Validate the cluster using the Application destination's `name` field, if applicable,
+	// and set the Server field, if needed.
+	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+		log.Warnf("Unable to validate destination of the Application being deleted: %v", err)
+		validDestination = false
 	}
 
 	objs := make([]*unstructured.Unstructured, 0)
-	for k := range objsMap {
-		// Wait for objects pending deletion to complete before proceeding with next sync wave
-		if objsMap[k].GetDeletionTimestamp() != nil {
+	var cluster *appv1.Cluster
+
+	// Attempt to validate the destination via its URL
+	if validDestination {
+		if cluster, err = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server); err != nil {
+			log.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
+			validDestination = false
+		}
+	}
+
+	if validDestination {
+		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
+
+		objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
+		if err != nil {
+			return nil, err
+		}
+
+		for k := range objsMap {
+			// Wait for objects pending deletion to complete before proceeding with next sync wave
+			if objsMap[k].GetDeletionTimestamp() != nil {
+				logCtx.Infof("%d objects remaining for deletion", len(objsMap))
+				return objs, nil
+			}
+
+			if ctrl.shouldBeDeleted(app, objsMap[k]) {
+				objs = append(objs, objsMap[k])
+			}
+		}
+
+		config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+
+		filteredObjs := FilterObjectsForDeletion(objs)
+
+		propagationPolicy := metav1.DeletePropagationForeground
+		if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+			propagationPolicy = metav1.DeletePropagationBackground
+		}
+		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
+		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+			obj := filteredObjs[i]
+			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		})
+		if err != nil {
+			return objs, err
+		}
+
+		objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj)
+		if err != nil {
+			return nil, err
+		}
+
+		for k, obj := range objsMap {
+			if !ctrl.shouldBeDeleted(app, obj) {
+				delete(objsMap, k)
+			}
+		}
+		if len(objsMap) > 0 {
 			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 			return objs, nil
 		}
-		if ctrl.shouldBeDeleted(app, objsMap[k]) {
-			objs = append(objs, objsMap[k])
-		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return nil, err
-	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
-
-	filteredObjs := FilterObjectsForDeletion(objs)
-
-	propagationPolicy := metav1.DeletePropagationForeground
-	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-		propagationPolicy = metav1.DeletePropagationBackground
-	}
-	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
-
-	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
-		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-	})
-	if err != nil {
+	if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
 		return objs, err
 	}
 
-	objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, obj := range objsMap {
-		if !ctrl.shouldBeDeleted(app, obj) {
-			delete(objsMap, k)
-		}
-	}
-	if len(objsMap) > 0 {
-		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
-		return objs, nil
-	}
-	err = ctrl.cache.SetAppManagedResources(app.Name, nil)
-	if err != nil {
-		return objs, err
-	}
-	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
-	if err != nil {
+	if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
 		return objs, err
 	}
 
-	err = ctrl.removeCascadeFinalizer(app)
-	if err != nil {
+	if err := ctrl.removeCascadeFinalizer(app); err != nil {
 		return objs, err
 	}
 
-	logCtx.Infof("Successfully deleted %d resources", len(objs))
+	if validDestination {
+		logCtx.Infof("Successfully deleted %d resources", len(objs))
+	} else {
+		logCtx.Infof("Resource entries removed from undefined cluster")
+	}
+
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
 }
@@ -1546,6 +1567,12 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
+					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+					// returned by the informer/lister will have server field set (if not already set) based on the name.
+					// (or, if not found, an error app condition)
+
+					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+					// log an error as an App Condition.
 					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
 						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
 					}

@@ -2396,13 +2396,19 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
-// TODO: document this method
+// SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
+
 	d.isServerInferred = true
 	d.Server = server
 }
 
-// TODO: document this method
+// An ApplicationDestination has an 'inferred server' if the ApplicationDestination
+// contains a Name, but not a Server URL. In this case it is necessary to retrieve
+// the Server URL by looking up the cluster name.
+//
+// As of this writing, looking up the cluster name, and setting the URL, is
+// performed by 'utils.ValidateDestination(...)', which then calls SetInferredServer.
 func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }

@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@reactivex/rxjs": "^6.6.7",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
     "@types/dagre": "^0.7.40",
@@ -28,6 +29,7 @@
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
+    "argo-ux": "^1.1.15",
     "classnames": "^2.2.5",
     "color": "^3.1.0",
     "cookie": "^0.3.1",

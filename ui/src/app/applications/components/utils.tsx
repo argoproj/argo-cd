@@ -166,7 +166,17 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
-export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
+export const ComparisonStatusIcon = ({
+    status,
+    resource,
+    label,
+    noSpin
+}: {
+    status: appModels.SyncStatusCode;
+    resource?: {requiresPruning?: boolean};
+    label?: boolean;
+    noSpin?: boolean;
+}) => {
     let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
@@ -187,7 +197,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = 'fa fa-circle-notch fa-spin';
+            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
     }
     return (
@@ -421,7 +431,7 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
-export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
+export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
@@ -440,7 +450,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
             break;
         case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
-            icon = 'fa fa-circle-notch fa-spin';
+            icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
         case appModels.HealthStatuses.Missing:
             color = COLORS.health.missing;

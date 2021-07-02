@@ -1588,7 +1588,7 @@ func TestSyncOptionReplace(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "ConfigMap/my-map created")
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
 		}).
 		When().
 		Sync().
