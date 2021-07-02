@@ -12,8 +12,10 @@ interface FilterProps {
     setSelected: (items: string[]) => void;
     options?: CheckboxOption[];
     label?: string;
+    labels?: string[];
     field?: boolean;
     error?: boolean;
+    retry?: () => void;
     loading?: boolean;
 }
 
@@ -25,6 +27,8 @@ export const Filter = (props: FilterProps) => {
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(false);
+
+    const labels = props.labels || props.options.map(o => o.label);
 
     React.useEffect(() => {
         const map: string[] = Object.keys(values).filter(s => values[s]);
@@ -60,15 +64,13 @@ export const Filter = (props: FilterProps) => {
                 (props.loading ? (
                     <FilterLoading />
                 ) : props.error ? (
-                    <FilterError />
+                    <FilterError retry={props.retry} />
                 ) : (
                     <React.Fragment>
                         {props.field && (
                             <Autocomplete
                                 placeholder={props.label}
-                                items={(props.options || []).map(opt => {
-                                    return opt.label;
-                                })}
+                                items={labels}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
@@ -99,9 +101,12 @@ export const Filter = (props: FilterProps) => {
     );
 };
 
-const FilterError = () => (
+const FilterError = (props: {retry: () => void}) => (
     <div className='filter__error'>
         <i className='fa fa-exclamation-circle' /> ERROR LOADING FILTER
+        <div onClick={() => props.retry()} className='filter__error__retry'>
+            <i className='fa fa-redo' /> RETRY
+        </div>
     </div>
 );
 
