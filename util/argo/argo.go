@@ -289,9 +289,15 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
-// ValidateDestination checks:
-// if we used destination name we infer the server url
-// if we used both name and server then we return an invalid spec error
+// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
+//
+// If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
+// ValidationDestination will look up the cluster by name (to get the server URL), and
+// set the corresponding Server field value.
+//
+// It also checks:
+// - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {

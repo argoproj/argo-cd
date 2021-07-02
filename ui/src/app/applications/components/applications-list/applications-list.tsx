@@ -6,7 +6,6 @@ import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -287,6 +286,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
+
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -399,19 +399,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     ) : (
                                                         <div className='row'>
                                                             <div className='columns small-12 xxlarge-2'>
-                                                                <DataLoader load={() => services.clusters.list()}>
-                                                                    {clusterList => {
-                                                                        return (
-                                                                            <ApplicationsFilter
-                                                                                clusters={clusterList}
-                                                                                applications={filteredApps}
-                                                                                pref={pref}
-                                                                                onChange={newPref => onFilterPrefChanged(ctx, newPref)}
-                                                                            />
-                                                                        );
-                                                                    }}
-                                                                </DataLoader>
-
+                                                                <ApplicationsFilter apps={applications} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
                                                                 {syncAppsInput && (
                                                                     <ApplicationsSyncPanel
                                                                         key='syncsPanel'

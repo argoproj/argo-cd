@@ -120,7 +120,7 @@ $num-stats: 2;
             &--suspended {
                 background-color: $argo-status-warning-color;
                 &:hover {
-                    background-color: $argo-status-warning-color - #111;
+                    background-color: darken($argo-status-warning-color, 10%);
                 }
             }
             &--running,
