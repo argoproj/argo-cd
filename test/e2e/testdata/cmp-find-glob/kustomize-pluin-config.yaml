@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
 metadata:
-  name: kustomize
+  name: cmp-find-glob
 spec:
   version: v1.0
   init:

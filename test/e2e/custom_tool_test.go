@@ -210,15 +210,16 @@ func startCMPServer(configFile string) {
 
 //Discover by fileName
 func TestCMPDiscoverWithFileName(t *testing.T) {
+	pluginName := "cmp-fileName"
 	Given(t).
 		And(func() {
 			go startCMPServer("./testdata/cmp-fileName")
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path("cmp-fileName").
+		Path(pluginName).
 		When().
-		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").
+		Create("--config-management-plugin", pluginName, "--plugin-env", "FOO=bar").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -228,6 +229,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 
 //Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
+	pluginName := "cmp-find-glob"
 	Given(t).
 		And(func() {
 			go startCMPServer("./testdata/cmp-find-glob")
@@ -236,7 +238,7 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		}).
 		Path("guestbook").
 		When().
-		Create("--config-management-plugin", Name()).
+		Create("--config-management-plugin", pluginName).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -246,15 +248,16 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 
 //Discover by Find command
 func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
+	pluginName := "cmp-find-command"
 	Given(t).
 		And(func() {
 			go startCMPServer("./testdata/cmp-find-command")
 			time.Sleep(1 * time.Second)
 			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path("cmp-find-command").
+		Path(pluginName).
 		When().
-		Create("--config-management-plugin", Name(), "--plugin-env", "FOO=bar").
+		Create("--config-management-plugin", pluginName, "--plugin-env", "FOO=bar").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

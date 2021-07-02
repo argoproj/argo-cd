@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
 metadata:
-  name: env
+  name: cmp-find-command
 spec:
   version: v1.0
   generate:

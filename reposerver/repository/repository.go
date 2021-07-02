@@ -1171,7 +1171,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 }
 func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := detectConfigManagementPlugin(appPath)
+	conn, cmpClient, err := detectConfigManagementPlugin(q.ApplicationSource.Plugin.Name, appPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1605,7 +1605,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 // 3. check isSupported(path)?
 // 4.a if no then close connection
 // 4.b if yes then return conn for detected plugin
-func detectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+func detectConfigManagementPlugin(pluginName, appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	var conn io.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
@@ -1618,6 +1618,13 @@ func detectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	var connFound bool
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
+			if pluginName != "" {
+				pattern := "^" + pluginName + "(-.*)?.sock"
+				if !regexp.MustCompile(pattern).MatchString(file.Name()) {
+					continue
+				}
+			}
+
 			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
 			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
 
