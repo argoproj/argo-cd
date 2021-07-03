@@ -1,6 +1,5 @@
 import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar} from 'argo-ui';
 import * as classNames from 'classnames';
-import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
@@ -13,9 +12,8 @@ import {AppsListPreferences, AppsListViewType, services} from '../../../shared/s
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
-import * as LabelSelector from '../label-selector';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter} from './applications-filter';
+import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
@@ -142,18 +140,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     </ObservableQuery>
 );
 
-function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string) {
-    return applications.filter(
-        app =>
-            (search === '' || app.metadata.name.includes(search)) &&
-            (pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project)) &&
-            (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
-            (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
-            (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
-            (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns))) &&
-            (pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server === (app.spec.destination.server || app.spec.destination.name))) &&
-            (pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)))
-    );
+function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+    const filterResults = getFilterResults(applications, pref);
+    return {
+        filterResults,
+        filteredApps: filterResults.filter(app => (search === '' || app.metadata.name.includes(search)) && Object.values(app.filterResult).every(val => val))
+    };
 }
 
 function tryJsonParse(input: string) {
@@ -384,7 +376,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    const filteredApps = filterApps(applications, pref, pref.search);
+                                                    const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
                                                     return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                         <EmptyState icon='argo-icon-application'>
                                                             <h4>No applications yet</h4>
@@ -399,7 +391,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     ) : (
                                                         <div className='row'>
                                                             <div className='columns small-12 xxlarge-2'>
-                                                                <ApplicationsFilter apps={applications} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
+                                                                <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
                                                                 {syncAppsInput && (
                                                                     <ApplicationsSyncPanel
                                                                         key='syncsPanel'

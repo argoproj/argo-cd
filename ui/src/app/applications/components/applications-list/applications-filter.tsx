@@ -1,9 +1,40 @@
 import {ActionButton, debounce, useData} from 'argo-ui/v2';
+import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter} from '../filter/filter';
+import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+
+export interface FilterResult {
+    projects: boolean;
+    repos: boolean;
+    sync: boolean;
+    health: boolean;
+    namespaces: boolean;
+    clusters: boolean;
+    labels: boolean;
+}
+
+export interface FilteredApp extends Application {
+    filterResult: FilterResult;
+}
+
+export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
+    return applications.map(app => ({
+        ...app,
+        filterResult: {
+            projects: pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project),
+            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
+            sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            clusters: pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server === (app.spec.destination.server || app.spec.destination.name)),
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+        }
+    }));
+}
 
 const optionsFrom = (options: string[], filter: string[]) => {
     return options
@@ -14,22 +45,25 @@ const optionsFrom = (options: string[], filter: string[]) => {
 };
 
 interface AppFilterProps {
-    apps: Application[];
+    apps: FilteredApp[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
 }
 
-const getCounts = (apps: Application[], filter: (app: Application) => string, init?: string[]) => {
+const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
     const map = new Map<string, number>();
     if (init) {
         init.forEach(key => map.set(key, 0));
     }
-    apps.filter(filter).forEach(app => map.set(filter(app), (map.get(filter(app)) || 0) + 1));
+    // filter out all apps that does not match other filters and ignore this filter result
+    apps.filter(app => filter(app) && Object.keys(app.filterResult).every((key: keyof FilterResult) => key === filterType || app.filterResult[key])).forEach(app =>
+        map.set(filter(app), (map.get(filter(app)) || 0) + 1)
+    );
     return map;
 };
 
-const getOptions = (apps: Application[], filter: (app: Application) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
-    const counts = getCounts(apps, filter, keys);
+const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
+    const counts = getCounts(apps, filterType, filter, keys);
     return keys.map(k => {
         return {
             label: k,
@@ -44,7 +78,7 @@ const SyncFilter = (props: AppFilterProps) => (
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
         setSelected={s => props.onChange({...props.pref, syncFilter: s})}
-        options={getOptions(props.apps, app => app.status.sync.status, Object.keys(SyncStatuses), s => (
+        options={getOptions(props.apps, 'sync', app => app.status.sync.status, Object.keys(SyncStatuses), s => (
             <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
         ))}
     />
@@ -55,7 +89,7 @@ const HealthFilter = (props: AppFilterProps) => (
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
         setSelected={s => props.onChange({...props.pref, healthFilter: s})}
-        options={getOptions(props.apps, app => app.status.health.status, Object.keys(HealthStatuses), s => (
+        options={getOptions(props.apps, 'health', app => app.status.health.status, Object.keys(HealthStatuses), s => (
             <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
         ))}
     />
