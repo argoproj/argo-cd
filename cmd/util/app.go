@@ -69,6 +69,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	annotations                     []string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -118,6 +119,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().StringArrayVar(&opts.annotations, "annotations", []string{}, "Set metadata annotations")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -563,6 +565,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
+		setAnnotations(&app, appOpts.annotations)
 	} else {
 		// read arguments
 		if len(args) == 1 {
@@ -583,6 +586,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
+		setAnnotations(&app, appOpts.annotations)
 	}
 	return &app, nil
 }
@@ -602,4 +606,14 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 	}
 
 	app.SetLabels(mergedLabels)
+}
+
+func setAnnotations(app *argoappv1.Application, annotations []string) {
+	if len(annotations) > 0 && app.Annotations == nil {
+		app.Annotations = map[string]string{}
+	}
+	for _, a := range annotations {
+		annotation := strings.SplitN(a, "=", 2)
+		app.Annotations[annotation[0]] = annotation[1]
+	}
 }
