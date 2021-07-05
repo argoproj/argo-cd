@@ -184,4 +184,9 @@ func Test_setAnnotations(t *testing.T) {
 		setAnnotations(&app, []string{"hoge=foo=bar"})
 		assert.Equal(t, map[string]string{"hoge": "foo=bar"}, app.Annotations)
 	})
+	t.Run("Annotations empty value", func(t *testing.T) {
+		app := v1alpha1.Application{}
+		setAnnotations(&app, []string{"hoge"})
+		assert.Equal(t, map[string]string{"hoge": ""}, app.Annotations)
+	})
 }

@@ -612,6 +612,10 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 	}
 	for _, a := range annotations {
 		annotation := strings.SplitN(a, "=", 2)
-		app.Annotations[annotation[0]] = annotation[1]
+		if len(annotation) == 2 {
+			app.Annotations[annotation[0]] = annotation[1]
+		} else {
+			app.Annotations[annotation[0]] = ""
+		}
 	}
 }
