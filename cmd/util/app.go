@@ -69,7 +69,6 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
-	annotations                     []string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -119,7 +118,6 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
-	command.Flags().StringArrayVar(&opts.annotations, "annotations", []string{}, "Set metadata annotations")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -539,7 +537,7 @@ func readAppFromURI(fileURL string, app *argoappv1.Application) error {
 	return err
 }
 
-func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
+func ConstructApp(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
 	var app argoappv1.Application
 	if fileURL == "-" {
 		// read stdin
@@ -565,7 +563,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
-		setAnnotations(&app, appOpts.annotations)
+		setAnnotations(&app, annotations)
 	} else {
 		// read arguments
 		if len(args) == 1 {
@@ -586,7 +584,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
-		setAnnotations(&app, appOpts.annotations)
+		setAnnotations(&app, annotations)
 	}
 	return &app, nil
 }
