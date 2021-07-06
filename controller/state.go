@@ -124,6 +124,18 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+	helmExternalValueCredentials := []*v1alpha1.RepoCreds{}
+	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.ExternalValueFiles != nil {
+		for _, helmExternalValueFile := range app.Spec.Source.Helm.ExternalValueFiles {
+			helmExternalValueCredential, err := m.db.GetRepositoryCredentials(context.Background(), helmExternalValueFile.RepoURL)
+			if err != nil {
+				return nil, nil, err
+			}
+			if helmExternalValueCredential != nil {
+				helmExternalValueCredentials = append(helmExternalValueCredentials, helmExternalValueCredential)
+			}
+		}
+	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, err
@@ -159,21 +171,22 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              repo,
-		Repos:             permittedHelmRepos,
-		Revision:          revision,
-		NoCache:           noCache,
-		NoRevisionCache:   noRevisionCache,
-		AppLabelKey:       appLabelKey,
-		AppName:           app.Name,
-		Namespace:         app.Spec.Destination.Namespace,
-		ApplicationSource: &source,
-		Plugins:           tools,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		VerifySignature:   verifySignature,
-		HelmRepoCreds:     permittedHelmCredentials,
+		Repo:                       repo,
+		Repos:                      permittedHelmRepos,
+		Revision:                   revision,
+		NoCache:                    noCache,
+		NoRevisionCache:            noRevisionCache,
+		AppLabelKey:                appLabelKey,
+		AppName:                    app.Name,
+		Namespace:                  app.Spec.Destination.Namespace,
+		ApplicationSource:          &source,
+		Plugins:                    tools,
+		KustomizeOptions:           kustomizeOptions,
+		KubeVersion:                serverVersion,
+		ApiVersions:                argo.APIGroupsToVersions(apiGroups),
+		VerifySignature:            verifySignature,
+		HelmRepoCreds:              permittedHelmCredentials,
+		HelmExternalValueRepoCreds: helmExternalValueCredentials,
 	})
 	if err != nil {
 		return nil, nil, err

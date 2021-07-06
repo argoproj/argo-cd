@@ -193,6 +193,7 @@ func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,
 	repo *v1alpha1.Repository,
+	helmExternalValueCreds []*v1alpha1.RepoCreds,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
 	cacheFn func(cacheKey string, firstInvocation bool) (bool, error),
@@ -249,6 +250,13 @@ func (s *Service) runRepoOperation(
 			// load values files from external git repo
 			for _, exVal := range source.Helm.ExternalValueFiles {
 				exRepo := v1alpha1.Repository{Repo: exVal.RepoURL}
+				if helmExternalValueCreds != nil {
+					creds := getRepoCredential(helmExternalValueCreds, exVal.RepoURL)
+					if creds != nil {
+						exRepo.CopyCredentialsFrom(creds)
+					}
+				}
+
 				exGitClient, exRevision, err := s.newClientResolveRevision(&exRepo, exVal.TargetRevision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
 				if err != nil {
 					return err
@@ -357,7 +365,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.HelmExternalValueRepoCreds, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
 
 	return res, err
 }
@@ -1248,7 +1256,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.HelmExternalValueRepoCreds, q.Source, false, cacheFn, operation, settings)
 
 	return res, err
 }
