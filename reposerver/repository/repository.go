@@ -655,7 +655,8 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			if strings.HasPrefix(exVal.RepoURL, "file://") {
 				repoFilePath = exVal.RepoURL[7:]
 			} else {
-				repoFilePath = filepath.Join(os.TempDir(), strings.Replace(git.NormalizeGitURL(exVal.RepoURL), "/", "_", -1))
+				r := regexp.MustCompile("(/|:)")
+				repoFilePath = filepath.Join(os.TempDir(), r.ReplaceAllString(git.NormalizeGitURL(exVal.RepoURL), "_"))
 			}
 
 			for _, file := range exVal.ValueFiles {
