@@ -39,11 +39,13 @@ If you want a quick start contributing to Argo CD, take a look at issues that ar
 or
 [good first issue](https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
 
-These are issues that were already triaged, and we encourage our community to pick up these issues and implement them.
+These are issues that were already triaged and accepted. 
 
 If the issue is already attached to next
 [version milestone](https://github.com/argoproj/argo-cd/milestones),
 we have decided to also dedicate some of our time on reviews to PRs received for these issues.
+
+We encourage our community to pick up issues that are labeled in this way *and* are attached to the next version's milestone, with a promise for them to get a proper review with the clear intention for the incoming PRs to get merged.
 
 ## Triage process
 
