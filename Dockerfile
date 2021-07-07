@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:20.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:21.04
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
