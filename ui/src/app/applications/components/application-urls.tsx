@@ -37,7 +37,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     return (
         ((externalLinks || []).length > 0 && (
-            <div className="applications-list__external-links-icon-container">
+            <div className='applications-list__external-links-icon-container'>
                 <a
                     title={externalLinks[0].title}
                     onClick={e => {
