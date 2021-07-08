@@ -10,6 +10,10 @@ on:
     branches:
       - 'master'
 
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.16.5'
+
 jobs:
   build-docker:
     name: Build Docker image
@@ -30,7 +34,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
         run: |
           go mod download
@@ -48,7 +52,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -87,7 +91,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -147,7 +151,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -196,7 +200,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
@@ -355,7 +359,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true

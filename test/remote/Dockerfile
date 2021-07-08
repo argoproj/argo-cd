@@ -1,4 +1,4 @@
-FROM golang:1.16.2 AS go
+FROM golang:1.16.5 AS go
 
 RUN go get github.com/mattn/goreman && \
     go get github.com/kisielk/godepgraph 
