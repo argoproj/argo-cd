@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"path"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +23,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -304,6 +304,8 @@ const (
 	initialPasswordLength = 16
 	// externalServerTLSSecretName defines the name of the external secret holding the server's TLS certificate
 	externalServerTLSSecretName = "argocd-server-tls"
+	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
+	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -449,20 +451,6 @@ func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
 	}
 	if argoCDCM.Data == nil {
 		argoCDCM.Data = make(map[string]string)
-	} else {
-		// Update ArgoCDConfigMap with K8S Secret referenced content
-		updatedData := make(map[string]interface{})
-		for k, v := range argoCDCM.Data {
-			updatedData[k] = v
-		}
-
-		updatedData, err = mgr.updateMapSecretRef(updatedData)
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range updatedData {
-			argoCDCM.Data[k] = v.(string)
-		}
 	}
 	return argoCDCM, err
 }
@@ -621,6 +609,12 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 		switch customizationType {
 		case "health":
 			overrideVal.HealthLua = v
+		case "useOpenLibs":
+			useOpenLibs, err := strconv.ParseBool(v)
+			if err != nil {
+				return err
+			}
+			overrideVal.UseOpenLibs = useOpenLibs
 		case "actions":
 			overrideVal.Actions = v
 		case "ignoreDifferences":
@@ -889,10 +883,18 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	selector, err := labels.Parse(partOfArgoCDSelector)
+	if err != nil {
+		return nil, err
+	}
+	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
-	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
+	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
@@ -913,7 +915,7 @@ func (mgr *SettingsManager) invalidateCache() {
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmLabelSelector := fields.ParseSelectorOrDie("app.kubernetes.io/part-of=argocd")
+		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
 		options.LabelSelector = cmLabelSelector.String()
 	}
 
@@ -1035,7 +1037,7 @@ func validateExternalURL(u string) error {
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret, secrets []*apiv1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -1085,6 +1087,11 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		}
 	}
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
+	for _, s := range secrets {
+		for k, v := range s.Data {
+			secretValues[fmt.Sprintf("%s:%s", s.Name, k)] = string(v)
+		}
+	}
 	for k, v := range argoCDSecret.Data {
 		secretValues[k] = string(v)
 	}
@@ -1522,72 +1529,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return mgr.GetSettings()
 	}
 	return cdSettings, nil
-}
-
-// Update data with K8S Secret referenced content
-func (mgr *SettingsManager) updateMapSecretRef(data map[string]interface{}) (map[string]interface{}, error) {
-	updatedData := make(map[string]interface{})
-	suffix := "SecretRef"
-	for key, value := range data {
-		if strings.HasSuffix(key, suffix) { // ex. ClientSecretSecretRef
-			var secretRef apiv1.SecretKeySelector
-			// Make sure value apiv1.SecretKeySelector struct
-			tmp, _ := yaml.Marshal(value)
-			err := yaml.Unmarshal(tmp, &secretRef)
-			if err != nil {
-				return data, err
-			}
-
-			// Fetch K8S Secret
-			k8sSecret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(context.Background(), secretRef.Name, metav1.GetOptions{})
-			if err != nil {
-				return data, err
-			}
-			secretKey := strings.Replace(key, suffix, "", 1)
-			data[secretKey] = string(k8sSecret.Data[secretRef.Key])
-			delete(data, key)
-		}
-		unmarshaled := false
-		if s, ok := value.(string); ok {
-			// This might be a YAML multiline string
-			unmarshaled = true
-			var tmp interface{}
-			err := yaml.Unmarshal([]byte(s), &tmp)
-			if err != nil {
-				return updatedData, nil
-			}
-			value = tmp
-		}
-
-		switch b := value.(type) {
-		case map[string]interface{}:
-			updatedData[key], _ = mgr.updateMapSecretRef(b)
-		case []interface{}:
-			updatedData[key] = mgr.updateListSecretRef(b)
-		case string:
-			updatedData[key] = value
-		}
-		if unmarshaled && value != nil {
-			yamlStr, _ := yaml.Marshal(value)
-			updatedData[key] = strings.TrimSuffix(string(yamlStr), "\n")
-		}
-	}
-	return updatedData, nil
-}
-
-func (mgr *SettingsManager) updateListSecretRef(data []interface{}) []interface{} {
-	updatedData := make([]interface{}, len(data))
-	for index, value := range data {
-		switch v := value.(type) {
-		case map[string]interface{}:
-			updatedData[index], _ = mgr.updateMapSecretRef(v)
-		case []interface{}:
-			updatedData[index] = mgr.updateListSecretRef(v)
-		default:
-			updatedData[index] = value
-		}
-	}
-	return updatedData
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
