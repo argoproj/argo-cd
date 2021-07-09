@@ -61,6 +61,14 @@ func SetNamespaces(namespaces []string) UpdateSettingsFunc {
 	}
 }
 
+// SetClusterResources specifies if cluster level resource included or not.
+// Flag is used only if cluster is changed to namespaced mode using SetNamespaces setting
+func SetClusterResources(val bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.clusterResources = val
+	}
+}
+
 // SetConfig updates cluster rest config
 func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

@@ -356,6 +356,47 @@ metadata:
 	assert.EqualError(t, err, "Cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode")
 }
 
+func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+		return nil, true
+	}))
+	cluster.namespaces = []string{"default", "production"}
+	cluster.clusterResources = true
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	clusterLevelRes := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  labels:
+    app: helm-guestbook`)
+
+	cluster.clusterResources = true
+	_, err = cluster.GetManagedLiveObjs([]*unstructured.Unstructured{clusterLevelRes}, func(r *Resource) bool {
+		return len(r.OwnerRefs) == 0
+	})
+	assert.Nil(t, err)
+
+	otherNamespaceRes := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  namespace: some-other-namespace
+  labels:
+    app: helm-guestbook`)
+
+	cluster.clusterResources = true
+	_, err = cluster.GetManagedLiveObjs([]*unstructured.Unstructured{otherNamespaceRes}, func(r *Resource) bool {
+		return len(r.OwnerRefs) == 0
+	})
+	assert.EqualError(t, err, "Namespace \"some-other-namespace\" for Deployment \"helm-guestbook\" is not managed")
+}
+
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
 	cluster := newCluster(t, testPod(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {

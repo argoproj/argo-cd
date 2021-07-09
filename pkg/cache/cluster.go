@@ -165,11 +165,12 @@ type clusterCache struct {
 	resources map[kube.ResourceKey]*Resource
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
 
-	kubectl    kube.Kubectl
-	log        logr.Logger
-	config     *rest.Config
-	namespaces []string
-	settings   Settings
+	kubectl          kube.Kubectl
+	log              logr.Logger
+	config           *rest.Config
+	namespaces       []string
+	clusterResources bool
+	settings         Settings
 
 	handlersLock                sync.Mutex
 	handlerKey                  uint64
@@ -599,20 +600,20 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
-	if len(c.namespaces) == 0 {
+	switch {
+	// if manage whole cluster or resource is cluster level and cluster resources enabled
+	case len(c.namespaces) == 0 || !api.Meta.Namespaced && c.clusterResources:
 		return callback(resClient, "")
-	}
-
-	if !api.Meta.Namespaced {
-		return nil
-	}
-
-	for _, ns := range c.namespaces {
-		err := callback(resClient.Namespace(ns), ns)
-		if err != nil {
-			return err
+	// if manage some namespaces and resource is namespaced
+	case len(c.namespaces) != 0 && api.Meta.Namespaced:
+		for _, ns := range c.namespaces {
+			err := callback(resClient.Namespace(ns), ns)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -801,12 +802,6 @@ func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 }
 
 func (c *clusterCache) managesNamespace(namespace string) bool {
-	if len(c.namespaces) == 0 {
-		return true
-	}
-	if namespace == "" {
-		return false
-	}
 	for _, ns := range c.namespaces {
 		if ns == namespace {
 			return true
@@ -823,11 +818,12 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	defer c.lock.RUnlock()
 
 	for _, o := range targetObjs {
-		if !c.managesNamespace(o.GetNamespace()) {
-			if o.GetNamespace() == "" {
+		if len(c.namespaces) > 0 {
+			if o.GetNamespace() == "" && !c.clusterResources {
 				return nil, fmt.Errorf("Cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
+			} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
+				return nil, fmt.Errorf("Namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
 			}
-			return nil, fmt.Errorf("Namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
 		}
 	}
 
