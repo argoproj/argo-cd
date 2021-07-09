@@ -10,6 +10,19 @@ Log in to Argo CD
 argocd login SERVER [flags]
 ```
 
+### Examples
+
+```
+# Login to Argo CD using a username and password
+argo login cd.argoproj.io
+
+# Login to Argo CD using SSO
+argo login cd.argoproj.io --sso
+
+# Configure "headless" access using Kubernetes API server
+argo login cd.argoproj.io --headless
+```
+
 ### Options
 
 ```
