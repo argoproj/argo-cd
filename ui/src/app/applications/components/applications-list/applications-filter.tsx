@@ -134,6 +134,7 @@ const ProjectFilter = (props: AppFilterProps) => {
             field={true}
             options={projectOptions}
             error={error.state}
+            retry={error.retry}
             loading={loading}
         />
     );
@@ -151,14 +152,23 @@ const ClusterFilter = (props: AppFilterProps) => {
         return `${cluster.name} (${cluster.server})`;
     };
 
-    const [clusters] = useData(() => services.clusters.list());
+    const [clusters, loading, error] = useData(() => services.clusters.list());
     const clusterOptions = optionsFrom(
         Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
         props.pref.clustersFilter
     );
 
     return (
-        <Filter label='CLUSTERS' selected={props.pref.clustersFilter} setSelected={s => props.onChange({...props.pref, clustersFilter: s})} field={true} options={clusterOptions} />
+        <Filter
+            label='CLUSTERS'
+            selected={props.pref.clustersFilter}
+            setSelected={s => props.onChange({...props.pref, clustersFilter: s})}
+            field={true}
+            options={clusterOptions}
+            error={error.state}
+            retry={error.retry}
+            loading={loading}
+        />
     );
 };
 
