@@ -32,6 +32,10 @@ const config = {
         alias: {react: require.resolve('react')}
     },
 
+    externals: {
+        extensions: 'Extension'
+    },
+
     module: {
         rules: [
             {
@@ -88,7 +92,8 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml']
+            languages: ['yaml'],
+            features: ['!gotoSymbol']
         }),
         new GoogleFontsPlugin({
             // config: https://github.com/beyonk-adventures/google-fonts-webpack-plugin
@@ -118,8 +123,13 @@ const config = {
             '/api': proxyConf,
             '/auth': proxyConf,
             '/swagger-ui': proxyConf,
-            '/swagger.json': proxyConf
+            '/swagger.json': proxyConf,
+            '/extension': proxyConf
         }
+    },
+    watchOptions: {
+        poll: 1000,
+        ignored: ['node_modules']
     }
 };
 
