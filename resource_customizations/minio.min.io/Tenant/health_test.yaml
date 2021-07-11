@@ -28,10 +28,10 @@ tests:
     message: "Different versions across MinIO Pools"
   inputPath: testdata/versions_mismatch.yaml
 - healthStatus:
-    status: Unknown
+    status: Progressing
     message: "<unknown status message>"
   inputPath: testdata/unknown_status_message.yaml
 - healthStatus:
-    status: Missing
+    status: Progressing
     message: "No status info available"
   inputPath: testdata/no_status.yaml
