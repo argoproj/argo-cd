@@ -2,30 +2,20 @@ name: Enforce Assignee
 
 on:
   pull_request_review:
-    types: [submitted, edited, dismissed]
-    branches:
-      - 'master'
-  pull_request:
-    types: [opened, assigned, unassigned]
+    types: [submitted]
     branches:
       - 'master'
 
 jobs:
-  deploy:
+  enforce:
+    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - name: Check Assignee
         run: |
           export PR_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-          if gh pr view $PR_NUMBER --json reviews | jq '.reviews[] | select (.state == "APPROVED")' --exit-status; then
-            if gh pr view $PR_NUMBER --json assignees | jq '.assignees[0]' --exit-status; then
-              echo "PR is assigned"
-              exit 0
-            else
-              echo "PR must be assigned before merging"
-              exit 1
-            fi
-          fi
+          export REVIEW_ID=$(jq --raw-output .review.id "$GITHUB_EVENT_PATH")
+          gh api -X PUT /repos/argoproj/argo-cd/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals -f message='PR must be assigned first'
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{secrets.ARGO_BOT_TOKEN}}
