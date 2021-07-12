@@ -80,7 +80,8 @@
   },
   "resolutions": {
     "@types/react": "16.9.3",
-    "@types/react-dom": "16.9.3"
+    "@types/react-dom": "16.9.3",
+    "normalize-url": "4.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.7.2",
