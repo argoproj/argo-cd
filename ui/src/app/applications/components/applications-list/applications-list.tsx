@@ -444,8 +444,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     {clusterList => {
                                                                         return (
                                                                             <ApplicationsFilter
-                                                                                clusters={clusterList}
-                                                                                applications={filteredApps}
+                                                                                apps={filterResults}
                                                                                 pref={pref}
                                                                                 onChange={newPref => onFilterPrefChanged(ctx, newPref)}
                                                                             />
