@@ -83,7 +83,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
 
-### Inbound TLS certificates used by argocd-sever
+### Inbound TLS certificates used by argocd-repo-sever
 
 To configure the TLS certificate used by the `argocd-repo-server` workload,
 create a secret named `argocd-repo-server-tls` in the namespace where Argo CD

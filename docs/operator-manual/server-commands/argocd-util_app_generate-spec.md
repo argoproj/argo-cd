@@ -34,6 +34,7 @@ argocd-util app generate-spec APPNAME [flags]
 
 ```
       --allow-empty                                Set allow zero live resources when sync is automated
+      --annotations stringArray                    Set metadata annotations (e.g. example=value)
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
@@ -57,6 +58,8 @@ argocd-util app generate-spec APPNAME [flags]
       --jsonnet-tla-str stringArray                Jsonnet top level string arguments
       --kustomize-common-annotation stringArray    Set common labels in Kustomize
       --kustomize-common-label stringArray         Set common labels in Kustomize
+      --kustomize-force-common-annotation          Force common annotations in Kustomize
+      --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
       --kustomize-version string                   Kustomize version
   -l, --label stringArray                          Labels to apply to the app

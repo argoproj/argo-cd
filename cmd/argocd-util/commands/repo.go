@@ -169,10 +169,6 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				printResources = append(printResources, secret)
 			}
 
-			cm, err := kubeClientset.CoreV1().ConfigMaps(ArgoCDNamespace).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
-			errors.CheckError(err)
-
-			printResources = append(printResources, cm)
 			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
 		},
 	}

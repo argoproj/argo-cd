@@ -2,7 +2,7 @@ import {DataLoader, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State} from '../../../shared/models';
+import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
@@ -39,6 +39,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+        if (!node || node === undefined) {
+            return [];
+        }
         if (state) {
             const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
@@ -53,7 +56,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 )
             });
         }
-        if (podState) {
+        if (podState && podState.metadata && podState.spec) {
             const containerGroups = [
                 {
                     offset: 0,
@@ -109,6 +112,74 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
+        return tabs;
+    };
+
+    const getApplicationTabs = () => {
+        const tabs: Tab[] = [
+            {
+                title: 'SUMMARY',
+                key: 'summary',
+                content: <ApplicationSummary app={application} updateApp={app => updateApp(app)} />
+            },
+            {
+                title: 'PARAMETERS',
+                key: 'parameters',
+                content: (
+                    <DataLoader
+                        key='appDetails'
+                        input={application}
+                        load={app =>
+                            services.repos.appDetails(app.spec.source, app.metadata.name).catch(() => ({
+                                type: 'Directory' as AppSourceType,
+                                path: application.spec.source.path
+                            }))
+                        }>
+                        {(details: RepoAppDetails) => <ApplicationParameters save={app => updateApp(app)} application={application} details={details} />}
+                    </DataLoader>
+                )
+            },
+            {
+                title: 'MANIFEST',
+                key: 'manifest',
+                content: (
+                    <YamlEditor
+                        minHeight={800}
+                        input={application.spec}
+                        onSave={async patch => {
+                            const spec = JSON.parse(JSON.stringify(application.spec));
+                            return services.applications.updateSpec(application.metadata.name, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                        }}
+                    />
+                )
+            }
+        ];
+
+        if (application.status.sync.status !== SyncStatuses.Synced) {
+            tabs.push({
+                icon: 'fa fa-file-medical',
+                title: 'DIFF',
+                key: 'diff',
+                content: (
+                    <DataLoader
+                        key='diff'
+                        load={async () =>
+                            await services.applications.managedResources(application.metadata.name, {
+                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
+                            })
+                        }>
+                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
+                    </DataLoader>
+                )
+            });
+        }
+
+        tabs.push({
+            title: 'EVENTS',
+            key: 'event',
+            content: <ApplicationResourceEvents applicationName={application.metadata.name} />
+        });
+
         return tabs;
     };
 
@@ -199,70 +270,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 </DataLoader>
             )}
             {isAppSelected && (
-                <Tabs
-                    navTransparent={true}
-                    tabs={[
-                        {
-                            title: 'SUMMARY',
-                            key: 'summary',
-                            content: <ApplicationSummary app={application} updateApp={app => updateApp(app)} />
-                        },
-                        {
-                            title: 'PARAMETERS',
-                            key: 'parameters',
-                            content: (
-                                <DataLoader
-                                    key='appDetails'
-                                    input={application}
-                                    load={app =>
-                                        services.repos.appDetails(app.spec.source, app.metadata.name).catch(() => ({
-                                            type: 'Directory' as AppSourceType,
-                                            path: application.spec.source.path
-                                        }))
-                                    }>
-                                    {(details: RepoAppDetails) => <ApplicationParameters save={app => updateApp(app)} application={application} details={details} />}
-                                </DataLoader>
-                            )
-                        },
-                        {
-                            title: 'MANIFEST',
-                            key: 'manifest',
-                            content: (
-                                <YamlEditor
-                                    minHeight={800}
-                                    input={application.spec}
-                                    onSave={async patch => {
-                                        const spec = JSON.parse(JSON.stringify(application.spec));
-                                        return services.applications.updateSpec(application.metadata.name, jsonMergePatch.apply(spec, JSON.parse(patch)));
-                                    }}
-                                />
-                            )
-                        },
-                        {
-                            icon: 'fa fa-file-medical',
-                            title: 'DIFF',
-                            key: 'diff',
-                            content: (
-                                <DataLoader
-                                    key='diff'
-                                    load={async () =>
-                                        await services.applications.managedResources(application.metadata.name, {
-                                            fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
-                                        })
-                                    }>
-                                    {managedResources => <ApplicationResourcesDiff states={managedResources} />}
-                                </DataLoader>
-                            )
-                        },
-                        {
-                            title: 'EVENTS',
-                            key: 'event',
-                            content: <ApplicationResourceEvents applicationName={application.metadata.name} />
-                        }
-                    ]}
-                    selectedTabKey={tab}
-                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
-                />
+                <Tabs navTransparent={true} tabs={getApplicationTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})} />
             )}
         </div>
     );

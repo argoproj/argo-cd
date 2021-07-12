@@ -10,6 +10,10 @@ on:
       - '!release-v1.1*'
       - '!release-v1.0*'
       - '!release-v0*'
+
+env:
+    GOLANG_VERSION: '1.16.5'
+
 jobs:
   prepare-release:
     name: Perform automatic release on trigger ${{ github.ref }}
@@ -139,7 +143,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Setup Git author information
         run: |
