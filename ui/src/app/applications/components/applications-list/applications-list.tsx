@@ -294,20 +294,22 @@ const ApplicationSortOptions = (props: {onChange: (sorter: SortAppsBy) => void})
     }, [sorter]);
 
     return (
-        <div style={{display: 'flex', marginBottom: '1em', alignItems: 'center'}}>
-            <span style={{fontSize: '13px', color: '#6D7F8B'}}>
+        <div className='applications-list__sort'>
+            <div className='applications-list__filters__title'>
                 SORT BY <i className='fa fa-sort' />
-            </span>
-            {Object.values(SortAppsBy).map(opt => (
-                <div
-                    key={opt}
-                    onClick={() => {
-                        setSorter(sorter === opt ? null : opt);
-                    }}
-                    style={{cursor: 'pointer', marginLeft: '10px'}}>
-                    <i className={`fa fa-${sorter === opt ? 'check-square' : 'square'}`} style={{marginRight: '3px'}} /> {opt}
-                </div>
-            ))}
+            </div>
+            <div className='applications-list__sort__options'>
+                {Object.values(SortAppsBy).map(opt => (
+                    <div
+                        className='applications-list__sort__option'
+                        key={opt}
+                        onClick={() => {
+                            setSorter(sorter === opt ? null : opt);
+                        }}>
+                        <i className={`fa fa-${sorter === opt ? 'dot-circle' : 'circle'}`} /> {opt}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
