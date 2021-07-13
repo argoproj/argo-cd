@@ -12,14 +12,15 @@ import (
 
 func TestClusterList(t *testing.T) {
 	SkipIfAlreadyRun(t)
+	defer RecordTestRun(t)
 	output := FailOnErr(RunCli("cluster", "list")).(string)
 	assert.Equal(t, fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE
 https://kubernetes.default.svc  in-cluster  %v     Successful  `, GetVersions().ServerVersion), output)
-	RecordTestRun(t)
 }
 
 func TestClusterGet(t *testing.T) {
 	SkipIfAlreadyRun(t)
+	defer RecordTestRun(t)
 	output := FailOnErr(RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
 
 	assert.Contains(t, output, fmt.Sprintf(`
@@ -32,5 +33,4 @@ serverVersion: "%v"`, GetVersions().ServerVersion))
     insecure: false`)
 
 	assert.Contains(t, output, `status: Successful`)
-	RecordTestRun(t)
 }
