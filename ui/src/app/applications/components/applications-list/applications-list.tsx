@@ -294,16 +294,18 @@ const ApplicationSortOptions = (props: {onChange: (sorter: SortAppsBy) => void})
     }, [sorter]);
 
     return (
-        <div style={{marginBottom: '-1em'}}>
-            SORT BY
+        <div style={{display: 'flex', marginBottom: '1em', alignItems: 'center'}}>
+            <span style={{fontSize: '13px', color: '#6D7F8B'}}>
+                SORT BY <i className='fa fa-sort' />
+            </span>
             {Object.values(SortAppsBy).map(opt => (
                 <div
                     key={opt}
                     onClick={() => {
                         setSorter(sorter === opt ? null : opt);
                     }}
-                    style={{cursor: 'pointer'}}>
-                    <i className={`fa fa-${sorter === opt ? 'check-square' : 'square'}`} style={{marginRight: '5px'}} /> {opt}
+                    style={{cursor: 'pointer', marginLeft: '10px'}}>
+                    <i className={`fa fa-${sorter === opt ? 'check-square' : 'square'}`} style={{marginRight: '3px'}} /> {opt}
                 </div>
             ))}
         </div>
@@ -440,17 +442,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         ctx.navigation.goto('.', {sorter});
                                                                     }}
                                                                 />
-                                                                <DataLoader load={() => services.clusters.list()}>
-                                                                    {clusterList => {
-                                                                        return (
-                                                                            <ApplicationsFilter
-                                                                                apps={filterResults}
-                                                                                pref={pref}
-                                                                                onChange={newPref => onFilterPrefChanged(ctx, newPref)}
-                                                                            />
-                                                                        );
-                                                                    }}
-                                                                </DataLoader>
                                                                 <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
                                                                 {syncAppsInput && (
                                                                     <ApplicationsSyncPanel
