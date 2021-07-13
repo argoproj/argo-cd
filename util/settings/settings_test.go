@@ -940,8 +940,6 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	}
 	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
 
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
