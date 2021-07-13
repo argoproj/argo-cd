@@ -418,7 +418,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    let {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
+                                                    const res = filterApps(applications, pref, pref.search);
+                                                    let {filteredApps} = res;
+                                                    const {filterResults} = res;
                                                     if (pref.sorter) {
                                                         filteredApps = filteredApps.sort(AppSorters[pref.sorter]);
                                                     }
