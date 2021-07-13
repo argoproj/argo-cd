@@ -955,6 +955,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"forceCommonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"forceCommonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1552,6 +1566,21 @@ func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallba
 							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions contains list of API versions supported by the cluster",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -2590,8 +2619,22 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 							},
 						},
 					},
+					"jqPathExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"jsonPointers"},
+				Required: []string{"jsonPointers", "jqPathExpressions"},
 			},
 		},
 	}
@@ -2621,7 +2664,7 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 					},
 					"policies": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+							Description: "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2936,6 +2979,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"githubAppEnterpriseBaseUrl": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy specifies the HTTP/HTTPS proxy used to access the repo",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3343,8 +3393,22 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 							},
 						},
 					},
+					"jqPathExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"kind", "jsonPointers"},
+				Required: []string{"kind"},
 			},
 		},
 	}

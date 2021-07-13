@@ -2,23 +2,30 @@
 
 You can download the latest Argo CD version from [the latest release page of this repository](https://github.com/argoproj/argo-cd/releases/latest), which will include the `argocd` CLI.
 
-## Linux
+## Linux and WSL
 
-You can view the latest version of Argo CD at the link above or run the following command to grab the version:
+### Homebrew
 
 ```bash
-VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+brew install argocd
 ```
 
-Replace `VERSION` in the command below with the version of Argo CD you would like to download:
+### Download With Curl
+
+#### Download latest version
 
 ```bash
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
+```
+
+#### Download concrete version
+
+Set `VERSION` replacing `<TAG>` in the command below with the version of Argo CD you would like to download:
+
+```bash
+VERSION=<TAG> # Select desired TAG from https://github.com/argoproj/argo-cd/releases
 curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
-```
-
-Make the `argocd` CLI executable:
-
-```bash
 chmod +x /usr/local/bin/argocd
 ```
 
@@ -57,7 +64,7 @@ After finishing either of the instructions above, you should now be able to run 
 
 ## Windows
 
-### Download With Powershell: Invoke-WebRequest
+### Download With PowerShell: Invoke-WebRequest
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 

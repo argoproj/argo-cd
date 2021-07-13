@@ -3,7 +3,7 @@
 The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
 user management system and has only one built-in user `admin`. The `admin` user is a superuser and
 it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md). 
-Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can man be mapped to roles.
+Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
 ## Basic Built-in Roles
 
@@ -148,13 +148,13 @@ You can test against the role:
 
 ```shell
 # Plain policy, without a default role defined
-$ argocd-util settings rbac can role:stagin-db-admins get applications --policy-file policy.csv
+$ argocd-util settings rbac can role:staging-db-admins get applications --policy-file policy.csv
 No
 $ argocd-util settings rbac can role:staging-db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
 Yes
 # Argo CD augments a builtin policy with two roles defined, the default role
 # being 'role:readonly' - You can include a named default role to use:
-$ argocd-util settings rbac can role:stagin-db-admins get applications --policy-file policy.csv --default-role role:readonly
+$ argocd-util settings rbac can role:staging-db-admins get applications --policy-file policy.csv --default-role role:readonly
 Yes
 ```
 

@@ -27,6 +27,7 @@ message ManifestRequest {
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
+    bool noRevisionCache = 18;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
@@ -79,6 +80,7 @@ message RepoServerAppDetailsQuery {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 3;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
     string appName = 5;
+    bool noCache = 6;
 }
 
 // RepoAppDetailsResponse application details
@@ -170,7 +172,7 @@ service RepoServerService {
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
     }
     
-    // Returns a list of refs (eg. branches and tags) in the repo
+    // Returns a list of refs (e.g. branches and tags) in the repo
     rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
 

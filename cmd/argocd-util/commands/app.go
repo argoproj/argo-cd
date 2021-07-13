@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -62,6 +61,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 		appName      string
 		labels       []string
 		outputFormat string
+		annotations  []string
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec APPNAME",
@@ -86,7 +86,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd-util app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -102,6 +102,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 
 	// Only complete files with appropriate extension.
@@ -237,7 +238,7 @@ func NewReconcileCommand() *cobra.Command {
 			}
 			outputPath := args[0]
 
-			errors.CheckError(os.Setenv(common.EnvVarFakeInClusterConfig, "true"))
+			errors.CheckError(os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true"))
 			cfg, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
@@ -390,7 +391,7 @@ func reconcileApplications(
 			return nil, err
 		}
 
-		res := appStateManager.CompareAppState(&app, proj, app.Spec.Source.TargetRevision, app.Spec.Source, false, nil)
+		res := appStateManager.CompareAppState(&app, proj, app.Spec.Source.TargetRevision, app.Spec.Source, false, false, nil)
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,

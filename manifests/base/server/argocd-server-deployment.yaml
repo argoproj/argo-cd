@@ -20,7 +20,149 @@ spec:
       - name: argocd-server
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [argocd-server, --staticassets, /shared/app]
+        command: 
+        - argocd-server
+        - --staticassets
+        - /shared/app
+        env:
+        - name: ARGOCD_SERVER_INSECURE
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.insecure
+                optional: true
+        - name: ARGOCD_SERVER_BASEHREF
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.basehref
+                optional: true
+        - name: ARGOCD_SERVER_ROOTPATH
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.rootpath
+                optional: true
+        - name: ARGOCD_SERVER_LOGFORMAT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.log.format
+                optional: true
+        - name: ARGOCD_REPO_SERVER_LOGLEVEL
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.log.level
+                optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: repo.server
+                optional: true
+        - name: ARGOCD_SERVER_DEX_SERVER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.dex.server
+                optional: true
+        - name: ARGOCD_SERVER_DISABLE_AUTH
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.disable.auth
+                optional: true
+        - name: ARGOCD_SERVER_ENABLE_GZIP
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.enable.gzip
+                optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.repo.server.timeout.seconds
+                optional: true
+        - name: ARGOCD_SERVER_X_FRAME_OPTIONS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.x.frame.options
+                optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.repo.server.plaintext
+                optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_STRICT_TLS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.repo.server.strict.tls
+                optional: true
+        - name: ARGOCD_TLS_MIN_VERSION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.tls.minversion
+                optional: true
+        - name: ARGOCD_TLS_MAX_VERSION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.tls.maxversion
+                optional: true
+        - name: ARGOCD_TLS_CIPHERS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.tls.ciphers
+                optional: true
+        - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.connection.status.cache.expiration
+                optional: true
+        - name: ARGOCD_SERVER_OIDC_CACHE_EXPIRATION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.oidc.cache.expiration
+                optional: true
+        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.login.attempts.expiration
+                optional: true
+        - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.app.state.cache.expiration
+                optional: true
+        - name: REDIS_SERVER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.server
+                optional: true
+        - name: REDISDB
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.db
+                optional: true
+        - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.default.cache.expiration
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh

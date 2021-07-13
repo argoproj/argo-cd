@@ -30,9 +30,9 @@ func TestProjectAllowListGen(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
-		var patchSeverPreferedResources *mpatch.Patch
+		var patchSeverPreferredResources *mpatch.Patch
 		discoClient := &discovery.DiscoveryClient{}
-		patchSeverPreferedResources, err = mpatch.PatchInstanceMethodByName(reflect.TypeOf(discoClient), "ServerPreferredResources", func(*discovery.DiscoveryClient) ([]*metav1.APIResourceList, error) {
+		patchSeverPreferredResources, err = mpatch.PatchInstanceMethodByName(reflect.TypeOf(discoClient), "ServerPreferredResources", func(*discovery.DiscoveryClient) ([]*metav1.APIResourceList, error) {
 			res := metav1.APIResource{
 				Name: "services",
 				Kind: "Service",
@@ -47,7 +47,7 @@ func TestProjectAllowListGen(t *testing.T) {
 			assert.NoError(t, err)
 			err = patch.Unpatch()
 			assert.NoError(t, err)
-			err = patchSeverPreferedResources.Unpatch()
+			err = patchSeverPreferredResources.Unpatch()
 			err = patch.Unpatch()
 		}()
 	}

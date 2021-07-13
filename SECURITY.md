@@ -1,12 +1,33 @@
 # Security Policy for Argo CD
 
-Version: **v1.0 (2020-02-26)**
+Version: **v1.1 (2020-06-29)**
 
 ## Preface
 
 As a deployment tool, Argo CD needs to have production access which makes
 security a very important topic. The Argoproj team takes security very
 seriously and is continuously working on improving it. 
+
+## A word about security scanners
+
+Many organisations these days employ security scanners to validate their
+container images before letting them on their clusters, and that is a good
+thing. However, the quality and results of these scanners vary greatly,
+many of them produce false positives and require people to look at the
+issues reported and validate them for correctness. A great example of that
+is, that some scanners report kernel vulnerabilities for container images
+just because they are derived from some distribution.
+
+We kindly ask you to not raise issues or contact us regarding any issues
+that are found by your security scanner. Many of those produce a lot of false
+positives, and many of these issues don't affect Argo CD. We do have scanners
+in place for our code, dependencies and container images that we publish. We
+are well aware of the issues that may affect Argo CD and are constantly
+working on the remediation of those that affect Argo CD and our users.
+
+If you believe that we might have missed an issue that we should take a look
+at (that can happen), then please discuss it with us. But please, do validate
+that assumption before at least roughly.
 
 ## Supported Versions
 

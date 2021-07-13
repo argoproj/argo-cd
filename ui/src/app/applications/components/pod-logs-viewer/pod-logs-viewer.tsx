@@ -1,9 +1,11 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
-import {useData} from 'argo-ux';
+import {useData} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
+import {bufferTime, delay, first, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
+
 import * as models from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 import {BASE_COLORS} from '../utils';
@@ -40,7 +42,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         () =>
             services.viewPreferences
                 .getPreferences()
-                .first()
+                .pipe(first())
                 .toPromise(),
         {} as ViewPreferences,
         res => setMaxLines((res && res.appDetails && res.appDetails.logLines) || 100)
@@ -228,24 +230,26 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             filterQuery
                         )
                         // show only current page lines
-                        .scan((lines, logEntry) => {
-                            // first equal true means retry attempt so we should clear accumulated log entries
-                            if (logEntry.first) {
-                                lines = [logEntry];
-                            } else {
-                                lines.push(logEntry);
-                            }
-                            if (lines.length > maxLines) {
-                                lines.splice(0, lines.length - maxLines);
-                            }
-                            return lines;
-                        }, new Array<models.LogEntry>())
+                        .pipe(
+                            scan((lines, logEntry) => {
+                                // first equal true means retry attempt so we should clear accumulated log entries
+                                if (logEntry.first) {
+                                    lines = [logEntry];
+                                } else {
+                                    lines.push(logEntry);
+                                }
+                                if (lines.length > maxLines) {
+                                    lines.splice(0, lines.length - maxLines);
+                                }
+                                return lines;
+                            }, new Array<models.LogEntry>())
+                        )
                         // accumulate log changes and render only once every 100ms to reduce CPU usage
-                        .bufferTime(100)
-                        .filter(batch => batch.length > 0)
-                        .map(batch => batch[batch.length - 1]);
+                        .pipe(bufferTime(100))
+                        .pipe(rxfilter(batch => batch.length > 0))
+                        .pipe(map(batch => batch[batch.length - 1]));
                     if (prefs.appDetails.followLogs) {
-                        logsSource = logsSource.retryWhen(errors => errors.delay(500));
+                        logsSource = logsSource.pipe(retryWhen(errors => errors.pipe(delay(500))));
                     }
                     return logsSource;
                 }}>

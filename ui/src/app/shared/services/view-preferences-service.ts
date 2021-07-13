@@ -18,6 +18,7 @@ export interface AppDetailsPreferences {
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
+    hideUnschedulable: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -78,7 +79,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         orphanedResources: false,
         logLines: 100,
         podView: {
-            sortMode: 'node'
+            sortMode: 'node',
+            hideUnschedulable: true
         },
         darkMode: false,
         followLogs: false

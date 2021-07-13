@@ -60,10 +60,10 @@ number of allowed concurrent kubectl fork/execs.
 
 * The controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
-preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
+preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported then controller falls back to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this duration using `--app-resync seconds` to reduce polling.
+* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -136,12 +136,8 @@ with the changed files specified in the webhook payload. If non of the changed f
 Installations that use a different repo for each app are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
 !!! note
-    Installations with a large number of apps should also set the `--app-resync` flag in the `argocd-application-controller` process to a larger value to reduce automatic refreshes based on git polling. The exact value is a trade-off between reduced work and app sync in case of a missed webhook event. For most cases `1800` (30m) or `3600` (1h) is a good trade-off.
-
-
-!!! note
     Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
-
+I'm using `.Second()` modifier to avoid distracting users who already rely on `--app-resync` flag.
 * **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
 
 ```yaml

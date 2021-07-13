@@ -31,7 +31,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -102,11 +101,12 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts cmdutil.AppOptions
-		fileURL string
-		appName string
-		upsert  bool
-		labels  []string
+		appOpts     cmdutil.AppOptions
+		fileURL     string
+		appName     string
+		upsert      bool
+		labels      []string
+		annotations []string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -133,7 +133,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -157,6 +157,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -276,6 +277,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sinceSeconds int64
 		untilTime    string
 		filter       string
+		container    string
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -304,6 +306,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: sinceSeconds,
 					UntilTime:    &untilTime,
 					Filter:       &filter,
+					Container:    container,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -344,6 +347,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64Var(&sinceSeconds, "since-seconds", 0, "A relative time in seconds before the current time from which to show logs")
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
+	command.Flags().StringVar(&container, "container", "", "Optional container name")
 
 	return command
 }
@@ -671,9 +675,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 				for _, env := range pluginEnvs {
 					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
-					errors.CheckError(err)
+					if err != nil {
+						updated = true
+					}
 				}
-				updated = true
 			}
 
 			if !updated {
@@ -1434,9 +1439,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
-	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", common.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
-	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", common.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
-	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", common.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
+	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
+	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
