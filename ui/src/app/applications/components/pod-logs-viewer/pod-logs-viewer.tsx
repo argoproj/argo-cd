@@ -4,12 +4,12 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
-import {bufferTime, delay, first, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
-
+import {bufferTime, delay, filter as rxfilter, first, map, retryWhen, scan} from 'rxjs/operators';
 import * as models from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 import {BASE_COLORS} from '../utils';
 import './pod-logs-viewer.scss';
+
 export interface PodLogsProps {
     namespace: string;
     applicationName: string;
