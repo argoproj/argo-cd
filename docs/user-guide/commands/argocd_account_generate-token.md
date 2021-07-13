@@ -22,7 +22,7 @@ argocd account generate-token --account <account-name>
   -a, --account string      Account name. Defaults to the current account.
   -e, --expires-in string   Duration before the token will expire. (Default: No expiration) (default "0s")
   -h, --help                help for generate-token
-      --id string           Optional token id. Fallback to uuid if not value specified.
+      --id string           Optional token id. Fall back to uuid if not value specified.
 ```
 
 ### Options inherited from parent commands

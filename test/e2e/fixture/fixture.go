@@ -272,7 +272,7 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-// Convinience wrapper for updating argocd-cm
+// Convenience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
 }

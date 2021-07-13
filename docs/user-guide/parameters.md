@@ -75,7 +75,7 @@ kustomize:
 
 The `.argocd-source` is trying to solve two following main use cases:
 
-- Provide the unifed way to "override" application parameters in Git and enable the "write back" feature
+- Provide the unified way to "override" application parameters in Git and enable the "write back" feature
 for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd-image-updater).
 - Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj-labs/applicationset)
 (see [git files generator](https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml))
