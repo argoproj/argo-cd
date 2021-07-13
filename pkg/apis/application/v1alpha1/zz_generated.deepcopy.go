@@ -768,6 +768,11 @@ func (in *ClusterInfo) DeepCopyInto(out *ClusterInfo) {
 	*out = *in
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
 	in.CacheInfo.DeepCopyInto(&out.CacheInfo)
+	if in.APIVersions != nil {
+		in, out := &in.APIVersions, &out.APIVersions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1381,6 +1386,11 @@ func (in *OverrideIgnoreDiff) DeepCopyInto(out *OverrideIgnoreDiff) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.JQPathExpressions != nil {
+		in, out := &in.JQPathExpressions, &out.JQPathExpressions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1674,6 +1684,11 @@ func (in *ResourceIgnoreDifferences) DeepCopyInto(out *ResourceIgnoreDifferences
 	*out = *in
 	if in.JSONPointers != nil {
 		in, out := &in.JSONPointers, &out.JSONPointers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.JQPathExpressions != nil {
+		in, out := &in.JQPathExpressions, &out.JQPathExpressions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

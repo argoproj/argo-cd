@@ -13,7 +13,12 @@ $num-stats: 2;
         display: flex;
         margin-bottom: 1em;
         &__section {
-            margin: 0 10px;
+            margin-left: 10px;
+            padding-right: 10px;
+            border-right: 1px solid $argo-color-gray-4;
+            &:last-child {
+                border-right: none;
+            }
         }
     }
 
@@ -82,9 +87,7 @@ $num-stats: 2;
             &__pods {
                 display: flex;
                 flex-wrap: wrap;
-                max-height: $pod-container-height;
                 width: 100%;
-                overflow: auto;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
                 padding: $gutter * 2;
@@ -117,7 +120,7 @@ $num-stats: 2;
             &--suspended {
                 background-color: $argo-status-warning-color;
                 &:hover {
-                    background-color: $argo-status-warning-color - #111;
+                    background-color: darken($argo-status-warning-color, 10%);
                 }
             }
             &--running,
@@ -151,7 +154,6 @@ $num-stats: 2;
                     height: 1em;
                     width: 1em;
                     border-radius: 5px;
-                    
                 }
             }
 
@@ -204,7 +206,6 @@ $num-stats: 2;
     }
 
     @media screen and (max-width: map-get($breakpoints, medium)) {
-
         &__node {
             width: 95%;
             &--large {

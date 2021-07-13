@@ -19,6 +19,9 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/golang/protobuf/ptypes/empty"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -113,6 +116,7 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
 }
 
@@ -133,6 +137,7 @@ type client struct {
 	proxyListener   net.Listener
 	proxyServer     *grpc.Server
 	proxyUsersCount int
+	httpClient      *http.Client
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -251,6 +256,24 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
+	}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+	}
+
+	if !c.PlainText {
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		c.httpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
 	}
 	if !c.GRPCWeb {
 		//test if we need to set it to true
@@ -471,9 +494,15 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
+	retryOpts := []grpc_retry.CallOption{
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
+	}
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
 
 	ctx := context.Background()
 

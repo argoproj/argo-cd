@@ -9,6 +9,7 @@ argocd app logs APPNAME [flags]
 ### Options
 
 ```
+      --container string    Optional container name
       --filter string       Show logs contain this string
       --follow              Specify if the logs should be streamed
       --group string        Resource group
@@ -31,6 +32,7 @@ argocd app logs APPNAME [flags]
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
