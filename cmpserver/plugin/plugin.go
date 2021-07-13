@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	"github.com/mattn/go-zglob"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
@@ -104,9 +105,11 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 	var repoResponse apiclient.RepositoryResponse
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
+		log.Debugf("config.Spec.Discover.FileName is provided")
 		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.FileName, "/")
 		matches, err := filepath.Glob(pattern)
 		if err != nil || len(matches) == 0 {
+			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
 			return &repoResponse, err
 		} else if len(matches) > 0 {
 			repoResponse.IsSupported = true
@@ -115,11 +118,13 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
+		log.Debugf("config.Spec.Discover.Find.Glob is provided")
 		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.Find.Glob, "/")
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
 		if err != nil || len(matches) == 0 {
+			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
 			return &repoResponse, err
 		} else if len(matches) > 0 {
 			repoResponse.IsSupported = true
@@ -127,6 +132,7 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 		}
 	}
 
+	log.Debugf("Going to try runCommand.")
 	find, err := runCommand(config.Spec.Discover.Find, q.Path, os.Environ())
 	if err != nil {
 		return &repoResponse, err

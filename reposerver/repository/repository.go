@@ -1610,6 +1610,8 @@ func detectConfigManagementPlugin(pluginName, appPath string) (io.Closer, plugin
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
 	pluginSockFilePath := common.GetPluginSockFilePath()
+	log.Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
+
 	files, err := os.ReadDir(pluginSockFilePath)
 	if err != nil {
 		return nil, nil, err
@@ -1641,6 +1643,7 @@ func detectConfigManagementPlugin(pluginName, appPath string) (io.Closer, plugin
 			}
 
 			if !resp.IsSupported {
+				log.Debugf("Reponse from socket file %s is not supported", file.Name())
 				io.Close(conn)
 			} else {
 				connFound = true
