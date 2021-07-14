@@ -30,7 +30,13 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            clusters: pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server === (app.spec.destination.server || app.spec.destination.name)),
+            clusters:
+                pref.clustersFilter.length === 0 ||
+                pref.clustersFilter.some(
+                    selector =>
+                        (app.spec.destination.server && selector.includes(app.spec.destination.server)) ||
+                        (app.spec.destination.name && selector.includes(app.spec.destination.name))
+                ),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
     }));
