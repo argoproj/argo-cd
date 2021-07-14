@@ -1,5 +1,4 @@
 import {HelpIcon} from 'argo-ui';
-import {ActionButton} from 'argo-ui/v2/index';
 import * as React from 'react';
 import {useContext} from 'react';
 import {Context} from '../../../shared/context';
@@ -93,11 +92,9 @@ export const Filters = ({
                         <a onClick={() => onClearFilter()}>clear all</a>
                     </small>
                 )}
-                <ActionButton
-                    label={!shown ? 'SHOW' : 'HIDE'}
-                    action={() => setShown(!shown)}
-                    style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: shown && 'block'}}
-                />
+                <a onClick={() => setShown(!shown)} style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: shown && 'block'}}>
+                    {!shown ? 'SHOW' : 'HIDE'}
+                </a>
             </div>
             {shown && (
                 <div className='applications-list__filters'>
