@@ -39,34 +39,35 @@ can configure additional plugin tool via sidecar to repo-server. Following chang
 
 To install a plugin, simply patch argocd-repo-server to run config management plugin container as a sidecar, with argocd-cmp-server as it’s entrypoint. 
 You can use either off-the-shelf or custom built plugin image as sidecar image. For example:
- 
+
 ```yaml
-- command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight API server i.e. argocd-cmp-server
-  image: k8s.gcr.io/kustomize/kustomize:v4.0.5 # This can be off-the-shelf or custom built image
-  name: kustomize
+containers:
+- name: cmp
+  command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
+  image: busybox # This can be off-the-shelf or custom built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
   volumeMounts:
-  - mountPath: /var/run/argocd
-    name: var-files
-  - mountPath: /home/argocd/cmp-server/plugins
-    name: plugins
-  - mountPath: /home/argocd/cmp-server/config/kustomize.yaml # Plugin config file can either be volume mapped or baked into image
-    subPath: kustomize.yaml
-    name: config-files
-  - mountPath: /tmp
-    name: tmp-dir
-```
+    - mountPath: /var/run/argocd
+      name: var-files
+    - mountPath: /home/argocd/cmp-server/plugins
+      name: plugins
+    - mountPath: /home/argocd/cmp-server/config/plugin-config.yaml # Plugin config file can either be volume mapped or baked into image
+      subPath: plugin-config.yaml
+      name: config-files
+    - mountPath: /tmp
+      name: tmp-dir
+``` 
  
- * Make sure that entrypoint is Argo CD lightweight API server i.e. argocd-cmp-server
+ * Make sure that entrypoint is Argo CD lightweight cmp server i.e. argocd-cmp-server
  * Make sure that sidecar container is running as user 999
  * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/`. It can either be volume mapped via configmap or baked into image
 
 ### Plugin configuration file
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a well-known location 
-(e.g. /home/argocd/cmp-server/plugins/plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
+(e.g. /home/argocd/cmp-server/config/plugin-config.yaml). Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
 but various options can be used on how to place this file, including: 
 - Baking the file into the plugin image as part of docker build
 - Volume mapping the file through a configmap.
@@ -75,19 +76,13 @@ but various options can be used on how to place this file, including:
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
 metadata:
-  name: kustomize
+  name: cmp-plugin
 spec:
   version: v1.0
-  init:
-    command: [kustomize, version]
   generate:
-    command: [kustomize, build]
-  find:
-    command: [sh, -c, find . -name kustomization.yaml]
-    glob: "**/kustomization.yaml"
-  check:
-    command: [-f ./kustomization.yaml]
-    glob: "**/kustomization.yaml"
+    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+  discover:
+    fileName: "./subdir/s*.yaml"
   allowConcurrency: true
   lockRepo: false
 ```
@@ -97,7 +92,14 @@ It only follows kubernetes-style spec conventions.
 
 The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
-The `find` command is executed in order to determine whether application repository is supported by the plugin or not. The `find` command should returns
+The `discover.fileName` is used as matching pattern to determine whether application repository is supported by the plugin or not. 
+
+```yaml
+  discover:
+    find:
+      command: [sh, -c, find . -name env.yaml]
+```
+If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether application repository is supported by the plugin or not. The `find` command should returns
 non-error response in case when application source type is supported. 
 
 If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set `lockRepo` to `true` so that your plugin will have exclusive access to the
@@ -114,19 +116,13 @@ data:
     apiVersion: argoproj.io/v1alpha1
     kind: ConfigManagementPlugin
     metadata:
-      name: kustomize
+      name: cmp-plugin
     spec:
       version: v1.0
-      init:
-        command: [kustomize, version]
       generate:
-        command: [kustomize, build]
-      find:
-        command: [sh, -c, find . -name kustomization.yaml]
-        glob: "**/kustomization.yaml"
-      check:
-        command: [-f ./kustomization.yaml]
-        glob: "**/kustomization.yaml"
+        command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+      discover:
+        fileName: "./subdir/s*.yaml"
       allowConcurrency: true
       lockRepo: false
 ```
