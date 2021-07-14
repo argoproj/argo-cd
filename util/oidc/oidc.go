@@ -107,10 +107,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dex
 	if err != nil {
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+	tlsConfig := settings.OIDCTLSConfig()
 	a.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
