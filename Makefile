@@ -430,7 +430,7 @@ start-e2e-local:
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
-	ARGOCD_GPG_ENABLED=true \
+	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -463,7 +463,7 @@ start-local: mod-vendor-local dep-ui-local
 	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
-	ARGOCD_GPG_ENABLED=true \
+	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
