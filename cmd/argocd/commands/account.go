@@ -362,7 +362,7 @@ argocd account generate-token --account <account-name>`,
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
-	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fallback to uuid if not value specified.")
+	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fall back to uuid if not value specified.")
 	return cmd
 }
 

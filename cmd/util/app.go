@@ -537,7 +537,7 @@ func readAppFromURI(fileURL string, app *argoappv1.Application) error {
 	return err
 }
 
-func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
+func ConstructApp(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
 	var app argoappv1.Application
 	if fileURL == "-" {
 		// read stdin
@@ -563,6 +563,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
+		setAnnotations(&app, annotations)
 	} else {
 		// read arguments
 		if len(args) == 1 {
@@ -583,6 +584,7 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(&app, appOpts.Parameters)
 		mergeLabels(&app, labels)
+		setAnnotations(&app, annotations)
 	}
 	return &app, nil
 }
@@ -602,4 +604,18 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 	}
 
 	app.SetLabels(mergedLabels)
+}
+
+func setAnnotations(app *argoappv1.Application, annotations []string) {
+	if len(annotations) > 0 && app.Annotations == nil {
+		app.Annotations = map[string]string{}
+	}
+	for _, a := range annotations {
+		annotation := strings.SplitN(a, "=", 2)
+		if len(annotation) == 2 {
+			app.Annotations[annotation[0]] = annotation[1]
+		} else {
+			app.Annotations[annotation[0]] = ""
+		}
+	}
 }

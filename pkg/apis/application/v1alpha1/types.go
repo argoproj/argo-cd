@@ -1964,7 +1964,7 @@ type ProjectRole struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Description is a description of the role
 	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
-	// Policies Stores a list of casbin formated strings that define access policies for the role in the project
+	// Policies Stores a list of casbin formatted strings that define access policies for the role in the project
 	Policies []string `json:"policies,omitempty" protobuf:"bytes,3,rep,name=policies"`
 	// JWTTokens are a list of generated JWT tokens bound to this role
 	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
@@ -2397,13 +2397,19 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
-// TODO: document this method
+// SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
+
 	d.isServerInferred = true
 	d.Server = server
 }
 
-// TODO: document this method
+// An ApplicationDestination has an 'inferred server' if the ApplicationDestination
+// contains a Name, but not a Server URL. In this case it is necessary to retrieve
+// the Server URL by looking up the cluster name.
+//
+// As of this writing, looking up the cluster name, and setting the URL, is
+// performed by 'utils.ValidateDestination(...)', which then calls SetInferredServer.
 func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }

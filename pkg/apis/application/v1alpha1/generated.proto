@@ -765,7 +765,7 @@ message ProjectRole {
   // Description is a description of the role
   optional string description = 2;
 
-  // Policies Stores a list of casbin formated strings that define access policies for the role in the project
+  // Policies Stores a list of casbin formatted strings that define access policies for the role in the project
   repeated string policies = 3;
 
   // JWTTokens are a list of generated JWT tokens bound to this role

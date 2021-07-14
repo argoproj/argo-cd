@@ -2664,7 +2664,7 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 					},
 					"policies": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+							Description: "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

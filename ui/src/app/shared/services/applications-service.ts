@@ -183,7 +183,7 @@ export class ApplicationsService {
     public getDownloadLogsURL(applicationName: string, namespace: string, podName: string, resource: {group: string; kind: string; name: string}, containerName: string): string {
         const search = this.getLogsQuery(namespace, podName, resource, containerName, null, false);
         search.set('download', 'true');
-        return `/api/v1/applications/${applicationName}/logs?${search.toString()}`;
+        return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 
     public getContainerLogs(
