@@ -1,6 +1,6 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
-import {useContext} from 'react';
+import {useContext, useState} from 'react';
 import {Context} from '../../../shared/context';
 import {ApplicationTree} from '../../../shared/models';
 import {AppDetailsPreferences} from '../../../shared/services';
@@ -63,6 +63,18 @@ export const Filters = ({
         .filter(uniq)
         .sort();
 
+    const labels: {[name: string]: string[]} = {};
+    tree.nodes.forEach(x =>
+        Object.entries(x.labels || {}).forEach(([name, value]) => {
+            labels[name] = (labels[name] || [])
+                .concat(value)
+                .filter(uniq)
+                .sort();
+        })
+    );
+
+    const [expandedLabelName, setExpandedLabelNames] = useState([]);
+
     const checkbox = (prefix: string, suffix: string, label: string = null) => (
         <label key={suffix} style={{display: 'inline-block', paddingRight: 5}}>
             <input type='checkbox' checked={isFiltered(prefix, suffix)} onChange={() => setFilters(prefix, [suffix], !isFiltered(prefix, suffix))} /> {label || suffix}
@@ -97,7 +109,7 @@ export const Filters = ({
                 </a>
             </div>
             {shown && (
-                <div className='applications-list__filters'>
+                <div className='applications-list__filters' style={{paddingBottom: 0}}>
                     <div className='filter'>
                         <div className='filter__header'>
                             OWNERSHIP
@@ -139,6 +151,40 @@ export const Filters = ({
                             {clearFilterLink('createdWithin')}
                         </div>
                         <div>{[1, 3, 5, 15, 60].map(m => radiobox('createdWithin', String(m), m + 'm'))}</div>
+                    </div>
+                    <div className='filter'>
+                        <div className='filter__header'>
+                            LABEL
+                            <HelpIcon title='Only the labels of live resources are included, please raise an issue if you want target resource labels too' />{' '}
+                            {clearFilterLink('label')}
+                        </div>
+                        {Object.entries(labels).map(([name, values]) => (
+                            <div key={name} style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                {!expandedLabelName.includes(name) ? (
+                                    <>
+                                        <a onClick={() => setExpandedLabelNames(expandedLabelName.concat(name))}>
+                                            <i className='fa fa-chevron-right' /> {name}
+                                        </a>
+                                        <br />
+                                    </>
+                                ) : (
+                                    <>
+                                        <a onClick={() => setExpandedLabelNames(expandedLabelName.filter(x => x !== name))}>
+                                            <i className='fa fa-chevron-down' /> {name}
+                                        </a>
+                                        <br />
+                                        {values.map(value => (
+                                            <div style={{paddingLeft: 20}} key={value}>
+                                                {' '}
+                                                {checkbox('label', name + '=' + value, value)}
+                                                <br />
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                        {Object.keys(labels).length === 0 && <p>No labels to filter on, trying syncing your app</p>}
                     </div>
                 </div>
             )}
