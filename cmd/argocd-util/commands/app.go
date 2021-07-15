@@ -61,6 +61,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 		appName      string
 		labels       []string
 		outputFormat string
+		annotations  []string
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec APPNAME",
@@ -85,7 +86,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd-util app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -101,6 +102,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 
 	// Only complete files with appropriate extension.

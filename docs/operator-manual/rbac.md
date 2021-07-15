@@ -148,13 +148,13 @@ You can test against the role:
 
 ```shell
 # Plain policy, without a default role defined
-$ argocd-util settings rbac can role:stagin-db-admins get applications --policy-file policy.csv
+$ argocd-util settings rbac can role:staging-db-admins get applications --policy-file policy.csv
 No
 $ argocd-util settings rbac can role:staging-db-admins get applications 'staging-db-admins/*' --policy-file policy.csv
 Yes
 # Argo CD augments a builtin policy with two roles defined, the default role
 # being 'role:readonly' - You can include a named default role to use:
-$ argocd-util settings rbac can role:stagin-db-admins get applications --policy-file policy.csv --default-role role:readonly
+$ argocd-util settings rbac can role:staging-db-admins get applications --policy-file policy.csv --default-role role:readonly
 Yes
 ```
 

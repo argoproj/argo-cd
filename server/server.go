@@ -308,7 +308,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	})
 	errors.CheckError(realErr)
 
-	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
+	// CMux is used to support servicing gRPC and HTTP1.1+JSON on the same port
 	tcpm := cmux.New(conn)
 	var tlsm cmux.CMux
 	var grpcL net.Listener
@@ -417,7 +417,7 @@ func (a *ArgoCDServer) watchSettings() {
 			break
 		}
 		if prevOIDCConfig != a.settings.OIDCConfigRAW {
-			log.Infof("odic config modified. restarting")
+			log.Infof("oidc config modified. restarting")
 			break
 		}
 		if prevURL != a.settings.URL {

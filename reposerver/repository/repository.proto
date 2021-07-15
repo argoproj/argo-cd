@@ -172,7 +172,7 @@ service RepoServerService {
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
     }
     
-    // Returns a list of refs (eg. branches and tags) in the repo
+    // Returns a list of refs (e.g. branches and tags) in the repo
     rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
 

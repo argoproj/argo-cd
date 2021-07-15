@@ -1176,7 +1176,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
-			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
+			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		} else {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {

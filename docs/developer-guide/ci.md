@@ -12,7 +12,7 @@ To read more about The GitHub actions are configured in [`ci-build.yaml`](https:
 
 Since the CI pipeline is triggered on Git commits, there is currently no (known) way on how to retrigger the CI checks without pushing a new commit to your branch.
 
-If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you commited, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue
+If you are absolutely sure that the failure was due to a failure in the pipeline, and not an error within the changes you committed, you can push an empty commit to your branch, thus retriggering the pipeline without any code changes. To do so, issue
 
 ```bash
 git commit --allow-empty -m "Retrigger CI pipeline"
@@ -67,7 +67,7 @@ Every commit to master is built and published to `ghcr.io/argoproj/argocd:<versi
 https://github.com/argoproj/argo-cd/packages.
 
 !!! note
-    Github docker registry [requires](https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294) authentication to read
+    GitHub docker registry [requires](https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294) authentication to read
     even publicly available packages. Follow the steps from Kubernetes [documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry)
     to configure image pull secret if you want to use `ghcr.io/argoproj/argocd` image.
 

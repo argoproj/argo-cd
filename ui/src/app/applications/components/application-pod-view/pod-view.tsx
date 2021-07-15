@@ -168,7 +168,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
-                                                                                        enabled: false
+                                                                                        enabled: true
                                                                                     },
                                                                                     flip: {
                                                                                         enabled: false
