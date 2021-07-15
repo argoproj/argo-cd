@@ -1,4 +1,4 @@
-import {ActionButton, Checkbox, Flexy, InfoItemRow, useData} from 'argo-ux';
+import {ActionButton, Checkbox, Flexy, InfoItemRow, useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {ClusterCtx, clusterTitle, GetCluster} from '../../../shared/components';
 import {Context} from '../../../shared/context';

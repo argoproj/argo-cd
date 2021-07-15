@@ -1,4 +1,4 @@
-import {ActionButton, Flexy, useTimeout} from 'argo-ux';
+import {ActionButton, Flexy, useTimeout} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
 import {Consumer, Context} from '../../../shared/context';
