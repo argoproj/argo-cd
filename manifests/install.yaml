@@ -3781,6 +3781,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-notifications-controller
     ports:
     - port: 8081
       protocol: TCP
