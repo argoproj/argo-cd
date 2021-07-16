@@ -14,8 +14,9 @@
         }
     }
 
-    .info-item--row {
-        margin: 2px 0;
+    .info-item--row .info-item {
+        margin-top: 2px;
+        margin-bottom: 2px;
     }
 
     &--compact {

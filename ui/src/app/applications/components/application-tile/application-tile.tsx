@@ -78,6 +78,7 @@ export const ApplicationTile = (props: TileProps) => {
                         />
                         {app.metadata.name}
                         <div style={{marginLeft: 'auto'}}>
+                            <ApplicationURLs urls={app.status.summary.externalURLs} />
                             <i className={app.spec.source.chart != null ? 'icon argo-icon-helm' : 'fab fa-git-square'} style={{marginRight: '7px'}} />
                             <span style={{marginRight: '7px'}}>
                                 <HealthStatusIcon state={app.status.health} />
@@ -87,7 +88,6 @@ export const ApplicationTile = (props: TileProps) => {
                             </span>
                         </div>
                     </Flexy>
-                    <ApplicationURLs urls={app.status.summary.externalURLs} />
                     <InfoItemRow label='Namespace' items={[{content: app.spec.destination.namespace}]} lightweight={true} />
                     <InfoItemRow label='Project' items={[{content: app.spec.project}]} lightweight={true} />
                     {!props.compact && (
