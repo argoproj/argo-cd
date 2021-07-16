@@ -37,7 +37,7 @@ func newServerInMemoryCache() *servercache.Cache {
 
 func newNoopEnforcer() *rbac.Enforcer {
 	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.Enforcer.EnableEnforce(false)
+	enf.EnableEnforce(false)
 	return enf
 }
 
