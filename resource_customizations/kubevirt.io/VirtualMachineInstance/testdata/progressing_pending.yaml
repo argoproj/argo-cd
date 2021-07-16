@@ -1,0 +1,74 @@
+apiVersion: v1
+items:
+- apiVersion: kubevirt.io/v1
+  kind: VirtualMachineInstance
+  metadata:
+    creationTimestamp: "2021-09-14T23:39:01Z"
+    finalizers:
+    - kubevirt.io/virtualMachineControllerFinalize
+    - foregroundDeleteVirtualMachine
+    generation: 1
+    labels:
+      kubevirt.io/domain: testvm
+      kubevirt.io/size: small
+    name: testvm
+    namespace: default
+    ownerReferences:
+    - apiVersion: kubevirt.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: VirtualMachine
+      name: testvm
+      uid: 40e44180-3dfb-4813-ace6-9f2d2c76c326
+    resourceVersion: "602212"
+    uid: 18648b62-36b6-4b86-bd16-a288aa132203
+  spec:
+    domain:
+      cpu:
+        cores: 1
+        sockets: 1
+        threads: 1
+      devices:
+        disks:
+        - disk:
+            bus: virtio
+          name: containerdisk
+        - disk:
+            bus: virtio
+          name: cloudinitdisk
+        interfaces:
+        - masquerade: {}
+          name: default
+      features:
+        acpi:
+          enabled: true
+      firmware:
+        uuid: 5a9fc181-957e-5c32-9e5a-2de5e9673531
+      machine:
+        type: q35
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64M
+    networks:
+    - name: default
+      pod: {}
+    volumes:
+    - containerDisk:
+        image: quay.io/kubevirt/cirros-container-disk-demo
+        imagePullPolicy: Always
+      name: containerdisk
+    - cloudInitNoCloud:
+        userDataBase64: SGkuXG4=
+      name: cloudinitdisk
+  status:
+    guestOSInfo: {}
+    phase: Pending
+    phaseTransitionTimestamps:
+    - phase: Pending
+      phaseTransitionTimestamp: "2021-09-14T23:39:01Z"
+    virtualMachineRevisionName: revision-start-vm-40e44180-3dfb-4813-ace6-9f2d2c76c326-6
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "No status available"
+  inputPath: testdata/progressing_nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Scheduled"
+  inputPath: testdata/progressing_scheduling.yaml
+- healthStatus:
+    status: Healthy
+    message: "Running"
+  inputPath: testdata/healthy_ready.yaml  
+- healthStatus:
+    status: "Suspended"
+    message: "Succeeded"
+  inputPath: testdata/suspended_succeeded.yaml
+- healthStatus:
+    status: "Suspended"
+    message: "VMI was paused by user"
+  inputPath: testdata/suspended_paused.yaml
