@@ -86,7 +86,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM docker.io/library/node:12.18.4 as argocd-ui
+FROM docker.io/library/node:12.18.4-buster as argocd-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
@@ -117,8 +117,8 @@ RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
 RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
+    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin GOARCH=amd64 argocd-all && \
+    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows GOARCH=amd64 argocd-all \
     ; fi
 
 ####################################################################################################

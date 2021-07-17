@@ -21,6 +21,11 @@ case $ARCHITECTURE in
       tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
       sudo install -m 0755 /tmp/kustomize $BIN/$BINNAME
       ;;
+  ppc64le)
+      BINNAME=kustomize
+      GO111MODULE=on go get sigs.k8s.io/kustomize/kustomize/v${KUSTOMIZE_VERSION%%.*}/@v${KUSTOMIZE_VERSION}
+      sudo mv $GOPATH/bin/kustomize $BIN/$BINNAME
+      ;;
   *)
     case $KUSTOMIZE_VERSION in
       2.*)

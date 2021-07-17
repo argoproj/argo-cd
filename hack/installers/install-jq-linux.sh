@@ -17,6 +17,13 @@ case $ARCHITECTURE in
     $(dirname $0)/compare-chksum.sh
     sudo dpkg --fsys-tarfile ${TARGET_FILE} | tar xOf - ./usr/bin/jq > $BIN/jq
     ;;
+  ppc64le)
+    ARCHITECTURE=ppc64el
+    export TARGET_FILE=jq_${jq_version}-1_${ARCHITECTURE}.deb
+    [ -e $DOWNLOADS/${TARGET_FILE} ] || curl -sLf --retry 3 -o $DOWNLOADS/${TARGET_FILE} http://ports.ubuntu.com/ubuntu-ports/pool/universe/j/jq/jq_${jq_version}-1_${ARCHITECTURE}.deb
+    $(dirname $0)/compare-chksum.sh
+    sudo dpkg --fsys-tarfile $DOWNLOADS/${TARGET_FILE} | tar xOf - ./usr/bin/jq > $BIN/jq
+    ;;
   *)
     export TARGET_FILE=jq-${jq_version}-linux-amd64
 
