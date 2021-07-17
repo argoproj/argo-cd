@@ -1,21 +1,19 @@
-import {Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import {ActionButton, Flexy, useTimeout} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
-import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {ApplicationURLs} from '../application-urls';
-import * as AppUtils from '../utils';
-import {OperationState} from '../utils';
+import {ApplicationTile} from '../application-tile/application-tile';
 
 require('./applications-tiles.scss');
 
 export interface ApplicationTilesProps {
     applications: models.Application[];
     syncApplication: (appName: string) => any;
-    refreshApplication: (appName: string) => any;
+    refreshApplication: (appName: string | string[]) => any;
     deleteApplication: (appName: string) => any;
+    compact: boolean;
+    setCompact: (compact: boolean) => void;
 }
 
 const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
@@ -45,13 +43,22 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, compact, setCompact}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
+    const [checkedApps, setCheckedApps] = React.useState<{[key: string]: boolean}>({});
+    const [allSelected, setAllSelected] = React.useState(false);
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    useTimeout(() => setRefreshing(false), 1000, [refreshing]);
+
+    React.useEffect(() => {
+        setAllSelected((Object.keys(checkedApps) || []).length === (applications || []).length);
+    }, [applications, checkedApps]);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -85,158 +92,96 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         return navApp(NumKeyToNumber(n));
     });
 
+    const getAppName = (app: models.Application) => {
+        return app.metadata ? app.metadata.name : 'Unknown';
+    };
+
+    const selectAll = () => {
+        const update = {...checkedApps};
+        for (const app of applications) {
+            const name = getAppName(app);
+            if (!update[name]) {
+                update[name] = true;
+            }
+        }
+        setCheckedApps(update);
+    };
+
+    const deselectAll = () => {
+        const update = {...checkedApps};
+        for (const app of applications) {
+            const name = getAppName(app);
+            if (update[name]) {
+                delete update[name];
+            }
+        }
+        setCheckedApps(update);
+    };
+
     return (
         <Consumer>
             {ctx => (
-                <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4' ref={appContainerRef}>
-                    {applications.map((app, i) => (
-                        <div key={app.metadata.name} className='column column-block'>
-                            <div
-                                ref={appRef.set ? null : appRef.ref}
-                                className={`argo-table-list__row applications-list__entry applications-list__entry--comparison-${
-                                    app.status.sync.status
-                                } applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                                <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
-                                    <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
-                                        <div className='applications-list__external-link'>
-                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-12'>
-                                                <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
-                                                <span className='applications-list__title'>{app.metadata.name}</span>
-                                            </div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Project:'>
-                                                Project:
-                                            </div>
-                                            <div className='columns small-9'>{app.spec.project}</div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Labels:'>
-                                                Labels:
-                                            </div>
-                                            <div className='columns small-9'>
-                                                <Tooltip
-                                                    content={
-                                                        <div>
-                                                            {Object.keys(app.metadata.labels || {})
-                                                                .map(label => ({label, value: app.metadata.labels[label]}))
-                                                                .map(item => (
-                                                                    <div key={item.label}>
-                                                                        {item.label}={item.value}
-                                                                    </div>
-                                                                ))}
-                                                        </div>
-                                                    }>
-                                                    <span>
-                                                        {Object.keys(app.metadata.labels || {})
-                                                            .map(label => `${label}=${app.metadata.labels[label]}`)
-                                                            .join(', ')}
-                                                    </span>
-                                                </Tooltip>
-                                            </div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Status:'>
-                                                Status:
-                                            </div>
-                                            <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                                                <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
-                                                &nbsp;
-                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
-                                                &nbsp;
-                                                <OperationState app={app} quiet={true} />
-                                            </div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Repository:'>
-                                                Repository:
-                                            </div>
-                                            <div className='columns small-9'>
-                                                <Tooltip content={app.spec.source.repoURL}>
-                                                    <span>{app.spec.source.repoURL}</span>
-                                                </Tooltip>
-                                            </div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Target Revision:'>
-                                                Target Revision:
-                                            </div>
-                                            <div className='columns small-9'>{app.spec.source.targetRevision}</div>
-                                        </div>
-                                        {app.spec.source.path && (
-                                            <div className='row'>
-                                                <div className='columns small-3' title='Path:'>
-                                                    Path:
-                                                </div>
-                                                <div className='columns small-9'>{app.spec.source.path}</div>
-                                            </div>
-                                        )}
-                                        {app.spec.source.chart && (
-                                            <div className='row'>
-                                                <div className='columns small-3' title='Chart:'>
-                                                    Chart:
-                                                </div>
-                                                <div className='columns small-9'>{app.spec.source.chart}</div>
-                                            </div>
-                                        )}
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Destination:'>
-                                                Destination:
-                                            </div>
-                                            <div className='columns small-9'>
-                                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
-                                            </div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns small-3' title='Namespace:'>
-                                                Namespace:
-                                            </div>
-                                            <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                        </div>
-                                        <div className='row'>
-                                            <div className='columns applications-list__entry--actions'>
-                                                <a
-                                                    className='argo-button argo-button--base'
-                                                    qe-id='applications-tiles-button-sync'
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        syncApplication(app.metadata.name);
-                                                    }}>
-                                                    <i className='fa fa-sync' /> Sync
-                                                </a>
-                                                &nbsp;
-                                                <a
-                                                    className='argo-button argo-button--base'
-                                                    qe-id='applications-tiles-button-refresh'
-                                                    {...AppUtils.refreshLinkAttrs(app)}
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        refreshApplication(app.metadata.name);
-                                                    }}>
-                                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                    <span className='show-for-xlarge'>Refresh</span>
-                                                </a>
-                                                &nbsp;
-                                                <a
-                                                    className='argo-button argo-button--base'
-                                                    qe-id='applications-tiles-button-delete'
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        deleteApplication(app.metadata.name);
-                                                    }}>
-                                                    <i className='fa fa-times-circle' /> Delete
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <React.Fragment>
+                    <Flexy style={{height: '1em', margin: '1em 0'}}>
+                        <span>
+                            SHOWING <b>{(applications || []).length}</b> APPS
+                            {(Object.keys(checkedApps) || []).length > 0 && ` (${(Object.keys(checkedApps) || []).length} SELECTED)`}
+                        </span>
+                        <Flexy style={{marginLeft: 'auto', lineHeight: '1em', fontSize: '14px'}}>
+                            {(Object.keys(checkedApps) || []).length > 0 && (
+                                <React.Fragment>
+                                    <ActionButton
+                                        action={() => {
+                                            setRefreshing(true);
+                                            refreshApplication(Object.keys(checkedApps));
+                                        }}
+                                        label='REFRESH'
+                                        icon='fa-redo'
+                                        indicateLoading={true}
+                                    />
+                                </React.Fragment>
+                            )}
+                            {(Object.keys(checkedApps) || []).length > 0 && <ActionButton label='DESELECT ALL' icon='fa-times' action={deselectAll} />}
+                            {!allSelected && <ActionButton label='SELECT ALL' icon='fa-check-double' action={selectAll} />}
+                            <ActionButton
+                                label={`${compact ? 'NORMAL' : 'COMPACT'} VIEW`}
+                                icon={compact ? 'fa-expand' : 'fa-compress'}
+                                action={() => {
+                                    setCompact(!compact);
+                                }}
+                                style={{width: '150px'}}
+                            />
+                        </Flexy>
+                    </Flexy>
+                    <div className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4' ref={appContainerRef}>
+                        {(applications || []).map((app, i) => {
+                            const name = getAppName(app);
+                            return (
+                                <ApplicationTile
+                                    key={app.metadata ? app.metadata.name : i}
+                                    selected={selectedApp === i}
+                                    checked={checkedApps[name]}
+                                    ref={appRef.set ? appRef.ref : null}
+                                    onSelect={val => {
+                                        const update = {...checkedApps};
+                                        if (val) {
+                                            update[name] = true;
+                                        } else if (update[name]) {
+                                            delete update[name];
+                                        }
+                                        setCheckedApps(update);
+                                    }}
+                                    compact={compact}
+                                    app={app}
+                                    syncApplication={syncApplication}
+                                    deleteApplication={deleteApplication}
+                                    refreshApplication={refreshApplication}
+                                    refreshing={refreshing && checkedApps[name]}
+                                />
+                            );
+                        })}
+                    </div>
+                </React.Fragment>
             )}
         </Consumer>
     );

@@ -53,6 +53,7 @@ export class AppsListPreferences {
     public namespacesFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
+    public compact: boolean;
 }
 
 export interface ViewPreferences {
@@ -91,7 +92,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        healthFilter: new Array<string>(),
+        compact: false
     },
     pageSizes: {},
     hideBannerContent: ''
