@@ -113,10 +113,13 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 		runtimePolicy = proj.ProjectPoliciesString()
 	}
 
+	// NOTE: This calls prevent multiple creation of the wrapped enforcer
+	enforcer := p.enf.CreateEnforcerWithRuntimePolicy(runtimePolicy)
+
 	// Check the subject. This is typically the 'admin' case.
-	// NOTE: the call to EnforceRuntimePolicy will also consider the default role
+	// NOTE: the call to EnforceWithCustomEnforcer will also consider the default role
 	vals := append([]interface{}{subject}, rvals[1:]...)
-	if p.enf.EnforceRuntimePolicy(runtimePolicy, vals...) {
+	if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
 		return true
 	}
 
@@ -126,10 +129,19 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
-	for _, group := range groups {
-		vals := append([]interface{}{group}, rvals[1:]...)
-		if p.enf.EnforceRuntimePolicy(runtimePolicy, vals...) {
-			return true
+
+	// Get groups to reduce the amount to checking groups
+	groupingPolicies := enforcer.GetGroupingPolicy()
+	for gidx := range groups {
+		for gpidx := range groupingPolicies {
+			// Prefilter user groups by groups defined in the model
+			if groupingPolicies[gpidx][0] == groups[gidx] {
+				vals := append([]interface{}{groups[gidx]}, rvals[1:]...)
+				if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
+					return true
+				}
+				break
+			}
 		}
 	}
 	logCtx := log.WithField("claims", claims).WithField("rval", rvals)

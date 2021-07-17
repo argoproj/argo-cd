@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -73,6 +74,14 @@ func fakeAppList() *apiclient.AppList {
 
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer(objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	return newTestAppServerWithEnforcerConfigure(f, objects...)
+}
+
+func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -139,12 +148,11 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppsClientset, 0, "", func(options *metav1.ListOptions) {})
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	enforcer.SetDefaultRole("role:admin")
+	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
@@ -278,6 +286,49 @@ func TestListApps(t *testing.T) {
 		names = append(names, res.Items[i].Name)
 	}
 	assert.Equal(t, []string{"abc", "bcd", "def"}, names)
+}
+
+func TestCoupleAppsListApps(t *testing.T) {
+	var objects []runtime.Object
+	ctx := context.Background()
+
+	var groups []string
+	for i := 0; i < 50; i++ {
+		groups = append(groups, fmt.Sprintf("group-%d", i))
+	}
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
+	for projectId := 0; projectId < 100; projectId++ {
+		projectName := fmt.Sprintf("proj-%d", projectId)
+		for appId := 0; appId < 100; appId++ {
+			objects = append(objects, newTestApp(func(app *appsv1.Application) {
+				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
+				app.Spec.Project = projectName
+			}))
+		}
+	}
+
+	f := func(enf *rbac.Enforcer) {
+		policy := `
+p, role:test, applications, *, proj-10/*, allow
+g, group-45, role:test
+p, role:test2, applications, *, proj-15/*, allow
+g, group-47, role:test2
+p, role:test3, applications, *, proj-20/*, allow
+g, group-49, role:test3
+`
+		_ = enf.SetUserPolicy(policy)
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(f, objects...)
+
+	res, err := appServer.List(ctx, &application.ApplicationQuery{})
+
+	assert.NoError(t, err)
+	var names []string
+	for i := range res.Items {
+		names = append(names, res.Items[i].Name)
+	}
+	assert.Equal(t, 300, len(names))
 }
 
 func TestCreateApp(t *testing.T) {
