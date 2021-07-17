@@ -22,7 +22,7 @@ kubectl apply -n argocd --force -f manifests/install.yaml
 Make sure that ArgoCD is not running in your development cluster by scaling down the deployments:
 
 ```shell
-kubectl -n argocd scale statefulset/argocd-application-controller --replicas 0
+kubectl -n argocd scale deployment/argocd-application-controller --replicas 0
 kubectl -n argocd scale deployment/argocd-dex-server --replicas 0
 kubectl -n argocd scale deployment/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment/argocd-server --replicas 0
@@ -31,7 +31,14 @@ kubectl -n argocd scale deployment/argocd-redis --replicas 0
 
 ### Start local services
 
-Before starting local services, make sure you are present in `argocd` namespace. When you use the virtualized toolchain, starting local services is as simple as running
+Before starting local services, make sure you are present in `argocd` namespace. 
+You can set the current context default namespace as follows:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
+
+When you use the virtualized toolchain, starting local services is as simple as running
 
 ```bash
 make start
