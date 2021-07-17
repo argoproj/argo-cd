@@ -1,10 +1,13 @@
 package kube
 
 import (
+	"encoding/json"
+	"fmt"
 	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -91,4 +94,57 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 		}
 	}
 	return nil
+}
+
+// isNullList checks if the object is a "List" type where items is null instead of an empty list.
+// Handles a corner case where obj.IsList() returns false when a manifest is like:
+// ---
+// apiVersion: v1
+// items: null
+// kind: ConfigMapList
+func isNullList(obj *unstructured.Unstructured) bool {
+	if _, ok := obj.Object["spec"]; ok {
+		return false
+	}
+	if _, ok := obj.Object["status"]; ok {
+		return false
+	}
+	field, ok := obj.Object["items"]
+	if !ok {
+		return false
+	}
+	return field == nil
+}
+
+func FromUnstructured(objs []*unstructured.Unstructured) ([]string, error) {
+	manifests := make([]string, 0)
+	for _, obj := range objs {
+		var targets []*unstructured.Unstructured
+		if obj.IsList() {
+			err := obj.EachListItem(func(object runtime.Object) error {
+				unstructuredObj, ok := object.(*unstructured.Unstructured)
+				if ok {
+					targets = append(targets, unstructuredObj)
+					return nil
+				}
+				return fmt.Errorf("resource list item has unexpected type")
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else if isNullList(obj) {
+			// noop
+		} else {
+			targets = []*unstructured.Unstructured{obj}
+		}
+
+		for _, target := range targets {
+			manifestStr, err := json.Marshal(target.Object)
+			if err != nil {
+				return nil, err
+			}
+			manifests = append(manifests, string(manifestStr))
+		}
+	}
+	return manifests, nil
 }
