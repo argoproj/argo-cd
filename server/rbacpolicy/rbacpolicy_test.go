@@ -107,6 +107,33 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 	assert.False(t, enf.Enforce(claims, "applications", ActionAction+"/argoproj.io/Rollout/resume", "my-proj/my-app"))
 }
 
+func TestInvalidatedCache(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
+	projLister := test.NewFakeProjLister(newFakeProj())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf.EnableLog(true)
+	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow`)
+	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow`)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	claims := jwt.MapClaims{"sub": "alice"}
+	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+	claims = jwt.MapClaims{"sub": "bob"}
+	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+
+	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj2/*, allow`)
+	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj2/*, allow`)
+	claims = jwt.MapClaims{"sub": "alice"}
+	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj2/my-app"))
+	claims = jwt.MapClaims{"sub": "bob"}
+	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj2/my-app"))
+	claims = jwt.MapClaims{"sub": "alice"}
+	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+	claims = jwt.MapClaims{"sub": "bob"}
+	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+}
+
 func TestGetScopes_DefaultScopes(t *testing.T) {
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
 
