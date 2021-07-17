@@ -37,6 +37,7 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
 status:
   sync:
     status: Synced
@@ -58,6 +59,7 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
 status:
   sync:
     status: Synced
@@ -85,6 +87,7 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
 status:
   sync:
     status: OutOfSync
@@ -105,6 +108,7 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: master
 status:
   sync:
     status: Synced
@@ -174,9 +178,9 @@ func TestMetrics(t *testing.T) {
 			expectedResponse: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync",target_revision="HEAD"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced",target_revision="HEAD"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced",target_revision="HEAD"} 1
 `,
 		},
 		{
@@ -184,7 +188,7 @@ argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:
 			expectedResponse: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced",target_revision="master"} 1
 `,
 		},
 	}
