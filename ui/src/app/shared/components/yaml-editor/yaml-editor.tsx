@@ -46,13 +46,24 @@ export class YamlEditor<T> extends React.Component<
                                                 try {
                                                     const updated = jsYaml.load(this.model.getLinesContent().join('\n'));
                                                     const patch = jsonMergePatch.generate(props.input, updated);
-                                                    const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/merge-patch+json');
-                                                    if (unmounted !== true) {
-                                                        this.setState({editing: false});
+                                                    try {
+                                                        const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/merge-patch+json');
+                                                        if (unmounted !== true) {
+                                                            this.setState({editing: false});
+                                                        }
+                                                    } catch (e) {
+                                                        ctx.notifications.show({
+                                                            content: (
+                                                                <div className='yaml-editor__error'>
+                                                                    <ErrorNotification title='Unable to save changes' e={e} />
+                                                                </div>
+                                                            ),
+                                                            type: NotificationType.Error
+                                                        });
                                                     }
                                                 } catch (e) {
                                                     ctx.notifications.show({
-                                                        content: <ErrorNotification title='Unable to save changes' e={e} />,
+                                                        content: <ErrorNotification title='Unable to validate changes' e={e} />,
                                                         type: NotificationType.Error
                                                     });
                                                 }
