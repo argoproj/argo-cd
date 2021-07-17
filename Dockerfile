@@ -136,3 +136,6 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
 
 USER 999
+
+RUN git config --global credential.helper '!argocd-util repo gitcredshelper' && \
+    git config --global credential.useHttpPath true
