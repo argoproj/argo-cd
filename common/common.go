@@ -112,6 +112,8 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+	// AnnotationDeleteOptions is a comma-separated list of options for deletion of resources
+	AnnotationDeleteOptions = "argocd.argoproj.io/delete-options"
 
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
