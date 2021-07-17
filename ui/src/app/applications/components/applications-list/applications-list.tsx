@@ -270,6 +270,50 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
+type AppSorter = (a: models.Application, b: models.Application) => number;
+
+export enum SortAppsBy {
+    Name = 'Name',
+    DeploymentTime = 'Deployment Time'
+}
+
+const AppSorters: {[key: string]: AppSorter} = {
+    'Name': ((a, b) => {
+        if (a && a.metadata && b && b.metadata) {
+            return a.metadata.name < b.metadata.name ? -1 : 1;
+        }
+        return 1;
+    }) as AppSorter,
+    'Deployment Time': ((a, b) => (a.status.observedAt < b.status.observedAt ? 1 : -1)) as AppSorter
+};
+
+const ApplicationSortOptions = (props: {onChange: (sorter: SortAppsBy) => void}) => {
+    const [sorter, setSorter] = React.useState<SortAppsBy>(null);
+    React.useEffect(() => {
+        props.onChange(sorter);
+    }, [sorter]);
+
+    return (
+        <div className='applications-list__sort'>
+            <div className='applications-list__filters__title'>
+                SORT BY <i className='fa fa-sort' />
+            </div>
+            <div className='applications-list__sort__options'>
+                {Object.values(SortAppsBy).map(opt => (
+                    <div
+                        className='applications-list__sort__option'
+                        key={opt}
+                        onClick={() => {
+                            setSorter(sorter === opt ? null : opt);
+                        }}>
+                        <i className={`fa fa-${sorter === opt ? 'dot-circle' : 'circle'}`} /> {opt}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
@@ -376,7 +420,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
+                                                    const res = filterApps(applications, pref, pref.search);
+                                                    let {filteredApps} = res;
+                                                    const {filterResults} = res;
+                                                    if (pref.sorter) {
+                                                        filteredApps = filteredApps.sort(AppSorters[pref.sorter]);
+                                                    }
                                                     return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                         <EmptyState icon='argo-icon-application'>
                                                             <h4>No applications yet</h4>
@@ -391,6 +440,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     ) : (
                                                         <div className='row'>
                                                             <div className='columns small-12 xxlarge-2'>
+                                                                <ApplicationSortOptions
+                                                                    onChange={sorter => {
+                                                                        services.viewPreferences.updatePreferences({appList: {...pref, sorter}});
+                                                                        ctx.navigation.goto('.', {sorter});
+                                                                    }}
+                                                                />
                                                                 <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
                                                                 {syncAppsInput && (
                                                                     <ApplicationsSyncPanel
