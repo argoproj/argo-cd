@@ -11,11 +11,11 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -225,7 +225,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type VersionServiceClient interface {
 	// Version returns version information of the API server
-	Version(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*VersionMessage, error)
+	Version(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionMessage, error)
 }
 
 type versionServiceClient struct {
@@ -236,7 +236,7 @@ func NewVersionServiceClient(cc *grpc.ClientConn) VersionServiceClient {
 	return &versionServiceClient{cc}
 }
 
-func (c *versionServiceClient) Version(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*VersionMessage, error) {
+func (c *versionServiceClient) Version(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionMessage, error) {
 	out := new(VersionMessage)
 	err := c.cc.Invoke(ctx, "/version.VersionService/Version", in, out, opts...)
 	if err != nil {
@@ -248,14 +248,14 @@ func (c *versionServiceClient) Version(ctx context.Context, in *empty.Empty, opt
 // VersionServiceServer is the server API for VersionService service.
 type VersionServiceServer interface {
 	// Version returns version information of the API server
-	Version(context.Context, *empty.Empty) (*VersionMessage, error)
+	Version(context.Context, *emptypb.Empty) (*VersionMessage, error)
 }
 
 // UnimplementedVersionServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedVersionServiceServer struct {
 }
 
-func (*UnimplementedVersionServiceServer) Version(ctx context.Context, req *empty.Empty) (*VersionMessage, error) {
+func (*UnimplementedVersionServiceServer) Version(ctx context.Context, req *emptypb.Empty) (*VersionMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Version not implemented")
 }
 
@@ -264,7 +264,7 @@ func RegisterVersionServiceServer(s *grpc.Server, srv VersionServiceServer) {
 }
 
 func _VersionService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func _VersionService_Version_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: "/version.VersionService/Version",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(VersionServiceServer).Version(ctx, req.(*empty.Empty))
+		return srv.(VersionServiceServer).Version(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

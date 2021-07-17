@@ -57,6 +57,7 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
+	res.Labels = un.GetLabels()
 }
 
 func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {

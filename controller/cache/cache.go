@@ -92,6 +92,7 @@ type ResourceInfo struct {
 	Health  *health.HealthStatus
 	// NetworkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	NetworkingInfo *appv1.ResourceNetworkingInfo
+	Labels         map[string]string
 	// PodInfo is available for pods only
 	PodInfo *PodInfo
 	// NodeInfo is available for nodes only
@@ -194,6 +195,7 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		ResourceVersion: r.ResourceVersion,
 		NetworkingInfo:  resourceInfo.NetworkingInfo,
 		Images:          resourceInfo.Images,
+		Labels:          resourceInfo.Labels,
 		Health:          resHealth,
 		CreatedAt:       r.CreationTimestamp,
 	}

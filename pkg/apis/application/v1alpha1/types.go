@@ -1160,6 +1160,7 @@ type ResourceNode struct {
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
+	Labels          map[string]string       `json:"labels,omitempty" protobuf:"bytes,9,opt,name=labels"`
 }
 
 // FullName returns a resource node's full name in the format "group/kind/namespace/name"

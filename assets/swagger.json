@@ -6102,6 +6102,12 @@
             "$ref": "#/definitions/v1alpha1InfoItem"
           }
         },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "networkingInfo": {
           "$ref": "#/definitions/v1alpha1ResourceNetworkingInfo"
         },

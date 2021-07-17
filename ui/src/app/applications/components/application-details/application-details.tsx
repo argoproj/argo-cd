@@ -37,6 +37,7 @@ interface FilterInput {
     sync: string[];
     namespace: string[];
     createdWithin: number[]; // number of minutes the resource must be created within
+    label: string[]; // label name with optional label value (i.e. `name` or `name=value`) i.e. basic label selector
     ownership: string[];
 }
 
@@ -446,6 +447,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         };
         const createdAt = new Date(node.createdAt); // will be falsely if the node has not been created, and so will not appear
         const createdWithin = (n: number) => createdAt.getTime() > minutesAgo(n).getTime();
+        const labels = Object.entries(node.labels || {}).map(([name, value]) => name + '=' + value);
 
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
@@ -454,7 +456,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
             (filterInput.health.length === 0 || hook || (root.health && filterInput.health.indexOf(root.health.status) > -1)) &&
             (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
-            (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v)))
+            (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v))) &&
+            (filterInput.label.length === 0 || !!filterInput.label.find(v => labels.includes(v)))
         ) {
             return true;
         }
@@ -547,6 +550,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const sync = new Array<string>();
         const namespace = new Array<string>();
         const createdWithin = new Array<number>();
+        const label = new Array<string>();
         const ownership = new Array<string>();
         for (const item of filterInput || []) {
             const [type, val] = item.split(':');
@@ -566,12 +570,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'createdWithin':
                     createdWithin.push(parseInt(val, 10));
                     break;
+                case 'label':
+                    label.push(val);
+                    break;
                 case 'ownership':
                     ownership.push(val);
                     break;
             }
         }
-        return {kind, health, sync, namespace, createdWithin, ownership};
+        return {kind, health, sync, namespace, createdWithin, label, ownership};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
