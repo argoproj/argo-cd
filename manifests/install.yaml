@@ -218,6 +218,30 @@ spec:
                       helm:
                         description: Helm holds helm specific options
                         properties:
+                          externalValueFiles:
+                            description: ValuesFilesExternalValueFiles is a list of
+                              Helm value files to use when generating a template that
+                              come from an external git repo
+                            items:
+                              description: HelmExternalValue are values from other
+                                git repositories
+                              properties:
+                                repoURL:
+                                  description: RepoURL is the URL of the external
+                                    git repo
+                                  type: string
+                                targetRevision:
+                                  description: TargetRevision is the revision of the
+                                    git repo
+                                  type: string
+                                valueFiles:
+                                  description: FileParameters are file parameters
+                                    to the helm template
+                                  items:
+                                    type: string
+                                  type: array
+                              type: object
+                            type: array
                           fileParameters:
                             description: FileParameters are file parameters to the
                               helm template
@@ -571,6 +595,30 @@ spec:
                   helm:
                     description: Helm holds helm specific options
                     properties:
+                      externalValueFiles:
+                        description: ValuesFilesExternalValueFiles is a list of Helm
+                          value files to use when generating a template that come
+                          from an external git repo
+                        items:
+                          description: HelmExternalValue are values from other git
+                            repositories
+                          properties:
+                            repoURL:
+                              description: RepoURL is the URL of the external git
+                                repo
+                              type: string
+                            targetRevision:
+                              description: TargetRevision is the revision of the git
+                                repo
+                              type: string
+                            valueFiles:
+                              description: FileParameters are file parameters to the
+                                helm template
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        type: array
                       fileParameters:
                         description: FileParameters are file parameters to the helm
                           template
@@ -935,6 +983,30 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            externalValueFiles:
+                              description: ValuesFilesExternalValueFiles is a list
+                                of Helm value files to use when generating a template
+                                that come from an external git repo
+                              items:
+                                description: HelmExternalValue are values from other
+                                  git repositories
+                                properties:
+                                  repoURL:
+                                    description: RepoURL is the URL of the external
+                                      git repo
+                                    type: string
+                                  targetRevision:
+                                    description: TargetRevision is the revision of
+                                      the git repo
+                                    type: string
+                                  valueFiles:
+                                    description: FileParameters are file parameters
+                                      to the helm template
+                                    items:
+                                      type: string
+                                    type: array
+                                type: object
+                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -1312,6 +1384,30 @@ spec:
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
+                                  externalValueFiles:
+                                    description: ValuesFilesExternalValueFiles is
+                                      a list of Helm value files to use when generating
+                                      a template that come from an external git repo
+                                    items:
+                                      description: HelmExternalValue are values from
+                                        other git repositories
+                                      properties:
+                                        repoURL:
+                                          description: RepoURL is the URL of the external
+                                            git repo
+                                          type: string
+                                        targetRevision:
+                                          description: TargetRevision is the revision
+                                            of the git repo
+                                          type: string
+                                        valueFiles:
+                                          description: FileParameters are file parameters
+                                            to the helm template
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
                                   fileParameters:
                                     description: FileParameters are file parameters
                                       to the helm template
@@ -1674,6 +1770,30 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              externalValueFiles:
+                                description: ValuesFilesExternalValueFiles is a list
+                                  of Helm value files to use when generating a template
+                                  that come from an external git repo
+                                items:
+                                  description: HelmExternalValue are values from other
+                                    git repositories
+                                  properties:
+                                    repoURL:
+                                      description: RepoURL is the URL of the external
+                                        git repo
+                                      type: string
+                                    targetRevision:
+                                      description: TargetRevision is the revision
+                                        of the git repo
+                                      type: string
+                                    valueFiles:
+                                      description: FileParameters are file parameters
+                                        to the helm template
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -2021,6 +2141,30 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              externalValueFiles:
+                                description: ValuesFilesExternalValueFiles is a list
+                                  of Helm value files to use when generating a template
+                                  that come from an external git repo
+                                items:
+                                  description: HelmExternalValue are values from other
+                                    git repositories
+                                  properties:
+                                    repoURL:
+                                      description: RepoURL is the URL of the external
+                                        git repo
+                                      type: string
+                                    targetRevision:
+                                      description: TargetRevision is the revision
+                                        of the git repo
+                                      type: string
+                                    valueFiles:
+                                      description: FileParameters are file parameters
+                                        to the helm template
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template

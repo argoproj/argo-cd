@@ -35,6 +35,13 @@ spec:
       valueFiles:
       - values-prod.yaml
 
+#      # Helm value files that are stored in a different git repository
+#       externalValueFiles:
+#        - repoURL: https://git.example.gom/example.git
+#          targetRevision: main
+#          valueFiles:
+#            - values.yaml
+
       # Values file as block file
       values: |
         ingress:

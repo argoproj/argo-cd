@@ -1153,7 +1153,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	origApp = origApp.DeepCopy()
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
-
 	if !needRefresh {
 		return
 	}

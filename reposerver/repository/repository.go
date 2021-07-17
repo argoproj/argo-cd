@@ -193,6 +193,7 @@ func (s *Service) runRepoOperation(
 	ctx context.Context,
 	revision string,
 	repo *v1alpha1.Repository,
+	helmExternalValueCreds []*v1alpha1.RepoCreds,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
 	cacheFn func(cacheKey string, firstInvocation bool) (bool, error),
@@ -244,48 +245,107 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer io.Close(closer)
+
+		if source.Helm != nil && source.Helm.ExternalValueFiles != nil {
+			// load values files from external git repo
+			for _, exVal := range source.Helm.ExternalValueFiles {
+				exRepo := v1alpha1.Repository{Repo: exVal.RepoURL}
+				if helmExternalValueCreds != nil {
+					creds := getRepoCredential(helmExternalValueCreds, exVal.RepoURL)
+					if creds != nil {
+						exRepo.CopyCredentialsFrom(creds)
+					}
+				}
+
+				exGitClient, exRevision, err := s.newClientResolveRevision(&exRepo, exVal.TargetRevision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
+				if err != nil {
+					return err
+				}
+
+				err = DoGitCheckoutOperationForRepoOperation(
+					s,
+					exGitClient,
+					exRevision,
+					settings,
+					cacheFn,
+					nil,
+					verifyCommit,
+					"",
+				)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
 		})
 	} else {
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
-			return checkoutRevision(gitClient, revision)
-		})
+		return DoGitCheckoutOperationForRepoOperation(
+			s,
+			gitClient,
+			revision,
+			settings,
+			cacheFn,
+			operation,
+			verifyCommit,
+			source.Path,
+		)
+	}
+}
 
-		if err != nil {
+func DoGitCheckoutOperationForRepoOperation(
+	s *Service,
+	gitClient git.Client,
+	revision string,
+	settings operationSettings,
+	cacheFn func(cacheKey string, firstInvocation bool) (bool, error),
+	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
+	verifyCommit bool,
+	path string,
+) error {
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
+		return checkoutRevision(gitClient, revision)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	defer io.Close(closer)
+
+	commitSHA, err := gitClient.CommitSHA()
+	if err != nil {
+		return err
+	}
+
+	// double-check locking
+	if !settings.noCache {
+		if ok, err := cacheFn(revision, false); ok {
 			return err
 		}
-
-		defer io.Close(closer)
-
-		commitSHA, err := gitClient.CommitSHA()
-		if err != nil {
-			return err
-		}
-
-		// double-check locking
-		if !settings.noCache {
-			if ok, err := cacheFn(revision, false); ok {
-				return err
-			}
-		}
-		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
-		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-			var signature string
-			if verifyCommit {
-				signature, err = gitClient.VerifyCommitSignature(revision)
-				if err != nil {
-					return nil, err
-				}
-			}
-			appPath, err := argopath.Path(gitClient.Root(), source.Path)
+	}
+	if operation == nil {
+		return nil
+	}
+	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
+	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
+	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+		var signature string
+		if verifyCommit {
+			signature, err = gitClient.VerifyCommitSignature(revision)
 			if err != nil {
 				return nil, err
 			}
-			return &operationContext{appPath, signature}, nil
-		})
-	}
+		}
+		appPath, err := argopath.Path(gitClient.Root(), path)
+		if err != nil {
+			return nil, err
+		}
+		return &operationContext{appPath, signature}, nil
+	})
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
@@ -305,7 +365,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.HelmExternalValueRepoCreds, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
 
 	return res, err
 }
@@ -544,6 +604,7 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
+	log.Debugf("RUNNING repository.helmTemplate")
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -596,6 +657,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				}
 			}
 			templateOpts.Values = append(templateOpts.Values, val)
+		}
+		for _, exVal := range appHelm.ExternalValueFiles {
+			repoFilePath := ""
+			if strings.HasPrefix(exVal.RepoURL, "file://") {
+				repoFilePath = exVal.RepoURL[7:]
+			} else {
+				r := regexp.MustCompile("(/|:)")
+				repoFilePath = filepath.Join(os.TempDir(), r.ReplaceAllString(git.NormalizeGitURL(exVal.RepoURL), "_"))
+			}
+
+			for _, file := range exVal.ValueFiles {
+				valueFilePath := filepath.Join(repoFilePath, file)
+				templateOpts.Values = append(templateOpts.Values, valueFilePath)
+			}
 		}
 
 		if appHelm.Values != "" {
@@ -694,6 +769,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 	}
+	log.Debugf("FINISHED repository.helmTemplate")
 	return kube.SplitYAML([]byte(out))
 }
 
@@ -1180,7 +1256,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.HelmExternalValueRepoCreds, q.Source, false, cacheFn, operation, settings)
 
 	return res, err
 }

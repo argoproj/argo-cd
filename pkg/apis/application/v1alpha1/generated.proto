@@ -207,6 +207,9 @@ message ApplicationSourceHelm {
 
   // Version is the Helm version to use for templating (either "2" or "3")
   optional string version = 6;
+
+  // ValuesFilesExternalValueFiles is a list of Helm value files to use when generating a template that come from an external git repo
+  repeated HelmExternalValue externalValueFiles = 7;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -574,6 +577,18 @@ message HealthStatus {
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
+}
+
+// HelmExternalValue are values from other git repositories
+message HelmExternalValue {
+  // RepoURL is the URL of the external git repo
+  optional string repoURL = 1;
+
+  // TargetRevision is the revision of the git repo
+  optional string targetRevision = 2;
+
+  // FileParameters are file parameters to the helm template
+  repeated string valueFiles = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation

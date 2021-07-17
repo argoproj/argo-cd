@@ -4796,6 +4796,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "externalValueFiles": {
+          "type": "array",
+          "title": "ValuesFilesExternalValueFiles is a list of Helm value files to use when generating a template that come from an external git repo",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmExternalValue"
+          }
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",
@@ -5382,6 +5389,27 @@
         "status": {
           "type": "string",
           "title": "Status holds the status code of the application or resource"
+        }
+      }
+    },
+    "v1alpha1HelmExternalValue": {
+      "type": "object",
+      "title": "HelmExternalValue are values from other git repositories",
+      "properties": {
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL of the external git repo"
+        },
+        "targetRevision": {
+          "type": "string",
+          "title": "TargetRevision is the revision of the git repo"
+        },
+        "valueFiles": {
+          "type": "array",
+          "title": "FileParameters are file parameters to the helm template",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -234,6 +234,18 @@ type ApplicationSourceHelm struct {
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	// ValuesFilesExternalValueFiles is a list of Helm value files to use when generating a template that come from an external git repo
+	ExternalValueFiles []HelmExternalValue `json:"externalValueFiles,omitempty" protobuf:"bytes,7,opt,name=externalValueFiles"`
+}
+
+// HelmExternalValue are values from other git repositories
+type HelmExternalValue struct {
+	// RepoURL is the URL of the external git repo
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
+	// TargetRevision is the revision of the git repo
+	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,2,opt,name=targetRevision"`
+	// FileParameters are file parameters to the helm template
+	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,3,opt,name=valueFiles"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation

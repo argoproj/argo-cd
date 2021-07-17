@@ -182,6 +182,7 @@ export interface ApplicationSource {
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
+    externalValueFiles?: ExternalValuesFile[];
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
@@ -554,6 +555,12 @@ export interface AppInfo {
     path: string;
 }
 
+export interface ExternalValuesFile {
+    repoURL: string;
+    targetRevision: string;
+    valueFiles: string[];
+}
+
 export interface HelmParameter {
     name: string;
     value: string;
@@ -569,6 +576,7 @@ export interface HelmAppSpec {
     path: string;
     valueFiles: string[];
     values?: string;
+    externalValueFiles?: ExternalValuesFile;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }

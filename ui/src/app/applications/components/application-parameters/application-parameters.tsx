@@ -231,6 +231,21 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
+        if (app.spec.source.helm && app.spec.source.helm.externalValueFiles) {
+            app.spec.source.helm.externalValueFiles.forEach((externalValue, index) => {
+                attributes.push({
+                    title: 'EXTERNAL VALUES ' + (index + 1),
+                    view: (
+                        <Expandable height={48}>
+                            {externalValue.repoURL} ({externalValue.targetRevision}) <br />
+                            {externalValue.valueFiles.join(', ')}
+                        </Expandable>
+                    ),
+                    edit: (formApi: FormApi) => <i>Only editable in Manifest!</i>
+                });
+            });
+        }
+
         attributes.push({
             title: 'VALUES',
             view: app.spec.source.helm && (
