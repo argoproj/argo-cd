@@ -73,6 +73,16 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
+func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
+	assert.NoError(t, err)
+	defer io.Close(closer)
+	info, err := os.Stat(path)
+	assert.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
 func Test_normalizeChartName(t *testing.T) {
 	t.Run("Test non-slashed name", func(t *testing.T) {
 		n := normalizeChartName("mychart")
