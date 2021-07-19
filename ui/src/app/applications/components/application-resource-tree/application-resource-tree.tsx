@@ -399,7 +399,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setNode(EXTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.externalTraffic});
             externalRoots.sort(compareNodes).forEach(root => {
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
-                processNode(root, root, loadBalancers.map(lb => colorsBySource.get(lb)));
+                processNode(
+                    root,
+                    root,
+                    loadBalancers.map(lb => colorsBySource.get(lb))
+                );
                 loadBalancers.forEach(key => {
                     const loadBalancerNodeKey = `${EXTERNAL_TRAFFIC_NODE}:${key}`;
                     graph.setNode(loadBalancerNodeKey, {

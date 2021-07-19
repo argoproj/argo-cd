@@ -84,9 +84,15 @@ const SyncFilter = (props: AppFilterProps) => (
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
         setSelected={s => props.onChange({...props.pref, syncFilter: s})}
-        options={getOptions(props.apps, 'sync', app => app.status.sync.status, Object.keys(SyncStatuses), s => (
-            <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'sync',
+            app => app.status.sync.status,
+            Object.keys(SyncStatuses),
+            s => (
+                <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -95,9 +101,15 @@ const HealthFilter = (props: AppFilterProps) => (
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
         setSelected={s => props.onChange({...props.pref, healthFilter: s})}
-        options={getOptions(props.apps, 'health', app => app.status.health.status, Object.keys(HealthStatuses), s => (
-            <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'health',
+            app => app.status.health.status,
+            Object.keys(HealthStatuses),
+            s => (
+                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -128,7 +140,11 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
-    const [projects, loading, error] = useData(() => services.projects.list('items.metadata.name'), null, () => null);
+    const [projects, loading, error] = useData(
+        () => services.projects.list('items.metadata.name'),
+        null,
+        () => null
+    );
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
     });
