@@ -192,7 +192,10 @@ const NamespaceFilter = (props: AppFilterProps) => {
 };
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
-    const [hidden, setHidden] = React.useState(false);
+    const hidden = props.pref.hideFilters;
+    const setHidden = (val: boolean) => {
+        services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: val}});
+    };
 
     React.useEffect(() => {
         const handleResize = () => {
