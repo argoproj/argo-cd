@@ -17,6 +17,7 @@ interface FilterProps {
     error?: boolean;
     retry?: () => void;
     loading?: boolean;
+    onClear?: () => void;
 }
 
 export const Filter = (props: FilterProps) => {
@@ -52,6 +53,7 @@ export const Filter = (props: FilterProps) => {
                         style={{marginLeft: 'auto'}}
                         onClick={() => {
                             setValues({} as FilterMap);
+                            props.onClear();
                             setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR

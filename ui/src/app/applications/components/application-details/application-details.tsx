@@ -206,7 +206,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
+
                                             {(tree.orphanedNodes || []).length > 0 && (
                                                 <div className='application-details__orphaned-filter'>
                                                     <ArgoCheckbox
@@ -221,21 +221,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(tree, node, treeFilter)}
-                                                    selectedNodeFullName={this.selectedNodeKey}
-                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node =>
-                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                            this.getApplicationActionMenu(application)
-                                                        )
-                                                    }
-                                                    tree={tree}
-                                                    app={application}
-                                                    showOrphanedResources={pref.orphanedResources}
-                                                    useNetworkingHierarchy={pref.view === 'network'}
-                                                    onClearFilter={clearFilter}
-                                                />
+                                                <div className='row'>
+                                                    <div className='columns small-12 xxlarge-2'>
+                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
+                                                    </div>
+                                                    <div className='columns small-12 xxlarge-10'>
+                                                        <ApplicationResourceTree
+                                                            nodeFilter={node => this.filterTreeNode(tree, node, treeFilter)}
+                                                            selectedNodeFullName={this.selectedNodeKey}
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application)
+                                                                )
+                                                            }
+                                                            tree={tree}
+                                                            app={application}
+                                                            showOrphanedResources={pref.orphanedResources}
+                                                            useNetworkingHierarchy={pref.view === 'network'}
+                                                            onClearFilter={clearFilter}
+                                                        />
+                                                    </div>
+                                                </div>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
