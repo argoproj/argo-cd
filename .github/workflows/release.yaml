@@ -84,6 +84,7 @@ jobs:
           echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
           echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
+          echo "IMAGE_FULLNAME_ARM64=${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}-arm64" >> $GITHUB_ENV
 
       - name: Check if our release tag has a correct annotation
         run: |
@@ -145,6 +146,15 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
       - name: Setup Git author information
         run: |
           set -ue
@@ -182,7 +192,7 @@ jobs:
           echo "Creating release ${RELEASE_TAG}"
           git tag ${RELEASE_TAG}
 
-      - name: Build Docker image for release
+      - name: Build amd64 Docker image for release
         run: |
           set -ue
           git clean -fd
@@ -191,6 +201,18 @@ jobs:
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Build arm64 Docker image for release
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          tags: ${{ env.IMAGE_FULLNAME_ARM64 }}
+          build-args: |
+            BUILD_ALL_CLIS=false
+          load: true
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Push docker image to repository
@@ -203,10 +225,13 @@ jobs:
           set -ue
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
           docker push ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          docker push ${IMAGE_FULLNAME_ARM64}
           # Remove the following when Docker Hub is gone
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
           docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} argoproj/argocd:v${TARGET_VERSION}
+          docker tag ${IMAGE_FULLNAME_ARM64} argoproj/argocd:v${TARGET_VERSION}-arm64
           docker push argoproj/argocd:v${TARGET_VERSION}
+          docker push argoproj/argocd:v${TARGET_VERSION}-arm64
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
