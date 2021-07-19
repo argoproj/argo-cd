@@ -1,4 +1,4 @@
-import {Tooltip} from 'argo-ui/v2';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {COLORS} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
@@ -6,11 +6,11 @@ import * as models from '../../../shared/models';
 
 require('./applications-status-bar.scss');
 
-export interface ApplicationStatusBarProps {
+export interface ApplicationsStatusBarProps {
     applications: models.Application[];
 }
 
-export const ApplicationStatusBar = ({applications}: ApplicationStatusBarProps) => {
+export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
     const readings = [
         {
             name: 'Healthy',
@@ -35,7 +35,7 @@ export const ApplicationStatusBar = ({applications}: ApplicationStatusBarProps) 
         {
             name: 'Missing, Unknown',
             value: applications.filter(app => app.status.health.status === 'Unknown' || app.status.health.status === 'Missing').length,
-            color: COLORS.health.unknown
+            color: '#6D7F8B' // $argo-color-gray-6
         }
     ];
 
@@ -65,21 +65,25 @@ export const ApplicationStatusBar = ({applications}: ApplicationStatusBarProps) 
     return (
         <Consumer>
             {ctx => (
-                <div className='status-bar'>
-                    <div className='scale'>
-                        {readings &&
-                            readings.length &&
-                            readings.map((item, i) => {
-                                if (item.value > 0) {
-                                    return (
-                                        <Tooltip content={getTooltipContent(item)} inverted={false} key={item.name}>
-                                            <div className='segments' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i} />
-                                        </Tooltip>
-                                    );
-                                }
-                            })}
-                    </div>
-                </div>
+                <>
+                    {totalItems > 1 && (
+                        <div className='status-bar'>
+                            <div className='scale'>
+                                {readings &&
+                                    readings.length > 1 &&
+                                    readings.map((item, i) => {
+                                        if (item.value > 0) {
+                                            return (
+                                                <Tooltip content={getTooltipContent(item)} key={item.name}>
+                                                    <div className='segments' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i} />
+                                                </Tooltip>
+                                            );
+                                        }
+                                    })}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </Consumer>
     );

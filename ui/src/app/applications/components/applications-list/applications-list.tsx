@@ -14,7 +14,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
-import {ApplicationStatusBar} from './applications-status-bar';
+import {ApplicationsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
@@ -405,6 +405,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             <div className='columns small-12 xxlarge-10'>
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
+                                                                        header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
                                                                         emptyState={() => (
@@ -426,15 +427,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data =>
                                                                             (pref.view === 'tiles' && (
-                                                                                <>
-                                                                                    <ApplicationStatusBar applications={data} />
-                                                                                    <ApplicationTiles
-                                                                                        applications={data}
-                                                                                        syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
-                                                                                        refreshApplication={refreshApp}
-                                                                                        deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
-                                                                                    />
-                                                                                </>
+                                                                                <ApplicationTiles
+                                                                                    applications={data}
+                                                                                    syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName})}
+                                                                                    refreshApplication={refreshApp}
+                                                                                    deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
+                                                                                />
                                                                             )) || (
                                                                                 <ApplicationsTable
                                                                                     applications={data}
