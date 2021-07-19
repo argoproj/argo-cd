@@ -860,7 +860,11 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
         };
         const start = () => {
             ensureUnsubscribed();
-            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
+            subscription = src().subscribe(
+                (item: T) => observer.next(item),
+                err => observer.error(err),
+                () => observer.complete()
+            );
         };
 
         if (!document.hidden) {
