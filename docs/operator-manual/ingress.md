@@ -159,8 +159,6 @@ spec:
       - name: argocd-server
         command:
         - /argocd-server
-        - --staticassets
-        - /shared/app
         - --repo-server
         - argocd-repo-server:8081
         - --insecure
@@ -304,8 +302,6 @@ spec:
       - name: argocd-server
         command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         - --repo-server
         - argocd-repo-server:8081
         - --insecure
@@ -433,8 +429,6 @@ spec:
       containers:
       - command:
         - /argocd-server
-        - --staticassets
-        - /shared/app
         - --repo-server
         - argocd-repo-server:8081
         - --rootpath
@@ -487,8 +481,6 @@ spec:
       containers:
       - command:
         - /argocd-server
-        - --staticassets
-        - /shared/app
         - --repo-server
         - argocd-repo-server:8081
         - --basehref

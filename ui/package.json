@@ -5,7 +5,7 @@
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
-    "build": "rm -rf dist && webpack --config ./src/app/webpack.config.js",
+    "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js",
     "lint": "tslint -p ./src/app",
     "test": "jest"
   },

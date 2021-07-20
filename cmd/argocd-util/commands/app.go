@@ -249,7 +249,7 @@ func NewReconcileCommand() *cobra.Command {
 				if repoServerAddress == "" {
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
-					repoServerPort, err := kubeutil.PortForward("app.kubernetes.io/name=argocd-repo-server", 8081, namespace, &overrides)
+					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}

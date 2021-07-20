@@ -27,7 +27,5 @@ spec:
           value: '2'
         command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         - --redis
         - "argocd-redis-ha-haproxy:6379"

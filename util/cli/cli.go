@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -147,7 +148,7 @@ func SetLogFormat(logFormat string) {
 	switch strings.ToLower(logFormat) {
 	case utillog.JsonFormat:
 		os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
-	case utillog.TextFormat:
+	case utillog.TextFormat, "":
 		os.Setenv(common.EnvLogFormat, utillog.TextFormat)
 	default:
 		log.Fatalf("Unknown log format '%s'", logFormat)
@@ -158,7 +159,7 @@ func SetLogFormat(logFormat string) {
 
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
-	level, err := log.ParseLevel(logLevel)
+	level, err := log.ParseLevel(text.FirstNonEmpty(logLevel, log.InfoLevel.String()))
 	errors.CheckError(err)
 	os.Setenv(common.EnvLogLevel, level.String())
 }

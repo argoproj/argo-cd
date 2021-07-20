@@ -2,7 +2,9 @@
 .idea/
 .DS_Store
 vendor/
-dist/
+dist/*
+ui/dist/app/*
+!ui/dist/app/gitkeep
 site/
 *.iml
 # delve debug binaries

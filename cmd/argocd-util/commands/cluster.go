@@ -77,7 +77,8 @@ func loadClusters(kubeClient *kubernetes.Clientset, appClient *versioned.Clients
 	var cache *appstatecache.Cache
 	if portForwardRedis {
 		overrides := clientcmd.ConfigOverrides{}
-		port, err := kubeutil.PortForward("app.kubernetes.io/name=argocd-redis-ha-haproxy", 6379, namespace, &overrides)
+		port, err := kubeutil.PortForward(6379, namespace, &overrides,
+			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
 		if err != nil {
 			return nil, err
 		}
