@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -76,6 +77,8 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return nil
 		}
 
+		// get rid of logging error handler
+		runtime.ErrorHandlers = runtime.ErrorHandlers[1:]
 		cli.SetLogLevel(log.ErrorLevel.String())
 		log.SetLevel(log.ErrorLevel)
 		os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
