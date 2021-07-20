@@ -52,6 +52,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 
 		if len(pods.Items) > 0 {
 			pod = &pods.Items[0]
+			break
 		}
 	}
 

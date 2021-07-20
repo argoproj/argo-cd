@@ -46,13 +46,13 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
 		Example: `# Login to Argo CD using a username and password
-argo login cd.argoproj.io
+argocd login cd.argoproj.io
 
 # Login to Argo CD using SSO
-argo login cd.argoproj.io --sso
+argocd login cd.argoproj.io --sso
 
 # Configure "headless" access using Kubernetes API server
-argo login cd.argoproj.io --headless`,
+argocd login cd.argoproj.io --headless`,
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
