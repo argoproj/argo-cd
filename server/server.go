@@ -733,6 +733,13 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
 
+	// Serve extensions
+	var extensionsApiPath = "/extensions/"
+	var extensionsSharedPath = "/tmp/extensions/"
+
+	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
+	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
 		var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
