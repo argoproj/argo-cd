@@ -1,4 +1,4 @@
-import {Tooltip} from 'argo-ui';
+import {Text, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
 import {COLORS} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
@@ -56,9 +56,13 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
                 }
                 return `${missing} Missing`;
             }
-            return `${unknown} Unknown`;
+            return <Text>{unknown} Unknown</Text>;
         } else {
-            return item.value + ' ' + item.name;
+            return (
+                <Text>
+                    {item.value} {item.name}
+                </Text>
+            );
         }
     };
 
@@ -68,19 +72,19 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
                 <>
                     {totalItems > 1 && (
                         <div className='status-bar'>
-                            <div className='scale'>
-                                {readings &&
-                                    readings.length > 1 &&
-                                    readings.map((item, i) => {
-                                        if (item.value > 0) {
-                                            return (
-                                                <Tooltip content={getTooltipContent(item)} key={item.name}>
-                                                    <div className='segments' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i} />
+                            {readings &&
+                                readings.length > 1 &&
+                                readings.map((item, i) => {
+                                    if (item.value > 0) {
+                                        return (
+                                            <div className='status-bar__segment' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i}>
+                                                <Tooltip content={getTooltipContent(item)} inverted={true}>
+                                                    <div className='status-bar__segment__fill' />
                                                 </Tooltip>
-                                            );
-                                        }
-                                    })}
-                            </div>
+                                            </div>
+                                        );
+                                    }
+                                })}
                         </div>
                     )}
                 </>
