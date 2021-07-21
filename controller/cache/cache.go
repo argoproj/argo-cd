@@ -290,6 +290,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
+		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
@@ -543,6 +544,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
+		}
+		if !reflect.DeepEqual(oldCluster.ClusterResources, newCluster.ClusterResources) {
+			updateSettings = append(updateSettings, clustercache.SetClusterResources(newCluster.ClusterResources))
 		}
 		forceInvalidate := false
 		if newCluster.RefreshRequestedAt != nil &&

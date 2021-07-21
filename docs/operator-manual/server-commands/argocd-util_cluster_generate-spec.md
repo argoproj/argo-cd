@@ -12,6 +12,7 @@ argocd-util cluster generate-spec CONTEXT [flags]
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --bearer-token string                Authentication token that should be used to access K8S API server
+      --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
       --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable

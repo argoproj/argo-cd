@@ -34,7 +34,7 @@ export const RevisionMetadataRows = (props: {applicationName: string; source: Ap
                     {m.message && (
                         <div className='row'>
                             <div className='columns small-3' />
-                            <div className='columns small-9'>{m.message.split('\n')[0].slice(0, 64)}</div>
+                            <div className='columns small-9'>{m.message?.split('\n')[0].slice(0, 64)}</div>
                         </div>
                     )}
                     <div className='row'>

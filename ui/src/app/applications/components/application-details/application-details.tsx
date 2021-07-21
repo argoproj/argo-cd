@@ -135,20 +135,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const statusByKey = new Map<string, appModels.ResourceStatus>();
-                            const visibleOrphans = (pref.orphanedResources && tree.orphanedNodes) || [];
-                            if (visibleOrphans.length > 0) {
-                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
-                            }
-                            const orphans = visibleOrphans.map(orphan => statusByKey.get(AppUtils.nodeKey(orphan)));
-
-                            const filteredRes = application.status.resources
-                                .filter(res => {
-                                    const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
-                                    resNode.root = resNode;
-                                    return this.filterTreeNode(tree, resNode, treeFilter);
-                                })
-                                .concat(orphans);
+                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
+                                ? (tree.orphanedNodes || []).map(node => ({
+                                      ...node,
+                                      status: null,
+                                      health: null
+                                  }))
+                                : [];
+                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                                const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
+                                resNode.root = resNode;
+                                return this.filterTreeNode(tree, resNode, treeFilter);
+                            });
 
                             return (
                                 <div className='application-details'>
