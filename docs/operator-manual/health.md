@@ -19,6 +19,40 @@ with at least one value for `hostname` or `IP`.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
+### Argocd App
+
+The health assessement of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+`argocd-cm` ConfigMap:
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |
+        hs = {}
+        hs.status = "Progressing"
+        hs.message = ""
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = obj.status.health.status
+            if obj.status.health.message ~= nil then
+              hs.message = obj.status.health.message
+            end
+          end
+        end
+        return hs
+```
+
 ## Custom Health Checks
 
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:
@@ -30,38 +64,53 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
+Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
-  resource.customizations: |
-    cert-manager.io/Certificate:
-      health.lua: |
-        hs = {}
-        if obj.status ~= nil then
-          if obj.status.conditions ~= nil then
-            for i, condition in ipairs(obj.status.conditions) do
-              if condition.type == "Ready" and condition.status == "False" then
-                hs.status = "Degraded"
-                hs.message = condition.message
-                return hs
-              end
-              if condition.type == "Ready" and condition.status == "True" then
-                hs.status = "Healthy"
-                hs.message = condition.message
-                return hs
-              end
-            end
+  resource.customizations.health.cert-manager.io_Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
           end
         end
+      end
+    end
         
-        hs.status = "Progressing"
-        hs.message = "Waiting for certificate"
-        return hs
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
 ```
-The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 
-NOTE: as a security measure you don't have access to most of the standard Lua libraries.
+The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
+The custom health check might return one of the following health statuses:
+
+  * `Healthy` - the resource is healthy
+  * `Progressing` - the resource is not healthy yet but still making progress and might be healthy soon
+  * `Degraded` - the resource is degraded
+  * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
+
+By default health typically returns `Progressing` status.
+
+NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
+setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
+
+```yaml
+data:
+  resource.customizations.useOpenLibs.cert-manager.io_Certificate: "true"
+  resource.customizations.health.cert-manager.io_Certificate:
+    -- Lua standard libraries are enabled for this script
+```
 
 ### Way 2. Contribute a Custom Health Check
 

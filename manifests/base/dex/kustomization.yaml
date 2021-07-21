@@ -7,3 +7,4 @@ resources:
 - argocd-dex-server-rolebinding.yaml
 - argocd-dex-server-sa.yaml
 - argocd-dex-server-service.yaml
+- argocd-dex-server-network-policy.yaml

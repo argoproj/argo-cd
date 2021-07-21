@@ -14,7 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -68,7 +68,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
 				fmt.Print("*** Enter current password: ")
-				password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
 				currentPassword = string(password)
 				fmt.Print("\n")
@@ -362,7 +362,7 @@ argocd account generate-token --account <account-name>`,
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
-	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fallback to uuid if not value specified.")
+	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fall back to uuid if not value specified.")
 	return cmd
 }
 

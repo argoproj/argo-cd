@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -491,6 +493,34 @@ func TestSyncHelm(t *testing.T) {
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }
 
+func TestSyncGit(t *testing.T) {
+	ctx := context.Background()
+	appServer := newTestAppServer()
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
+	testApp.Spec.Source.Path = "deploy"
+	testApp.Spec.Source.TargetRevision = "0.7.*"
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
+	assert.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+		Manifests: []string{
+			`apiVersion: v1
+			kind: ServiceAccount
+			metadata:
+			  name: test
+			  namespace: test`,
+		},
+	}
+	app, err = appServer.Sync(ctx, syncReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []appsv1.RevisionHistory{{
@@ -788,4 +818,73 @@ func TestLogsGetSelectedPod(t *testing.T) {
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 0, len(pods))
 	})
+}
+
+// refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
+func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string) {
+	for ctx.Err() == nil {
+		a, err := appServer.appLister.Get(appName)
+		require.NoError(t, err)
+		a = a.DeepCopy()
+		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
+			a.SetAnnotations(map[string]string{})
+			a.SetResourceVersion("999")
+			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
+				context.Background(), a, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			atomic.AddInt32(patched, 1)
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func TestGetAppRefresh_NormalRefresh(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
+	appServer := newTestAppServer(testApp)
+
+	var patched int32
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name)
+
+	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+		Name:    &testApp.Name,
+		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+}
+
+func TestGetAppRefresh_HardRefresh(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
+	appServer := newTestAppServer(testApp)
+
+	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+		getAppDetailsQuery = q
+		return true
+	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	var patched int32
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name)
+
+	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+		Name:    &testApp.Name,
+		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+	require.NotNil(t, getAppDetailsQuery)
+	assert.True(t, getAppDetailsQuery.NoCache)
+	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
 }

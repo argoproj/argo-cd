@@ -1,0 +1,45 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.filter {
+    background-color: white;
+    padding: 10px;
+    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    margin-bottom: 1em;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: $argo-color-gray-5;
+        font-weight: 500;
+        margin-bottom: 0.5em;
+        height: 28px;
+    }
+
+    &__collapse {
+        cursor: pointer;
+        margin-left: auto;
+        color: $argo-color-gray-7;
+        font-size: 20px;
+    }
+
+    &__error {
+        color: $argo-failed-color-dark;
+
+        &__retry {
+            color: $argo-running-color;
+            cursor: pointer;
+        }
+    }
+
+    &__loading {
+        color: $argo-running-color;
+    }
+
+    &__error,
+    &__loading {
+        text-align: center;
+    }
+}

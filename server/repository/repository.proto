@@ -74,6 +74,8 @@ message RepoAccessQuery {
 	int64 githubAppInstallationID = 14;
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	string githubAppEnterpriseBaseUrl = 15;
+	// HTTP/HTTPS proxy to access the repository
+	string proxy = 16;
 }
 
 message RepoResponse {}
@@ -115,7 +117,7 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
 	}
 
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}

@@ -64,120 +64,79 @@ data:
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
 
-  # Git repositories configure Argo CD with (optional).
-  # This list is updated when configuring/removing repos from the UI/CLI
-  # Note: 'type: helm' field is supported in v1.3+. Use 'helm.repositories' for older versions.
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-      sshPrivateKeySecret:
-        name: my-secret
-        key: sshPrivateKey
-    - type: helm
-      url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-      name: istio.io
-    - type: helm
-      url: https://my-private-chart-repo.internal
-      name: private-repo
-      usernameSecret:
-        name: my-secret
-        key: username
-      passwordSecret:
-        name: my-secret
-        key: password
+  # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+  # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
+  # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jsonPointers:
+    - /webhooks/0/clientConfig/caBundle
+    jqPathExpressions:
+    - .webhooks[0].clientConfig.caBundle
 
-  # Non-standard and private Helm repositories (deprecated in 1.3).
-  helm.repositories: |
-    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-      name: istio.io
-    - url: https://my-private-chart-repo.internal
-      name: private-repo
-      usernameSecret:
-        name: my-secret
-        key: username
-      passwordSecret:
-        name: my-secret
-        key: password
-
-  # Configuration to customize resource behavior (optional). Keys are in the form: group/Kind.
-  resource.customizations: |
-    admissionregistration.k8s.io/MutatingWebhookConfiguration:
-      # List of json pointers in the object to ignore differences
-      ignoreDifferences: |
-        jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
-    certmanager.k8s.io/Certificate:
-      # Lua script for customizing the health status assessment
-      health.lua: |
-        hs = {}
-        if obj.status ~= nil then
-          if obj.status.conditions ~= nil then
-            for i, condition in ipairs(obj.status.conditions) do
-              if condition.type == "Ready" and condition.status == "False" then
-                hs.status = "Degraded"
-                hs.message = condition.message
-                return hs
-              end
-              if condition.type == "Ready" and condition.status == "True" then
-                hs.status = "Healthy"
-                hs.message = condition.message
-                return hs
-              end
-            end
+  resource.customizations.health.certmanager.k8s.io-Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
           end
         end
-        hs.status = "Progressing"
-        hs.message = "Waiting for certificate"
-        return hs
-    cert-manager.io/Certificate:
-      # Lua script for customizing the health status assessment
-      health.lua: |
-        hs = {}
-        if obj.status ~= nil then
-          if obj.status.conditions ~= nil then
-            for i, condition in ipairs(obj.status.conditions) do
-              if condition.type == "Ready" and condition.status == "False" then
-                hs.status = "Degraded"
-                hs.message = condition.message
-                return hs
-              end
-              if condition.type == "Ready" and condition.status == "True" then
-                hs.status = "Healthy"
-                hs.message = condition.message
-                return hs
-              end
-            end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
+
+  resource.customizations.health.cert-manager.io_Certificate: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message
+            return hs
           end
         end
-        hs.status = "Progressing"
-        hs.message = "Waiting for certificate"
-        return hs
-    apps/Deployment:
-      # List of Lua Scripts to introduce custom actions
-      actions: |
-        # Lua Script to indicate which custom actions are available on the resource
-        discovery.lua: |
-          actions = {}
-          actions["restart"] = {}
-          return actions
-        definitions:
-          - name: restart
-            # Lua Script to modify the obj
-            action.lua: |
-              local os = require("os")
-              if obj.spec.template.metadata == nil then
-                  obj.spec.template.metadata = {}
-              end
-              if obj.spec.template.metadata.annotations == nil then
-                  obj.spec.template.metadata.annotations = {}
-              end
-              obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
-              return obj
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for certificate"
+    return hs
+
+  # List of Lua Scripts to introduce custom actions
+  resource.customizations.actions.apps_Deployment: |
+    # Lua Script to indicate which custom actions are available on the resource
+    discovery.lua: |
+      actions = {}
+      actions["restart"] = {}
+      return actions
+    definitions:
+      - name: restart
+        # Lua Script to modify the obj
+        action.lua: |
+          local os = require("os")
+          if obj.spec.template.metadata == nil then
+              obj.spec.template.metadata = {}
+          end
+          if obj.spec.template.metadata.annotations == nil then
+              obj.spec.template.metadata.annotations = {}
+          end
+          obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
+          return obj
 
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
   # Excluding high-volume resources improves performance and memory usage, and reduces load and
@@ -262,3 +221,8 @@ data:
   # Optional link for banner. If set, the entire banner text will become a link.
   # You can have bannercontent without a bannerurl, but not the other way around.
   ui.bannerurl: "https://argoproj.github.io"
+
+  # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
+  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
+  # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
+  timeout.reconciliation: 180s

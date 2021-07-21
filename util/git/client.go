@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
-	ssh2 "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 type RevisionMetadata struct {
@@ -42,6 +43,11 @@ type Refs struct {
 	Branches []string
 	Tags     []string
 	// heads and remotes are also refs, but are not needed at this time.
+}
+
+type gitRefCache interface {
+	SetGitReferences(repo string, references []*plumbing.Reference) error
+	GetGitReferences(repo string, references *[]*plumbing.Reference) error
 }
 
 // Client is a generic git client interface
@@ -59,8 +65,15 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 }
 
+type EventHandlers struct {
+	OnLsRemote func(repo string) func()
+	OnFetch    func(repo string) func()
+}
+
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
+	EventHandlers
+
 	// URL of the repository
 	repoURL string
 	// Root path of repository
@@ -71,6 +84,12 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// gitRefCache knows how to cache git refs
+	gitRefCache gitRefCache
+	// indicates if client allowed to load refs from cache
+	loadRefFromCache bool
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
 var (
@@ -87,23 +106,45 @@ func init() {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
-	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
+type ClientOpts func(c *nativeGitClient)
+
+// WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
+func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.gitRefCache = cache
+		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.EventHandlers = handlers
+	}
+}
+
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+	r := regexp.MustCompile("(/|:)")
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
-	client := nativeGitClient{
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
+		proxy:     proxy,
 	}
-	return &client, nil
+	for i := range opts {
+		opts[i](client)
+	}
+	return client, nil
 }
 
 // Returns a HTTP client object suitable for go-git to use using the following
@@ -114,7 +155,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
 		// 15 second timeout
@@ -124,6 +165,8 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 			return http.ErrUseLastResponse
 		},
 	}
+
+	proxyFunc := proxy.GetCallback(proxyURL)
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -152,7 +195,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 
 	if insecure {
 		customHTTPClient.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
+			Proxy: proxyFunc,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify:   true,
 				GetClientCertificate: clientCertFunc,
@@ -170,7 +213,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
 			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
+				Proxy: proxyFunc,
 				TLSClientConfig: &tls.Config{
 					RootCAs:              certPool,
 					GetClientCertificate: clientCertFunc,
@@ -180,7 +223,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		} else {
 			// else no custom certificate stored.
 			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
+				Proxy: proxyFunc,
 				TLSClientConfig: &tls.Config{
 					GetClientCertificate: clientCertFunc,
 				},
@@ -203,7 +246,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		if err != nil {
 			return nil, err
 		}
-		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
+		auth := &PublicKeysWithOptions{}
+		auth.User = sshUser
+		auth.Signer = signer
 		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		} else {
@@ -269,6 +314,11 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
+	if m.OnFetch != nil {
+		done := m.OnFetch(m.repoURL)
+		defer done()
+	}
+
 	var err error
 	if revision != "" {
 		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
@@ -344,6 +394,18 @@ func (m *nativeGitClient) Checkout(revision string) error {
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	if m.gitRefCache != nil && m.loadRefFromCache {
+		var res []*plumbing.Reference
+		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
+			return res, nil
+		}
+	}
+
+	if m.OnLsRemote != nil {
+		done := m.OnLsRemote(m.repoURL)
+		defer done()
+	}
+
 	repo, err := git.Init(memory.NewStorage(), nil)
 	if err != nil {
 		return nil, err
@@ -359,7 +421,14 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
+	if err == nil && m.gitRefCache != nil {
+		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
+			log.Warnf("Failed to store git references to cache: %v", err)
+		}
+		return res, nil
+	}
+	return res, err
 }
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {
@@ -556,5 +625,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
+
 	return executil.Run(cmd)
 }

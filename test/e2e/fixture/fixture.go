@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -271,7 +272,7 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-// Convinience wrapper for updating argocd-cm
+// Convenience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
 }
@@ -301,6 +302,46 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 		}
 		return nil
 	})
+
+	SetResourceOverridesSplitKeys(overrides)
+}
+
+func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range overrides {
+			if v.HealthLua != "" {
+				cm.Data[getResourceOverrideSplitKey(k, "health")] = v.HealthLua
+			}
+			cm.Data[getResourceOverrideSplitKey(k, "useOpenLibs")] = strconv.FormatBool(v.UseOpenLibs)
+			if v.Actions != "" {
+				cm.Data[getResourceOverrideSplitKey(k, "actions")] = v.Actions
+			}
+			if len(v.IgnoreDifferences.JSONPointers) > 0 || len(v.IgnoreDifferences.JQPathExpressions) > 0 {
+				yamlBytes, err := yaml.Marshal(v.IgnoreDifferences)
+				if err != nil {
+					return err
+				}
+				cm.Data[getResourceOverrideSplitKey(k, "ignoreDifferences")] = string(yamlBytes)
+			}
+			if len(v.KnownTypeFields) > 0 {
+				yamlBytes, err := yaml.Marshal(v.KnownTypeFields)
+				if err != nil {
+					return err
+				}
+				cm.Data[getResourceOverrideSplitKey(k, "knownTypeFields")] = string(yamlBytes)
+			}
+		}
+		return nil
+	})
+}
+
+func getResourceOverrideSplitKey(key string, customizeType string) string {
+	groupKind := key
+	parts := strings.Split(key, "/")
+	if len(parts) == 2 {
+		groupKind = fmt.Sprintf("%s_%s", parts[0], parts[1])
+	}
+	return fmt.Sprintf("resource.customizations.%s.%s", customizeType, groupKind)
 }
 
 func SetAccounts(accounts map[string][]string) {
@@ -386,6 +427,12 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete appprojects --field-selector metadata.name!=default
 	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
@@ -581,7 +628,7 @@ func Declarative(filename string, values interface{}) (string, error) {
 	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
-
+	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
 

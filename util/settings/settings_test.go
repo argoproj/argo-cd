@@ -2,11 +2,14 @@ package settings
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"sort"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -145,6 +148,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
 	}}
+	ignoreCRDFields := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status", "/spec/preserveUnknownFields"},
+	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -152,7 +158,9 @@ func TestGetResourceOverrides(t *testing.T) {
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err := settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
@@ -161,13 +169,16 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NotNil(t, webHookOverrides)
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"}},
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+		},
 	}, webHookOverrides)
 
 	// by default, crd status should be ignored
 	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreStatus, crdOverrides)
+	assert.Equal(t, ignoreCRDFields, crdOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -190,14 +201,19 @@ func TestGetResourceOverrides(t *testing.T) {
     apiextensions.k8s.io/CustomResourceDefinition:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"}}}, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
+		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+	}}, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -231,6 +247,150 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, overrides, 1)
+}
+
+func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    admissionregistration.k8s.io/MutatingWebhookConfiguration:
+      ignoreDifferences: |
+        jsonPointers:
+        - foo
+    certmanager.k8s.io/Certificate:
+      health.lua.useOpenLibs: true
+      health.lua: |
+        foo
+    cert-manager.io/Certificate:
+      health.lua: |
+        foo
+    apps/Deployment:
+      actions: |
+        foo`,
+	}
+
+	t.Run("MergedKey", func(t *testing.T) {
+		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 5, len(overrides))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
+	})
+
+	t.Run("SplitKeys", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration": "bar",
+			"resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
+        - bar`,
+			"resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration": `
+- field: foo
+  type: bar`,
+			"resource.customizations.health.certmanager.k8s.io_Certificate":      "bar",
+			"resource.customizations.health.cert-manager.io_Certificate":         "bar",
+			"resource.customizations.useOpenLibs.certmanager.k8s.io_Certificate": "false",
+			"resource.customizations.useOpenLibs.cert-manager.io_Certificate":    "true",
+			"resource.customizations.actions.apps_Deployment":                    "bar",
+			"resource.customizations.actions.Deployment":                         "bar",
+			"resource.customizations.health.iam-manager.k8s.io_Iamrole":          "bar",
+			"resource.customizations.health.Iamrole":                             "bar",
+			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
+        - bar`,
+			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
+        - bar`,
+		}
+		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+
+		_, settingsManager := fixtures(mergemaps(data, newData))
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 8, len(overrides))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields[0].Type)
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
+		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, false, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, true, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+		assert.Equal(t, "bar", overrides["Deployment"].Actions)
+		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
+		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
+		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
+		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
+	})
+
+	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.cert-manager.io_Certificate": "bar",
+			"resource.customizations.actions.apps_Deployment":            "bar",
+			"resource.compareoptions":                                    `ignoreResourceStatusField: all`,
+		}
+		_, settingsManager := fixtures(mergemaps(data, newData))
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 5, len(overrides))
+		assert.Equal(t, 1, len(overrides["*/*"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+	})
+
+	t.Run("SplitKeysCompareOptionsOff", func(t *testing.T) {
+		newData := map[string]string{
+			"resource.customizations.health.cert-manager.io_Certificate": "bar",
+			"resource.customizations.actions.apps_Deployment":            "bar",
+			"resource.compareoptions":                                    `ignoreResourceStatusField: off`,
+		}
+		_, settingsManager := fixtures(mergemaps(data, newData))
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 4, len(overrides))
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
+		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
+	})
+}
+
+func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
+	for k, v := range mapA {
+		mapB[k] = v
+	}
+	return mapB
+}
+
+func TestConvertToOverrideKey(t *testing.T) {
+	key, err := convertToOverrideKey("cert-manager.io_Certificate")
+	assert.NoError(t, err)
+	assert.Equal(t, "cert-manager.io/Certificate", key)
+
+	key, err = convertToOverrideKey("Certificate")
+	assert.NoError(t, err)
+	assert.Equal(t, "Certificate", key)
+
+	_, err = convertToOverrideKey("")
+	assert.NotNil(t, err)
+
+	_, err = convertToOverrideKey("_")
+	assert.NoError(t, err)
 }
 
 func TestGetResourceCompareOptions(t *testing.T) {
@@ -548,4 +708,242 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 	oidcConfig := settings.OIDCConfig()
 	assert.NotNil(t, oidcConfig)
 	assert.Equal(t, "test-secret", oidcConfig.ClientSecret)
+}
+
+func getCNFromCertificate(cert *tls.Certificate) string {
+	c, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return ""
+	}
+	return c.Subject.CommonName
+}
+
+func Test_GetTLSConfiguration(t *testing.T) {
+	t.Run("Valid external TLS secret with success", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
+	})
+
+	t.Run("Valid external TLS secret overrides argocd-secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
+	})
+	t.Run("Invalid external TLS secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(""),
+					"tls.key": []byte(""),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not read from secret")
+		assert.NotNil(t, settings)
+	})
+	t.Run("No external TLS secret", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.NotNil(t, settings.Certificate)
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+	})
+}
+
+func TestSecretKeyRef(t *testing.T) {
+	data := map[string]string{
+		"oidc.config": `name: Okta
+issuer: https://dev-123456.oktapreview.com
+clientID: aaaabbbbccccddddeee
+clientSecret: $acme:clientSecret
+# Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
+requestedScopes: ["openid", "profile", "email"]
+# Optional set of OIDC claims to request on the ID token.
+requestedIDTokenClaims: {"groups": {"essential": true}}`,
+	}
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: data,
+	}
+	argocdSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "acme",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"clientSecret": []byte("deadbeef"),
+		},
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+
+	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }

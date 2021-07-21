@@ -72,14 +72,14 @@ argocd account list
 
 * Get specific user details
 ```bash
-argocd account get <username>
+argocd account get --account <username>
 ```
 
 * Set user password
 ```bash
 argocd account update-password \
   --account <name> \
-  --current-password <current-admin> \
+  --current-password <current-user-password> \
   --new-password <new-user-password>
 ```
 
@@ -172,7 +172,7 @@ data:
         name: GitHub
         config:
           clientID: aabbccddeeff00112233
-          clientSecret: $dex.github.clientSecret
+          clientSecret: $dex.github.clientSecret # Alternatively $<some_K8S_secret>:dex.github.clientSecret
           orgs:
           - name: your-github-org
 
@@ -183,7 +183,7 @@ data:
         config:
           hostName: github.acme.com
           clientID: abcdefghijklmnopqrst
-          clientSecret: $dex.acme.clientSecret
+          clientSecret: $dex.acme.clientSecret  # Alternatively $<some_K8S_secret>:dex.acme.clientSecret
           orgs:
           - name: your-github-org
 ```
@@ -293,6 +293,12 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 ### Sensitive Data and SSO Client Secrets
 
 You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
+* Any values which start with `$` will :
+  - If value is in form of `$<secret>:a.key.in.k8s.secret`, look to a key in K8S `<secret>` of the same name (minus the `$`), and reads it value.
+  - Otherwise, look to a key in `argocd-secret` of the same name (minus the `$`),
+  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
+  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
+  `printf RAW_STRING | base64`.
 
 Data should be base64 encoded before it is added to `argocd-secret`. You can do so by running `printf RAW_SECRET_STRING | base64`.
 
@@ -334,5 +340,53 @@ data:
     clientID: aabbccddeeff00112233
     # Reference key in argocd-secret
     clientSecret: $oidc.auth0.clientSecret
+  ...
+```
+
+#### Alternative
+
+If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+
+Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
+
+> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+
+##### Example
+
+`another-secret`:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: another-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  ...
+  # Store client secret like below.
+  # Ensure the secret is base64 encoded
+  oidc.auth0.clientSecret: <client-secret-base64-encoded>
+  ...
+```
+
+`argocd-cm`:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ...
+  oidc.config: |
+    name: Auth0
+    clientID: aabbccddeeff00112233
+    # Reference key in another-secret (and not argocd-secret)
+    clientSecret: $another-secret:oidc.auth0.clientSecret  # Mind the ':'
   ...
 ```

@@ -249,6 +249,12 @@ message ApplicationSourceKustomize {
 
   // CommonAnnotations is a list of additional annotations to add to rendered manifests
   map<string, string> commonAnnotations = 6;
+
+  // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+  optional bool forceCommonLabels = 7;
+
+  // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+  optional bool forceCommonAnnotations = 8;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -397,6 +403,9 @@ message Cluster {
 
   // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
   optional int64 shard = 9;
+
+  // Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+  optional bool clusterResources = 10;
 }
 
 // ClusterCacheInfo contains information about the cluster cache
@@ -447,6 +456,9 @@ message ClusterInfo {
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
+
+  // APIVersions contains list of API versions supported by the cluster
+  repeated string apiVersions = 5;
 }
 
 // ClusterList is a collection of Clusters.
@@ -744,6 +756,8 @@ message OrphanedResourcesMonitorSettings {
 // TODO: describe this type
 message OverrideIgnoreDiff {
   repeated string jSONPointers = 1;
+
+  repeated string jqPathExpressions = 2;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -754,7 +768,7 @@ message ProjectRole {
   // Description is a description of the role
   optional string description = 2;
 
-  // Policies Stores a list of casbin formated strings that define access policies for the role in the project
+  // Policies Stores a list of casbin formatted strings that define access policies for the role in the project
   repeated string policies = 3;
 
   // JWTTokens are a list of generated JWT tokens bound to this role
@@ -795,6 +809,12 @@ message RepoCreds {
 
   // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 10;
+
+  // EnableOCI specifies whether helm-oci support should be enabled for this repo
+  optional bool enableOCI = 11;
+
+  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  optional string type = 12;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -860,6 +880,9 @@ message Repository {
 
   // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 18;
+
+  // Proxy specifies the HTTP/HTTPS proxy used to access the repo
+  optional string proxy = 19;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -978,6 +1001,8 @@ message ResourceIgnoreDifferences {
   optional string namespace = 4;
 
   repeated string jsonPointers = 5;
+
+  repeated string jqPathExpressions = 6;
 }
 
 // ResourceNetworkingInfo holds networking resource related information
@@ -1019,6 +1044,8 @@ message ResourceNode {
 // TODO: describe the members of this type
 message ResourceOverride {
   optional string healthLua = 1;
+
+  optional bool useOpenLibs = 5;
 
   optional string actions = 3;
 

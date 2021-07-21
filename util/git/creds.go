@@ -50,6 +50,8 @@ func (c NopCloser) Close() error {
 	return nil
 }
 
+var _ Creds = NopCreds{}
+
 type NopCreds struct {
 }
 
@@ -57,12 +59,16 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
+var _ io.Closer = NopCloser{}
+
 type GenericHTTPSCreds interface {
 	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
 	Environ() (io.Closer, []string, error)
 }
+
+var _ GenericHTTPSCreds = HTTPSCreds{}
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
@@ -76,15 +82,18 @@ type HTTPSCreds struct {
 	clientCertData string
 	// Client certificate key to use
 	clientCertKey string
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
 		insecure,
 		clientCertData,
 		clientCertKey,
+		proxy,
 	}
 }
 
@@ -234,6 +243,7 @@ type GitHubAppCreds struct {
 	clientCertData string
 	clientCertKey  string
 	insecure       bool
+	proxy          string
 }
 
 // NewGitHubAppCreds provide github app credentials
@@ -334,7 +344,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,

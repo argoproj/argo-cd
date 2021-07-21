@@ -11,7 +11,7 @@ import (
 )
 
 func Test_newCluster(t *testing.T) {
-	clusterWithData := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	clusterWithData := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",
@@ -29,7 +29,7 @@ func Test_newCluster(t *testing.T) {
 	assert.Equal(t, "test-key-data", string(clusterWithData.Config.KeyData))
 	assert.Equal(t, "", clusterWithData.Config.BearerToken)
 
-	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",
@@ -47,7 +47,7 @@ func Test_newCluster(t *testing.T) {
 	assert.True(t, strings.Contains(string(clusterWithFiles.Config.KeyData), "test-key-data"))
 	assert.Equal(t, "", clusterWithFiles.Config.BearerToken)
 
-	clusterWithBearerToken := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	clusterWithBearerToken := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",

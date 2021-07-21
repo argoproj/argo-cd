@@ -10,6 +10,10 @@ on:
     branches:
       - 'master'
 
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.16.5'
+
 jobs:
   build-docker:
     name: Build Docker image
@@ -30,7 +34,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
         run: |
           go mod download
@@ -48,7 +52,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -87,7 +91,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -147,7 +151,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -196,7 +200,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
@@ -336,7 +340,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k3s-version: [v1.20.2, v1.19.2, v1.18.9, v1.17.11, v1.16.15]
+        k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
     needs: 
       - build-go
     env:
@@ -355,7 +359,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
@@ -396,7 +400,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.1-alpine
+          docker pull redis:6.2.4-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

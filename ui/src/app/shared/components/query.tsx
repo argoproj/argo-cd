@@ -1,6 +1,7 @@
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {BehaviorSubject, Observable} from 'rxjs';
+import {map} from 'rxjs/operators';
 
 import {AppContext, Consumer} from '../context';
 
@@ -39,7 +40,7 @@ export class ObservableQuery extends React.Component<ObservableQueryProps> {
     }
 
     public render() {
-        return this.props.children(this.search.map(search => new URLSearchParams(search)));
+        return this.props.children(this.search.pipe(map(search => new URLSearchParams(search))));
     }
 
     private get appContext(): AppContext {

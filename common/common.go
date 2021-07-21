@@ -2,7 +2,6 @@ package common
 
 import (
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -57,26 +56,16 @@ const (
 	DefaultAppConfigPath = "/app/config"
 )
 
-const (
-	DefaultSyncRetryDuration    = 5 * time.Second
-	DefaultSyncRetryMaxDuration = 3 * time.Minute
-	DefaultSyncRetryFactor      = int64(2)
-)
-
 // Argo CD application related constants
 const (
-	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
-	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
-	// DefaultAppProjectName contains name of 'default' app project, which is available in every Argo CD installation
-	DefaultAppProjectName = "default"
+
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
-	// RevisionHistoryLimit is the max number of successful sync to keep in history
-	RevisionHistoryLimit = 10
+
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
@@ -110,37 +99,24 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
-	// LegacyLabelApplicationName is the legacy label (v0.10 and below) and is superceded by 'app.kubernetes.io/instance'
+	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
-	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster')
+	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
+	// LabelValueSecretTypeRepository indicates a secret type of repository
+	LabelValueSecretTypeRepository = "repository"
+	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
+	LabelValueSecretTypeRepoCreds = "repo-creds"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 
-	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
-	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
-	AnnotationKeyRefresh = "argocd.argoproj.io/refresh"
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
 	AnnotationValueManagedByArgoCD = "argocd.argoproj.io"
-	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
-	ResourcesFinalizerName = "resources-finalizer.argocd.argoproj.io"
-
-	// ForegroundPropagationPolicyFinalizer is the finalizer we inject to delete application with foreground propagation policy
-	ForegroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/foreground"
-
-	// BackgroundPropagationPolicyFinalizer is the finalizer we inject to delete application with background propagation policy
-	BackgroundPropagationPolicyFinalizer = "resources-finalizer.argocd.argoproj.io/background"
-
-	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the
-	// manifests repository that affects the manifest generation. Paths might be either relative or absolute. The
-	// absolute path means an absolute path within the repository and the relative path is relative to the application
-	// source path within the repository.
-	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
 
 	// AnnotationKeyLinkPrefix tells the UI to add an external link icon to the application node
 	// that links to the value given in the annotation.
@@ -159,9 +135,6 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// EnvVarFakeInClusterConfig is an environment variable to fake an in-cluster RESTConfig using
-	// the current kubectl context (for development purposes)
-	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
 	// Overrides the location where SSH known hosts for repo access data is stored
 	EnvVarSSHDataPath = "ARGOCD_SSH_DATA_PATH"
 	// Overrides the location where TLS certificate for repo access data is stored
@@ -170,14 +143,6 @@ const (
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
 	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
-	// EnvK8sClientQPS is the QPS value used for the kubernetes client (default: 50)
-	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
-	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)
-	EnvK8sClientBurst = "ARGOCD_K8S_CLIENT_BURST"
-	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
-	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
-	// EnvK8sClientMaxIdleConnections is the number of max idle connections in K8s REST client HTTP transport (default: 500)
-	EnvK8sClientMaxIdleConnections = "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
@@ -200,6 +165,10 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvRepoServerConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
+	// EnvLogFormat log format that is defined by `--logformat` option
+	EnvLogFormat = "ARGOCD_LOG_FORMAT"
+	// EnvLogLevel log level that is defined by `--loglevel` option
+	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 )
 
 const (
@@ -218,42 +187,5 @@ func GetGnuPGHomePath() string {
 		return DefaultGnuPgHomePath
 	} else {
 		return gnuPgHome
-	}
-}
-
-var (
-	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs
-	K8sClientConfigQPS float32 = 50
-	// K8sClientConfigBurst controls the burst to be used in K8s REST client configs
-	K8sClientConfigBurst int = 100
-	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
-	K8sMaxIdleConnections = 500
-	// K8sMaxIdleConnections controls the duration of cluster cache refresh
-	K8SClusterResyncDuration = 12 * time.Hour
-)
-
-func init() {
-	if envQPS := os.Getenv(EnvK8sClientQPS); envQPS != "" {
-		if qps, err := strconv.ParseFloat(envQPS, 32); err != nil {
-			K8sClientConfigQPS = float32(qps)
-		}
-	}
-	if envBurst := os.Getenv(EnvK8sClientBurst); envBurst != "" {
-		if burst, err := strconv.Atoi(envBurst); err != nil {
-			K8sClientConfigBurst = burst
-		}
-	} else {
-		K8sClientConfigBurst = 2 * int(K8sClientConfigQPS)
-	}
-
-	if envMaxConn := os.Getenv(EnvK8sClientMaxIdleConnections); envMaxConn != "" {
-		if maxConn, err := strconv.Atoi(envMaxConn); err != nil {
-			K8sMaxIdleConnections = maxConn
-		}
-	}
-	if clusterResyncDurationStr := os.Getenv(EnvClusterCacheResyncDuration); clusterResyncDurationStr != "" {
-		if duration, err := time.ParseDuration(clusterResyncDurationStr); err == nil {
-			K8SClusterResyncDuration = duration
-		}
 	}
 }

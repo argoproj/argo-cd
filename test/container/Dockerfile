@@ -1,12 +1,12 @@
-FROM redis:6.2.1 as redis
+FROM redis:6.2.4 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.16.0 as golang
+FROM golang:1.16.5 as golang
 
 FROM registry:2.7.1 as registry
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -22,6 +22,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         wget \
         gcc \
         sudo \
+        tini \
         zip && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -38,7 +39,6 @@ ADD ./hack/install.sh .
 ADD ./hack/installers installers
 
 RUN ./install.sh dep-linux && \
-    ./install.sh packr-linux && \
     ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
@@ -53,8 +53,7 @@ RUN ./install.sh dep-linux && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/helm2 && \
-    rm -rf /tmp/ks_* && \
-    rm -rf /tmp/packr
+    rm -rf /tmp/ks_*
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
@@ -102,6 +101,7 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
     ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg
+    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]

@@ -66,7 +66,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
 func TestCreateRepoCredentials(t *testing.T) {
@@ -87,7 +87,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",
@@ -381,6 +381,15 @@ func TestRepositorySecretsTrim(t *testing.T) {
   sshPrivateKeySecret:
     name: managed-secret
     key: sshPrivateKey
+  tlsClientCertDataSecret:
+    name: managed-secret
+    key: tlsClientCertData
+  tlsClientCertKeySecret:
+    name: managed-secret
+    key: tlsClientCertKey
+  githubAppPrivateKeySecret:
+    name: managed-secret
+    key: githubAppPrivateKey
 `}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -391,9 +400,12 @@ func TestRepositorySecretsTrim(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			username:      []byte("test-username\n\n"),
-			password:      []byte("test-password\r\r"),
-			sshPrivateKey: []byte("test-ssh-private-key\n\r"),
+			username:            []byte("test-username\n\n"),
+			password:            []byte("test-password\r\r"),
+			sshPrivateKey:       []byte("test-ssh-private-key\n\r"),
+			tlsClientCertData:   []byte("test-tls-client-cert-data\n\r"),
+			tlsClientCertKey:    []byte("test-tls-client-cert-key\n\r"),
+			githubAppPrivateKey: []byte("test-github-app-private-key\n\r"),
 		},
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
@@ -415,6 +427,18 @@ func TestRepositorySecretsTrim(t *testing.T) {
 		{
 			"test-ssh-private-key",
 			repo.SSHPrivateKey,
+		},
+		{
+			"test-tls-client-cert-data",
+			repo.TLSClientCertData,
+		},
+		{
+			"test-tls-client-cert-key",
+			repo.TLSClientCertKey,
+		},
+		{
+			"test-github-app-private-key",
+			repo.GithubAppPrivateKey,
 		},
 	}
 	for _, tt := range teststruct {

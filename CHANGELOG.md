@@ -1,6 +1,14 @@
 # Changelog
 
-## v2.0.0 (Unreleased)
+## v2.0.1 (2021-04-15)
+
+### Bug Fixes
+
+* fix: spark application check fails on missing section (#6036)
+* fix: Adding explicit bind to redis and sentinel for IPv4 clusters #5957 (#6005)
+* fix: fix: use correct field for evaluating whether or not GitHub Enterprise is selected (#5987)
+
+## v2.0.0 (2021-04-07)
 
 > [Upgrade instructions](./docs/operator-manual/upgrading/1.8-2.0.md)
 
@@ -198,7 +206,7 @@ In addition to new features and enhancements, we’ve fixed more than 50 bugs an
 ## v1.7.5 (2020-09-15)
 
 - fix: app create with -f should not ignore other options (#4322)
-- fix: limit concurrent list requests accross all clusters (#4328)
+- fix: limit concurrent list requests across all clusters (#4328)
 - fix: fix possible deadlock in /v1/api/stream/applications and /v1/api/application APIs (#4315)
 - fix: WatchResourceTree does not enforce RBAC (#4311)
 - fix: app refresh API should use app resource version (#4303)
@@ -332,7 +340,7 @@ use cases, such as bootstrapping a Kubernetes cluster, or decentralized manageme
 
 #### Other
 
-- refactoring: Gitops engine (#3066)
+- refactoring: GitOps engine (#3066)
 
 ## v1.5.8 (2020-06-16)
 
@@ -395,7 +403,7 @@ customizations, custom resource health checks, and more.
 ### Other
 
 * New Project and Application CRD settings ([#2900](https://github.com/argoproj/argo-cd/issues/2900), [#2873](https://github.com/argoproj/argo-cd/issues/2873)) that allows customizing Argo CD behavior.
-* Upgraded Dex (v2.22.0) enables seamless [SSO integration](https://www.openshift.com/blog/openshift-authentication-integration-with-argocd) with Openshift.
+* Upgraded Dex (v2.22.0) enables seamless [SSO integration](https://www.openshift.com/blog/openshift-authentication-integration-with-argocd) with OpenShift.
 
 
 #### Enhancements
@@ -427,7 +435,7 @@ customizations, custom resource health checks, and more.
 * fix for helm repo add with flag --insecure-skip-server-verification (#3420)
 * fix: app diff --local support for helm repo. #3151 (#3407)
 * fix: Syncing apps incorrectly states "app synced", but this is not true (#3286)
-* fix: for jsonnet when it is localed in nested subdirectory and uses import (#3372)
+* fix: for jsonnet when it is located in nested subdirectory and uses import (#3372)
 * fix: Update 4.5.3 redis-ha helm manifest (#3370)
 * fix: return 401 error code if username does not exist (#3369)
 * fix: Do not panic while running hooks with short revision (#3368)
@@ -543,7 +551,7 @@ Last-minute bugs that will be addressed in 1.5.1 shortly:
 - fix: argocd-util backup produced truncated backups. import app status (#3096)
 - fix: upgrade redis-ha chart and enable haproxy (#3147)
 - fix: make dex server deployment init container resilient to restarts (#3136)
-- fix: reduct secret values of manifests stored in git (#3088)
+- fix: redact secret values of manifests stored in git (#3088)
 - fix: labels not being deleted via UI (#3081)
 - fix: HTTP|HTTPS|NO_PROXY env variable reading #3055 (#3063)
 - fix: Correct usage text for repo add command regarding insecure repos (#3068)
@@ -653,7 +661,7 @@ an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `
 [Sync Waves](https://argoproj.github.io/argo-cd/user-guide/sync-waves/) instead.
 
 #### Enhancements
-* feat: Add custom healthchecks for cert-manager v0.11.0 (#2689) 
+* feat: Add custom health checks for cert-manager v0.11.0 (#2689) 
 * feat: add git submodule support (#2495)
 * feat: Add repository credential management API and CLI (addresses #2136) (#2207)
 * feat: add support for --additional-headers cli flag (#2467)
@@ -838,7 +846,7 @@ There may be instances when you want to control the times during which an Argo C
 #### Bug Fixes
 
 - failed parsing on parameters with comma (#1660)
-- Statefulset with OnDelete Update Strategy stuck progressing (#1881)
+- StatefulSet with OnDelete Update Strategy stuck progressing (#1881)
 - Warning during secret diffing (#1923)
 - Error message "Unable to load data: key is missing" is confusing (#1944)
 - OIDC group bindings are truncated (#2006)
@@ -920,7 +928,7 @@ There may be instances when you want to control the times during which an Argo C
 ## v1.2.3 (2019-10-1)
 * Make argo-cd docker images openshift friendly (#2362) (@duboisf)
 * Add dest-server and dest-namespace field to reconciliation logs (#2354)
-- Stop loggin /repository.RepositoryService/ValidateAccess parameters (#2386)
+- Stop logging /repository.RepositoryService/ValidateAccess parameters (#2386)
 
 ## v1.2.2 (2019-09-26)
 + Resource action equivalent to `kubectl rollout restart` (#2177)
@@ -1005,7 +1013,7 @@ Support for Git LFS enabled repositories - now you can store Helm charts as tar 
 - Wait for CRD creation during sync process (#1940)
 - Added a button to select out of sync items in the sync panel (#1902)
 - Proper handling of an excluded resource in an application (#1621)
-- Stop repeating logs on stoped container (#1614)
+- Stop repeating logs on stopped container (#1614)
 - Fix git repo url parsing on application list view (#2174)
 - Fix nil pointer dereference error during app reconciliation (#2146)
 - Fix history api fallback implementation to support app names with dots (#2114)
@@ -1061,7 +1069,7 @@ optimized which significantly reduced the number of Git requests. With v1.1 rele
 #### User Defined Application Metadata
 
 User-defined Application metadata enables the user to define a list of useful URLs for their specific application and expose those links on the UI
-(e.g. reference tp a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
+(e.g. reference to a CI pipeline or an application-specific management tool). These links should provide helpful shortcuts that make easier to integrate Argo CD into existing
 systems by making it easier to find other components inside and outside Argo CD.
 
 ### Deprecation Notice
@@ -1425,7 +1433,7 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 * Deprecate componentParameterOverrides in favor of source specific config (#1207)
 * Support talking to Dex using local cluster address instead of public address (#1211)
 * Use Recreate deployment strategy for controller (#1315)
-* Honor os environment variables for helm commands (#1306) (@1337andre)
+* Honor OS environment variables for helm commands (#1306) (@1337andre)
 * Disable CGO_ENABLED for server/controller binaries (#1286)
 * Documentation fixes and improvements (@twz123, @yann-soubeyrand, @OmerKahani, @dulltz)
 - Fix CRD creation/deletion handling (#1249)
@@ -1917,8 +1925,8 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 + Override parameters
 
 ## v0.1.0 (2018-03-12)
-+ Define app in Github with dev and preprod environment using KSonnet
++ Define app in GitHub with dev and preprod environment using KSonnet
 + Add cluster Diff App with a cluster Deploy app in a cluster
 + Deploy a new version of the app in the cluster
-+ App sync based on Github app config change - polling only
++ App sync based on GitHub app config change - polling only
 + Basic UI: App diff between Git and k8s cluster for all environments Basic GUI

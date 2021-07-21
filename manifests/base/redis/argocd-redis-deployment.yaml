@@ -17,10 +17,11 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 999
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:6.2.1-alpine
+        image: redis:6.2.4-alpine
         imagePullPolicy: Always
         args:
         - "--save"
