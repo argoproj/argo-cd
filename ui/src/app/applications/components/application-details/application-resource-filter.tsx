@@ -28,7 +28,7 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         const update: {[key: string]: string} = {};
         (resourceFilter || []).forEach(pair => {
             const tmp = pair.split(':');
-            if (tmp.length == 2) {
+            if (tmp.length === 2) {
                 const prefix = tmp[0];
                 const cur = update[prefix];
                 update[prefix] = `${cur ? cur + ',' : ''}${pair}`;
@@ -50,19 +50,19 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (props: {label: string; prefix: string; options: string[]; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: string[]; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
             <Filter
-                label={props.label}
-                selected={selectedFor(props.prefix)}
-                setSelected={v => setFilters(props.prefix, v)}
-                options={props.options.map(label => {
+                label={p.label}
+                selected={selectedFor(p.prefix)}
+                setSelected={v => setFilters(p.prefix, v)}
+                options={p.options.map(label => {
                     return {label};
                 })}
-                field={!!props.field}
-                radio={!!props.radio}
+                field={!!p.field}
+                radio={!!p.radio}
             />
         );
     };
