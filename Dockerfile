@@ -113,7 +113,7 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-COPY --from=argocd-ui ./src/dist/app ./src/dist/app
+COPY --from=argocd-ui ./src/dist/app ./src/ui/dist/app
 RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
