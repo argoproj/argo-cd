@@ -260,7 +260,7 @@ image:
 	docker build -t argocd-base --target argocd-base .
 	docker build -t argocd-ui --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
-	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -it argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
