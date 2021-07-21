@@ -52,7 +52,6 @@ func NewCommand() *cobra.Command {
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
-		staticAssetsDir          string
 		baseHRef                 string
 		rootPath                 string
 		repoServerAddress        string
@@ -128,7 +127,6 @@ func NewCommand() *cobra.Command {
 				ListenPort:          listenPort,
 				MetricsPort:         metricsPort,
 				Namespace:           namespace,
-				StaticAssetsDir:     staticAssetsDir,
 				BaseHRef:            baseHRef,
 				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
@@ -159,7 +157,7 @@ func NewCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().BoolVar(&insecure, "insecure", env.ParseBoolFromEnv("ARGOCD_SERVER_INSECURE", false), "Run server without TLS")
-	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
+	_ = command.Flags().MarkDeprecated("staticassets", "The --staticassets flag is not longer supported. Static assets are embedded into binary.")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")

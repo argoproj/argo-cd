@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -38,19 +39,20 @@ func NewCommand() *cobra.Command {
 	}
 
 	command.AddCommand(NewCompletionCommand())
-	command.AddCommand(NewVersionCmd(&clientOpts))
-	command.AddCommand(NewClusterCommand(&clientOpts, pathOpts))
-	command.AddCommand(NewApplicationCommand(&clientOpts))
+	command.AddCommand(headless.InitCommand(NewVersionCmd(&clientOpts), &clientOpts, nil))
+	command.AddCommand(headless.InitCommand(NewClusterCommand(&clientOpts, pathOpts), &clientOpts, nil))
+	command.AddCommand(headless.InitCommand(NewApplicationCommand(&clientOpts), &clientOpts, nil))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
-	command.AddCommand(NewRepoCommand(&clientOpts))
-	command.AddCommand(NewRepoCredsCommand(&clientOpts))
+	command.AddCommand(headless.InitCommand(NewRepoCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(headless.InitCommand(NewRepoCredsCommand(&clientOpts), &clientOpts, nil))
 	command.AddCommand(NewContextCommand(&clientOpts))
-	command.AddCommand(NewProjectCommand(&clientOpts))
-	command.AddCommand(NewAccountCommand(&clientOpts))
+	command.AddCommand(headless.InitCommand(NewProjectCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(headless.InitCommand(NewAccountCommand(&clientOpts), &clientOpts, nil))
 	command.AddCommand(NewLogoutCommand(&clientOpts))
-	command.AddCommand(NewCertCommand(&clientOpts))
-	command.AddCommand(NewGPGCommand(&clientOpts))
+	command.AddCommand(headless.InitCommand(NewCertCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(headless.InitCommand(NewGPGCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(NewAdminCommand())
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)
@@ -70,5 +72,6 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().BoolVar(&clientOpts.PortForward, "port-forward", config.GetBoolFlag("port-forward"), "Connect to a random argocd-server port using port forwarding")
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
 	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", 0, "Maximum number of retries to establish http connection to Argo CD server")
+	command.PersistentFlags().BoolVar(&clientOpts.Headless, "headless", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
 	return command
 }
