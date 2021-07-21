@@ -7,10 +7,14 @@ import (
 	"os"
 	"time"
 
+	"crypto/tls"
+	"crypto/x509"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
@@ -33,6 +37,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
 	redisDB := 0
+	redisCACerticate := ""
+	redisClientCertificate := ""
+	redisClientKey := ""
+	redisUseTLS := false
+	insecureRedis := false
 	var defaultCacheExpiration time.Duration
 
 	cmd.Flags().StringVar(&redisAddress, "redis", env.StringFromEnv("REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379). ")
@@ -40,7 +49,38 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
 	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt32), "Cache expiration default")
+	cmd.Flags().BoolVar(&redisUseTLS, "redis-use-tls", false, "Use TLS when connecting to Redis. ")
+	cmd.Flags().StringVar(&redisClientCertificate, "redis-client-certificate", "", "Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).")
+	cmd.Flags().StringVar(&redisClientKey, "redis-client-key", "", "Path to Redis client key (e.g. /etc/certs/redis/client.crt).")
+	cmd.Flags().BoolVar(&insecureRedis, "redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
+	cmd.Flags().StringVar(&redisCACerticate, "redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
 	return func() (*Cache, error) {
+		var tlsConfig *tls.Config = nil
+		if redisUseTLS {
+			tlsConfig = &tls.Config{}
+			if redisClientCertificate != "" {
+				clientCert, err := tls.LoadX509KeyPair(redisClientCertificate, redisClientKey)
+				if err != nil {
+					return nil, err
+				}
+				tlsConfig.Certificates = []tls.Certificate{clientCert}
+			}
+			if insecureRedis {
+				tlsConfig.InsecureSkipVerify = true
+			} else if redisCACerticate != "" {
+				redisCA, err := certutil.ParseTLSCertificatesFromPath(redisCACerticate)
+				if err != nil {
+					return nil, err
+				}
+				tlsConfig.RootCAs = certutil.GetCertPoolFromPEMData(redisCA)
+			} else {
+				var err error
+				tlsConfig.RootCAs, err = x509.SystemCertPool()
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 		password := os.Getenv(envRedisPassword)
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
@@ -50,21 +90,23 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 				DB:            redisDB,
 				Password:      password,
 				MaxRetries:    maxRetries,
+				TLSConfig:     tlsConfig,
 			})
 			for i := range opts {
 				opts[i](client)
 			}
 			return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 		}
-
 		if redisAddress == "" {
 			redisAddress = common.DefaultRedisAddr
 		}
+
 		client := redis.NewClient(&redis.Options{
 			Addr:       redisAddress,
 			Password:   password,
 			DB:         redisDB,
 			MaxRetries: maxRetries,
+			TLSConfig:  tlsConfig,
 		})
 		for i := range opts {
 			opts[i](client)
