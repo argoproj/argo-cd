@@ -1,15 +1,15 @@
-## argocd admin
+## argocd admin app
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+Manage applications configuration
 
 ```
-argocd admin [flags]
+argocd admin app [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for admin
+  -h, --help   help for app
 ```
 
 ### Options inherited from parent commands
@@ -36,13 +36,8 @@ argocd admin [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+* [argocd admin app diff-reconcile-results](argocd_admin_app_diff-reconcile-results.md)	 - Compare results of two reconciliations and print diff.
+* [argocd admin app generate-spec](argocd_admin_app_generate-spec.md)	 - Generate declarative config for an application
+* [argocd admin app get-reconcile-results](argocd_admin_app_get-reconcile-results.md)	 - Reconcile all applications and stores reconciliation summary in the specified file.
 

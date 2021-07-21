@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -52,7 +53,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewLogoutCommand(&clientOpts))
 	command.AddCommand(headless.InitCommand(NewCertCommand(&clientOpts), &clientOpts, nil))
 	command.AddCommand(headless.InitCommand(NewGPGCommand(&clientOpts), &clientOpts, nil))
-	command.AddCommand(NewAdminCommand())
+	command.AddCommand(admin.NewAdminCommand())
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)

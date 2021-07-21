@@ -1,15 +1,15 @@
-## argocd admin
+## argocd admin cluster
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+Manage clusters configuration
 
 ```
-argocd admin [flags]
+argocd admin cluster [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for admin
+  -h, --help   help for cluster
 ```
 
 ### Options inherited from parent commands
@@ -36,13 +36,10 @@ argocd admin [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+* [argocd admin cluster generate-spec](argocd_admin_cluster_generate-spec.md)	 - Generate declarative config for a cluster
+* [argocd admin cluster kubeconfig](argocd_admin_cluster_kubeconfig.md)	 - Generates kubeconfig for the specified cluster
+* [argocd admin cluster namespaces](argocd_admin_cluster_namespaces.md)	 - Print information namespaces which Argo CD manages in each cluster.
+* [argocd admin cluster shards](argocd_admin_cluster_shards.md)	 - Print information about each controller shard and portion of Kubernetes resources it is responsible for.
+* [argocd admin cluster stats](argocd_admin_cluster_stats.md)	 - Prints information cluster statistics and inferred shard number
 
