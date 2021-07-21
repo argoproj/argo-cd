@@ -7,14 +7,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/spf13/cobra"
 	"crypto/tls"
 	"crypto/x509"
 
+	"github.com/go-redis/redis/v8"
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 const (
@@ -54,8 +55,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().BoolVar(&insecureRedis, "redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
 	cmd.Flags().StringVar(&redisCACerticate, "redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
 	return func() (*Cache, error) {
-		var tlsConfig *tls.Config = nil;
-		if (redisUseTLS) {
+		var tlsConfig *tls.Config = nil
+		if redisUseTLS {
 			tlsConfig = &tls.Config{}
 			if redisClientCertificate != "" {
 				clientCert, err := tls.LoadX509KeyPair(redisClientCertificate, redisClientKey)
