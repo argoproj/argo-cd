@@ -31,6 +31,7 @@ nav:
   - Operator Manual:
     - operator-manual/index.md
     - operator-manual/architecture.md
+    - operator-manual/installation.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
     - User Management:
