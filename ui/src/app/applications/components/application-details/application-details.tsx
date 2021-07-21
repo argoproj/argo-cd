@@ -22,7 +22,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './filters';
+import {Filters} from './application-resource-filter';
 
 require('./application-details.scss');
 
