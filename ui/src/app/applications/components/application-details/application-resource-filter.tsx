@@ -1,22 +1,13 @@
+import {ActionButton} from 'argo-ui/v2';
 import * as React from 'react';
-import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
+import {ApplicationTree} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
-import {Filter, FiltersGroup} from '../filter/filter';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {Filter} from '../filter/filter';
+import {useActionOnLargeWindow} from '../utils';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
-function toOption(label: string) {
-    return {label};
-}
-
-export const Filters = (props: {
-    children?: React.ReactNode;
-    pref: AppDetailsPreferences;
-    tree: ApplicationTree;
-    onSetFilter: (items: string[]) => void;
-    onClearFilter: () => void;
-}) => {
+export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTree; onSetFilter: (items: string[]) => void; onClearFilter: () => void}) => {
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
@@ -47,6 +38,8 @@ export const Filters = (props: {
         setLoading(false);
     }, [resourceFilter, loading]);
 
+    useActionOnLargeWindow(() => setShown(true));
+
     const setFilters = (prefix: string, values: string[]) => {
         const groups = {...groupedFilters};
         groups[prefix] = values.map(v => `${prefix}:${v}`).join(',');
@@ -57,11 +50,20 @@ export const Filters = (props: {
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: string[]; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
-            <Filter label={p.label} selected={selectedFor(p.prefix)} setSelected={v => setFilters(p.prefix, v)} options={p.options} field={!!p.field} radio={!!p.radio} />
+            <Filter
+                label={p.label}
+                selected={selectedFor(p.prefix)}
+                setSelected={v => setFilters(p.prefix, v)}
+                options={p.options.map(label => {
+                    return {label};
+                })}
+                field={!!p.field}
+                radio={!!p.radio}
+            />
         );
     };
 
@@ -76,7 +78,6 @@ export const Filters = (props: {
         .sort();
     const namespaces = tree.nodes
         .map(x => x.namespace)
-        .filter(x => !!x)
         .concat(alreadyFilteredOn('namespace'))
         .filter(uniq)
         .sort();
@@ -86,25 +87,28 @@ export const Filters = (props: {
     };
 
     return (
-        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
-            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
-            {ResourceFilter({
-                label: 'SYNC STATUS',
-                prefix: 'sync',
-                options: ['Synced', 'OutOfSync'].map(label => ({
-                    label,
-                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                }))
-            })}
-            {ResourceFilter({
-                label: 'HEALTH STATUS',
-                prefix: 'health',
-                options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
-                    label,
-                    icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
-                }))
-            })}
-            {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-        </FiltersGroup>
+        <>
+            <div className='applications-list__filters__title'>
+                FILTERS <i className='fa fa-filter' />
+                {pref.resourceFilter.length > 0 && (
+                    <ActionButton label={'CLEAR ALL'} action={() => onClearFilter()} style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: 'block'}} />
+                )}
+                <ActionButton
+                    label={!shown ? 'SHOW' : 'HIDE'}
+                    action={() => setShown(!shown)}
+                    style={{marginLeft: pref.resourceFilter.length > 0 ? '5px' : 'auto', fontSize: '12px', lineHeight: '5px', display: !shown && 'block'}}
+                />
+            </div>
+            {shown && (
+                <div className='applications-list__filters'>
+                    {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds, field: true})}
+                    {ResourceFilter({label: 'SYNC STATUS', prefix: 'sync', options: ['Synced', 'OutOfSync']})}
+                    {ResourceFilter({label: 'HEALTH STATUS', prefix: 'health', options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown']})}
+                    {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== ''), field: true})}
+                    {ResourceFilter({label: 'OWNERSHIP', prefix: 'ownership', options: ['Owners', 'Owned']})}
+                    {ResourceFilter({label: 'AGE', prefix: 'createdWithin', options: ['1m', '3m', '5m', '15m', '60m'], radio: true})}
+                </div>
+            )}
+        </>
     );
 };

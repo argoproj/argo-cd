@@ -1,11 +1,11 @@
-import {useData} from 'argo-ui/v2';
+import {ActionButton, useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, useActionOnLargeWindow} from '../utils';
 
 export interface FilterResult {
     projects: boolean;
@@ -218,6 +218,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
     };
 
+    useActionOnLargeWindow(() => setHidden(false));
     return (
         <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
             <SyncFilter {...props} />

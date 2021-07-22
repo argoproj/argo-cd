@@ -17,12 +17,6 @@ interface FilterProps {
     radio?: boolean;
 }
 
-export interface CheckboxOption {
-    label: string;
-    count?: number;
-    icon?: React.ReactNode;
-}
-
 export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
     const [value, setValue] = React.useState(props.value);
 
