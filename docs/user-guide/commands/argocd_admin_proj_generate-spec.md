@@ -1,15 +1,27 @@
-## argocd admin
+## argocd admin proj generate-spec
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+Generate declarative config for a project
 
 ```
-argocd admin [flags]
+argocd admin proj generate-spec PROJECT [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for admin
+      --allow-cluster-resource stringArray      List of allowed cluster level resources
+      --allow-namespaced-resource stringArray   List of allowed namespaced resources
+      --deny-cluster-resource stringArray       List of denied cluster level resources
+      --deny-namespaced-resource stringArray    List of denied namespaced resources
+      --description string                      Project description
+  -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+  -f, --file string                             Filename or URL to Kubernetes manifests for the project
+  -h, --help                                    help for generate-spec
+      --orphaned-resources                      Enables orphaned resources monitoring
+      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
+  -o, --output string                           Output format. One of: json|yaml (default "yaml")
+      --signature-keys strings                  GnuPG public key IDs for commit signature verification
+  -s, --src stringArray                         Permitted source repository URL
 ```
 
 ### Options inherited from parent commands
@@ -36,13 +48,5 @@ argocd admin [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
 * [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
 

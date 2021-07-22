@@ -1,15 +1,15 @@
-## argocd admin
+## argocd admin repo
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+Manage repositories configuration
 
 ```
-argocd admin [flags]
+argocd admin repo [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for admin
+  -h, --help   help for repo
 ```
 
 ### Options inherited from parent commands
@@ -36,13 +36,6 @@ argocd admin [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+* [argocd admin repo generate-spec](argocd_admin_repo_generate-spec.md)	 - Generate declarative config for a repo
 
