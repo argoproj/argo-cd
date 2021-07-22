@@ -67,50 +67,6 @@
         }
     }
 
-    &__filters {
-        display: flex;
-        &__title {
-            margin-bottom: 1em;
-            font-size: 13px;
-            color: $argo-color-gray-6;
-            display: flex;
-            align-items: center;
-        }
-
-        .filter {
-            margin-right: 15px;
-            height: max-content;
-            min-width: 200px;
-            max-width: 200px;
-        }
-
-        &__text-filters {
-            align-self: start;
-            display: flex;
-            flex-wrap: wrap;
-        }
-    }
-
-    @include breakpoint(xxlarge up) {
-        .filter {
-            width: 100%;
-            margin-right: 0;
-        }
-
-        &__filters {
-            flex-wrap: wrap;
-            padding-bottom: 6em;
-
-            &__title .action-button {
-                display: none;
-            }
-
-            &__text-filters {
-                width: 100%;
-            }
-        }
-    }
-
     &__view-type {
         white-space: nowrap;
         i {
