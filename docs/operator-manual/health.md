@@ -93,6 +93,14 @@ data:
 ```
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
+The custom health check might return one of the following health statuses:
+
+  * `Healthy` - the resource is healthy
+  * `Progressing` - the resource is not healthy yet but still making progress and might be healthy soon
+  * `Degraded` - the resource is degraded
+  * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
+
+By default health typically returns `Progressing` status.
 
 NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
 setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.

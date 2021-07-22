@@ -22,4 +22,4 @@ spec:
         - namespaceSelector: { }
       ports:
         - port: 5558
-        - protocol: TCP
+          protocol: TCP

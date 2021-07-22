@@ -52,11 +52,11 @@ type ArgoCDWebhookHandler struct {
 func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
-		log.Warnf("Unable to init the Github webhook")
+		log.Warnf("Unable to init the GitHub webhook")
 	}
 	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
 	if err != nil {
-		log.Warnf("Unable to init the Gitlab webhook")
+		log.Warnf("Unable to init the GitLab webhook")
 	}
 	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
 	if err != nil {
@@ -356,7 +356,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
-	//Gogs needs to be checked before Github since it carries both Gogs and (incompatible) Github headers
+	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 	case r.Header.Get("X-GitHub-Event") != "":

@@ -168,7 +168,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
-                                                                                        enabled: false
+                                                                                        enabled: true
                                                                                     },
                                                                                     flip: {
                                                                                         enabled: false
@@ -308,6 +308,9 @@ export class PodView extends React.Component<PodViewProps> {
             this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
         }
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
+            // make sure each node has not null/undefined parentRefs field
+            rnode.parentRefs = rnode.parentRefs || [];
+
             if (sortMode !== 'node') {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 const fullName = nodeKey(rnode);
@@ -360,7 +363,10 @@ export class PodView extends React.Component<PodViewProps> {
                             kind: 'node',
                             name: 'Unschedulable',
                             pods: [p],
-                            info: [{name: 'Kernel Version', value: 'N/A'}, {name: 'OS/Arch', value: 'N/A'}],
+                            info: [
+                                {name: 'Kernel Version', value: 'N/A'},
+                                {name: 'OS/Arch', value: 'N/A'}
+                            ],
                             hostResourcesInfo: []
                         };
                     }

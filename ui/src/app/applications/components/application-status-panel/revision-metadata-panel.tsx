@@ -51,7 +51,7 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                         )}
                         <div className='application-status-panel__item__row'>
                             <div>Comment:</div>
-                            <div>{m.message.split('\n')[0].slice(0, 64)}</div>
+                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
                         </div>
                     </div>
                 </Tooltip>

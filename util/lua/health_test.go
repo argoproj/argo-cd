@@ -34,7 +34,7 @@ func getObj(path string) *unstructured.Unstructured {
 }
 
 func TestLuaHealthScript(t *testing.T) {
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}

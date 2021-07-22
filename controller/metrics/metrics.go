@@ -62,14 +62,14 @@ var (
 		descAppDefaultLabels,
 		nil,
 	)
-	// DEPRECATED: superceded by sync_status label in argocd_app_info
+	// DEPRECATED: superseded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
-	// DEPRECATED: superceded by health_status label in argocd_app_info
+	// DEPRECATED: superseded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",

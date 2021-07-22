@@ -135,9 +135,12 @@ spec:
           capabilities:
             drop:
               - all
+        workingDir: /home/argocd
         volumeMounts:
         - name: argocd-repo-server-tls
           mountPath: /app/config/controller/tls
+        - name: argocd-home
+          mountPath: /home/argocd
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -155,6 +158,8 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
       volumes:
+      - emptyDir: {}
+        name: argocd-home
       - name: argocd-repo-server-tls
         secret:
           secretName: argocd-repo-server-tls

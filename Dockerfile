@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:20.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:21.04
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.16.4 as builder
+FROM docker.io/library/golang:1.16.5 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -50,7 +50,7 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /etc/passwd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y git git-lfs python3-pip tini gpg && \
+    apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
     apt-get clean && \
     pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -102,7 +102,7 @@ RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.16.0 as argocd-build
+FROM golang:1.16.5 as argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
@@ -113,6 +113,7 @@ RUN go mod download
 
 # Perform the build
 COPY . .
+COPY --from=argocd-ui ./src/dist/app ./src/ui/dist/app
 RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
@@ -126,10 +127,8 @@ RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
 ####################################################################################################
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
-COPY --from=argocd-ui ./src/dist/app /shared/app
 
 USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
