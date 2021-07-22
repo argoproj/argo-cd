@@ -75,7 +75,7 @@ export const Filter = (props: FilterProps) => {
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
                                     const update = {...values};
-                                    update[val] = true;
+                                    update[val ? val : input] = true;
                                     setInput('');
                                     setValues(update);
                                 }}
