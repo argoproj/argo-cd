@@ -101,12 +101,12 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
             </div>
             {shown && (
                 <div className='applications-list__filters'>
-                    {ResourceFilter({label: 'OWNERSHIP', prefix: 'ownership', options: ['Owners', 'Owned']})}
-                    {ResourceFilter({label: 'SYNC STATUS', prefix: 'sync', options: ['Synced', 'OutOfSync']})}
-                    {ResourceFilter({label: 'HEALTH STATUS', prefix: 'health', options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown']})}
                     {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds, field: true})}
+                    {ResourceFilter({label: 'SYNC STATUS', prefix: 'sync', options: ['Synced', 'OutOfSync']})}
+                    {ResourceFilter({label: 'OWNERSHIP', prefix: 'ownership', options: ['Owners', 'Owned']})}
+                    {ResourceFilter({label: 'AGE', prefix: 'createdWithin', options: ['1m', '3m', '5m', '15m', '60m'], radio: true})}
+                    {ResourceFilter({label: 'HEALTH STATUS', prefix: 'health', options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown']})}
                     {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== ''), field: true})}
-                    {ResourceFilter({label: 'CREATED WITHIN', prefix: 'createdWithin', options: ['1m', '3m', '5m', '15m', '60m'], radio: true})}
                 </div>
             )}
         </>

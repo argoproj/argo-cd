@@ -12,7 +12,7 @@ import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {debounce} from 'argo-ui/v2';
+import {debounce} from 'argo-ui/v2/utils';
 
 require('./utils.scss');
 
@@ -861,11 +861,7 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
         };
         const start = () => {
             ensureUnsubscribed();
-            subscription = src().subscribe(
-                (item: T) => observer.next(item),
-                err => observer.error(err),
-                () => observer.complete()
-            );
+            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
         };
 
         if (!document.hidden) {
