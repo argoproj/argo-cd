@@ -75,8 +75,7 @@ export const Filter = (props: FilterProps) => {
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
                                     const update = {...values};
-                                    update[val] = true;
-                                    setInput('');
+                                    update[val ? val : input] = true;
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
