@@ -25,7 +25,7 @@ tests:
   - healthStatus:
       status: Progressing
       message: "Provisioning IAMServiceAccount..."
-    inputPath: testdata/progressing_StatusGeneration.yaml
+    inputPath: testdata/progressing_statusGeneration.yaml
   - healthStatus:
       status: Progressing
       message: "Update in progress"
