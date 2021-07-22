@@ -63,8 +63,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
 	appSrc = appSrc.DeepCopy()
 	if !appSrc.IsHelm() {
-		appSrc.RepoURL = ""        // superceded by commitSHA
-		appSrc.TargetRevision = "" // superceded by commitSHA
+		appSrc.RepoURL = ""        // superseded by commitSHA
+		appSrc.TargetRevision = "" // superseded by commitSHA
 	}
 	appSrcStr, _ := json.Marshal(appSrc)
 	return hash.FNVa(string(appSrcStr))

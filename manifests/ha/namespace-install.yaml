@@ -1382,8 +1382,6 @@ spec:
       containers:
       - command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -1750,8 +1748,13 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd
+          name: argocd-home
+        workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
+      - emptyDir: {}
+        name: argocd-home
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -1947,7 +1950,7 @@ spec:
     - namespaceSelector: {}
     ports:
     - port: 5558
-    - protocol: TCP
+      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
@@ -2011,6 +2014,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-notifications-controller
     ports:
     - port: 8081
       protocol: TCP

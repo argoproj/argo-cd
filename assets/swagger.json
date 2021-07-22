@@ -2648,7 +2648,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListApps returns list of apps in the repe",
+        "summary": "ListApps returns list of apps in the repo",
         "operationId": "RepositoryService_ListApps",
         "parameters": [
           {
@@ -5106,6 +5106,10 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "clusterResources": {
+          "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+          "type": "boolean"
+        },
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
@@ -5711,7 +5715,7 @@
         },
         "policies": {
           "type": "array",
-          "title": "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+          "title": "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
           "items": {
             "type": "string"
           }

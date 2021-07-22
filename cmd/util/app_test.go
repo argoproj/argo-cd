@@ -172,3 +172,21 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
 }
+
+func Test_setAnnotations(t *testing.T) {
+	t.Run("Annotations", func(t *testing.T) {
+		app := v1alpha1.Application{}
+		setAnnotations(&app, []string{"hoge=foo", "huga=bar"})
+		assert.Equal(t, map[string]string{"hoge": "foo", "huga": "bar"}, app.Annotations)
+	})
+	t.Run("Annotations value contains equal", func(t *testing.T) {
+		app := v1alpha1.Application{}
+		setAnnotations(&app, []string{"hoge=foo=bar"})
+		assert.Equal(t, map[string]string{"hoge": "foo=bar"}, app.Annotations)
+	})
+	t.Run("Annotations empty value", func(t *testing.T) {
+		app := v1alpha1.Application{}
+		setAnnotations(&app, []string{"hoge"})
+		assert.Equal(t, map[string]string{"hoge": ""}, app.Annotations)
+	})
+}

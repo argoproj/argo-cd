@@ -114,7 +114,16 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         </div>
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
-                                            <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => true))}>all</a> /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        formApi.values.resources.map(() => true)
+                                                    )
+                                                }>
+                                                all
+                                            </a>{' '}
+                                            /{' '}
                                             <a
                                                 onClick={() =>
                                                     formApi.setValue(
@@ -126,7 +135,16 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 }>
                                                 out of sync
                                             </a>{' '}
-                                            / <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => false))}>none</a>
+                                            /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        formApi.values.resources.map(() => false)
+                                                    )
+                                                }>
+                                                none
+                                            </a>
                                         </div>
                                         {!formApi.values.resources.every((item: boolean) => item) && (
                                             <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>

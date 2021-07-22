@@ -67,77 +67,48 @@
         }
     }
 
-    $filters-container-collapsed-height: 3em;
-    $filters-container-box-shadow: 1px 1px 3px $argo-color-gray-5;
-
-    &__filters-container {
-        max-height: $filters-container-collapsed-height;
-        overflow: hidden;
-        position: relative;
-        border-radius: $border-radius;
-        box-shadow: $filters-container-box-shadow;
-        padding: 0 1em 0.75em 1em;
-        margin: 33px 0;
-        background-color: white;
-        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
-        cursor: pointer;
-
-        ul {
-            margin: 0;
-        }
-
-        &--expanded {
-            max-height: calc(1.55em * 17);
-            transition: max-height 1s ease-in-out;
-        }
-    }
-
-    $filters-title-border-bottom: 1px solid $argo-color-gray-3;
-
-    &__filters-title {
-        height: $filters-container-collapsed-height;
-        padding: 0.25em 0;
+    &__filters {
         display: flex;
-        align-items: center;
-
-        &--expanded {
-            border-bottom: $filters-title-border-bottom;
+        &__title {
+            margin-bottom: 1em;
+            font-size: 13px;
+            color: $argo-color-gray-6;
+            display: flex;
+            align-items: center;
         }
 
-        &__counter {
-            margin-right: 0;
-            width: 10ch;
+        .filter {
+            margin-right: 15px;
+            height: max-content;
+            min-width: 200px;
+            max-width: 200px;
         }
 
-        &__expander {
-            cursor: pointer;
-            margin-left: 1em;
+        &__text-filters {
+            align-self: start;
+            display: flex;
+            flex-wrap: wrap;
         }
     }
 
     @include breakpoint(xxlarge up) {
-        &__filters-container {
-            max-height: 100%;
-            transition: max-height 0.5s ease-in-out;
-            cursor: default;
+        .filter {
+            width: 100%;
+            margin-right: 0;
         }
 
-        &__filters-title {
-            border-bottom: $filters-title-border-bottom;
-        }
+        &__filters {
+            flex-wrap: wrap;
+            padding-bottom: 6em;
 
-        &__filters-title__expander {
-            display: none;
-        }
-    }
+            &__title .action-button {
+                display: none;
+            }
 
-    &__filter {
-        li {
-            list-style: none;
+            &__text-filters {
+                width: 100%;
+            }
         }
-        max-height: calc(1.55em * 14);
-        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
-        overflow-y: auto;
     }
 
     &__view-type {
@@ -154,22 +125,6 @@
             cursor: default;
             color: $argo-color-teal-5;
         }
-    }
-
-    &__filter-title {
-        margin: 0.5em 0 0 0;
-        color: $argo-color-gray-7;
-        text-transform: uppercase;
-    }
-
-    &__filter-label {
-        vertical-align: bottom;
-        width: calc(100% - 50px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: inline-block;
-        white-space: nowrap;
-        margin-right: 10px;
     }
 
     &__table-icon {
@@ -251,5 +206,11 @@
         position: absolute;
         top: 1em;
         right: 1em;
+    }
+
+    &__external-links-icon-container {
+        position: relative;
+        display: inline-block;
+        width: 28px;
     }
 }
