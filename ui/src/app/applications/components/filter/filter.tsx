@@ -76,6 +76,7 @@ export const Filter = (props: FilterProps) => {
                                 onItemClick={val => {
                                     const update = {...values};
                                     update[val ? val : input] = true;
+                                    setInput('');
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
