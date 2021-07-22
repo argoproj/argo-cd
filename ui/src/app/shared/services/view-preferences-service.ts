@@ -13,6 +13,7 @@ export interface AppDetailsPreferences {
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    hideFilters: boolean;
 }
 
 export interface PodViewPreferences {
@@ -72,6 +73,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
+        hideFilters: false,
         resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
