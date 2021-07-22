@@ -3,10 +3,6 @@ import * as React from 'react';
 
 import './filter.scss';
 
-interface FilterMap {
-    [label: string]: boolean;
-}
-
 interface FilterProps {
     selected: string[];
     setSelected: (items: string[]) => void;
@@ -17,10 +13,11 @@ interface FilterProps {
     error?: boolean;
     retry?: () => void;
     loading?: boolean;
+    radio?: boolean;
 }
 
 export const Filter = (props: FilterProps) => {
-    const init = {} as FilterMap;
+    const init = {} as {[label: string]: boolean};
     props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
@@ -51,7 +48,7 @@ export const Filter = (props: FilterProps) => {
                         className='argo-button argo-button--base argo-button--sm'
                         style={{marginLeft: 'auto'}}
                         onClick={() => {
-                            setValues({} as FilterMap);
+                            setValues({} as {[label: string]: boolean});
                             setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR
@@ -88,7 +85,7 @@ export const Filter = (props: FilterProps) => {
                                 key={i}
                                 value={values[opt.label]}
                                 onChange={val => {
-                                    const update = {...values};
+                                    const update = props.radio && val ? {} : {...values};
                                     update[opt.label] = val;
                                     setValues(update);
                                 }}
