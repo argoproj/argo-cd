@@ -17,6 +17,8 @@ import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
 
+const Extension = React.lazy(() => import('extensions'));
+
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
@@ -28,6 +30,25 @@ interface ResourceDetailsProps {
     tab?: string;
 }
 
+class ErrorBoundary extends React.Component<{}, {hasError: boolean}> {
+    constructor(props: any) {
+        super(props);
+        this.state = {hasError: false};
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        return {hasError: true};
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return <h1>Something went wrong.</h1>;
+        }
+
+        return this.props.children;
+    }
+}
+
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const appContext = React.useContext(Context);
@@ -37,6 +58,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
+
+    const [loading, setLoading] = React.useState(true);
+    const script = document.createElement('script');
+    script.src = `/extensions/${selectedNode ? selectedNode.kind.toLowerCase() : ''}/extension.js`;
+    document.body.appendChild(script);
+    script.onload = () => {
+        setLoading(false);
+    };
 
     const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
         if (!node || node === undefined) {
@@ -112,6 +141,22 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
+
+        if (!loading) {
+            tabs.push({
+                key: 'extension',
+                title: 'MORE',
+                icon: 'fa-puzzle-piece',
+                content: (
+                    <ErrorBoundary>
+                        <React.Suspense fallback='Loading...'>
+                            <Extension tree={tree} resource={node} state={state} />
+                        </React.Suspense>
+                    </ErrorBoundary>
+                )
+            });
+        }
+
         return tabs;
     };
 

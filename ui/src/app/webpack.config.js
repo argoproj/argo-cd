@@ -32,6 +32,10 @@ const config = {
         alias: {react: require.resolve('react')}
     },
 
+    externals: {
+        extensions: 'Extension'
+    },
+
     module: {
         rules: [
             {
