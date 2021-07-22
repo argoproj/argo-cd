@@ -1,11 +1,11 @@
-import {ActionButton, debounce, useData} from 'argo-ui/v2';
+import {ActionButton, useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, useActionOnLargeWindow} from '../utils';
 
 export interface FilterResult {
     projects: boolean;
@@ -213,16 +213,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: val}});
     };
 
-    React.useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1440) {
-                setHidden(false);
-            }
-        };
-
-        window.addEventListener('resize', debounce(handleResize, 1000));
-        return () => window.removeEventListener('resize', handleResize);
-    });
+    useActionOnLargeWindow(() => setHidden(false));
     return (
         <React.Fragment>
             <div className='applications-list__filters__title'>
