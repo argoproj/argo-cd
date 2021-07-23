@@ -1,9 +1,9 @@
-import {ActionButton, debounce, useData} from 'argo-ui/v2';
+import {useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {Filter} from '../filter/filter';
+import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
@@ -84,9 +84,15 @@ const SyncFilter = (props: AppFilterProps) => (
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
         setSelected={s => props.onChange({...props.pref, syncFilter: s})}
-        options={getOptions(props.apps, 'sync', app => app.status.sync.status, Object.keys(SyncStatuses), s => (
-            <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'sync',
+            app => app.status.sync.status,
+            Object.keys(SyncStatuses),
+            s => (
+                <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -95,9 +101,15 @@ const HealthFilter = (props: AppFilterProps) => (
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
         setSelected={s => props.onChange({...props.pref, healthFilter: s})}
-        options={getOptions(props.apps, 'health', app => app.status.health.status, Object.keys(HealthStatuses), s => (
-            <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'health',
+            app => app.status.health.status,
+            Object.keys(HealthStatuses),
+            s => (
+                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -128,7 +140,11 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
-    const [projects, loading, error] = useData(() => services.projects.list('items.metadata.name'), null, () => null);
+    const [projects, loading, error] = useData(
+        () => services.projects.list('items.metadata.name'),
+        null,
+        () => null
+    );
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
     });
@@ -192,42 +208,20 @@ const NamespaceFilter = (props: AppFilterProps) => {
 };
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
-    const [hidden, setHidden] = React.useState(false);
+    const setShown = (val: boolean) => {
+        services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
+    };
 
-    React.useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1440) {
-                setHidden(false);
-            }
-        };
-
-        window.addEventListener('resize', debounce(handleResize, 1000));
-        return () => window.removeEventListener('resize', handleResize);
-    });
     return (
-        <React.Fragment>
-            <div className='applications-list__filters__title'>
-                FILTERS <i className='fa fa-filter' />
-                <ActionButton
-                    label={hidden ? 'SHOW' : 'HIDE'}
-                    action={() => setHidden(!hidden)}
-                    style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: hidden && 'block'}}
-                />
+        <FiltersGroup setShown={setShown} shown={!props.pref.hideFilters}>
+            <SyncFilter {...props} />
+            <HealthFilter {...props} />
+            <div className='filters-container__subgroup'>
+                <LabelsFilter {...props} />
+                <ProjectFilter {...props} />
+                <ClusterFilter {...props} />
+                <NamespaceFilter {...props} />
             </div>
-            <div className='applications-list__filters'>
-                {!hidden && (
-                    <React.Fragment>
-                        <SyncFilter {...props} />
-                        <HealthFilter {...props} />
-                        <div className='applications-list__filters__text-filters'>
-                            <LabelsFilter {...props} />
-                            <ProjectFilter {...props} />
-                            <ClusterFilter {...props} />
-                            <NamespaceFilter {...props} />
-                        </div>
-                    </React.Fragment>
-                )}
-            </div>
-        </React.Fragment>
+        </FiltersGroup>
     );
 };

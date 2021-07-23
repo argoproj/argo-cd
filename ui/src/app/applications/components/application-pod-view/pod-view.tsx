@@ -363,7 +363,10 @@ export class PodView extends React.Component<PodViewProps> {
                             kind: 'node',
                             name: 'Unschedulable',
                             pods: [p],
-                            info: [{name: 'Kernel Version', value: 'N/A'}, {name: 'OS/Arch', value: 'N/A'}],
+                            info: [
+                                {name: 'Kernel Version', value: 'N/A'},
+                                {name: 'OS/Arch', value: 'N/A'}
+                            ],
                             hostResourcesInfo: []
                         };
                     }

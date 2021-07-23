@@ -1,5 +1,6 @@
 import {DataLoader, DropDownMenu} from 'argo-ui';
 
+// import {ApplicationStatusBar} from '../../../applications/components/applications-list/applications-status-bar';
 import * as React from 'react';
 import ReactPaginate from 'react-paginate';
 import {services} from '../../services';
@@ -13,9 +14,10 @@ export interface PaginateProps<T> {
     data: T[];
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
+    header?: React.ReactNode;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
@@ -40,6 +42,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                 />
                             )}
                             <div className='paginate__size-menu'>
+                                {header || <div />}
                                 <DropDownMenu
                                     anchor={() => (
                                         <a>
