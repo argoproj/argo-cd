@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 .filter {
     background-color: white;
@@ -41,5 +42,71 @@
     &__error,
     &__loading {
         text-align: center;
+    }
+
+    &--wrap {
+        overflow: auto;
+        .checkbox__item {
+            min-width: 4.5em;
+            float: left;
+        }
+    }
+}
+
+.filters-group {
+    &__container {
+        display: flex;
+        &__title {
+            margin-bottom: 1em;
+            font-size: 13px;
+            color: $argo-color-gray-6;
+            display: flex;
+            align-items: center;
+            width: 260px;
+        }
+
+        .filter {
+            margin-right: 15px;
+            height: max-content;
+            min-width: 260px;
+            max-width: 260px;
+        }
+
+        &__subgroup {
+            align-self: start;
+            display: flex;
+            flex-wrap: wrap;
+        }
+    }
+
+    &__container--hidden {
+        display: none;
+    }
+}
+
+@include breakpoint(xxlarge up) {
+    .filter {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    .filters-group {
+        &__container {
+            width: 260px;
+            flex-wrap: wrap;
+            padding-bottom: 6em;
+
+            &__title .action-button {
+                display: none;
+            }
+
+            &__text-filters {
+                width: 100%;
+            }
+        }
+
+        &__container--hidden {
+            display: flex;
+        }
     }
 }

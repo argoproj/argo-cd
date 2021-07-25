@@ -113,7 +113,7 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-COPY --from=argocd-ui ./src/dist/app ./src/dist/app
+COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
@@ -129,7 +129,6 @@ FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
 USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
