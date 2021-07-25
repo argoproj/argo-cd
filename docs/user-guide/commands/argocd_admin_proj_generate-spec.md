@@ -17,6 +17,7 @@ argocd admin proj generate-spec PROJECT [flags]
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
   -f, --file string                             Filename or URL to Kubernetes manifests for the project
   -h, --help                                    help for generate-spec
+  -i, --inline                                  If set then generated resource is written back to the file specified in --file flag
       --orphaned-resources                      Enables orphaned resources monitoring
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
   -o, --output string                           Output format. One of: json|yaml (default "yaml")
