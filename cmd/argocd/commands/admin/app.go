@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -62,6 +63,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 		labels       []string
 		outputFormat string
 		annotations  []string
+		inline       bool
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec APPNAME",
@@ -94,9 +96,11 @@ func NewGenAppSpecCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			var printResources []interface{}
-			printResources = append(printResources, app)
-			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
+			out, closer, err := getOutWriter(inline, fileURL)
+			errors.CheckError(err)
+			defer io.Close(closer)
+
+			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
@@ -104,6 +108,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
+	command.Flags().BoolVarP(&inline, "inline", "i", false, "If set then generated resource is written back to the file specified in --file flag")
 
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
