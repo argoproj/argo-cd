@@ -150,6 +150,14 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
 func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) bool {
+	enf := e.CreateEnforcerWithRuntimePolicy(policy)
+	return e.EnforceWithCustomEnforcer(enf, rvals...)
+}
+
+// CreateEnforcerWithRuntimePolicy creates an enforcer with a policy defined at run-time which augments the built-in and
+// user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
+// to override the run-time policy. Runs normal enforcement if run-time policy is empty.
+func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) *casbin.Enforcer {
 	var enf *casbin.Enforcer
 	var err error
 	if policy == "" {
@@ -161,6 +169,11 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 			enf = e.Enforcer
 		}
 	}
+	return enf
+}
+
+// EnforceWithCustomEnforcer wraps enforce with an custom enforcer
+func (e *Enforcer) EnforceWithCustomEnforcer(enf *casbin.Enforcer, rvals ...interface{}) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
