@@ -140,7 +140,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </Moment>
                                                                 </div>
                                                             ) : null}
-                                                            {group.info.map(infoItem => (
+                                                            {group.info?.map(infoItem => (
                                                                 <div key={infoItem.name}>{infoItem.value}</div>
                                                             ))}
                                                         </div>
@@ -344,7 +344,7 @@ export class PodView extends React.Component<PodViewProps> {
             } as Pod;
 
             // Get node name for Pod
-            rnode.info.forEach(i => {
+            rnode.info?.forEach(i => {
                 if (i.name === 'Node') {
                     p.spec.nodeName = i.value;
                 }
