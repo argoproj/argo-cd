@@ -581,10 +581,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), secName, v1.GetOptions{})
 			errors.CheckError(err)
 
-			cmdutil.ConvertSecretData(secret)
-			var printResources []interface{}
-			printResources = append(printResources, secret)
-			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
+			ConvertSecretData(secret)
+			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")

@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -155,21 +154,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			var printResources []interface{}
 			_, err := argoDB.CreateRepository(context.Background(), &repoOpts.Repo)
 			errors.CheckError(err)
 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
-			if err != nil {
-				if !apierr.IsNotFound(err) {
-					errors.CheckError(err)
-				}
-			} else {
-				cmdutil.ConvertSecretData(secret)
-				printResources = append(printResources, secret)
-			}
+			errors.CheckError(err)
 
-			errors.CheckError(cmdutil.PrintResources(printResources, outputFormat))
+			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))
 		},
 	}
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
