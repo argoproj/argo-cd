@@ -62,14 +62,14 @@
             color: $argo-color-gray-6;
             display: flex;
             align-items: center;
-            width: 260px;
+            width: 200px;
         }
 
         .filter {
             margin-right: 15px;
             height: max-content;
-            min-width: 260px;
-            max-width: 260px;
+            min-width: 200px;
+            max-width: 200px;
         }
 
         &__subgroup {
