@@ -60,6 +60,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Index Exchange](https://www.indexexchange.com/)
 1. [InsideBoard](https://www.insideboard.com)
 1. [Intuit](https://www.intuit.com/)
+1. [Joblift](https://joblift.com/)
 1. [JovianX](https://www.jovianx.com/)
 1. [Karrot](https://www.daangn.com/)
 1. [Kasa](https://kasa.co.kr/)
