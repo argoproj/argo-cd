@@ -53,8 +53,8 @@ type Server struct {
 	ClientCertificateKeyData string `json:"client-certificate-key-data,omitempty"`
 	// PlainText indicates to connect with TLS disabled
 	PlainText bool `json:"plain-text,omitempty"`
-	// K8SAPI indicates to talk to Kubernetes API without using Argo CD API server
-	K8SAPI bool `json:"k8s-api,omitempty"`
+	// Core indicates to talk to Kubernetes API without using Argo CD API server
+	Core bool `json:"core,omitempty"`
 }
 
 // User contains user authentication information

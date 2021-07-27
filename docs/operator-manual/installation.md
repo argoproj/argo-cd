@@ -1,6 +1,6 @@
 # Installation
 
-Argo CD has two type of installations: multi-tennant and single-tenant.
+Argo CD has two type of installations: multi-tennant and core.
 
 ## Multi-Tenant
 
@@ -46,9 +46,9 @@ High Availability installation is recommended for production use. Bundle include
 * [ha/namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/ha/namespace-install.yaml) - the same as namespace-install.yaml but
   with multiple replicas for supported components.
 
-## Single-Tenant (a.k.a. "Core")
+## Core
 
-The single-tenant/core installation is most suitable for cluster administrators who indepently use Argo CD and don't need multi-tennancy features. This installation
+The core installation is most suitable for cluster administrators who indepently use Argo CD and don't need multi-tenancy features. This installation
 includes less components and easier to setup. The bundle does not include API server, UI as well as install non-HA light-weight version of each component.
 
 The end-users need Kubernetes access to manage Argo CD. The `argocd` CLI has to be configured using `argocd login --k8s-api` command. The Web UI is also

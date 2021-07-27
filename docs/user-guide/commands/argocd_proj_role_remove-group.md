@@ -26,13 +26,13 @@ argocd proj role remove-group PROJECT ROLE-NAME GROUP-CLAIM [flags]
       --cluster string                  The name of the kubeconfig cluster to use
       --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
       --context string                  The name of the kubeconfig context to use
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --k8s-api                         If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
   -n, --namespace string                If present, the namespace scope for this CLI request

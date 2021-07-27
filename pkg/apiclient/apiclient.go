@@ -113,7 +113,7 @@ type ClientOptions struct {
 	UserAgent            string
 	GRPCWeb              bool
 	GRPCWebRootPath      string
-	K8SAPI               bool
+	Core                 bool
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string

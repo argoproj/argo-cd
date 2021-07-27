@@ -52,19 +52,19 @@ argocd login cd.argoproj.io
 argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
-argocd login cd.argoproj.io --k8s-api`,
+argocd login cd.argoproj.io --core`,
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.K8SAPI {
+			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			if globalClientOpts.PortForward {
 				server = "port-forward"
-			} else if globalClientOpts.K8SAPI {
-				server = "k8s-api"
+			} else if globalClientOpts.Core {
+				server = "kubernetes"
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
@@ -108,7 +108,7 @@ argocd login cd.argoproj.io --k8s-api`,
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !globalClientOpts.K8SAPI {
+			if !globalClientOpts.Core {
 				acdClient := argocdclient.NewClientOrDie(&clientOpts)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
@@ -146,7 +146,7 @@ argocd login cd.argoproj.io --k8s-api`,
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				K8SAPI:          globalClientOpts.K8SAPI,
+				Core:            globalClientOpts.Core,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
