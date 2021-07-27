@@ -73,6 +73,6 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().BoolVar(&clientOpts.PortForward, "port-forward", config.GetBoolFlag("port-forward"), "Connect to a random argocd-server port using port forwarding")
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
 	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", 0, "Maximum number of retries to establish http connection to Argo CD server")
-	command.PersistentFlags().BoolVar(&clientOpts.Headless, "headless", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
+	command.PersistentFlags().BoolVar(&clientOpts.Core, "core", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
 	return command
 }
