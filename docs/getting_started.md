@@ -21,14 +21,14 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-If you are not interested in UI, SSO, multi-cluster features then you can install [single-tennant](operator-manual/installation.md#single-tenant-aka-headless) Argo CD installation:
+If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/headless-install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
 ```
 
-Use `argocd login --headless` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
+Use `argocd login --k8s-api` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
 ## 2. Download Argo CD CLI
 

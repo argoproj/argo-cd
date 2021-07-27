@@ -113,7 +113,7 @@ type ClientOptions struct {
 	UserAgent            string
 	GRPCWeb              bool
 	GRPCWebRootPath      string
-	Headless             bool
+	Core                 bool
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string

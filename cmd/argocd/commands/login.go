@@ -51,20 +51,20 @@ argocd login cd.argoproj.io
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
 
-# Configure "headless" access using Kubernetes API server
-argocd login cd.argoproj.io --headless`,
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core`,
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Headless {
+			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			if globalClientOpts.PortForward {
 				server = "port-forward"
-			} else if globalClientOpts.Headless {
-				server = "headless"
+			} else if globalClientOpts.Core {
+				server = "kubernetes"
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
@@ -108,7 +108,7 @@ argocd login cd.argoproj.io --headless`,
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !globalClientOpts.Headless {
+			if !globalClientOpts.Core {
 				acdClient := argocdclient.NewClientOrDie(&clientOpts)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
@@ -146,7 +146,7 @@ argocd login cd.argoproj.io --headless`,
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				Headless:        globalClientOpts.Headless,
+				Core:            globalClientOpts.Core,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
