@@ -17,11 +17,13 @@
     }
 
     &__segment:first-child {
-        border-radius: 25px 0 0 25px;
+        border-top-left-radius: 25px;
+        border-bottom-left-radius: 25px;
     }
 
     &__segment:last-child {
-        border-radius: 0 25px 25px 0;
+        border-top-right-radius: 25px;
+        border-bottom-right-radius: 25px;
     }
 
     &__segment:not(:first-child) {
