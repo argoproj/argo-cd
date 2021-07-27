@@ -336,7 +336,7 @@ func TestNewFactory(t *testing.T) {
 		name string
 		args args
 	}{
-		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
+		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 	}
 	for _, tt := range tests {

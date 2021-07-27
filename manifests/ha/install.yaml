@@ -2418,7 +2418,7 @@ spec:
                       description: Name is a name for this role
                       type: string
                     policies:
-                      description: Policies Stores a list of casbin formated strings
+                      description: Policies Stores a list of casbin formatted strings
                         that define access policies for the role in the project
                       items:
                         type: string
@@ -3995,8 +3995,6 @@ spec:
       containers:
       - command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -4629,6 +4627,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-notifications-controller
     ports:
     - port: 8081
       protocol: TCP

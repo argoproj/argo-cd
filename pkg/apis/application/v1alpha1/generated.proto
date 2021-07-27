@@ -403,6 +403,9 @@ message Cluster {
 
   // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
   optional int64 shard = 9;
+
+  // Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+  optional bool clusterResources = 10;
 }
 
 // ClusterCacheInfo contains information about the cluster cache
@@ -765,7 +768,7 @@ message ProjectRole {
   // Description is a description of the role
   optional string description = 2;
 
-  // Policies Stores a list of casbin formated strings that define access policies for the role in the project
+  // Policies Stores a list of casbin formatted strings that define access policies for the role in the project
   repeated string policies = 3;
 
   // JWTTokens are a list of generated JWT tokens bound to this role

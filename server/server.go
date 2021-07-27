@@ -4,17 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	goio "io"
+	"io/fs"
 	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	gosync "sync"
 	"time"
 
 	// nolint:staticcheck
@@ -82,6 +83,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/session"
 	"github.com/argoproj/argo-cd/v2/server/settings"
 	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -132,6 +134,7 @@ var (
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
 	enableGRPCTimeHistogram         = true
+	staticAssets                    = http.FS(&subDirFs{dir: "dist/app", fs: ui.Embedded})
 )
 
 func init() {
@@ -161,6 +164,9 @@ type ArgoCDServer struct {
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh           chan struct{}
 	userStateStorage util_session.UserStateStorage
+	indexDataInit    gosync.Once
+	indexData        []byte
+	indexDataErr     error
 }
 
 type ArgoCDServerOpts struct {
@@ -171,7 +177,6 @@ type ArgoCDServerOpts struct {
 	MetricsPort         int
 	Namespace           string
 	DexServerAddr       string
-	StaticAssetsDir     string
 	BaseHRef            string
 	RootPath            string
 	KubeClientset       kubernetes.Interface
@@ -181,6 +186,7 @@ type ArgoCDServerOpts struct {
 	RedisClient         *redis.Client
 	TLSConfigCustomizer tlsutil.ConfigCustomizer
 	XFrameOptions       string
+	ListenHost          string
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -290,7 +296,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
-	metricsServ := metrics.NewMetricsServer(metricsPort)
+	metricsServ := metrics.NewMetricsServer(a.ListenHost, metricsPort)
 	if a.RedisClient != nil {
 		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
@@ -299,7 +305,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var conn net.Listener
 	var realErr error
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", a.ListenHost, port))
 		if realErr != nil {
 			a.log.Warnf("failed listen: %v", realErr)
 			return false, nil
@@ -308,7 +314,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	})
 	errors.CheckError(realErr)
 
-	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
+	// CMux is used to support servicing gRPC and HTTP1.1+JSON on the same port
 	tcpm := cmux.New(conn)
 	var tlsm cmux.CMux
 	var grpcL net.Listener
@@ -361,6 +367,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
 	errors.CheckError(conn.Close())
+}
+
+func (a *ArgoCDServer) Initialized() bool {
+	return a.projInformer.HasSynced() && a.appInformer.HasSynced()
 }
 
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
@@ -417,7 +427,7 @@ func (a *ArgoCDServer) watchSettings() {
 			break
 		}
 		if prevOIDCConfig != a.settings.OIDCConfigRAW {
-			log.Infof("odic config modified. restarting")
+			log.Infof("oidc config modified. restarting")
 			break
 		}
 		if prevURL != a.settings.URL {
@@ -733,14 +743,19 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
 
+	// Serve extensions
+	var extensionsApiPath = "/extensions/"
+	var extensionsSharedPath = "/tmp/extensions/"
+
+	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
+	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+
 	// Serve UI static assets
-	if a.StaticAssetsDir != "" {
-		var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
-		if a.ArgoCDServerOpts.EnableGZip {
-			assetsHandler = compressHandler(assetsHandler)
-		}
-		mux.Handle("/", assetsHandler)
+	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
+	if a.ArgoCDServerOpts.EnableGZip {
+		assetsHandler = compressHandler(assetsHandler)
 	}
+	mux.Handle("/", assetsHandler)
 	return &httpS
 }
 
@@ -810,55 +825,34 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	}
 }
 
-func indexFilePath(srcPath string, baseHRef string) (string, error) {
-	if baseHRef == "/" {
-		return srcPath, nil
-	}
-	filePath := path.Join(os.TempDir(), fmt.Sprintf("index_%s.html", strings.Replace(strings.Trim(baseHRef, "/"), "/", "_", -1)))
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		if os.IsExist(err) {
-			return filePath, nil
+func (s *ArgoCDServer) getIndexData() ([]byte, error) {
+	s.indexDataInit.Do(func() {
+		data, err := ui.Embedded.ReadFile("dist/app/index.html")
+		if err != nil {
+			s.indexDataErr = err
+			return
 		}
-		return "", err
-	}
-	defer io.Close(f)
+		if s.BaseHRef == "/" || s.BaseHRef == "" {
+			s.indexData = data
+		} else {
+			s.indexData = []byte(baseHRefRegex.ReplaceAllString(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(s.BaseHRef, "/"))))
+		}
+	})
 
-	data, err := ioutil.ReadFile(srcPath)
-	if err != nil {
-		return "", err
-	}
-	if baseHRef != "/" {
-		data = []byte(baseHRefRegex.ReplaceAllString(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(baseHRef, "/"))))
-	}
-	_, err = f.Write(data)
-	if err != nil {
-		return "", err
-	}
-
-	return filePath, nil
+	return s.indexData, s.indexDataErr
 }
 
-func fileExists(dir, filename string) bool {
-	// We make sure that the resulting path is within the directory we intend to
-	// serve content from. path.Join() will normalize the path.
-	abs, err := filepath.Abs(dir)
+func uiAssetExists(filename string) bool {
+	f, err := staticAssets.Open(strings.Trim(filename, "/"))
 	if err != nil {
 		return false
 	}
-	fp := path.Join(abs, filename)
-	if !strings.HasPrefix(fp, abs) {
-		return false
-	}
-	info, err := os.Stat(fp)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
+	defer io.Close(f)
+	return true
 }
 
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets
-func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
+func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
 		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
@@ -868,7 +862,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 			}
 		}
 
-		fileRequest := r.URL.Path != "/index.html" && fileExists(dir, r.URL.Path)
+		fileRequest := r.URL.Path != "/index.html" && uiAssetExists(r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
@@ -881,16 +875,58 @@ func (server *ArgoCDServer) newStaticAssetsHandler(dir string, baseHRef string) 
 			for k, v := range noCacheHeaders {
 				w.Header().Set(k, v)
 			}
-			indexHtmlPath, err := indexFilePath(path.Join(dir, "index.html"), baseHRef)
+			data, err := server.getIndexData()
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Unable to access index.html: %v", err), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			http.ServeFile(w, r, indexHtmlPath)
+
+			modTime, err := time.Parse(common.GetVersion().BuildDate, time.RFC3339)
+			if err != nil {
+				modTime = time.Now()
+			}
+			http.ServeContent(w, r, "index.html", modTime, byteReadSeeker{data: data})
 		} else {
-			http.ServeFile(w, r, path.Join(dir, r.URL.Path))
+			http.FileServer(staticAssets).ServeHTTP(w, r)
 		}
 	}
+}
+
+type subDirFs struct {
+	dir string
+	fs  fs.FS
+}
+
+func (s subDirFs) Open(name string) (fs.File, error) {
+	return s.fs.Open(filepath.Join(s.dir, name))
+}
+
+type byteReadSeeker struct {
+	data   []byte
+	offset int64
+}
+
+func (f byteReadSeeker) Read(b []byte) (int, error) {
+	if f.offset >= int64(len(f.data)) {
+		return 0, goio.EOF
+	}
+	n := copy(b, f.data[f.offset:])
+	f.offset += int64(n)
+	return n, nil
+}
+
+func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case 1:
+		offset += f.offset
+	case 2:
+		offset += int64(len(f.data))
+	}
+	if offset < 0 || offset > int64(len(f.data)) {
+		return 0, &fs.PathError{Op: "seek", Err: fs.ErrInvalid}
+	}
+	f.offset = offset
+	return offset, nil
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error

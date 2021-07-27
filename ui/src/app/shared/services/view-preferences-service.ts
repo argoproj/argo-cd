@@ -14,6 +14,7 @@ export interface AppDetailsPreferences {
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    hideFilters: boolean;
 }
 
 export interface PodViewPreferences {
@@ -55,6 +56,7 @@ export class AppsListPreferences {
     public clustersFilter: string[];
     public view: AppsListViewType;
     public sorter: SortAppsBy | null;
+    public hideFilters: boolean;
 }
 
 export interface ViewPreferences {
@@ -73,7 +75,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
+        hideFilters: false,
+        resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
@@ -95,6 +98,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         sorter: null
+        hideFilters: false
     },
     pageSizes: {},
     hideBannerContent: ''
