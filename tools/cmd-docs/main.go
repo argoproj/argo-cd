@@ -10,7 +10,6 @@ import (
 	argocddex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	argocdserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
-	argocdutil "github.com/argoproj/argo-cd/v2/cmd/argocd-util/commands"
 	argocdcli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
 )
 
@@ -43,8 +42,4 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = doc.GenMarkdownTree(argocdutil.NewCommand(), "./docs/operator-manual/server-commands")
-	if err != nil {
-		log.Fatal(err)
-	}
 }

@@ -41,6 +41,11 @@ argocd-server [flags]
       --password string                               Password for basic authentication to the API server
       --port int                                      Listen on given port (default 8080)
       --redis string                                  Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis-ca-certificate string                   Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
+      --redis-client-certificate string               Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
+      --redis-client-key string                       Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-insecure-skip-tls-verify                Skip Redis server certificate validation.
+      --redis-use-tls                                 Use TLS when connecting to Redis. 
       --redisdb int                                   Redis database.
       --repo-server string                            Repo server address (default "argocd-repo-server:8081")
       --repo-server-plaintext                         Use a plaintext client (non-TLS) to connect to repository server
@@ -51,7 +56,6 @@ argocd-server [flags]
       --sentinel stringArray                          Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                         Redis sentinel master group name. (default "master")
       --server string                                 The address and port of the Kubernetes API server
-      --staticassets string                           Static assets directory path
       --tls-server-name string                        If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                             The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                          The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")

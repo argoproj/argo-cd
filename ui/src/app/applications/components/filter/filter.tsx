@@ -1,11 +1,8 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
+import {ActionButton, Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
+import classNames from 'classnames';
 import * as React from 'react';
 
 import './filter.scss';
-
-interface FilterMap {
-    [label: string]: boolean;
-}
 
 interface FilterProps {
     selected: string[];
@@ -17,10 +14,31 @@ interface FilterProps {
     error?: boolean;
     retry?: () => void;
     loading?: boolean;
+    radio?: boolean;
+    wrap?: boolean;
 }
 
+export const FiltersGroup = (props: {children?: React.ReactNode; appliedFilter?: string[]; shown: boolean; setShown: (val: boolean) => void; onClearFilter?: () => void}) => {
+    return (
+        <div className='filters-group'>
+            <div className='filters-group__container__title'>
+                FILTERS <i className='fa fa-filter' />
+                {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                    <ActionButton label={'CLEAR ALL'} action={() => props.onClearFilter()} style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: 'block'}} />
+                )}
+                <ActionButton
+                    label={!props.shown ? 'SHOW' : 'HIDE'}
+                    action={() => props.setShown(!props.shown)}
+                    style={{marginLeft: props.appliedFilter?.length > 0 ? '5px' : 'auto', fontSize: '12px', lineHeight: '5px'}}
+                />
+            </div>
+            <div className={classNames('filters-group__container', {'filters-group__container--hidden': !props.shown})}>{props.children}</div>
+        </div>
+    );
+};
+
 export const Filter = (props: FilterProps) => {
-    const init = {} as FilterMap;
+    const init = {} as {[label: string]: boolean};
     props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
@@ -43,7 +61,7 @@ export const Filter = (props: FilterProps) => {
     }, [values]);
 
     return (
-        <div className='filter'>
+        <div className={classNames('filter', {'filter--wrap': props.wrap})}>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
@@ -51,7 +69,7 @@ export const Filter = (props: FilterProps) => {
                         className='argo-button argo-button--base argo-button--sm'
                         style={{marginLeft: 'auto'}}
                         onClick={() => {
-                            setValues({} as FilterMap);
+                            setValues({} as {[label: string]: boolean});
                             setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR
@@ -75,7 +93,7 @@ export const Filter = (props: FilterProps) => {
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
                                     const update = {...values};
-                                    update[val] = true;
+                                    update[val ? val : input] = true;
                                     setInput('');
                                     setValues(update);
                                 }}
@@ -88,7 +106,7 @@ export const Filter = (props: FilterProps) => {
                                 key={i}
                                 value={values[opt.label]}
                                 onChange={val => {
-                                    const update = {...values};
+                                    const update = props.radio && val ? {} : {...values};
                                     update[opt.label] = val;
                                     setValues(update);
                                 }}

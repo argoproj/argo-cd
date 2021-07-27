@@ -96,10 +96,10 @@ github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj/gitops-engine v0.3.1-0.20210630192200-2c97a96cab1b h1:VkznBAx+KwLn6FLZHpgk1i8oQqwrcGe9nWYXTJSpICc=
-github.com/argoproj/gitops-engine v0.3.1-0.20210630192200-2c97a96cab1b/go.mod h1:EdFe8qIOqsmbyxRhtIydU4BUeyZ4VTsY6R3XVQhU9LA=
-github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b h1:qtlM7ioAFP40LPN7A5ZqquVmAtv08LLSZTcCNYUQx8s=
-github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
+github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb h1:zwnkwh45K57emwKikePwtK4BLc3IuplxYxqMzZ4XTNY=
+github.com/argoproj/gitops-engine v0.3.1-0.20210709004906-a4c77d5c70fb/go.mod h1:EdFe8qIOqsmbyxRhtIydU4BUeyZ4VTsY6R3XVQhU9LA=
+github.com/argoproj/pkg v0.9.1 h1:osfOS3QkzfRf+W43lbCZb0o0bzrBweQhL+U3rgEg+5M=
+github.com/argoproj/pkg v0.9.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=

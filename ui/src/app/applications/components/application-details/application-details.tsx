@@ -1,4 +1,4 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel, TopBarFilter} from 'argo-ui';
+import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -9,6 +9,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
+import {ApplicationTree} from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
@@ -21,12 +22,22 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
+import {Filters} from './application-resource-filter';
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+}
+
+interface FilterInput {
+    kind: string[];
+    health: string[];
+    sync: string[];
+    namespace: string[];
+    createdWithin: number[]; // number of minutes the resource must be created within
+    ownership: string[];
 }
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
@@ -108,44 +119,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
-                            const kindsSet = new Set<string>(tree.nodes.map(item => item.kind));
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
-                            treeFilter.kind.forEach(kind => {
-                                kindsSet.add(kind);
-                            });
-                            const kinds = Array.from(kindsSet);
-                            const noKindsFilter = pref.resourceFilter.filter(item => item.indexOf('kind:') !== 0);
-                            const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
-
-                            const filterTopBar: TopBarFilter<string> = {
-                                items: [
-                                    {content: () => <span>Sync</span>},
-                                    {value: 'sync:Synced', label: 'Synced'},
-                                    // Unhealthy includes 'Unknown' and 'OutOfSync'
-                                    {value: 'sync:OutOfSync', label: 'OutOfSync'},
-                                    {content: () => <span>Health</span>},
-                                    {value: 'health:Healthy', label: 'Healthy'},
-                                    {value: 'health:Progressing', label: 'Progressing'},
-                                    {value: 'health:Degraded', label: 'Degraded'},
-                                    {value: 'health:Missing', label: 'Missing'},
-                                    {value: 'health:Unknown', label: 'Unknown'},
-                                    {
-                                        content: setSelection => (
-                                            <div>
-                                                Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map(kind => `kind:${kind}`)))}>all</a> /{' '}
-                                                <a onClick={() => setSelection(noKindsFilter)}>none</a>
-                                            </div>
-                                        )
-                                    },
-                                    ...kinds.sort().map(kind => ({value: `kind:${kind}`, label: kind}))
-                                ],
-                                selectedValues: pref.resourceFilter,
-                                selectionChanged: items => {
-                                    this.appContext.apis.navigation.goto('.', {resource: `${items.join(',')}`});
-                                    services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
-                                }
+                            const setFilter = (items: string[]) => {
+                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')});
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
-
+                            const clearFilter = () => setFilter([]);
+                            const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
                             const isAppSelected = selectedItem === application;
@@ -155,27 +135,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const statusByKey = new Map<string, appModels.ResourceStatus>();
-                            const visibleOrphans = (pref.orphanedResources && tree.orphanedNodes) || [];
-                            if (visibleOrphans.length > 0) {
-                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
-                            }
-                            const orphans = visibleOrphans.map(orphan => statusByKey.get(AppUtils.nodeKey(orphan)));
-
-                            const filteredRes = application.status.resources
-                                .filter(res => {
-                                    const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
-                                    resNode.root = resNode;
-                                    return this.filterTreeNode(resNode, treeFilter);
-                                })
-                                .concat(orphans);
+                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
+                                ? (tree.orphanedNodes || []).map(node => ({
+                                      ...node,
+                                      status: null,
+                                      health: null
+                                  }))
+                                : [];
+                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                                const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
+                                resNode.root = resNode;
+                                return this.filterTreeNode(tree, resNode, treeFilter);
+                            });
 
                             return (
                                 <div className='application-details'>
                                     <Page
                                         title='Application Details'
                                         toolbar={{
-                                            filter: filterTopBar,
                                             breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
                                             actionMenu: {items: this.getApplicationActionMenu(application)},
                                             tools: (
@@ -227,6 +204,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+
                                             {(tree.orphanedNodes || []).length > 0 && (
                                                 <div className='application-details__orphaned-filter'>
                                                     <ArgoCheckbox
@@ -241,24 +219,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                    selectedNodeFullName={this.selectedNodeKey}
-                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node =>
-                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                            this.getApplicationActionMenu(application)
-                                                        )
-                                                    }
-                                                    tree={tree}
-                                                    app={application}
-                                                    showOrphanedResources={pref.orphanedResources}
-                                                    useNetworkingHierarchy={pref.view === 'network'}
-                                                    onClearFilter={() => {
-                                                        this.appContext.apis.navigation.goto('.', {resource: ''});
-                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: []}});
-                                                    }}
-                                                />
+                                                <div className='row'>
+                                                    <div className='columns small-12 xxlarge-2'>
+                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
+                                                    </div>
+                                                    <div className='columns small-12 xxlarge-10'>
+                                                        <ApplicationResourceTree
+                                                            nodeFilter={node => this.filterTreeNode(tree, node, treeFilter)}
+                                                            selectedNodeFullName={this.selectedNodeKey}
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application)
+                                                                )
+                                                            }
+                                                            tree={tree}
+                                                            app={application}
+                                                            showOrphanedResources={pref.orphanedResources}
+                                                            useNetworkingHierarchy={pref.view === 'network'}
+                                                            onClearFilter={clearFilter}
+                                                        />
+                                                    </div>
+                                                </div>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -459,14 +441,43 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(node: ResourceTreeNode, filterInput: {kind: string[]; health: string[]; sync: string[]}): boolean {
+    private filterTreeNode(tree: ApplicationTree, node: ResourceTreeNode, filterInput: FilterInput, ownership?: string): boolean {
         const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
 
-        return (
+        const minutesAgo = (m: number) => {
+            const d = new Date();
+            d.setTime(d.getTime() - m * 60000);
+            return d;
+        };
+        const createdAt = new Date(node.createdAt); // will be falsely if the node has not been created, and so will not appear
+        const createdWithin = (n: number) => createdAt.getTime() > minutesAgo(n).getTime();
+
+        const root = node.root || ({} as ResourceTreeNode);
+        const hook = root && root.hook;
+        if (
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
-            (syncStatuses.length === 0 || node.root.hook || (node.root.status && syncStatuses.indexOf(node.root.status) > -1)) &&
-            (filterInput.health.length === 0 || node.root.hook || (node.root.health && filterInput.health.indexOf(node.root.health.status) > -1))
-        );
+            (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
+            (filterInput.health.length === 0 || hook || (root.health && filterInput.health.indexOf(root.health.status) > -1)) &&
+            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
+            (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v)))
+        ) {
+            return true;
+        }
+
+        if (filterInput.ownership.includes('Owned') && ownership !== 'Owners') {
+            const owned = tree.nodes.filter(n => (node.parentRefs || []).find(r => r.uid === n.uid));
+            if (owned.find(n => this.filterTreeNode(tree, n, filterInput, 'Owned'))) {
+                return true;
+            }
+        }
+        if (filterInput.ownership.includes('Owners') && ownership !== 'Owned') {
+            const owners = tree.nodes.filter(n => (n.parentRefs || []).find(r => r.uid === node.uid));
+            if (owners.find(n => this.filterTreeNode(tree, n, filterInput, 'Owners'))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
@@ -535,11 +546,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeByKey;
     }
 
-    private getTreeFilter(filterInput: string[]): {kind: string[]; health: string[]; sync: string[]} {
+    private getTreeFilter(filterInput: string[]): FilterInput {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
-        for (const item of filterInput) {
+        const namespace = new Array<string>();
+        const createdWithin = new Array<number>();
+        const ownership = new Array<string>();
+        for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
                 case 'kind':
@@ -551,9 +565,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'sync':
                     sync.push(val);
                     break;
+                case 'namespace':
+                    namespace.push(val);
+                    break;
+                case 'createdWithin':
+                    createdWithin.push(parseInt(val, 10));
+                    break;
+                case 'ownership':
+                    ownership.push(val);
+                    break;
             }
         }
-        return {kind, health, sync};
+        return {kind, health, sync, namespace, createdWithin, ownership};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {

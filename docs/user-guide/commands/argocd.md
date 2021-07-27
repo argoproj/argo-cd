@@ -16,6 +16,7 @@ argocd [flags]
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --headless                        If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
   -h, --help                            help for argocd
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
@@ -31,6 +32,7 @@ argocd [flags]
 ### SEE ALSO
 
 * [argocd account](argocd_account.md)	 - Manage account settings
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 * [argocd app](argocd_app.md)	 - Manage applications
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
