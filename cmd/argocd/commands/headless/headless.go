@@ -59,8 +59,8 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 	ctx, cancel := context.WithCancel(context.Background())
 	clientConfig := addKubectlFlagsToCmd(cmd)
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		headless := clientOpts.Headless
-		if !headless {
+		k8sapi := clientOpts.K8SAPI
+		if !k8sapi {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			if err != nil {
 				return err
@@ -70,10 +70,10 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 				if err != nil {
 					return err
 				}
-				headless = configCtx.Server.Headless
+				k8sapi = configCtx.Server.K8SAPI
 			}
 		}
-		if !headless {
+		if !k8sapi {
 			return nil
 		}
 
