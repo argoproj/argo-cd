@@ -66,8 +66,20 @@ function isGenerationObserved(obj)
   return observedGeneration == obj.metadata.generation
 end
 
+-- isWorkloadGenerationObserved determines if the referenced workload's generation spec has been
+-- observed by the controller. This only applies to v1.1 rollout
+function isWorkloadGenerationObserved(obj)
+  if obj.spec.workloadRef == nil or obj.metadata.annotations == nil then
+    -- rollout is v1.0 or earlier
+    return true
+  end
+  workloadGen = tonumber(obj.metadata.annotations["rollout.argoproj.io/workload-generation"])
+  observedWorkloadGen = tonumber(obj.status.workloadObservedGeneration)
+  return workloadGen == observedWorkloadGen
+end
+
 hs = {}
-if not isGenerationObserved(obj) then
+if not isGenerationObserved(obj) or not isWorkloadGenerationObserved(obj) then
   hs.status = "Progressing"
   hs.message = "Waiting for rollout spec update to be observed"
   return hs
