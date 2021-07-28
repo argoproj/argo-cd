@@ -377,7 +377,7 @@ func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 argocd account delete-token ID
 
 # Delete token of the account with the specified name
-argocd account generate-token --account <account-name>`,
+argocd account delete-token --account <account-name> ID`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
