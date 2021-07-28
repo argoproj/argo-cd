@@ -13,7 +13,7 @@ argocd account delete-token [flags]
 argocd account delete-token ID
 
 # Delete token of the account with the specified name
-argocd account generate-token --account <account-name>
+argocd account delete-token --account <account-name> ID
 ```
 
 ### Options
