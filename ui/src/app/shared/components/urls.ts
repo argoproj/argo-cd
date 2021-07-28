@@ -12,13 +12,17 @@ function protocol(proto: string): string {
 }
 
 export function repoUrl(url: string): string {
-    const parsed = GitUrlParse(url);
+    try {
+        const parsed = GitUrlParse(url);
 
-    if (!supportedSource(parsed)) {
+        if (!supportedSource(parsed)) {
+            return null;
+        }
+
+        return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}`;
+    } catch {
         return null;
     }
-
-    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}`;
 }
 
 export function revisionUrl(url: string, revision: string): string {
