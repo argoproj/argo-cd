@@ -51,8 +51,14 @@ High Availability installation is recommended for production use. Bundle include
 The core installation is most suitable for cluster administrators who indepently use Argo CD and don't need multi-tenancy features. This installation
 includes less components and easier to setup. The bundle does not include API server, UI as well as install non-HA light-weight version of each component.
 
-The end-users need Kubernetes access to manage Argo CD. The `argocd` CLI has to be configured using `argocd login --k8s-api` command. The Web UI is also
-available and can be started using `argocd admin dashboard` command.
+The end-users need Kubernetes access to manage Argo CD. The `argocd` CLI has to be configured using the following commands:
+
+```bash
+kubectl config set-context --current --namespace=argocd # change current kube context to argocd namespace
+argocd login --core
+```
+
+The Web UI is also available and can be started using `argocd admin dashboard` command.
 
 Installation manifests are available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/core-install.yaml).
 
