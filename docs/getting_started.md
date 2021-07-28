@@ -28,7 +28,7 @@ kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
 ```
 
-Use `argocd login --k8s-api` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
+Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
 ## 2. Download Argo CD CLI
 
