@@ -581,7 +581,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), secName, v1.GetOptions{})
 			errors.CheckError(err)
 
-			ConvertSecretData(secret)
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))
 		},
 	}
