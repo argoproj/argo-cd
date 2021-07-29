@@ -162,6 +162,7 @@ func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(text.FirstNonEmpty(logLevel, log.InfoLevel.String()))
 	errors.CheckError(err)
 	os.Setenv(common.EnvLogLevel, level.String())
+	log.SetLevel(level)
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
