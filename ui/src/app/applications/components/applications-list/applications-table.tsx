@@ -2,7 +2,7 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Cluster} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -16,11 +16,19 @@ export const ApplicationsTable = (props: {
     deleteApplication: (appName: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
+    const ctxh = React.useContext(Context);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
     useKeybinding(Key.DOWN, () => navApp(1));
     useKeybinding(Key.UP, () => navApp(-1));
+    useKeybinding(Key.ENTER, () => {
+        if (selectedApp > -1) {
+            ctxh.navigation.goto(`/applications/${props.applications[selectedApp].metadata.name}`);
+            return true;
+        }
+        return false;
+    });
     useKeybinding(Key.ESCAPE, () => {
         reset();
         return selectedApp > -1 ? true : false;
