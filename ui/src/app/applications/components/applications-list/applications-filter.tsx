@@ -34,8 +34,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(
                     selector =>
-                        (app.spec.destination.server && selector.includes(app.spec.destination.server)) ||
-                        (app.spec.destination.name && selector.includes(app.spec.destination.name))
+                        (app.spec.destination.server && selector.match(/\((.*)\)/)[1] === app.spec.destination.server) ||
+                        (app.spec.destination.name && selector.split(' (')[0] === app.spec.destination.name)
                 ),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
@@ -164,7 +164,15 @@ const ProjectFilter = (props: AppFilterProps) => {
 
 const ClusterFilter = (props: AppFilterProps) => {
     const getClusterDetail = (dest: ApplicationDestination, clusterList: Cluster[]): string => {
+        // #6337: fuzzy search on cluster name, exact search for cluster URL
+        // dest.name = 'dev'
+        // target.name = ['dev-1', 'dev-2', 'dev-3]
         const cluster = (clusterList || []).find(target => target.name === dest.name || target.server === dest.server);
+        // const cluster = (clusterList || []).find(target => target.name.includes(dest.name) || target.server === dest.server);
+        // console.log('clusterList:');
+        // console.log(clusterList);
+        // console.log('cluster:');
+        // console.log(cluster);
         if (!cluster) {
             return dest.server || dest.name;
         }
@@ -179,6 +187,9 @@ const ClusterFilter = (props: AppFilterProps) => {
         Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
         props.pref.clustersFilter
     );
+
+    // console.log('clusterOptions:');
+    // console.log(clusterOptions);
 
     return (
         <Filter
