@@ -233,6 +233,38 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
+	if source.Helm != nil && source.Helm.ExternalValueFiles != nil {
+		// load values files from external git repo
+		for _, exVal := range source.Helm.ExternalValueFiles {
+			exRepo := v1alpha1.Repository{Repo: exVal.RepoURL}
+			if helmExternalValueCreds != nil {
+				creds := getRepoCredential(helmExternalValueCreds, exVal.RepoURL)
+				if creds != nil {
+					exRepo.CopyCredentialsFrom(creds)
+				}
+			}
+
+			exGitClient, exRevision, err := s.newClientResolveRevision(&exRepo, exVal.TargetRevision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
+			if err != nil {
+				return err
+			}
+
+			err = DoGitCheckoutOperationForRepoOperation(
+				s,
+				exGitClient,
+				exRevision,
+				settings,
+				cacheFn,
+				nil,
+				verifyCommit,
+				"",
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision)
@@ -245,38 +277,6 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer io.Close(closer)
-
-		if source.Helm != nil && source.Helm.ExternalValueFiles != nil {
-			// load values files from external git repo
-			for _, exVal := range source.Helm.ExternalValueFiles {
-				exRepo := v1alpha1.Repository{Repo: exVal.RepoURL}
-				if helmExternalValueCreds != nil {
-					creds := getRepoCredential(helmExternalValueCreds, exVal.RepoURL)
-					if creds != nil {
-						exRepo.CopyCredentialsFrom(creds)
-					}
-				}
-
-				exGitClient, exRevision, err := s.newClientResolveRevision(&exRepo, exVal.TargetRevision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
-				if err != nil {
-					return err
-				}
-
-				err = DoGitCheckoutOperationForRepoOperation(
-					s,
-					exGitClient,
-					exRevision,
-					settings,
-					cacheFn,
-					nil,
-					verifyCommit,
-					"",
-				)
-				if err != nil {
-					return err
-				}
-			}
-		}
 
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
