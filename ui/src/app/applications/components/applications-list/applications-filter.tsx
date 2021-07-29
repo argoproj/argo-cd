@@ -164,15 +164,7 @@ const ProjectFilter = (props: AppFilterProps) => {
 
 const ClusterFilter = (props: AppFilterProps) => {
     const getClusterDetail = (dest: ApplicationDestination, clusterList: Cluster[]): string => {
-        // #6337: fuzzy search on cluster name, exact search for cluster URL
-        // dest.name = 'dev'
-        // target.name = ['dev-1', 'dev-2', 'dev-3]
         const cluster = (clusterList || []).find(target => target.name === dest.name || target.server === dest.server);
-        // const cluster = (clusterList || []).find(target => target.name.includes(dest.name) || target.server === dest.server);
-        // console.log('clusterList:');
-        // console.log(clusterList);
-        // console.log('cluster:');
-        // console.log(cluster);
         if (!cluster) {
             return dest.server || dest.name;
         }
@@ -187,9 +179,6 @@ const ClusterFilter = (props: AppFilterProps) => {
         Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
         props.pref.clustersFilter
     );
-
-    // console.log('clusterOptions:');
-    // console.log(clusterOptions);
 
     return (
         <Filter
