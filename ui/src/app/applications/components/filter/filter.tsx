@@ -60,6 +60,13 @@ export const Filter = (props: FilterProps) => {
         }
     }, [values]);
 
+    React.useEffect(() => {
+        if (props.selected.length === 0) {
+            setValues({} as {[label: string]: boolean});
+            setInput('');
+        }
+    }, [props.selected.length]);
+
     return (
         <div className={classNames('filter', {'filter--wrap': props.wrap})}>
             <div className='filter__header'>
