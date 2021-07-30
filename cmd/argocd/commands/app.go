@@ -1821,16 +1821,20 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout uint
 	)
 	var command = &cobra.Command{
-		Use:   "rollback APPNAME ID",
-		Short: "Rollback application to a previous deployed version by History ID",
+		Use:   "rollback APPNAME [ID]",
+		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			appName := args[0]
-			depID, err := strconv.Atoi(args[1])
-			errors.CheckError(err)
+			var err error
+			depID := -1
+			if len(args) > 1 {
+				depID, err = strconv.Atoi(args[1])
+				errors.CheckError(err)
+			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1838,19 +1842,27 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.RevisionHistory
-			for _, di := range app.Status.History {
-				if di.ID == int64(depID) {
-					depInfo = &di
-					break
+			if depID == -1 {
+				l := len(app.Status.History)
+				if l < 2 {
+					log.Fatalf("Application '%s' should have at least two successful deployments", app.ObjectMeta.Name)
 				}
-			}
-			if depInfo == nil {
-				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
+				depInfo = &app.Status.History[l-2]
+			} else {
+				for _, di := range app.Status.History {
+					if di.ID == int64(depID) {
+						depInfo = &di
+						break
+					}
+				}
+				if depInfo == nil {
+					log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
+				}
 			}
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
-				ID:    int64(depID),
+				ID:    depInfo.ID,
 				Prune: prune,
 			})
 			errors.CheckError(err)
