@@ -304,9 +304,7 @@ export class PodView extends React.Component<PodViewProps> {
         }
 
         const statusByKey = new Map<string, ResourceStatus>();
-        if (this.props.app) {
-            this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
-        }
+        this.props.app.status?.resources?.forEach(res => statusByKey.set(nodeKey(res), res));
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             // make sure each node has not null/undefined parentRefs field
             rnode.parentRefs = rnode.parentRefs || [];
