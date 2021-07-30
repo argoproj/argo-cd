@@ -33,9 +33,17 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(
-                    selector =>
-                        (app.spec.destination.server && selector.match(/\((.*)\)/)[1] === app.spec.destination.server) ||
-                        (app.spec.destination.name && selector.split(' (')[0] === app.spec.destination.name)
+                    filterString =>
+                        // Select one option from suggestion list
+                        (filterString.includes(' (') &&
+                            ((app.spec.destination.server && filterString.match(/\((.*)\)/)[1] === app.spec.destination.server) ||
+                                (app.spec.destination.name && filterString.split(' (')[0] === app.spec.destination.name))) ||
+                        // Random input
+                        (!filterString.includes(' (') &&
+                            // If random string starts with 'https', use exact search
+                            ((filterString.startsWith('https') && filterString === app.spec.destination.server) ||
+                                // If random string not starts with 'https', use fuzzy search on cluster name
+                                (!filterString.startsWith('https') && app.spec.destination.name && app.spec.destination.name.includes(filterString))))
                 ),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
