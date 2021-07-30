@@ -6,6 +6,7 @@ import {CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
@@ -76,7 +77,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.DryRun || false,
                                         syncStrategy,
                                         resources,
-                                        params.syncOptions
+                                        params.syncOptions,
+                                        params.retryStrategy
                                     );
                                     hide();
                                 } catch (e) {
@@ -111,6 +113,10 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     formApi.setValue('syncOptions', opts);
                                                 }}
                                             />
+                                        </div>
+                                        <div style={{marginBottom: '1em'}}>
+                                            <label>Retry Options</label>
+                                            <ApplicationRetryOptions formApi={formApi}/>
                                         </div>
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
