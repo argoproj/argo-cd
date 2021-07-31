@@ -634,26 +634,43 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.True(t, patched)
 	})
 
-	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
-		app := newFakeAppWithDestMismatch()
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}})
-		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		func() {
-			fakeAppCs.Lock()
-			defer fakeAppCs.Unlock()
+	// Create an Application with a cluster that doesn't exist
+	// Ensure it can be deleted.
+	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
 
+		appTemplate := newFakeAppWithDestName()
+
+		testShouldDelete := func(app *argoappv1.Application) {
+			appObj := kube.MustToUnstructured(&app)
+			ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj): appObj,
+			}})
+
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 			defaultReactor := fakeAppCs.ReactionChain[0]
 			fakeAppCs.ReactionChain = nil
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-		}()
-		_, err := ctrl.finalizeApplicationDeletion(app)
-		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+			_, err := ctrl.finalizeApplicationDeletion(app)
+			assert.NoError(t, err)
+		}
+
+		app1 := appTemplate.DeepCopy()
+		app1.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app1)
+
+		app2 := appTemplate.DeepCopy()
+		app2.Spec.Destination.Name = "invalid"
+		testShouldDelete(app2)
+
+		app3 := appTemplate.DeepCopy()
+		app3.Spec.Destination.Name = "invalid"
+		app3.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app3)
+
 	})
+
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation

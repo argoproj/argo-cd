@@ -37,7 +37,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     return (
         ((externalLinks || []).length > 0 && (
-            <span>
+            <div className='applications-list__external-links-icon-container'>
                 <a
                     title={externalLinks[0].title}
                     onClick={e => {
@@ -55,7 +55,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                         />
                     )}
                 </a>
-            </span>
+            </div>
         )) ||
         null
     );

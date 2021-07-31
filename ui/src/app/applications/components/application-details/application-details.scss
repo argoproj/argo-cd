@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 $header: 120px;
 
@@ -188,5 +189,18 @@ $header: 120px;
 
     &__commit-message {
         line-height: 1.5em;
+    }
+
+    @include breakpoint(xxlarge up) {
+        .filters-group {
+            position: fixed;
+            padding-right: 1.5em;
+            max-height: calc(100vh - 200px);
+            overflow: hidden;
+        }
+    
+        .filters-group:hover {
+            overflow-y: auto;
+        }
     }
 }

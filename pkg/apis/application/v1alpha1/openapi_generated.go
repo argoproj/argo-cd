@@ -1448,6 +1448,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "int64",
 						},
 					},
+					"clusterResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
@@ -2721,7 +2728,7 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 					},
 					"policies": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+							Description: "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

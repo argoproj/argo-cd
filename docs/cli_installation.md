@@ -64,7 +64,7 @@ After finishing either of the instructions above, you should now be able to run 
 
 ## Windows
 
-### Download With Powershell: Invoke-WebRequest
+### Download With PowerShell: Invoke-WebRequest
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 

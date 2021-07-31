@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -112,9 +113,11 @@ type ClientOptions struct {
 	UserAgent            string
 	GRPCWeb              bool
 	GRPCWebRootPath      string
+	Core                 bool
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
 }
 
@@ -199,7 +202,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace, opts.KubeOverrides)
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +258,15 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
-	c.httpClient = &http.Client{}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+	}
+
 	if !c.PlainText {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
@@ -268,10 +279,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if !c.GRPCWeb {
 		//test if we need to set it to true
 		//if a call to grpc failed, then try again with GRPCWeb
-		conn, versionIf := c.NewVersionClientOrDie()
-		defer argoio.Close(conn)
-
-		_, err := versionIf.Version(context.Background(), &empty.Empty{})
+		conn, versionIf, err := c.NewVersionClient()
+		if err == nil {
+			defer argoio.Close(conn)
+			_, err = versionIf.Version(context.Background(), &empty.Empty{})
+		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()

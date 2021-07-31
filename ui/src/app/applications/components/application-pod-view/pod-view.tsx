@@ -140,7 +140,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </Moment>
                                                                 </div>
                                                             ) : null}
-                                                            {group.info.map(infoItem => (
+                                                            {group.info?.map(infoItem => (
                                                                 <div key={infoItem.name}>{infoItem.value}</div>
                                                             ))}
                                                         </div>
@@ -168,7 +168,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
-                                                                                        enabled: false
+                                                                                        enabled: true
                                                                                     },
                                                                                     flip: {
                                                                                         enabled: false
@@ -304,9 +304,7 @@ export class PodView extends React.Component<PodViewProps> {
         }
 
         const statusByKey = new Map<string, ResourceStatus>();
-        if (this.props.app) {
-            this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
-        }
+        this.props.app.status?.resources?.forEach(res => statusByKey.set(nodeKey(res), res));
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             // make sure each node has not null/undefined parentRefs field
             rnode.parentRefs = rnode.parentRefs || [];
@@ -344,7 +342,7 @@ export class PodView extends React.Component<PodViewProps> {
             } as Pod;
 
             // Get node name for Pod
-            rnode.info.forEach(i => {
+            rnode.info?.forEach(i => {
                 if (i.name === 'Node') {
                     p.spec.nodeName = i.value;
                 }
@@ -363,7 +361,10 @@ export class PodView extends React.Component<PodViewProps> {
                             kind: 'node',
                             name: 'Unschedulable',
                             pods: [p],
-                            info: [{name: 'Kernel Version', value: 'N/A'}, {name: 'OS/Arch', value: 'N/A'}],
+                            info: [
+                                {name: 'Kernel Version', value: 'N/A'},
+                                {name: 'OS/Arch', value: 'N/A'}
+                            ],
                             hostResourcesInfo: []
                         };
                     }

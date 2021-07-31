@@ -5,7 +5,7 @@
     - [Config Management Tools Integrations (proposal)](#config-management-tools-integrations-proposal)
     - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
     - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
-    - [Headless Argo CD (aka GitOps Agent) (proposal)](#headless-argo-cd-aka-gitops-agent-proposal)
+    - [Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
   - [v2.2 and beyond](#v22-and-beyond)
     - [Application Details Page Usability](#application-details-page-usability)
     - [Cluster Management User Interface](#cluster-management-user-interface)
@@ -42,10 +42,10 @@ via Git repository.
 The feature streamlines the process of adding repositories and clusters to the project and makes it self-service.
 Instead of asking an administrator to change Argo CD settings end users can perform the change independently.
 
-### Headless Argo CD (aka GitOps Agent) ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
+### Core Argo CD ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
 
-Headless Argo CD allows to installation and use of lightweight Argo CD that includes only the backend without exposing the API or UI.
-The Headless Argo CD provides a better experience to users who need only core Argo CD features and don't want to deal with multi-tenancy features.
+Core Argo CD allows to installation and use of lightweight Argo CD that includes only the backend without exposing the API or UI.
+The Core Argo CD provides a better experience to users who need only core Argo CD features and don't want to deal with multi-tenancy features.
 
 ## v2.2 and beyond
 
@@ -116,7 +116,7 @@ That includes more metrics, out of the box alerts and a cluster management user 
 ### Argo CD Notifications
 
 [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) provides the ability to notify users about Argo CD Application
-changes as well as implement integrations such as update Github commit status, trigger Jenkins job, set Grafana label, etc.
+changes as well as implement integrations such as update GitHub commit status, trigger Jenkins job, set Grafana label, etc.
 
 ### Automated Registry Monitoring
 
