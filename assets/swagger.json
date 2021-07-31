@@ -2648,7 +2648,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListApps returns list of apps in the repe",
+        "summary": "ListApps returns list of apps in the repo",
         "operationId": "RepositoryService_ListApps",
         "parameters": [
           {
@@ -2856,6 +2856,12 @@
             "type": "string",
             "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
             "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
             "in": "query"
           }
         ],
@@ -5100,6 +5106,10 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "clusterResources": {
+          "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+          "type": "boolean"
+        },
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
@@ -5705,7 +5715,7 @@
         },
         "policies": {
           "type": "array",
-          "title": "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+          "title": "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
           "items": {
             "type": "string"
           }
@@ -5835,6 +5845,10 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
         },
         "repo": {
           "type": "string",

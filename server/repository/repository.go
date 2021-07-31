@@ -118,6 +118,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		GithubAppId:                repo.GithubAppId,
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+		Proxy:                      repo.Proxy,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
@@ -148,6 +149,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Insecure:  repo.IsInsecure(),
 				EnableLFS: repo.EnableLFS,
 				EnableOCI: repo.EnableOCI,
+				Proxy:     repo.Proxy,
 			})
 		}
 	}
@@ -389,6 +391,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GithubAppId:                q.GithubAppID,
 		GithubAppInstallationId:    q.GithubAppInstallationID,
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
+		Proxy:                      q.Proxy,
 	}
 
 	var repoCreds *appsv1.RepoCreds

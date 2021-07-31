@@ -265,7 +265,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		},
 	}
 	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "",
-		"Duration before the token will expire, eg \"12h\", \"7d\". (Default: No expiration)",
+		"Duration before the token will expire, e.g. \"12h\", \"7d\". (Default: No expiration)",
 	)
 	command.Flags().StringVarP(&tokenID, "id", "i", "", "Token unique identifier. (Default: Random UUID)")
 	command.Flags().BoolVarP(&outputTokenOnly, "token-only", "t", false, "Output token only - for use in scripts.")

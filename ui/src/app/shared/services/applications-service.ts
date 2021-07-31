@@ -1,5 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
+import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import requests from './requests';
@@ -56,7 +57,7 @@ export class ApplicationsService {
     }
 
     public watchResourceTree(name: string): Observable<models.ApplicationTree> {
-        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map(data => JSON.parse(data).result as models.ApplicationTree);
+        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
     public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -146,13 +147,15 @@ export class ApplicationsService {
         const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
-            .repeat()
-            .retry()
-            .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
-            .map(watchEvent => {
-                watchEvent.application = this.parseAppFields(watchEvent.application);
-                return watchEvent;
-            });
+            .pipe(repeat())
+            .pipe(retry())
+            .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
+            .pipe(
+                map(watchEvent => {
+                    watchEvent.application = this.parseAppFields(watchEvent.application);
+                    return watchEvent;
+                })
+            );
     }
 
     public sync(
@@ -180,7 +183,7 @@ export class ApplicationsService {
     public getDownloadLogsURL(applicationName: string, namespace: string, podName: string, resource: {group: string; kind: string; name: string}, containerName: string): string {
         const search = this.getLogsQuery(namespace, podName, resource, containerName, null, false);
         search.set('download', 'true');
-        return `/api/v1/applications/${applicationName}/logs?${search.toString()}`;
+        return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 
     public getContainerLogs(
@@ -195,7 +198,7 @@ export class ApplicationsService {
         filter?: string
     ): Observable<models.LogEntry> {
         const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter);
-        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(

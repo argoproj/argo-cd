@@ -66,12 +66,31 @@ function isGenerationObserved(obj)
   return observedGeneration == obj.metadata.generation
 end
 
+-- isWorkloadGenerationObserved determines if the referenced workload's generation spec has been
+-- observed by the controller. This only applies to v1.1 rollout
+function isWorkloadGenerationObserved(obj)
+  if obj.spec.workloadRef == nil or obj.metadata.annotations == nil then
+    -- rollout is v1.0 or earlier
+    return true
+  end
+  workloadGen = tonumber(obj.metadata.annotations["rollout.argoproj.io/workload-generation"])
+  observedWorkloadGen = tonumber(obj.status.workloadObservedGeneration)
+  return workloadGen == observedWorkloadGen
+end
+
 hs = {}
-if not isGenerationObserved(obj) then
+if not isGenerationObserved(obj) or not isWorkloadGenerationObserved(obj) then
   hs.status = "Progressing"
   hs.message = "Waiting for rollout spec update to be observed"
   return hs
-end  
+end
+
+-- Argo Rollouts v1.0 has been improved to record a phase/message in status, which Argo CD can blindly surface
+if obj.status.phase ~= nil then
+  hs.status = obj.status.phase
+  hs.message = obj.status.message
+  return hs
+end
 
 for _, condition in ipairs(obj.status.conditions) do
   if condition.type == "InvalidSpec" then

@@ -21,8 +21,8 @@ const (
 	fakeNamespace = "fake-ns"
 )
 
-func Test_serverToSecretName(t *testing.T) {
-	name, err := ServerToSecretName("http://foo")
+func Test_URIToSecretName(t *testing.T) {
+	name, err := URIToSecretName("cluster", "http://foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
 }

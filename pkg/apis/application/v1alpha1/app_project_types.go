@@ -275,7 +275,7 @@ func (p *AppProject) normalizePolicy(policy string) string {
 	return normalizedPolicy
 }
 
-// ProjectPoliciesString returns a Casbin formated string of a project's policies for each role
+// ProjectPoliciesString returns a Casbin formatted string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {

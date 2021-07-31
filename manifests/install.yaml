@@ -2418,7 +2418,7 @@ spec:
                       description: Name is a name for this role
                       type: string
                     policies:
-                      description: Policies Stores a list of casbin formated strings
+                      description: Policies Stores a list of casbin formatted strings
                         that define access policies for the role in the project
                       items:
                         type: string
@@ -3102,7 +3102,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:6.2.1-alpine
+        image: redis:6.2.4-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -3324,8 +3324,6 @@ spec:
       containers:
       - command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
@@ -3682,8 +3680,13 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd
+          name: argocd-home
+        workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
+      - emptyDir: {}
+        name: argocd-home
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3731,7 +3734,7 @@ spec:
     - namespaceSelector: {}
     ports:
     - port: 5558
-    - protocol: TCP
+      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
@@ -3776,6 +3779,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-notifications-controller
     ports:
     - port: 8081
       protocol: TCP

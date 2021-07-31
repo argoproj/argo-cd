@@ -44,3 +44,5 @@ $KUSTOMIZE build "${SRCROOT}/manifests/ha/cluster-install" >> "${SRCROOT}/manife
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/namespace-install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/manifests/ha/namespace-install.yaml"
 
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/core-install" >> "${SRCROOT}/manifests/core-install.yaml"

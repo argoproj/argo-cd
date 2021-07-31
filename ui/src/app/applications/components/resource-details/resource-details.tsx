@@ -95,7 +95,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 </div>
                                 <div className='columns small-9 medium-10'>
                                     <PodsLogsViewer
-                                        podName={podState.metadata.name || ''}
+                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
                                         group={node.group}
                                         kind={node.kind}
                                         name={node.name}

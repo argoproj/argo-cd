@@ -21,10 +21,3 @@ jobs:
         run: |
           pip install -r docs/requirements.txt
           mkdocs build
-      - name: deploy
-        if: ${{ github.event_name == 'push' }}
-        uses: peaceiris/actions-gh-pages@v2.5.0
-        env:
-          PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-          PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: ./site

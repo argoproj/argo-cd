@@ -3,7 +3,8 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
-import {BehaviorSubject, Observable, Observer, Subscription} from 'rxjs';
+import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime} from 'rxjs/operators';
 import {AppContext} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -165,7 +166,17 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
-export const ComparisonStatusIcon = ({status, resource, label}: {status: appModels.SyncStatusCode; resource?: {requiresPruning?: boolean}; label?: boolean}) => {
+export const ComparisonStatusIcon = ({
+    status,
+    resource,
+    label,
+    noSpin
+}: {
+    status: appModels.SyncStatusCode;
+    resource?: {requiresPruning?: boolean};
+    label?: boolean;
+    noSpin?: boolean;
+}) => {
     let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
@@ -186,7 +197,7 @@ export const ComparisonStatusIcon = ({status, resource, label}: {status: appMode
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = 'fa fa-circle-notch fa-spin';
+            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
     }
     return (
@@ -309,7 +320,7 @@ export function renderResourceMenu(
     let menuItems: Observable<ActionMenuItem[]>;
 
     if (isAppNode(resource) && resource.name === application.metadata.name) {
-        menuItems = Observable.from([getApplicationActionMenu()]);
+        menuItems = from([getApplicationActionMenu()]);
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
@@ -360,7 +371,7 @@ export function renderResourceMenu(
                 )
             )
             .catch(() => items);
-        menuItems = Observable.merge(Observable.from([items]), Observable.fromPromise(resourceActions));
+        menuItems = merge(from([items]), from(resourceActions));
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -420,7 +431,7 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
-export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
+export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
@@ -439,7 +450,7 @@ export const HealthStatusIcon = ({state}: {state: appModels.HealthStatus}) => {
             break;
         case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
-            icon = 'fa fa-circle-notch fa-spin';
+            icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
         case appModels.HealthStatuses.Missing:
             color = COLORS.health.missing;
@@ -849,16 +860,20 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
         };
         const start = () => {
             ensureUnsubscribed();
-            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
+            subscription = src().subscribe(
+                (item: T) => observer.next(item),
+                err => observer.error(err),
+                () => observer.complete()
+            );
         };
 
         if (!document.hidden) {
             start();
         }
 
-        const visibilityChangeSubscription = Observable.fromEvent(document, 'visibilitychange')
+        const visibilityChangeSubscription = fromEvent(document, 'visibilitychange')
             // wait until user stop clicking back and forth to avoid restarting observable too often
-            .debounceTime(500)
+            .pipe(debounceTime(500))
             .subscribe(() => {
                 if (document.hidden && subscription) {
                     ensureUnsubscribed();
