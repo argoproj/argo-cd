@@ -1344,6 +1344,9 @@ func isTheSelectedOne(currentNode *appv1.ResourceNode, q *application.Applicatio
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*appv1.Application, error) {
+
+	fmt.Print("SYNC EXECUTED")
+
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
 	a, err := appIf.Get(ctx, *syncReq.Name, metav1.GetOptions{})
 	if err != nil {
