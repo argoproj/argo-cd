@@ -46,11 +46,11 @@ APIMACHINERY_PKGS=(
 export GO111MODULE=on
 [ -e ./v2 ] || ln -s . v2
 
-# ${PROJECT_ROOT}/dist/go-to-protobuf \
-#     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
-#     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-#     --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
-#     --proto-import=./vendor
+${PROJECT_ROOT}/dist/go-to-protobuf \
+    --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
+    --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
+    --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
+    --proto-import=./vendor
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
