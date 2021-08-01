@@ -1816,7 +1816,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 }
 
 func findRevisionHistory(application *argoappv1.Application, historyId int64) (*argoappv1.RevisionHistory, error) {
-	// in case if history id not passed and should be used previous one
+	// in case if history id not passed and need fetch previous history revision
 	if historyId == -1 {
 		l := len(application.Status.History)
 		if l < 1 {
