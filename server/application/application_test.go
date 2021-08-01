@@ -187,7 +187,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		settingsMgr,
 		projInformer,
 	)
-	return server.(*Server)
+	return server
 }
 
 const fakeApp = `
