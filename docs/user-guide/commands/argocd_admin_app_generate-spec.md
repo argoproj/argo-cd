@@ -51,6 +51,7 @@ argocd admin app generate-spec APPNAME [flags]
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
       --helm-version string                        Helm version
   -h, --help                                       help for generate-spec
+  -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)
@@ -94,10 +95,10 @@ argocd admin app generate-spec APPNAME [flags]
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
-      --headless                        If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --logformat string                Set the logging format. One of: text|json (default "text")

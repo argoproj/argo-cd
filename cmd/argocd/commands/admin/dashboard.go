@@ -23,7 +23,7 @@ func NewDashboardCommand() *cobra.Command {
 			<-context.Background().Done()
 		},
 	}
-	clientOpts := &apiclient.ClientOptions{Headless: true}
+	clientOpts := &apiclient.ClientOptions{Core: true}
 	headless.InitCommand(cmd, clientOpts, &port)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
 	return cmd

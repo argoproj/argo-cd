@@ -1,5 +1,91 @@
 # Changelog
 
+## v2.1.0 (Unreleased)
+
+> [Upgrade instructions](./docs/operator-manual/upgrading/2.0-2.1.md)
+
+### Argo CD Core
+
+Argo CD Core - lightweight Argo CD distribution that packages only core GitOps features and relies
+on Kubernetes API/RBAC to power UI and CLI.
+
+### Core Features
+
+* The synchronization process became much much faster and requires significantly less memory.
+* An additional caching that ensures that each repository's target revisions are queried only once per
+  reconciliation cycle. This dramatically reduces the number of Git requests.
+* Improved Diffing Customizations: use JQ path expressions to exclude required fields from the diffing.
+* Health assessment support for new CRDs: introduced health assessment of CRDs from trident.netapp.io,
+  elasticsearch.k8s.elastic.co, cluster.x-k8s.io, and minio.min.io API groups.
+
+### Improved Settings
+
+A set of changes had been implemented to simplify configuring Argo CD.
+
+* Simplified Repository Registration: you no longer need to modify the argocd-cm ConfigMap to register a
+  new Git or Helm repository.
+* Enhanced Resource Customizations: the resource.customizations key has been deprecated in favor of
+  a separate ConfigMap key per resource.
+* Reference secret values from any Kubernetes secret: starting v2.1 you can use sensitive data stored in 
+  any Kubernetes secret to configure Argo CD.
+* Simplify parametrization of Argo CD server processes: an additional optional ConfigMap argocd-cmd-params-cm
+  has been introduced.
+
+### Refreshed User Interface
+
+* Enhanced and more consistent filters on Applications List and Applications Details pages.
+* Status bar on the Application List page.
+* The redesigned search box on the Application List page and more.
+
+### The argocd-util CLI deprecation
+
+The argocd CLI and now available under argocd admin subcommand.
+
+## v2.0.5 (2021-07-22)
+
+* fix: allow argocd-notification ingress to repo-server (#6746)
+* fix: argocd-server crashes due to nil pointer dereference (#6757)
+* fix: WebUI failure when loading pod view 't.parentRefs is undefined' (#6490) (#6535)
+* fix: prevent 'cannot read property "filter" of undefined' during nodes filtering (#6453)
+* fix: download Pod Logs button not honouring argocd-server rootpath (#6548) (#6627)
+* fix: Version warning banner in docs (#6682)
+* fix: upgrade gitops engine to fix workflow health check
+
+## v2.0.4 (2021-06-22)
+
+* fix: typo in networkPolicy definition in manifests (#6532)
+* fix: Update redis to 6.2.4 (#6475)
+* fix: allows access to dex metrics from any pod (#6420)
+* fix: add client side retry to prevent 'transport is closing' errors (#6402)
+* fix: Update documentation Argocd app CRD health with app of apps (#6281)
+* fix(ui): Crash on application pod view (#6384)
+* chore: pin mkdocs version to fix docs build (#6421)
+* chore: regenerate manifests using codegen (#6422)
+* refactor: use RLock and RUnlock for project to improve performance (#6225)
+* chore: Update Golang to v1.16.4 (#6358)
+
+## v2.0.3 (2021-05-27)
+
+### Bug Fixes
+
+* fix: add missing --container flag to 'argocd app logs' command (#6320)
+* fix: grpc web proxy must ensure to read full header (#6319)
+* fix: controller should refresh app before running sync operation (#6294)
+
+## v2.0.2 (2021-05-20)
+
+### Bug Fixes
+
+* fix: enable access to metrics port in embedded network policies (#6277)
+* fix: display log streaming error in logs viewer (#6100) (#6273)
+* fix: Don't count errored or completed neighbor pods toward resource consumption (#6259)
+* fix: Enable kex algo diffie-hellman-group-exchange-sha256 for go-git ssh (#6256)
+* fix: copy github app key from repocreds (#6140, #6197)
+* fix(ui): UI crashes after reinstalling ArgoCD (#6218)
+* fix: add network policies to restrict traffic flow between argocd components (#6156)
+* fix: Revert "feat: Add health checks for kubernetes-external-secrets (#5435)"
+* chore: Allow ingress traffic to argocd-server by default (#6179)
+
 ## v2.0.1 (2021-04-15)
 
 ### Bug Fixes
