@@ -78,7 +78,7 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 
-			_, _, err = clientConfig.Namespace()
+			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
@@ -126,7 +126,7 @@ func NewCommand() *cobra.Command {
 				Insecure:            insecure,
 				ListenPort:          listenPort,
 				MetricsPort:         metricsPort,
-				Namespace:           "demo",
+				Namespace:           namespace,
 				BaseHRef:            baseHRef,
 				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,

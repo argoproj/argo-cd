@@ -73,7 +73,6 @@ var (
 
 // Server provides a Application service
 type Server struct {
-	events.UnimplementedEventingServer
 	ns             string
 	kubeclientset  kubernetes.Interface
 	appclientset   appclientset.Interface
