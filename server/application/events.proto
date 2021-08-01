@@ -10,10 +10,13 @@ package generic;
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
 
 // Eventing service
 service Eventing {
-    rpc StartEventSource(EventSource) returns (stream Event);
+    rpc StartEventSource(EventSource) returns (stream Event) {
+		option (google.api.http).get = "/api/v1/stream/events";
+	}
 }
 
 message EventSource {
