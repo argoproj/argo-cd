@@ -61,7 +61,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     useKeybinding(Key.UP, () => navApp(-1 * appsPerRow));
 
     useKeybinding(Key.ENTER, () => {
-        if (selectedApp > -1) {
+        if (selectedApp > -1 && (document.activeElement === document.body || document.activeElement === null)) {
             ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
             return true;
         }
