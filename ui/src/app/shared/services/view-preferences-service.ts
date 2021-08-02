@@ -14,6 +14,7 @@ export interface AppDetailsPreferences {
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    wrapLines: boolean;
 }
 
 export interface PodViewPreferences {
@@ -84,7 +85,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false
     },
     appList: {
         view: 'tiles' as AppsListViewType,

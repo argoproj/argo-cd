@@ -113,7 +113,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
                                 disabled: page.number > 0
                             })}
-                            style={{width: '110px'}}
+                            style={{width: '103px'}}
                             onClick={() => {
                                 if (page.number > 0) {
                                     return;
@@ -126,6 +126,14 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 loader.reload();
                             }}>
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
+                        </button>
+                        <button
+                            className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
+                            onClick={() => {
+                                const wrap = prefs.appDetails.wrapLines;
+                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
+                            }}>
+                            WRAP
                         </button>
                         <button
                             className='argo-button argo-button--base-o'
@@ -284,7 +292,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                             />
                                         </Tooltip>
                                     )}
-                                    <pre style={{height: '95%'}}>
+                                    <pre style={{height: '95%', whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'}}>
                                         <div ref={top} style={{height: '1px'}} />
                                         {lines.map((l, i) => {
                                             const lineNum = lastLine - i;
