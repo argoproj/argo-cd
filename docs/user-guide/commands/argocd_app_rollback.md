@@ -1,6 +1,6 @@
 ## argocd app rollback
 
-Rollback application to a previous deployed version by History ID
+Rollback application to a previous deployed version by History ID, omitted will rollback to previous version
 
 ```
 argocd app rollback APPNAME ID [flags]
