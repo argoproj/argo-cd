@@ -154,7 +154,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         title='Application Details'
                                         toolbar={{
                                             breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
-                                            actionMenu: {items: this.getApplicationActionMenu(application)},
+                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
@@ -230,7 +230,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application)
+                                                                    this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
                                                             tree={tree}
@@ -249,7 +249,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         onItemClick={fullName => this.selectNode(fullName)}
                                                         nodeMenu={node =>
                                                             AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application)
+                                                                this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
                                                     />
@@ -272,7 +272,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                                 tree,
                                                                                 this.appContext,
                                                                                 this.appChanged,
-                                                                                () => this.getApplicationActionMenu(application)
+                                                                                () => this.getApplicationActionMenu(application, false)
                                                                             )
                                                                         }
                                                                     />
@@ -376,48 +376,49 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         );
     }
 
-    private getApplicationActionMenu(app: appModels.Application) {
+    private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+        const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-large'>App Details</span>,
+                title: <ActionMenuItem actionLabel='App Details' />,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <span className='show-for-large'>App Diff</span>,
+                title: <ActionMenuItem actionLabel='App Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: <span className='show-for-large'>Sync</span>,
+                title: <ActionMenuItem actionLabel='Sync' />,
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <span className='show-for-large'>Sync Status</span>,
+                title: <ActionMenuItem actionLabel='Sync Status' />,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <span className='show-for-large'>History and rollback</span>,
+                title: <ActionMenuItem actionLabel='History and rollback' />,
                 action: () => this.setRollbackPanelVisible(0),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
-                title: <span className='show-for-large'>Delete</span>,
+                title: <ActionMenuItem actionLabel='Delete' />,
                 action: () => this.deleteApplication()
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
-                        <span className='show-for-large'>Refresh</span>{' '}
+                        <ActionMenuItem actionLabel='Refresh' />{' '}
                         <DropDownMenu
                             items={[
                                 {
