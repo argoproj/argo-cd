@@ -2228,3 +2228,14 @@ func TestRemoveEnvEntry(t *testing.T) {
 		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
 }
+
+func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
+	settings := OrphanedResourcesMonitorSettings{}
+	assert.False(t, settings.IsWarn())
+
+	settings.Warn = pointer.BoolPtr(false)
+	assert.False(t, settings.IsWarn())
+
+	settings.Warn = pointer.BoolPtr(true)
+	assert.True(t, settings.IsWarn())
+}
