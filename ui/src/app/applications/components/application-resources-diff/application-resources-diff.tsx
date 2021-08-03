@@ -23,7 +23,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                         b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
-                        name: (state.group || '') + '/' + state.kind + '/' + state.namespace + '/' + state.name
+                        name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name
                     };
                 })
                 .filter(i => !i.hook)
