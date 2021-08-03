@@ -66,7 +66,7 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
 	assert.NotNil(t, proj.Spec.OrphanedResources)
-	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
+	assert.False(t, proj.Spec.OrphanedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
 
