@@ -126,3 +126,10 @@ syncOptions:
 ```
 
 If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+```
