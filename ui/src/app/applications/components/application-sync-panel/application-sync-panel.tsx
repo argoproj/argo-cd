@@ -114,10 +114,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 }}
                                             />
                                         </div>
-                                        <div style={{marginBottom: '1em'}}>
-                                            <label>Retry Options</label>
-                                            <ApplicationRetryOptions formApi={formApi}/>
-                                        </div>
+                                        
+                                        <ApplicationRetryOptions formApi={formApi}/>
+
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
                                             <a
