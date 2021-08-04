@@ -1819,7 +1819,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 	if historyId == -1 {
 		l := len(application.Status.History)
 		if l < 1 {
-			return nil, goerror.New(fmt.Sprintf("Application %q does not rollback to previous version", application.ObjectMeta.Name))
+			return nil, fmt.Errorf("Application %q does not rollback to previous version", application.ObjectMeta.Name)
 		}
 		return &application.Status.History[l-2], nil
 	}
@@ -1828,7 +1828,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 			return &di, nil
 		}
 	}
-	return nil, goerror.New(fmt.Sprintf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId))
+	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId)
 }
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command

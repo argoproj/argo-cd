@@ -1,8 +1,9 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
