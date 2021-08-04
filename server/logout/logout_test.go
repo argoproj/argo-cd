@@ -35,7 +35,7 @@ var (
 	nonOidcToken                         = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MDU1NzQyMTIsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTYwNTU3NDIxMiwic3ViIjoiYWRtaW4ifQ.zDJ4piwWnwsHON-oPusHMXWINlnrRDTQykYogT7afeE"
 	expectedNonOIDCLogoutURL             = "http://localhost:4000"
 	expectedOIDCLogoutURL                = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL
-	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + rootPath
+	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + "/" + rootPath
 )
 
 func TestConstructLogoutURL(t *testing.T) {
