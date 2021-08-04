@@ -149,10 +149,12 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 							continue
 						}
 						if hosts := tlsline["hosts"]; hosts != nil {
-							tlshosts := tlsline["hosts"].(map[string]interface{})
-							for j := range tlshosts {
-								if tlshosts[j] == host {
-									stringPort = "https"
+							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							if ok {
+								for j := range tlshosts {
+									if tlshosts[j] == host {
+										stringPort = "https"
+									}
 								}
 							}
 						}
