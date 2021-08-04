@@ -675,7 +675,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 				for _, env := range pluginEnvs {
 					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
-					if err != nil {
+					if err == nil {
 						updated = true
 					}
 				}
