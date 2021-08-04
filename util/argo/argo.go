@@ -586,7 +586,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 			}
 		}
 		if !matchMe {
-			break
+			continue
 		}
 		//If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)

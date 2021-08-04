@@ -324,6 +324,10 @@ export function renderResourceMenu(
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
+            {
+                title: 'Details',
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+            },
             ...((isRoot && [
                 {
                     title: 'Sync',

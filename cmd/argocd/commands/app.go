@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"encoding/json"
-	goerror "errors"
 	"fmt"
 	"io"
 	"os"
@@ -1839,20 +1838,16 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout uint
 	)
 	var command = &cobra.Command{
-		Use:   "rollback APPNAME [ID]",
-		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
+		Use:   "rollback APPNAME ID",
+		Short: "Rollback application to a previous deployed version by History ID",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			appName := args[0]
-			var err error
-			depID := -1
-			if len(args) > 1 {
-				depID, err = strconv.Atoi(args[1])
-				errors.CheckError(err)
-			}
+			depID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)

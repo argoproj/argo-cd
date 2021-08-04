@@ -38,6 +38,7 @@ $header: 120px;
         position: fixed;
         top: $header + 100px;
         right: 60px;
+        z-index: 1;
     }
 
     &__refreshing-label {

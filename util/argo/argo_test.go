@@ -758,3 +758,89 @@ func TestFilterByName(t *testing.T) {
 		assert.Len(t, res, 0)
 	})
 }
+
+func TestGetGlobalProjects(t *testing.T) {
+	t.Run("Multiple global projects", func(t *testing.T) {
+		namespace := "default"
+
+		cm := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"globalProjects": `
+ - projectName: default-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: Exists
+ - projectName: default-non-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: DoesNotExist
+`,
+			},
+		}
+
+		defaultX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
+			Spec: argoappv1.AppProjectSpec{
+				ClusterResourceWhitelist: []metav1.GroupKind{
+					{Group: "*", Kind: "*"},
+				},
+				ClusterResourceBlacklist: []metav1.GroupKind{
+					{Kind: "Volume"},
+				},
+			},
+		}
+
+		defaultNonX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
+			Spec: argoappv1.AppProjectSpec{
+				ClusterResourceBlacklist: []metav1.GroupKind{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+
+		isX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "is-x",
+				Namespace: namespace,
+				Labels: map[string]string{
+					"is-x": "yep",
+				},
+			},
+		}
+
+		isNoX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "is-no-x", Namespace: namespace},
+		}
+
+		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+		informer := v1alpha1.NewAppProjectInformer(projClientset, namespace, 0, indexers)
+		go informer.Run(ctx.Done())
+		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+		kubeClient := fake.NewSimpleClientset(&cm)
+		settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+
+		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
+
+		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
+		assert.Len(t, xGlobalProjects, 1)
+		assert.Equal(t, xGlobalProjects[0].Name, "default-x")
+
+		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
+		assert.Len(t, nonXGlobalProjects, 1)
+		assert.Equal(t, nonXGlobalProjects[0].Name, "default-non-x")
+	})
+}
