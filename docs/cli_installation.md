@@ -14,6 +14,8 @@ brew install argocd
 
 #### Download latest version
 
+⚠️ maybe you will have to write `sudo ...` before the commands.
+
 ```bash
 curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 chmod +x /usr/local/bin/argocd
