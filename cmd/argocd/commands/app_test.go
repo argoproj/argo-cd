@@ -74,7 +74,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 		t.Fatal("History should be empty")
 	}
 
-	if err.Error() != "Application \"\" does not rollback to previous version" {
+	if err.Error() != "Application '' should have at least two successful deployments" {
 		t.Fatal("Find revision history should fail with correct error message")
 	}
 

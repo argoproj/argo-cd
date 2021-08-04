@@ -1818,8 +1818,8 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 	// in case if history id not passed and need fetch previous history revision
 	if historyId == -1 {
 		l := len(application.Status.History)
-		if l < 1 {
-			return nil, fmt.Errorf("Application %q does not rollback to previous version", application.ObjectMeta.Name)
+		if l < 2 {
+			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.ObjectMeta.Name)
 		}
 		return &application.Status.History[l-2], nil
 	}
