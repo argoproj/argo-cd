@@ -32,11 +32,16 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             clusters:
                 pref.clustersFilter.length === 0 ||
-                pref.clustersFilter.some(
-                    selector =>
-                        (app.spec.destination.server && selector.includes(app.spec.destination.server)) ||
-                        (app.spec.destination.name && selector.includes(app.spec.destination.name))
-                ),
+                pref.clustersFilter.some(filterString => {
+                    const match = filterString.match('^(.*) [(](http.*)[)]$');
+                    if (match?.length === 3) {
+                        const [, name, url] = match;
+                        return url === app.spec.destination.server || name === app.spec.destination.name;
+                    } else {
+                        const inputMatch = filterString.match('^http.*$');
+                        return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
+                    }
+                }),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
     }));
