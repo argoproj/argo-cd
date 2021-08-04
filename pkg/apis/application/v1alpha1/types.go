@@ -1607,7 +1607,7 @@ type OrphanedResourceKey struct {
 
 // IsWarn returns true if warnings are enabled for orphan resources monitoring
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
-	return s.Warn == nil || *s.Warn
+	return s.Warn != nil && *s.Warn
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with

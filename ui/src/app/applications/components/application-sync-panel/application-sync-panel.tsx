@@ -2,11 +2,11 @@ import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {CheckboxField, Spinner} from '../../../shared/components';
+import {ARGO_WARNING_COLOR, CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 require('./application-sync-panel.scss');
@@ -58,6 +58,19 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 let resources = appResources.filter((_, i) => params.resources[i]);
                                 if (resources.length === appResources.length) {
                                     resources = null;
+                                }
+
+                                const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
+                                if (replace) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
                                 }
 
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
