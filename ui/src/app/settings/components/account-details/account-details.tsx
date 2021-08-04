@@ -48,7 +48,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                             <Form
                                 onSubmit={async (params, event, api) => {
                                     const expiresIn = convertExpiresInToSeconds(params.expiresIn);
-                                    const confirmed = await ctx.popup.confirm('Generate new token?', 'Are you sure you want to generate new token?');
+                                    const confirmed = await ctx.popup.confirm('Generate new token', 'Are you sure you want to generate a new token?');
                                     if (!confirmed) {
                                         return;
                                     }
