@@ -380,7 +380,7 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 
 ### Sensitive Data and SSO Client Secrets
 
-You can use the `argocd-secret` t\o store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
+You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
 * Any values which start with `$` will :
   - If value is in form of `$<secret>:a.key.in.k8s.secret`, look to a key in K8S `<secret>` of the same name (minus the `$`), and reads it value.
   - Otherwise, look to a key in `argocd-secret` of the same name (minus the `$`),
