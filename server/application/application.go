@@ -885,6 +885,15 @@ func (s *Server) streamApplicationEvents(
 		return fmt.Errorf("failed to get application desired state manifests: %w", err)
 	}
 
+	appEvent, err := getApplicationEventPayload(a, es)
+	if err != nil {
+		return fmt.Errorf("failed to get application event: %w", err)
+	}
+
+	if err := stream.Send(appEvent); err != nil {
+		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+	}
+
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -974,6 +983,24 @@ func getResourceEventPayload(
 	payloadBytes, err := json.Marshal(&payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", rs.Namespace, rs.Name, err)
+	}
+
+	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
+}
+
+func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
+	object, err := json.Marshal(a)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal application event")
+	}
+
+	payload := events.EventPayload{
+		Object: object,
+	}
+
+	payloadBytes, err := json.Marshal(&payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload for resource %s/%s: %w", a.Namespace, a.Name, err)
 	}
 
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
