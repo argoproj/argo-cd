@@ -48,7 +48,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : ''
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
