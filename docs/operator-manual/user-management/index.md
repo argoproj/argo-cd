@@ -252,10 +252,8 @@ data:
         - groups
 ```
 
-!!! warning: Because group information is only refreshed at authentication time just adding or removing
-an account from a group will not change a user's membership until they reauthenticate. Depending on your
-organization's needs this could be a security risk and could be mitigated by changing the authentication
-token's lifetime.
+!!! warning
+    Because group information is only refreshed at authentication time just adding or removing an account from a group will not change a user's membership until they reauthenticate. Depending on your organization's needs this could be a security risk and could be mitigated by changing the authentication token's lifetime.
 
 ### Retrieving claims that are not in the token
 
