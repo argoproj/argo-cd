@@ -1,7 +1,7 @@
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
-import {FormField} from 'argo-ui';
-import {NumberField} from '../../../shared/components';
+import { FormApi, Text } from 'react-form';
+import { Checkbox, FormField } from 'argo-ui';
+import { NumberField } from '../../../shared/components';
 
 require('./application-retry-options.scss');
 
@@ -18,8 +18,8 @@ function buildFormItem(label: string, propertyPath: string, component: React.Com
 }
 
 const onlyPositiveValidation = {
-    min:'1',
-    step:'1'
+    min: '1',
+    step: '1'
 }
 
 const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
@@ -30,16 +30,25 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
 ];
 
 
-export const ApplicationRetryOptions = ({ formApi }: { formApi: FormApi }) => {
+export const ApplicationRetryOptions = ({ formApi, values }: { formApi: FormApi, values?: any }) => {
 
-    return <div className='row application-retry-options'>
-        {retryOptions.map((render, i) => (
-            <div
-                className="columns small-6 application-retry-options__item"
-                key={i}
-            >
-                {render(formApi)}
+    const [retry, setRetry] = React.useState(false)
+
+    return <div style={{ marginBottom: '1em' }}>
+        <Checkbox id="retry" checked={retry} onChange={() => setRetry(!retry)} />
+        <label htmlFor="retry">Retry</label>
+        {
+            retry &&
+            <div className='row application-retry-options'>
+                {retryOptions.map((render, i) => (
+                    <div
+                        className="columns small-6 application-retry-options__item"
+                        key={i}
+                    >
+                        {render(formApi)}
+                    </div>
+                ))}
             </div>
-        ))}
+        }
     </div>
 }
