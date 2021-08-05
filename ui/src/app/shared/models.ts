@@ -243,6 +243,7 @@ export interface Automated {
 export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
+    retry?: RetryStrategy
 }
 
 export interface Info {
