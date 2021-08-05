@@ -136,3 +136,22 @@ func (d DebugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	log.Printf("%s", respDump)
 	return resp, nil
 }
+
+// TransportWithHeader is a HTTP Client Transport with default headers.
+type TransportWithHeader struct {
+	RoundTripper http.RoundTripper
+	Header       http.Header
+}
+
+func (rt *TransportWithHeader) RoundTrip(r *http.Request) (*http.Response, error) {
+	if rt.Header != nil {
+		headers := rt.Header.Clone()
+		for k, vs := range r.Header {
+			for _, v := range vs {
+				headers.Add(k, v)
+			}
+		}
+		r.Header = headers
+	}
+	return rt.RoundTripper.RoundTrip(r)
+}
