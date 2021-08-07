@@ -57,7 +57,7 @@ and disclosure with you. Sometimes, it might take a little longer for us to
 react (e.g. out of office conditions), so please bear with us in these cases.
 
 We will publish security advisiories using the
-[Git Hub Security Advisories](https://github.com/jannfis/argo-cd/security/advisories)
+[Git Hub Security Advisories](https://github.com/argoproj/argo-cd/security/advisories)
 feature to keep our community well informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
