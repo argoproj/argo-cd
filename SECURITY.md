@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.1 (2020-06-29)**
+Version: **v1.2 (2020-08-07)**
 
 ## Preface
 
@@ -60,9 +60,6 @@ We will publish security advisiories using the Git Hub SA feature to keep our
 community well informed, and will credit you for your findings (unless you
 prefer to stay anonymous, of course).
 
-Please report vulnerabilities by e-mail to all of the following people:
+Please report vulnerabilities by e-mail to the following address: 
 
-* jfischer@redhat.com
-* Jesse_Suen@intuit.com
-* Alexander_Matyushentsev@intuit.com
-* Edward_Lee@intuit.com
+* cncf-argo-security@lists.cncf.io
