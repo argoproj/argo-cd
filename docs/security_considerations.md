@@ -25,7 +25,7 @@ no fix yet.
 |2020-04-08|[CVE-2020-11576](https://nvd.nist.gov/vuln/detail/CVE-2020-11576)|User Enumeration|Medium|v1.5.0|v1.5.1|
 |2020-04-08|[CVE-2020-8826](https://nvd.nist.gov/vuln/detail/CVE-2020-8826)|Session-fixation|High|all|n/a|
 |2020-04-08|[CVE-2020-8827](https://nvd.nist.gov/vuln/detail/CVE-2020-8827)|Insufficient anti-automation/anti-brute force|High|all <= 1.5.3|v1.5.3|
-|2020-04-08|[CVE-2020-8828](https://nvd.nist.gov/vuln/detail/CVE-2020-8828)|Insecure default administrative password|High|all|n/a|
+|2020-04-08|[CVE-2020-8828](https://nvd.nist.gov/vuln/detail/CVE-2020-8828)|Insecure default administrative password|High|all <= 1.8.0|1.8.0|
 |2020-04-08|[CVE-2018-21034](https://nvd.nist.gov/vuln/detail/CVE-2018-21034)|Sensitive Information Disclosure|Medium|all <= v1.5.0|v1.5.0|
 
 ## Known Issues And Workarounds
