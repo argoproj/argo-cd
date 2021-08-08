@@ -105,7 +105,7 @@ Upgrade to ArgoCD v1.5.1 or higher. As a workaround, disable local users and use
 
 |Risk|Reported by|Fix version|Workaround|
 |----|-----------|-----------|----------|
-|High|[Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai)|n/a|Yes|
+|High|[Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai)|1.8.0|Yes|
 
 **Details:**
 
