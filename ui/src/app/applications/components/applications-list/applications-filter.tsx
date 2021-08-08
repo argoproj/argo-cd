@@ -224,6 +224,8 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <div className='filters-container__subgroup'>
                 <LabelsFilter {...props} />
                 <ProjectFilter {...props} />
+            </div>
+            <div className='filters-container__subgroup'>
                 <ClusterFilter {...props} />
                 <NamespaceFilter {...props} />
             </div>

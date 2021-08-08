@@ -54,6 +54,12 @@
 }
 
 .filters-group {
+    .action-button {
+        margin-left: 5px;
+        font-size: 12px;
+        line-height: 5px;
+    }
+
     &__container {
         display: flex;
         &__title {

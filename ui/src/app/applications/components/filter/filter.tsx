@@ -23,14 +23,8 @@ export const FiltersGroup = (props: {children?: React.ReactNode; appliedFilter?:
         <div className='filters-group'>
             <div className='filters-group__container__title'>
                 FILTERS <i className='fa fa-filter' />
-                {props.appliedFilter?.length > 0 && props.onClearFilter && (
-                    <ActionButton label={'CLEAR ALL'} action={() => props.onClearFilter()} style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: 'block'}} />
-                )}
-                <ActionButton
-                    label={!props.shown ? 'SHOW' : 'HIDE'}
-                    action={() => props.setShown(!props.shown)}
-                    style={{marginLeft: props.appliedFilter?.length > 0 ? '5px' : 'auto', fontSize: '12px', lineHeight: '5px'}}
-                />
+                {props.appliedFilter?.length > 0 && props.onClearFilter && <ActionButton label={'CLEAR ALL'} action={() => props.onClearFilter()} />}
+                <ActionButton label={!props.shown ? 'SHOW' : 'HIDE'} action={() => props.setShown(!props.shown)} />
             </div>
             <div className={classNames('filters-group__container', {'filters-group__container--hidden': !props.shown})}>{props.children}</div>
         </div>

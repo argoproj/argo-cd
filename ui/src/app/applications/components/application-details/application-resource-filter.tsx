@@ -78,6 +78,7 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         .sort();
     const namespaces = tree.nodes
         .map(x => x.namespace)
+        .filter(x => !!x)
         .concat(alreadyFilteredOn('namespace'))
         .filter(uniq)
         .sort();
@@ -88,17 +89,15 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
 
     return (
         <FiltersGroup appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} shown={shown}>
-            <div className='filters-container__text-filters'>
-                {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
-                {ResourceFilter({
-                    label: 'SYNC STATUS',
-                    prefix: 'sync',
-                    options: ['Synced', 'OutOfSync'].map(label => ({
-                        label,
-                        icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                    }))
-                })}
-            </div>
+            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
+            {ResourceFilter({
+                label: 'SYNC STATUS',
+                prefix: 'sync',
+                options: ['Synced', 'OutOfSync'].map(label => ({
+                    label,
+                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                }))
+            })}
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
@@ -107,12 +106,7 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
-            <div className='filters-container__subgroup'>
-                {namespaces.length > 1 &&
-                    ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-                {ResourceFilter({label: 'OWNERSHIP', prefix: 'ownership', wrap: true, options: ['Owners', 'Owned'].map(toOption)})}
-                {ResourceFilter({label: 'AGE', prefix: 'createdWithin', options: ['1m', '3m', '5m', '15m', '60m'].map(toOption), radio: true, wrap: true})}
-            </div>
+            {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
         </FiltersGroup>
     );
 };
