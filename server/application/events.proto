@@ -41,10 +41,11 @@ message Event {
 * with each event.
 */
 message EventPayload {
+    required k8s.io.apimachinery.pkg.apis.meta.v1.Time timestamp = 1 [(gogoproto.nullable) = false];
     // The object that the event is about
-    required bytes object = 1;
+    required bytes object = 2;
     // The object source information
-    required ObjectSource source = 2;
+    required ObjectSource source = 3;
 }
 
 /**
