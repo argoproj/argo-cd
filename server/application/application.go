@@ -39,6 +39,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -885,6 +886,7 @@ func (s *Server) streamApplicationEvents(
 		return fmt.Errorf("failed to get application desired state manifests: %w", err)
 	}
 
+	logCtx.Info("streaming application events")
 	appEvent, err := getApplicationEventPayload(a, es)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
@@ -922,7 +924,12 @@ func (s *Server) streamApplicationEvents(
 			Kind:         rs.Kind,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to get actual state for resource %s/%s: %w", rsNs, rs.Name, err)
+			if !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("failed to get actual state for resource %s/%s: %w", rsNs, rs.Name, err)
+			}
+
+			// empty actual state
+			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
 		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState)
@@ -930,7 +937,7 @@ func (s *Server) streamApplicationEvents(
 			return err
 		}
 
-		logCtx.Info("streaming resource event")
+		logCtx.Debug("streaming resource event")
 		if err := stream.Send(ev); err != nil {
 			return fmt.Errorf("failed to send event for resource %s/%s: %w", rsNs, rs.Name, err)
 		}
@@ -976,8 +983,9 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Object: object,
-		Source: &source,
+		Timestamp: metav1.Now(),
+		Object:    object,
+		Source:    &source,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
@@ -989,13 +997,23 @@ func getResourceEventPayload(
 }
 
 func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
-	object, err := json.Marshal(a)
+	obj := appv1.Application{}
+	a.DeepCopyInto(&obj)
+
+	// make sure there is type meta on object
+	obj.TypeMeta = metav1.TypeMeta{
+		Kind:       appv1reg.ApplicationKind,
+		APIVersion: appv1.SchemeGroupVersion.String(),
+	}
+
+	object, err := json.Marshal(&obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal application event")
 	}
 
 	payload := events.EventPayload{
-		Object: object,
+		Timestamp: metav1.Now(),
+		Object:    object,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
