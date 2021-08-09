@@ -96,9 +96,9 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                             }}
                                         />
                                     </div>
-                                    
+
                                     <ApplicationRetryOptions formApi={formApi} />
-                                    
+
                                     <label>
                                         Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
                                         <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>
