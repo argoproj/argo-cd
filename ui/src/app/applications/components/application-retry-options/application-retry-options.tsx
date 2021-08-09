@@ -22,8 +22,8 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
     formApi => buildFormItem('Factor', 'backoff.factor', NumberField, formApi, onlyPositiveValidation)
 ];
 
-const durationRegex = /\b((\d+(\.\d+)?)\s*(d))?(\s*(\d+)\s*(h|hr|hrs?|hours?))?(\s*(\d+)\s*(m|min|mins?|minutes?))\b/m;
-const durationRegexError = 'Should be 1d10h10m/1h10m/10m';
+const durationRegex = /T?([\d\.]+H)?([\d\.]+M)?([\d\.]+?S)?$/i;
+const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 
 export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi; initValues?: models.RetryStrategy}) => {
     const [retry, setRetry] = React.useState(!!initValues);
