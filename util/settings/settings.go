@@ -2,10 +2,12 @@ package settings
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"path"
@@ -35,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
-	argorand "github.com/argoproj/argo-cd/v2/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
@@ -1486,7 +1487,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				initialPassword := argorand.RandString(initialPasswordLength)
+				randBytes := make([]byte, initialPasswordLength)
+				_, err := rand.Read(randBytes)
+				if err != nil {
+					return err
+				}
+				initialPassword := hex.EncodeToString(randBytes)
+
 				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
