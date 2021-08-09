@@ -93,6 +93,9 @@ Using the username `admin` and the password from above, login to Argo CD's IP or
 argocd login <ARGOCD_SERVER>
 ```
 
+!!! note
+    The CLI environment must be able to communicate with the Argo CD controller. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
+
 Change the password using the command:
 
 ```bash
@@ -131,10 +134,11 @@ An example repository containing a guestbook application is available at
 
 ### Creating Apps Via CLI
 
-!!! note
-    You can access Argo CD using port forwarding: add `--port-forward-namespace argocd` flag to every CLI command or set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`:
+Create the example guestbook application with the following command:
 
-    `argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
+```bash
+argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
+```
 
 ### Creating Apps Via UI
 
