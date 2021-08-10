@@ -2,11 +2,13 @@ package settings
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"net/url"
 	"path"
 	"reflect"
@@ -35,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
-	argorand "github.com/argoproj/argo-cd/v2/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
@@ -1466,6 +1467,8 @@ func isIncompleteSettingsError(err error) bool {
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
+
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -1486,7 +1489,16 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				initialPassword := argorand.RandString(initialPasswordLength)
+				randBytes := make([]byte, initialPasswordLength)
+				for i := 0; i < initialPasswordLength; i++ {
+					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+					if err != nil {
+						return err
+					}
+					randBytes[i] = letters[num.Int64()]
+				}
+				initialPassword := string(randBytes)
+
 				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
