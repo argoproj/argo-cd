@@ -379,17 +379,8 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 	return apiVersions
 }
 
-// GetAppProject returns a project from an application
-//func GetAppProjectOld(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
-//	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
-//	if err != nil {
-//		return nil, err
-//	}
-
-//	return GetAppVirtualProject(projOrig, projLister, settingsManager)
-//}
-
-func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
+//GetAppProject returns a project from an application
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
@@ -415,10 +406,28 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 		Project:      project,
 		Repositories: repositories,
 	}, nil
+
+}
+
+func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	allRepos, _ := db.ListRepositories(ctx)
+
+	for _, repo := range allRepos {
+		if repo.Project == name {
+			projOrig.Spec.SourceRepos = append(projOrig.Spec.SourceRepos, repo.Repo)
+		}
+	}
+
+	return GetAppVirtualProject(projOrig, projLister, settingsManager)
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
 	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
 }
 
