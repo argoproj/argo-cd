@@ -7,8 +7,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net/url"
 	"path"
 	"reflect"
@@ -1467,6 +1467,8 @@ func isIncompleteSettingsError(err error) bool {
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
+
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -1488,11 +1490,14 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				_, err := rand.Read(randBytes)
-				if err != nil {
-					return err
+				for i := 0; i < initialPasswordLength; i++ {
+					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+					if err != nil {
+						return err
+					}
+					randBytes[i] = letters[num.Int64()]
 				}
-				initialPassword := hex.EncodeToString(randBytes)
+				initialPassword := string(randBytes)
 
 				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
