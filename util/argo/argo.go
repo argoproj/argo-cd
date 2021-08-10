@@ -380,12 +380,46 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+//func GetAppProjectOld(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+//	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+//	if err != nil {
+//		return nil, err
+//	}
+
+//	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+//}
+
+func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
 	}
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+
+	allRepos, _ := db.ListRepositories(ctx)
+
+	var repositories []*argoappv1.Repository
+
+	for _, repo := range allRepos {
+		if repo.Project == name {
+			repositories = append(repositories, repo)
+		}
+	}
+
+	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &argoappv1.AppProjectWrapper{
+		Project:      project,
+		Repositories: repositories,
+	}, nil
+}
+
+// GetAppProject returns a project from an application
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
+	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests

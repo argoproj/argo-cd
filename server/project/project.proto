@@ -95,6 +95,11 @@ service ProjectService {
   }
 
   // Get returns a project by name
+  rpc GetWithScopedResources(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProjectWrapper) {
+      option (google.api.http).get = "/api/v1/projects/{name}/scoped";
+  }
+
+  // Get returns a project by name
   rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject) {
       option (google.api.http).get = "/api/v1/projects/{name}";
   }

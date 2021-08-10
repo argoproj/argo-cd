@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"reflect"
 	"strings"
 
@@ -48,14 +49,15 @@ type Server struct {
 	sessionMgr    *session.SessionManager
 	projInformer  cache.SharedIndexInformer
 	settingsMgr   *settings.SettingsManager
+	db            db.ArgoDB
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager) *Server {
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr}
+		projInformer: projInformer, settingsMgr: settingsMgr, db: db}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -233,6 +235,19 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 		list.Items = newItems
 	}
 	return list, err
+}
+
+// Get returns a project by name
+func (s *Server) GetWithScopedResources(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectWrapper, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
+	}
+	projectWrapper, err := argo.GetAppProjectByName(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		return nil, err
+	}
+	projectWrapper.Project.NormalizeJWTTokens()
+	return projectWrapper, err
 }
 
 // Get returns a project by name

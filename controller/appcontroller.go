@@ -231,7 +231,11 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 }
 
 func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
+	projectWrapper, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	return projectWrapper.Project, nil
 }
 
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
@@ -316,18 +320,18 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, context.TODO())
 	if err != nil {
 		return nil, err
 	}
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
-	if proj.Spec.OrphanedResources != nil {
+	if proj.Project.Spec.OrphanedResources != nil {
 		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, err
 		}
-		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
+		warnOrphaned = proj.Project.Spec.OrphanedResources.IsWarn()
 	}
 
 	for i := range managedResources {
@@ -365,7 +369,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
+		if k.Namespace != "" && proj.Project.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj.Project) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
 				belongToAnotherApp := false
 				if appName != "" {

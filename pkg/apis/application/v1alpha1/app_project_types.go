@@ -42,6 +42,11 @@ type AppProject struct {
 	Status            AppProjectStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
+type AppProjectWrapper struct {
+	Project      *AppProject  `json:"project,inline" protobuf:"bytes,1,opt,name=project"`
+	Repositories Repositories `json:"repositories" protobuf:"bytes,2,rep,name=repositories"`
+}
+
 // AppProjectStatus contains status information for AppProject CRs
 type AppProjectStatus struct {
 	// JWTTokensByRole contains a list of JWT tokens issued for a given role

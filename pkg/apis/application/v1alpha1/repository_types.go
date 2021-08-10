@@ -79,7 +79,8 @@ type Repository struct {
 	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
-	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	Proxy   string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification

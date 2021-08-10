@@ -90,6 +90,12 @@ message AppProjectStatus {
   map<string, JWTTokens> jwtTokensByRole = 1;
 }
 
+message AppProjectWrapper {
+  optional AppProject project = 1;
+
+  repeated Repository repositories = 2;
+}
+
 // Application is a definition of Application resource.
 // +genclient
 // +genclient:noStatus
@@ -883,6 +889,8 @@ message Repository {
 
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
+
+  optional string project = 20;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

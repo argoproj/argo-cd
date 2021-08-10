@@ -105,21 +105,22 @@ func NewServer(
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
 	return &Server{
-		ns:             namespace,
-		appclientset:   appclientset,
-		appLister:      appLister,
-		appInformer:    appInformer,
-		appBroadcaster: appBroadcaster,
-		kubeclientset:  kubeclientset,
-		cache:          cache,
-		db:             db,
-		repoClientset:  repoClientset,
-		kubectl:        kubectl,
-		enf:            enf,
-		projectLock:    projectLock,
-		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		settingsMgr:    settingsMgr,
-		projInformer:   projInformer,
+		ns:                 namespace,
+		appclientset:       appclientset,
+		appLister:          appLister,
+		appInformer:        appInformer,
+		appBroadcaster:     appBroadcaster,
+		kubeclientset:      kubeclientset,
+		cache:              cache,
+		db:                 db,
+		repoClientset:      repoClientset,
+		kubectl:            kubectl,
+		enf:                enf,
+		projectLock:        projectLock,
+		auditLogger:        argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		settingsMgr:        settingsMgr,
+		projInformer:       projInformer,
+		repositoryInformer: repositoryInformer,
 	}
 }
 
@@ -249,7 +250,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -262,7 +263,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 		return err
 	}
 
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj.Project, helmRepos)
 	if err != nil {
 		return err
 	}
@@ -270,7 +271,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj.Project, helmRepositoryCredentials)
 	if err != nil {
 		return err
 	}
@@ -800,7 +801,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
-	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
@@ -848,7 +849,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj.Project)
 		if err != nil {
 			return err
 		}
@@ -857,7 +858,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj.Project, s.db)
 	if err != nil {
 		return err
 	}
@@ -1095,7 +1096,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	// We need to get some information with the project associated to the app,
 	// so we'll know whether GPG signatures are enforced.
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,7 +1108,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
 		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		CheckSignature: len(proj.Project.Spec.SignatureKeys) > 0,
 	})
 }
 
@@ -1350,7 +1351,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1358,7 +1359,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return a, err
 	}
 
-	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
+	if !proj.Project.Spec.SyncWindows.Matches(a).CanSync(true) {
 		return a, status.Errorf(codes.PermissionDenied, "Cannot sync: Blocked by sync window")
 	}
 
@@ -1400,7 +1401,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
-	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
+	if syncReq.Manifests != nil && len(proj.Project.Spec.SignatureKeys) > 0 {
 		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
 	}
 
@@ -1793,12 +1794,12 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	windows := proj.Spec.SyncWindows.Matches(a)
+	windows := proj.Project.Spec.SyncWindows.Matches(a)
 	sync := windows.CanSync(true)
 
 	res := &application.ApplicationSyncWindowsResponse{

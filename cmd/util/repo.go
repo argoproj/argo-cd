@@ -27,6 +27,7 @@ type RepoOptions struct {
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.Repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&opts.Repo.Name, "name", "", "name of the repository, mandatory for repositories of type helm")
+	command.Flags().StringVar(&opts.Repo.Project, "project", "", "project of the repository")
 	command.Flags().StringVar(&opts.Repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&opts.Repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&opts.SshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
