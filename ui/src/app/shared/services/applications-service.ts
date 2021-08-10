@@ -165,11 +165,12 @@ export class ApplicationsService {
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
-        syncOptions?: string[]
+        syncOptions?: string[],
+        retryStrategy?: models.RetryStrategy
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null, retryStrategy})
             .then(() => true);
     }
 
