@@ -10,7 +10,13 @@ function toOption(label: string) {
     return {label};
 }
 
-export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTree; onSetFilter: (items: string[]) => void; onClearFilter: () => void}) => {
+export const Filters = (props: {
+    children?: React.ReactNode;
+    pref: AppDetailsPreferences;
+    tree: ApplicationTree;
+    onSetFilter: (items: string[]) => void;
+    onClearFilter: () => void;
+}) => {
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
@@ -51,19 +57,11 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean; wrap?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
-            <Filter
-                label={p.label}
-                selected={selectedFor(p.prefix)}
-                setSelected={v => setFilters(p.prefix, v)}
-                options={p.options}
-                field={!!p.field}
-                radio={!!p.radio}
-                wrap={!!p.wrap}
-            />
+            <Filter label={p.label} selected={selectedFor(p.prefix)} setSelected={v => setFilters(p.prefix, v)} options={p.options} field={!!p.field} radio={!!p.radio} />
         );
     };
 
@@ -88,7 +86,7 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
     };
 
     return (
-        <FiltersGroup appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} shown={shown}>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
             {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',
