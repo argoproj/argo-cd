@@ -35,6 +35,17 @@ export interface SyncOperation {
     resources?: SyncOperationResource[];
 }
 
+export interface RetryBackoff {
+    duration: string;
+    maxDuration: string;
+    factor: number;
+}
+
+export interface RetryStrategy {
+    limit: number;
+    backoff: RetryBackoff;
+}
+
 export interface RollbackOperation {
     id: number;
     prune: boolean;
@@ -232,6 +243,7 @@ export interface Automated {
 export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
+    retry?: RetryStrategy;
 }
 
 export interface Info {
