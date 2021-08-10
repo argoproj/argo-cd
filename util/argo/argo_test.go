@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"path/filepath"
 	"testing"
 
@@ -73,7 +74,8 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
+	argoDB := db.NewDB("default", settingsMgr, kubeClient)
+	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
