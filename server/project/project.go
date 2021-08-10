@@ -247,7 +247,7 @@ func (s *Server) GetWithScopedResources(ctx context.Context, q *project.ProjectQ
 		return nil, err
 	}
 	projectWrapper.Project.NormalizeJWTTokens()
-	return nil, err
+	return projectWrapper, err
 }
 
 // Get returns a project by name
