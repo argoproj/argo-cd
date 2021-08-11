@@ -627,7 +627,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
                 <EditablePanel
                     values={scopedProj}
-                    title={<React.Fragment>SOURCE REPOSITORIES 2{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
+                    title={<React.Fragment>SCOPED REPOSITORIES{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
                     view={
                         <React.Fragment>
                             {scopedProj.repositories && scopedProj.repositories.length
