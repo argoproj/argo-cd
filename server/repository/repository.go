@@ -279,7 +279,15 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
+
+	ruleFunc := func() string {
+		if q.Repo.Project != "" {
+			return q.Repo.Project + "/" + q.Repo.Repo
+		}
+		return q.Repo.Repo
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, ruleFunc()); err != nil {
 		return nil, err
 	}
 
