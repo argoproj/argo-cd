@@ -1616,6 +1616,12 @@ type SignatureKey struct {
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
 
+// AppProjectScopedResources is the wrapper for project and scoped resources like repositories and clusters
+type AppProjectScopedResources struct {
+	Project      *AppProject  `json:"project,inline" protobuf:"bytes,1,opt,name=project"`
+	Repositories Repositories `json:"repositories" protobuf:"bytes,2,rep,name=repositories"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment

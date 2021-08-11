@@ -379,21 +379,25 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 	return apiVersions
 }
 
-//GetAppProject returns a project from an application
-func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectWrapper, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(name)
-	if err != nil {
-		return nil, err
-	}
-
-	allRepos, _ := db.ListRepositories(ctx)
-
+func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Repository {
 	var repositories []*argoappv1.Repository
-
+	allRepos, err := db.ListRepositories(ctx)
+	if err != nil {
+		return repositories
+	}
 	for _, repo := range allRepos {
 		if repo.Project == name {
 			repositories = append(repositories, repo)
 		}
+	}
+	return repositories
+}
+
+//GetAppProject returns a project from an application
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectScopedResources, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
+	if err != nil {
+		return nil, err
 	}
 
 	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
@@ -402,25 +406,24 @@ func GetAppProjectWithScopedResources(name string, projLister applicationsv1.App
 		return nil, err
 	}
 
-	return &argoappv1.AppProjectWrapper{
+	return &argoappv1.AppProjectScopedResources{
 		Project:      project,
-		Repositories: repositories,
+		Repositories: retrieveScopedRepositories(name, db, ctx),
 	}, nil
 
 }
 
+// GetAppProject returns a project from an application based on name
 func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
 	}
 
-	allRepos, _ := db.ListRepositories(ctx)
+	repos := retrieveScopedRepositories(name, db, ctx)
 
-	for _, repo := range allRepos {
-		if repo.Project == name {
-			projOrig.Spec.SourceRepos = append(projOrig.Spec.SourceRepos, repo.Repo)
-		}
+	for _, repo := range repos {
+		projOrig.Spec.SourceRepos = append(projOrig.Spec.SourceRepos, repo.Repo)
 	}
 
 	return GetAppVirtualProject(projOrig, projLister, settingsManager)
