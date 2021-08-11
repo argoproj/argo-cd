@@ -1,4 +1,4 @@
-import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
@@ -172,9 +172,27 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 .filter(item => !item.hook)
                                                 .map((item, i) => {
                                                     const resKey = nodeKey(item);
+                                                    const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
+                                                    let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
+                                                    // Fix Latin letters being rendered left to right on ellipsis with direction set to rtl
+                                                    const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
+                                                    contentEnd = contentEnd.slice(indexOfFirstLetter);
                                                     return (
                                                         <div key={resKey} className='application-sync-panel__resource'>
-                                                            <CheckboxField id={resKey} field={`resources[${i}]`} /> <label htmlFor={resKey}>{resKey}</label>{' '}
+                                                            <CheckboxField id={resKey} field={`resources[${i}]`} />
+                                                            <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
+                                                                <div className='container'>
+                                                                    <label htmlFor={resKey} style={{display: resKey.length <= 68 ? '' : 'none'}}>
+                                                                        {resKey}
+                                                                    </label>
+                                                                    <label
+                                                                        style={{display: resKey.length > 68 ? '' : 'none'}}
+                                                                        htmlFor={resKey}
+                                                                        content-start={contentStart}
+                                                                        content-end={contentEnd}
+                                                                    />
+                                                                </div>
+                                                            </Tooltip>
                                                             <ComparisonStatusIcon status={item.status} resource={item} />
                                                         </div>
                                                     );
