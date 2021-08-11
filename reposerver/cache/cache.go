@@ -152,9 +152,9 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 		return fmt.Errorf("Unable to generate hash value: %s", err)
 	}
 
-	// If the expected hash of the cache entry does not match the actual hash value...
-	if hash != res.CacheEntryHash {
-		log.Warnf("Manifest hash did not match expected value, treating as a cache miss: %s", appName)
+	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
+	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
+		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
 		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, appLabelKey, appName)
 		if err != nil {
