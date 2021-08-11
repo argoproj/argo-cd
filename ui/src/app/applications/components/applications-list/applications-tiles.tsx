@@ -217,7 +217,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         refreshApplication(app.metadata.name);
                                                     }}>
                                                     <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                    <span className='show-for-xlarge'>Refresh</span>
+                                                    <span className='show-for-xxlarge'>Refresh</span>
                                                 </a>
                                                 &nbsp;
                                                 <a
@@ -227,7 +227,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         e.stopPropagation();
                                                         deleteApplication(app.metadata.name);
                                                     }}>
-                                                    <i className='fa fa-times-circle' /> Delete
+                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
                                                 </a>
                                             </div>
                                         </div>

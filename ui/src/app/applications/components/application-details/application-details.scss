@@ -44,7 +44,7 @@ $header: 120px;
     &__refreshing-label {
         position: fixed;
         top: $header + 100px;
-        left: 60px;
+        left: 310px;
         background-color: $argo-color-gray-4;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
@@ -192,16 +192,12 @@ $header: 120px;
         line-height: 1.5em;
     }
 
-    @include breakpoint(xxlarge up) {
-        .filters-group {
-            position: fixed;
-            padding-right: 1.5em;
-            max-height: calc(100vh - 200px);
-            overflow: hidden;
-        }
-    
-        .filters-group:hover {
-            overflow-y: auto;
+    .filters-group__panel {
+        top: 230px;
+    }
+    @include breakpoint(large down) {
+        .filters-group__panel {
+            top: 280px;
         }
     }
 }
