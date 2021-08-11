@@ -433,12 +433,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     } else {
         // Tree view
         const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
         nodes.forEach(node => {
             if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
                 roots.push(node);
             } else {
-                orphans.push(node);
+                if (orphanedKeys.has(nodeKey(node))) {
+                    orphans.push(node);
+                }
                 node.parentRefs.forEach(parent => {
                     const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                     children.push(node);
