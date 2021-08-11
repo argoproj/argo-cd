@@ -9,7 +9,6 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {ApplicationTree} from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
@@ -36,8 +35,6 @@ interface FilterInput {
     health: string[];
     sync: string[];
     namespace: string[];
-    createdWithin: number[]; // number of minutes the resource must be created within
-    ownership: string[];
 }
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
@@ -145,7 +142,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const filteredRes = application.status.resources.concat(orphaned).filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
-                                return this.filterTreeNode(tree, resNode, treeFilter);
+                                return this.filterTreeNode(resNode, treeFilter);
                             });
 
                             return (
@@ -219,28 +216,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <div className='row'>
-                                                    <div className='columns small-12 xxlarge-2'>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
-                                                    </div>
-                                                    <div className='columns small-12 xxlarge-10'>
-                                                        <ApplicationResourceTree
-                                                            nodeFilter={node => this.filterTreeNode(tree, node, treeFilter)}
-                                                            selectedNodeFullName={this.selectedNodeKey}
-                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                            nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
-                                                                )
-                                                            }
-                                                            tree={tree}
-                                                            app={application}
-                                                            showOrphanedResources={pref.orphanedResources}
-                                                            useNetworkingHierarchy={pref.view === 'network'}
-                                                            onClearFilter={clearFilter}
-                                                        />
-                                                    </div>
-                                                </div>
+                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                    <ApplicationResourceTree
+                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                        selectedNodeFullName={this.selectedNodeKey}
+                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                this.getApplicationActionMenu(application, false)
+                                                            )
+                                                        }
+                                                        tree={tree}
+                                                        app={application}
+                                                        showOrphanedResources={pref.orphanedResources}
+                                                        useNetworkingHierarchy={pref.view === 'network'}
+                                                        onClearFilter={clearFilter}
+                                                    />
+                                                </Filters>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -442,16 +434,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         ];
     }
 
-    private filterTreeNode(tree: ApplicationTree, node: ResourceTreeNode, filterInput: FilterInput, ownership?: string): boolean {
+    private filterTreeNode(node: ResourceTreeNode, filterInput: FilterInput): boolean {
         const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
-
-        const minutesAgo = (m: number) => {
-            const d = new Date();
-            d.setTime(d.getTime() - m * 60000);
-            return d;
-        };
-        const createdAt = new Date(node.createdAt); // will be falsely if the node has not been created, and so will not appear
-        const createdWithin = (n: number) => createdAt.getTime() > minutesAgo(n).getTime();
 
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
@@ -459,23 +443,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
             (filterInput.health.length === 0 || hook || (root.health && filterInput.health.indexOf(root.health.status) > -1)) &&
-            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
-            (filterInput.createdWithin.length === 0 || !!filterInput.createdWithin.find(v => createdWithin(v)))
+            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
         ) {
             return true;
-        }
-
-        if (filterInput.ownership.includes('Owned') && ownership !== 'Owners') {
-            const owned = tree.nodes.filter(n => (node.parentRefs || []).find(r => r.uid === n.uid));
-            if (owned.find(n => this.filterTreeNode(tree, n, filterInput, 'Owned'))) {
-                return true;
-            }
-        }
-        if (filterInput.ownership.includes('Owners') && ownership !== 'Owned') {
-            const owners = tree.nodes.filter(n => (n.parentRefs || []).find(r => r.uid === node.uid));
-            if (owners.find(n => this.filterTreeNode(tree, n, filterInput, 'Owners'))) {
-                return true;
-            }
         }
 
         return false;
@@ -552,8 +522,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const health = new Array<string>();
         const sync = new Array<string>();
         const namespace = new Array<string>();
-        const createdWithin = new Array<number>();
-        const ownership = new Array<string>();
         for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -569,15 +537,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 case 'namespace':
                     namespace.push(val);
                     break;
-                case 'createdWithin':
-                    createdWithin.push(parseInt(val, 10));
-                    break;
-                case 'ownership':
-                    ownership.push(val);
-                    break;
             }
         }
-        return {kind, health, sync, namespace, createdWithin, ownership};
+        return {kind, health, sync, namespace};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {

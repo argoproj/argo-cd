@@ -169,4 +169,13 @@
         display: inline-block;
         width: 28px;
     }
+
+    .filters-group__panel {
+        top: 120px;
+    }
+    @include breakpoint(medium down) {
+        .filters-group__panel {
+            top: 200px;
+        }
+    }
 }

@@ -378,31 +378,20 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             <ViewPref>
                                                 {pref => {
                                                     const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
-                                                    return applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
-                                                        <EmptyState icon='argo-icon-application'>
-                                                            <h4>No applications yet</h4>
-                                                            <h5>Create new application to start managing resources in your cluster</h5>
-                                                            <button
-                                                                qe-id='applications-list-button-create-application'
-                                                                className='argo-button argo-button--base'
-                                                                onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
-                                                                Create application
-                                                            </button>
-                                                        </EmptyState>
-                                                    ) : (
-                                                        <div className='row'>
-                                                            <div className='columns small-12 xxlarge-2'>
-                                                                <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />
-                                                                {syncAppsInput && (
-                                                                    <ApplicationsSyncPanel
-                                                                        key='syncsPanel'
-                                                                        show={syncAppsInput}
-                                                                        hide={() => ctx.navigation.goto('.', {syncApps: null})}
-                                                                        apps={filteredApps}
-                                                                    />
-                                                                )}
-                                                            </div>
-                                                            <div className='columns small-12 xxlarge-10'>
+                                                    const appsView =
+                                                        applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                            <EmptyState icon='argo-icon-application'>
+                                                                <h4>No applications yet</h4>
+                                                                <h5>Create new application to start managing resources in your cluster</h5>
+                                                                <button
+                                                                    qe-id='applications-list-button-create-application'
+                                                                    className='argo-button argo-button--base'
+                                                                    onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})})}>
+                                                                    Create application
+                                                                </button>
+                                                            </EmptyState>
+                                                        ) : (
+                                                            <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref}>
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
@@ -444,8 +433,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                            </div>
-                                                        </div>
+                                                            </ApplicationsFilter>
+                                                        );
+                                                    return (
+                                                        <>
+                                                            {appsView}
+                                                            <ApplicationsSyncPanel
+                                                                key='syncsPanel'
+                                                                show={syncAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {syncApps: null})}
+                                                                apps={filteredApps}
+                                                            />
+                                                        </>
                                                     );
                                                 }}
                                             </ViewPref>
