@@ -394,22 +394,19 @@ func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) 
 }
 
 //GetAppProject returns a project from an application
-func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProjectScopedResources, error) {
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &argoappv1.AppProjectScopedResources{
-		Project:      project,
-		Repositories: retrieveScopedRepositories(name, db, ctx),
-	}, nil
+	return project, retrieveScopedRepositories(name, db, ctx), nil
 
 }
 
@@ -419,14 +416,12 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 	if err != nil {
 		return nil, err
 	}
-
+	project := projOrig.DeepCopy()
 	repos := retrieveScopedRepositories(name, db, ctx)
-
 	for _, repo := range repos {
-		projOrig.Spec.SourceRepos = append(projOrig.Spec.SourceRepos, repo.Repo)
+		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
 	}
-
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+	return GetAppVirtualProject(project, projLister, settingsManager)
 }
 
 // GetAppProject returns a project from an application

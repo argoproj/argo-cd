@@ -238,16 +238,16 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 }
 
 // Get returns a project with scoped resources
-func (s *Server) GetWithScopedResources(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectScopedResources, error) {
+func (s *Server) GetWithScopedResources(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, v1alpha1.Repositories, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	projectWithScopedResources, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, repositories, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	projectWithScopedResources.Project.NormalizeJWTTokens()
-	return projectWithScopedResources, err
+	proj.NormalizeJWTTokens()
+	return proj, repositories, err
 }
 
 // Get returns a project by name
