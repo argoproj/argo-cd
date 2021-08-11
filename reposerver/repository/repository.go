@@ -1048,6 +1048,11 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if err != nil {
 			return err
 		}
+		repoRelPath, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return err
+		}
+
 		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
 		}
@@ -1091,7 +1096,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 				manifests = append(manifests, manifest{
 					rawManifest: rawBytes,
 					obj:         obj,
-					path:        relPath,
+					path:        repoRelPath,
 					line:        1, // TODO: can add later
 				})
 			}
@@ -1110,7 +1115,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 
 				manifests = append(manifests, manifest{
 					rawManifest: out,
-					path:        relPath,
+					path:        repoRelPath,
 					obj:         &obj,
 					line:        1,
 				})
@@ -1143,7 +1148,7 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 						rawManifest: out,
 						obj:         obj,
 						line:        1,
-						path:        relPath,
+						path:        repoRelPath,
 					})
 				}
 			}
