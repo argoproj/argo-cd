@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
-import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {GroupKind, Groups, Project, ProjectScoped, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -174,10 +174,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         }}>
                         <DataLoader
                             load={() => {
-                                return Promise.all([services.projects.get(this.props.match.params.name), loadGlobal(this.props.match.params.name)]);
+                                return Promise.all([
+                                    services.projects.get(this.props.match.params.name), 
+                                    loadGlobal(this.props.match.params.name),
+                                    services.projects.getScoped(this.props.match.params.name), 
+                                ]);
                             }}
                             ref={loader => (this.loader = loader)}>
-                            {([proj, globalProj]) => (
+                            {([proj, globalProj, scopedProj]) => (
                                 <Query>
                                     {params => (
                                         <div className='project-details'>
@@ -189,7 +193,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     {
                                                         key: 'summary',
                                                         title: 'Summary',
-                                                        content: this.summaryTab(proj, globalProj)
+                                                        content: this.summaryTab(proj, globalProj, scopedProj)
                                                     },
                                                     {
                                                         key: 'roles',
@@ -546,7 +550,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         }
     }
 
-    private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}) {
+    private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}, scopedProj: ProjectScoped) {
         return (
             <div className='argo-container'>
                 <EditablePanel
@@ -618,6 +622,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             )}
                         </DataLoader>
                     )}
+                    items={[]}
+                />
+
+                <EditablePanel
+                    values={scopedProj}
+                    title={<React.Fragment>SOURCE REPOSITORIES 2{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
+                    view={
+                        <React.Fragment>
+                            {scopedProj.repositories && scopedProj.repositories.length
+                                ? scopedProj.repositories.map((repo, i) => (
+                                    <div className='row white-box__details-row' key={i}>
+                                        <div className='columns small-12'>{repo.repo}</div>
+                                    </div>
+                                ))
+                                : emptyMessage('source repositories')}
+                        </React.Fragment>
+                    }
                     items={[]}
                 />
 
