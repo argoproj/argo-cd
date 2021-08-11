@@ -891,6 +891,7 @@ message Repository {
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
 
+  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
   optional string project = 20;
 }
 
