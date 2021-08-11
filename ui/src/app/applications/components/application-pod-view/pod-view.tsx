@@ -3,8 +3,8 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import Moment from 'react-moment';
 
-import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
+import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
