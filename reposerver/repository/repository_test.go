@@ -168,6 +168,22 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	assert.True(t, len(res.Manifests) > 1)
 }
 
+func TestGenerateManifests_EmptyCache(t *testing.T) {
+	service := newService("../..")
+
+	src := argoappv1.ApplicationSource{Path: "manifests/base"}
+	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
+	}
+
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	assert.NoError(t, err)
+
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.True(t, len(res.Manifests) > 0)
+}
+
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	service := newService(".")
