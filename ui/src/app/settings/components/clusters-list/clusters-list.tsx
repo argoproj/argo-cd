@@ -1,7 +1,8 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router-dom';
-import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
+import {clusterName, ConnectionStateIcon, DataLoader, EmptyState} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -12,9 +13,9 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
+                    <NewPage title='Clusters' breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}>
                         <div className='repos-list'>
-                            <div className='argo-container'>
+                            <div style={{padding: '0 80px'}}>
                                 <DataLoader
                                     ref={clustersLoaderRef}
                                     load={() => services.clusters.list().then(clusters => clusters.sort((first, second) => first.name.localeCompare(second.name)))}>
@@ -76,7 +77,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                 </DataLoader>
                             </div>
                         </div>
-                    </Page>
+                    </NewPage>
                 </React.Fragment>
             )}
         </Consumer>

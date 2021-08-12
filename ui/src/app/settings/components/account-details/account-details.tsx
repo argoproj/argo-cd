@@ -3,7 +3,8 @@ import * as React from 'react';
 import {Form, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {DataLoader, Page, Timestamp} from '../../../shared/components';
+import {DataLoader, Timestamp} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {Context} from '../../../shared/context';
 import {Account, Token} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -17,13 +18,11 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
     const [newToken, setNewToken] = React.useState(null);
     const tokensLoaderRef = React.useRef<DataLoader>();
     return (
-        <Page
+        <NewPage
             title={props.match.params.name}
-            toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}]
-            }}>
+            breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}]}>
             <p />
-            <div className='argo-container account-details'>
+            <div className='account-details' style={{padding: '0 80px'}}>
                 <DataLoader input={props.match.params.name} load={(name: string) => services.accounts.get(name)}>
                     {(account: Account) => (
                         <React.Fragment>
@@ -156,6 +155,6 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                     )}
                 </DataLoader>
             </div>
-        </Page>
+        </NewPage>
     );
 };

@@ -4,7 +4,8 @@ import * as React from 'react';
 import {Form, FormApi, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -27,22 +28,19 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
 
     public render() {
         return (
-            <Page
+            <NewPage
                 title='GnuPG public keys'
-                toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],
-                    actionMenu: {
-                        className: 'fa fa-plus',
-                        items: [
-                            {
-                                title: 'Add GnuPG key',
-                                action: () => (this.showAddGnuPGKey = true)
-                            }
-                        ]
+                breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}
+                actions={[
+                    {
+                        icon: 'fa-plus',
+
+                        label: 'Add GnuPG key',
+                        action: () => (this.showAddGnuPGKey = true)
                     }
-                }}>
+                ]}>
                 <div className='gpgkeys-list'>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <DataLoader load={() => services.gpgkeys.list()} ref={loader => (this.loader = loader)}>
                             {(gpgkeys: models.GnuPGPublicKey[]) =>
                                 (gpgkeys.length > 0 && (
@@ -126,7 +124,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         )}
                     </Form>
                 </SlidingPanel>
-            </Page>
+            </NewPage>
         );
     }
 

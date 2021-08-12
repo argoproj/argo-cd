@@ -186,28 +186,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         <route.component {...routeProps} />
                                                     </div>
                                                 ) : (
-                                                    // <Layout
-                                                    //     navItems={navItems}
-                                                    //     version={() => (
-                                                    //         <DataLoader load={() => versionLoader}>
-                                                    //             {version => {
-                                                    //                 const versionString = version ? version.Version : 'Unknown';
-                                                    //                 return (
-                                                    //                     <React.Fragment>
-                                                    //                         <Tooltip content={versionString}>
-                                                    //                             <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                    //                                 {versionString}
-                                                    //                             </a>
-                                                    //                         </Tooltip>
-                                                    //                     </React.Fragment>
-                                                    //                 );
-                                                    //             }}
-                                                    //         </DataLoader>
-                                                    //     )}>
-                                                    //     <Banner>
-                                                    //         <route.component {...routeProps} />
-                                                    //     </Banner>
-                                                    // </Layout>
                                                     <div style={{display: 'flex', height: '100%'}}>
                                                         <Sidebar onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} />
                                                         <Banner>

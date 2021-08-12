@@ -2,7 +2,8 @@ import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Query} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {Consumer} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -14,13 +15,17 @@ export class ProjectsList extends React.Component {
         return (
             <Consumer>
                 {ctx => (
-                    <Page
+                    <NewPage
                         title='Projects'
-                        toolbar={{
-                            breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]}
-                        }}>
-                        <div className='projects argo-container'>
+                        breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Projects'}]}
+                        actionMenu={[
+                            {
+                                icon: 'fa-plus',
+                                label: 'New Project',
+                                action: () => ctx.navigation.goto('.', {add: true})
+                            }
+                        ]}>
+                        <div className='projects' style={{padding: '0 80px'}}>
                             <DataLoader load={() => services.projects.list()}>
                                 {projects =>
                                     (projects.length > 0 && (
@@ -104,7 +109,7 @@ export class ProjectsList extends React.Component {
                                 </SlidingPanel>
                             )}
                         </Query>
-                    </Page>
+                    </NewPage>
                 )}
             </Consumer>
         );

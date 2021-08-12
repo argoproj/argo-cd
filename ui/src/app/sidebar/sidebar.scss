@@ -1,7 +1,9 @@
 @import 'node_modules/argo-ui/v2/styles/colors.scss';
 
 .sidebar {
-    min-width: 200px;
+    $width: 200px;
+    min-width: $width;
+    width: $width;
     padding: 15px;
     position: sticky;
     overflow: scroll;
@@ -35,12 +37,13 @@
     &__nav-item {
         cursor: pointer;
         font-size: 17px;
-        height: 1.9em;
-        line-height: 1.9em;
+        $height: 2.25em;
+        height: $height;
+        line-height: $height;
         color: $dull-shine;
 
         i {
-            font-size: 24px;
+            font-size: 26px;
             color: white;
             margin-right: 5px;
         }
@@ -49,6 +52,28 @@
             color: white;
             font-weight: 500;
             box-shadow: -3px 0 0px 0 inset $sky;
+        }
+    }
+
+    &__collapse-button {
+        text-align: center;
+        cursor: pointer;
+        margin-top: 1em;
+    }
+
+    &--collapsed {
+        $width: 60px;
+        min-width: $width;
+        width: $width;
+        padding: 15px 5px;
+
+        .sidebar__logo img {
+            margin-right: 0;
+        }
+
+        .sidebar__nav-item i {
+            margin-right: 0;
+            margin-left: 10px;
         }
     }
 }

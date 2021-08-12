@@ -510,9 +510,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 <h5>Try switching to tree or list view</h5>
             </EmptyState>
         )) || (
-            <div
-                className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250}}>
+            <div className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})} style={{height: size.height + 250}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

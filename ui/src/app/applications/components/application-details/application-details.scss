@@ -4,14 +4,12 @@
 $header: 120px;
 
 .application-details {
+    width: 100%;
+
     &__status-panel {
-        position: fixed;
-        left: 60px;
-        right: 0;
+        position: sticky;
+        top: 108px;
         z-index: 2;
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            top: 150px;
-        }
     }
 
     .argo-dropdown__content.is-menu {
@@ -23,11 +21,7 @@ $header: 120px;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 115px;
         min-height: calc(100vh - 2 * 50px - 115px);
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            margin-top: 165px;
-        }
     }
 
     &__warning {
@@ -95,6 +89,7 @@ $header: 120px;
 
     .application-resource-tree {
         margin: 0 auto;
+        overflow-x: scroll;
     }
 
     &__view-type {

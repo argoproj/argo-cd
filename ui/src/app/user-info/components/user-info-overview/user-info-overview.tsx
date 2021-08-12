@@ -4,9 +4,10 @@ import {FormField, NotificationType, SlidingPanel} from 'argo-ui/src/index';
 import * as PropTypes from 'prop-types';
 import {Form, FormApi, FormValue, Nested, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
-import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
+import {DataLoader, ErrorNotification, Spinner} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import {services} from '../../../shared/services';
+import {NewPage} from '../../../shared/components/newpage/page';
 
 require('./user-info-overview.scss');
 
@@ -28,7 +29,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
         return (
             <DataLoader key='userInfo' load={() => services.users.get()}>
                 {userInfo => (
-                    <Page
+                    <NewPage
                         title='User Info'
                         toolbar={{
                             breadcrumbs: [{title: 'User Info'}],
@@ -47,7 +48,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                         }}>
                         <div>
                             <div className='user-info'>
-                                <div className='argo-container'>
+                                <div style={{padding: '0 80px'}}>
                                     <div className='user-info-overview__panel white-box'>
                                         {userInfo.loggedIn ? (
                                             <React.Fragment key='userInfoInner'>
@@ -132,7 +133,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                 <div />
                             )}
                         </div>
-                    </Page>
+                    </NewPage>
                 )}
             </DataLoader>
         );

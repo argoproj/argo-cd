@@ -4,8 +4,9 @@ import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Page, Repo} from '../../../shared/components';
+import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Repo} from '../../../shared/components';
 import {Spinner} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -94,39 +95,35 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
 
     public render() {
         return (
-            <Page
+            <NewPage
                 title='Repositories'
-                toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
-                    actionMenu: {
-                        items: [
-                            {
-                                iconClassName: 'fa fa-plus',
-                                title: 'Connect Repo using SSH',
-                                action: () => (this.showConnectSSHRepo = true)
-                            },
-                            {
-                                iconClassName: 'fa fa-plus',
-                                title: 'Connect Repo using HTTPS',
-                                action: () => (this.showConnectHTTPSRepo = true)
-                            },
-                            {
-                                iconClassName: 'fa fa-plus',
-                                title: 'Connect Repo using GitHub App',
-                                action: () => (this.showConnectGitHubAppRepo = true)
-                            },
-                            {
-                                iconClassName: 'fa fa-redo',
-                                title: 'Refresh list',
-                                action: () => {
-                                    this.refreshRepoList();
-                                }
-                            }
-                        ]
+                breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Repositories'}]}
+                actions={[
+                    {
+                        icon: 'fa-plus',
+                        label: 'Connect Repo using SSH',
+                        action: () => (this.showConnectSSHRepo = true)
+                    },
+                    {
+                        icon: 'fa-plus',
+                        label: 'Connect Repo using HTTPS',
+                        action: () => (this.showConnectHTTPSRepo = true)
+                    },
+                    {
+                        icon: 'fa-plus',
+                        label: 'Connect Repo using GitHub App',
+                        action: () => (this.showConnectGitHubAppRepo = true)
+                    },
+                    {
+                        icon: 'fa-redo',
+                        label: 'Refresh list',
+                        action: () => {
+                            this.refreshRepoList();
+                        }
                     }
-                }}>
+                ]}>
                 <div className='repos-list'>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <DataLoader load={() => services.repos.list()} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) =>
                                 (repos.length > 0 && (
@@ -196,7 +193,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                             }
                         </DataLoader>
                     </div>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <DataLoader load={() => services.repocreds.list()} ref={loader => (this.credsLoader = loader)}>
                             {(creds: models.RepoCreds[]) =>
                                 creds.length > 0 && (
@@ -468,7 +465,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                         )}
                     </Form>
                 </SlidingPanel>
-            </Page>
+            </NewPage>
         );
     }
 

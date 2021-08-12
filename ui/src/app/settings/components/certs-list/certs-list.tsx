@@ -4,7 +4,8 @@ import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -34,26 +35,23 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     public render() {
         return (
-            <Page
+            <NewPage
                 title='Repository certificates'
-                toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates'}],
-                    actionMenu: {
-                        className: 'fa fa-plus',
-                        items: [
-                            {
-                                title: 'Add TLS certificate',
-                                action: () => (this.showAddTLSCertificate = true)
-                            },
-                            {
-                                title: 'Add SSH known hosts',
-                                action: () => (this.showAddSSHKnownHosts = true)
-                            }
-                        ]
+                breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Repository certificates'}]}
+                actions={[
+                    {
+                        icon: 'fa-plus',
+                        label: 'Add TLS certificate',
+                        action: () => (this.showAddTLSCertificate = true)
+                    },
+                    {
+                        icon: 'fa-plus',
+                        label: 'Add SSH known hosts',
+                        action: () => (this.showAddTLSCertificate = true)
                     }
-                }}>
+                ]}>
                 <div className='certs-list'>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <DataLoader load={() => services.certs.list()} ref={loader => (this.loader = loader)}>
                             {(certs: models.RepoCert[]) =>
                                 (certs.length > 0 && (
@@ -123,7 +121,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <div className='certs-list white-box'>
                             <h4>Create TLS repository certificate</h4>
                             <Form
@@ -164,7 +162,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <div className='certs-list white-box'>
                             <h4>Create SSH known host entries</h4>
 
@@ -195,7 +193,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         </div>
                     </div>
                 </SlidingPanel>
-            </Page>
+            </NewPage>
         );
     }
 

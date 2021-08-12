@@ -5,7 +5,7 @@ import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
+import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -16,6 +16,7 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
+import {NewPage} from '../../../shared/components/newpage/page';
 
 require('./project-details.scss');
 
@@ -143,35 +144,31 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         return (
             <Consumer>
                 {ctx => (
-                    <Page
+                    <NewPage
                         title='Projects'
-                        toolbar={{
-                            breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
-                            actionMenu: {
-                                items: [
-                                    {title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
-                                    {title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
-                                    {
-                                        title: 'Delete',
-                                        iconClassName: 'fa fa-times-circle',
-                                        action: async () => {
-                                            const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
-                                            if (confirmed) {
-                                                try {
-                                                    await services.projects.delete(this.props.match.params.name);
-                                                    ctx.navigation.goto('/settings/projects');
-                                                } catch (e) {
-                                                    ctx.notifications.show({
-                                                        content: <ErrorNotification title='Unable to delete project' e={e} />,
-                                                        type: NotificationType.Error
-                                                    });
-                                                }
-                                            }
+                        breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}]}
+                        actions={[
+                            {label: 'Add Role', icon: 'fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
+                            {label: 'Add Sync Window', icon: 'fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
+                            {
+                                label: 'Delete',
+                                icon: 'fa-times-circle',
+                                action: async () => {
+                                    const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
+                                    if (confirmed) {
+                                        try {
+                                            await services.projects.delete(this.props.match.params.name);
+                                            ctx.navigation.goto('/settings/projects');
+                                        } catch (e) {
+                                            ctx.notifications.show({
+                                                content: <ErrorNotification title='Unable to delete project' e={e} />,
+                                                type: NotificationType.Error
+                                            });
                                         }
                                     }
-                                ]
+                                }
                             }
-                        }}>
+                        ]}>
                         <DataLoader
                             load={() => {
                                 return Promise.all([services.projects.get(this.props.match.params.name), loadGlobal(this.props.match.params.name)]);
@@ -377,7 +374,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 </Query>
                             )}
                         </DataLoader>
-                    </Page>
+                    </NewPage>
                 )}
             </Consumer>
         );
@@ -414,7 +411,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private eventsTab(proj: Project) {
         return (
-            <div className='argo-container'>
+            <div style={{padding: '0 80px'}}>
                 <ProjectEvents projectName={proj.metadata.name} />
             </div>
         );
@@ -422,7 +419,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private rolesTab(proj: Project, ctx: any) {
         return (
-            <div className='argo-container'>
+            <div style={{padding: '0 80px'}}>
                 {((proj.spec.roles || []).length > 0 && (
                     <div className='argo-table-list argo-table-list--clickable'>
                         <div className='argo-table-list__head'>
@@ -451,7 +448,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private SyncWindowsTab(proj: Project, ctx: any) {
         return (
-            <div className='argo-container'>
+            <div style={{padding: '0 80px'}}>
                 {((proj.spec.syncWindows || []).length > 0 && (
                     <DataLoader
                         noLoaderOnInputChange={true}
@@ -548,7 +545,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
 
     private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}) {
         return (
-            <div className='argo-container'>
+            <div style={{padding: '0 80px'}}>
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     validate={input => ({

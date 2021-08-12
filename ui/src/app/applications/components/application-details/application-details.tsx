@@ -1,12 +1,11 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
-import * as classNames from 'classnames';
+import {Checkbox as ArgoCheckbox, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
@@ -21,7 +20,8 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './application-resource-filter';
+// import {Filters} from './application-resource-filter';
+import {NewPage} from '../../../shared/components/newpage/page';
 
 require('./application-details.scss');
 
@@ -90,8 +90,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             <ObservableQuery>
                 {q => (
                     <DataLoader
-                        errorRenderer={error => <Page title='Application Details'>{error}</Page>}
-                        loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
+                        errorRenderer={error => <NewPage title='Application Details'>{error}</NewPage>}
+                        loadingRenderer={() => <NewPage title='Application Details'>Loading...</NewPage>}
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name), services.viewPreferences.getPreferences(), q]).pipe(
@@ -145,52 +145,29 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
 
+                            const viewItems = [
+                                {icon: 'fa-sitemap', name: 'tree'},
+                                {icon: 'fa-th', name: 'pods'},
+                                {icon: 'fa-network-wired', name: 'network'},
+                                {icon: 'fa-th-list', name: 'list'}
+                            ].map(item => {
+                                return {
+                                    icon: item.icon,
+                                    selected: pref.view === item.name,
+                                    action: () => {
+                                        this.appContext.apis.navigation.goto('.', {view: item.name});
+                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: item.name as AppsDetailsViewType}});
+                                    }
+                                };
+                            });
+
                             return (
                                 <div className='application-details'>
-                                    <Page
+                                    <NewPage
                                         title='Application Details'
-                                        toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
-                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
-                                            tools: (
-                                                <React.Fragment key='app-list-tools'>
-                                                    <div className='application-details__view-type'>
-                                                        <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
-                                                            title='Tree'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
-                                                            title='Pods'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
-                                                            title='Network'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
-                                                            title='List'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </React.Fragment>
-                                            )
-                                        }}>
+                                        breadcrumbs={[{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}]}
+                                        actions={this.getApplicationActionMenu(application, true)}
+                                        views={viewItems}>
                                         <div className='application-details__status-panel'>
                                             <ApplicationStatusPanel
                                                 application={application}
@@ -216,23 +193,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    <ApplicationResourceTree
-                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                        selectedNodeFullName={this.selectedNodeKey}
-                                                        onNodeClick={fullName => this.selectNode(fullName)}
-                                                        nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application, false)
-                                                            )
-                                                        }
-                                                        tree={tree}
-                                                        app={application}
-                                                        showOrphanedResources={pref.orphanedResources}
-                                                        useNetworkingHierarchy={pref.view === 'network'}
-                                                        onClearFilter={clearFilter}
-                                                    />
-                                                </Filters>
+                                                // <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <ApplicationResourceTree
+                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                    selectedNodeFullName={this.selectedNodeKey}
+                                                    onNodeClick={fullName => this.selectNode(fullName)}
+                                                    nodeMenu={node =>
+                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                            this.getApplicationActionMenu(application, false)
+                                                        )
+                                                    }
+                                                    tree={tree}
+                                                    app={application}
+                                                    showOrphanedResources={pref.orphanedResources}
+                                                    useNetworkingHierarchy={pref.view === 'network'}
+                                                    onClearFilter={clearFilter}
+                                                />
+                                                // </Filters>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -358,7 +335,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </DataLoader>
                                             )}
                                         </SlidingPanel>
-                                    </Page>
+                                    </NewPage>
                                 </div>
                             );
                         }}
@@ -371,57 +348,44 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
-        const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
         return [
             {
-                iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='App Details' />,
+                icon: 'fa-info-circle',
+                label: 'APP DETAILS',
                 action: () => this.selectNode(fullName)
             },
             {
-                iconClassName: 'fa fa-file-medical',
-                title: <ActionMenuItem actionLabel='App Diff' />,
+                icon: 'fa-file-medical',
+                label: 'APP DIFF',
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
-                iconClassName: 'fa fa-sync',
-                title: <ActionMenuItem actionLabel='Sync' />,
+                icon: 'fa-sync',
+                label: 'SYNC',
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
-                iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='Sync Status' />,
+                icon: 'fa-info-circle',
+                label: 'SYNC STATUS',
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
-                iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
+                icon: 'fa-history',
+                label: 'HISTORY AND ROLLBACK',
                 action: () => this.setRollbackPanelVisible(0),
                 disabled: !app.status.operationState
             },
             {
-                iconClassName: 'fa fa-times-circle',
-                title: <ActionMenuItem actionLabel='Delete' />,
+                icon: 'fa-times-circle',
+                label: 'DELETE',
                 action: () => this.deleteApplication()
             },
             {
-                iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
-                title: (
-                    <React.Fragment>
-                        <ActionMenuItem actionLabel='Refresh' />{' '}
-                        <DropDownMenu
-                            items={[
-                                {
-                                    title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard')
-                                }
-                            ]}
-                            anchor={() => <i className='fa fa-caret-down' />}
-                        />
-                    </React.Fragment>
-                ),
+                icon: 'fa-redo',
+                indicateLoading: true,
+                label: 'REDO',
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {

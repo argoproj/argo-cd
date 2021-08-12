@@ -1,4 +1,3 @@
-import * as classNames from 'classnames';
 import * as moment from 'moment';
 import * as React from 'react';
 import {FieldApi, FormField as ReactFormField, Text} from 'react-form';
@@ -7,9 +6,10 @@ import {from, timer} from 'rxjs';
 import {mergeMap} from 'rxjs/operators';
 
 import {FormField, Ticker} from 'argo-ui';
-import {ConnectionStateIcon, DataLoader, EditablePanel, Page, Timestamp} from '../../../shared/components';
+import {ConnectionStateIcon, DataLoader, EditablePanel, Timestamp} from '../../../shared/components';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {NewPage} from '../../../shared/components/newpage/page';
 
 function isRefreshRequested(cluster: Cluster): boolean {
     return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
@@ -27,32 +27,29 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
     return (
         <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
             {(cluster: Cluster) => (
-                <Page
+                <NewPage
                     title={server}
-                    toolbar={{
-                        breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Cluster', path: '/settings/clusters'}, {title: server}],
-                        actionMenu: {
-                            items: [
-                                {
-                                    iconClassName: classNames('fa fa-redo', {'status-icon--spin': isRefreshRequested(cluster)}),
-                                    title: 'Invalidate Cache',
-                                    disabled: isRefreshRequested(cluster) || updating,
-                                    action: async () => {
-                                        setUpdating(true);
-                                        try {
-                                            const updated = await services.clusters.invalidateCache(props.match.params.server);
-                                            loaderRef.current.setData(updated);
-                                        } finally {
-                                            setUpdating(false);
-                                        }
-                                    }
+                    breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Cluster', path: '/settings/clusters'}, {title: server}]}
+                    actions={[
+                        {
+                            icon: 'fa-redo',
+                            label: 'Invalidate Cache',
+                            indicateLoading: true,
+                            disabled: isRefreshRequested(cluster) || updating,
+                            action: async () => {
+                                setUpdating(true);
+                                try {
+                                    const updated = await services.clusters.invalidateCache(props.match.params.server);
+                                    loaderRef.current.setData(updated);
+                                } finally {
+                                    setUpdating(false);
                                 }
-                            ]
+                            }
                         }
-                    }}>
+                    ]}>
                     <p />
 
-                    <div className='argo-container'>
+                    <div style={{padding: '0 80px'}}>
                         <EditablePanel
                             values={cluster}
                             save={async updated => {
@@ -152,7 +149,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                             </div>
                         </div>
                     </div>
-                </Page>
+                </NewPage>
             )}
         </DataLoader>
     );

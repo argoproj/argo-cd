@@ -1,7 +1,7 @@
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
-import {Page} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {AppContext} from '../../../shared/context';
 
 require('./settings-overview.scss');
@@ -40,9 +40,9 @@ const settings = [
 ];
 
 export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
-    <Page title='Settings' toolbar={{breadcrumbs: [{title: 'Settings'}]}}>
+    <NewPage title='Settings' breadcrumbs={[{title: 'Settings'}]}>
         <div className='settings-overview'>
-            <div className='argo-container'>
+            <div style={{padding: '0 80px'}}>
                 {settings.map(item => (
                     <div key={item.path} className='settings-overview__redirect-panel' onClick={() => context.apis.navigation.goto(item.path)}>
                         <div className='settings-overview__redirect-panel__content'>
@@ -56,7 +56,7 @@ export const SettingsOverview: React.StatelessComponent = (props: any, context: 
                 ))}
             </div>
         </div>
-    </Page>
+    </NewPage>
 );
 
 SettingsOverview.contextTypes = {
