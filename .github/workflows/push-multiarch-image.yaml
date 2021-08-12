@@ -1,4 +1,5 @@
 name: Push ArgoCD multiarch image
+
 on:
   workflow_run:
     workflows: ["Create ArgoCD release"]
@@ -7,11 +8,8 @@ on:
   workflow_dispatch:
     inputs:
       release-tag-name:
-        description: 'The release tag name that triggers this workflow (i.e. release-v2.0.0)'
+        description: 'The release tag name that triggers this workflow (e.g. release-v2.0.0)'
         required: true
-
-env:
-    GOLANG_VERSION: '1.16.5'
 
 jobs:
   prepare-release:
@@ -54,11 +52,6 @@ jobs:
           echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
           echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
-
-      - name: Setup Golang
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Checkout corresponding release branch
         run: |
