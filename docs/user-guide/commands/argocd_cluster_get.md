@@ -3,13 +3,14 @@
 Get cluster information
 
 ```
-argocd cluster get SERVER [flags]
+argocd cluster get SERVER/NAME [flags]
 ```
 
 ### Examples
 
 ```
 argocd cluster get https://12.34.567.89
+argocd cluster get in-cluster
 ```
 
 ### Options
