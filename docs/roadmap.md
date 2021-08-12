@@ -1,27 +1,27 @@
 # Roadmap
 
 - [Roadmap](#roadmap)
-  - [v2.1](#v21)
+  - [v2.2](#v22)
     - [Config Management Tools Integrations (proposal)](#config-management-tools-integrations-proposal)
     - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
     - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
     - [Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
-  - [v2.2 and beyond](#v22-and-beyond)
+  - [v2.3 and beyond](#v22-and-beyond)
     - [Application Details Page Usability](#application-details-page-usability)
     - [Cluster Management User Interface](#cluster-management-user-interface)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
-    - [Core Functionality Bug Fixes](#core-functionality-bug-fixes)
-    - [Performance](#performance)
-    - [ApplicationSet](#applicationset)
-    - [Large Applications support](#large-applications-support)
-    - [Serviceability](#serviceability)
-    - [Argo CD Notifications](#argo-cd-notifications)
-    - [Automated Registry Monitoring](#automated-registry-monitoring)
-    - [Projects Enhancements](#projects-enhancements)
+    - [✅ Core Functionality Bug Fixes](#core-functionality-bug-fixes)
+    - [✅ Performance](#performance)
+    - [✅ ApplicationSet](#applicationset)
+    - [✅ Large Applications support](#large-applications-support)
+    - [✅ Serviceability](#serviceability)
+    - [✅ Argo CD Notifications](#argo-cd-notifications)
+    - [✅ Automated Registry Monitoring](#automated-registry-monitoring)
+    - [✅ Projects Enhancements](#projects-enhancements)
 
 
-## v2.1
+## v2.2
 
 ### Config Management Tools Integrations ([proposal](https://github.com/argoproj/argo-cd/pull/5927))
 
@@ -42,12 +42,7 @@ via Git repository.
 The feature streamlines the process of adding repositories and clusters to the project and makes it self-service.
 Instead of asking an administrator to change Argo CD settings end users can perform the change independently.
 
-### Core Argo CD ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
-
-Core Argo CD allows to installation and use of lightweight Argo CD that includes only the backend without exposing the API or UI.
-The Core Argo CD provides a better experience to users who need only core Argo CD features and don't want to deal with multi-tenancy features.
-
-## v2.2 and beyond
+## v2.3 and beyond
 
 ### Application Details Page Usability
 
@@ -73,8 +68,12 @@ A lot of Argo CD features are still not available in GitOps engine. The followin
 
 ## Completed
 
+### ✅ Core Argo CD ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
 
-### Core Functionality Bug Fixes
+Core Argo CD allows to installation and use of lightweight Argo CD that includes only the backend without exposing the API or UI.
+The Core Argo CD provides a better experience to users who need only core Argo CD features and don't want to deal with multi-tenancy features.
+
+### ✅ Core Functionality Bug Fixes
 
 The core GitOps features still have several known bugs and limitations. The full list is available in [v1.9 milestone](
 https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.9%22+label%3Acomponent%3Acore)
@@ -83,7 +82,7 @@ The most notable issues:
 
 * [Argo CD synchronization lasts incredibly long](https://github.com/argoproj/argo-cd/issues/3663)
 
-### Performance
+### ✅ Performance
 
 * 2000+ Applications support. The user interface becomes notably slower if one Argo CD instance manages more than 1 thousand applications.
 A set of optimizations is required to fix that issue.
@@ -93,7 +92,7 @@ Currently Argo CD controller is unable to handle that many clusters. The solutio
 
 * Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance drops significantly. The repository server optimization is required to improve it.
 
-### ApplicationSet
+### ✅ ApplicationSet
 
 Argo CD Applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
 is a configuration that should be managed declaratively as well. The app-of-apps pattern solves this problem but still has some challenges such as
@@ -101,30 +100,30 @@ maintenance overhead, security, and lack of some additional features.
 
 [ApplicationSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications across multiple environments.
 
-### Large Applications support
+### ✅ Large Applications support
 
 The application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
 to improve user experience.
 
-### Serviceability
+### ✅ Serviceability
 
 To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
 
 That includes more metrics, out of the box alerts and a cluster management user interface.
 
 
-### Argo CD Notifications
+### ✅ Argo CD Notifications
 
 [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) provides the ability to notify users about Argo CD Application
 changes as well as implement integrations such as update GitHub commit status, trigger Jenkins job, set Grafana label, etc.
 
-### Automated Registry Monitoring
+### ✅ Automated Registry Monitoring
 
 [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) provides an ability to monitor Docker registries and automatically
 update image versions in the deployment repository. See [https://github.com/argoproj/argo-cd/issues/1648](https://github.com/argoproj/argo-cd/issues/1648).
 
 
-### Projects Enhancements
+### ✅ Projects Enhancements
 
 Argo CD projects accumulated a lot of debt:
 
