@@ -16,6 +16,7 @@ jobs:
   prepare-release:
     name: Perform automatic arm64 release on trigger ${{ github.event.inputs.release-tag-name ||  github.ref }}
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     env:
       # The name of the tag as supplied by the GitHub event
       SOURCE_TAG: ${{ github.event.inputs.release-tag-name || github.ref }}
