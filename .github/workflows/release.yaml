@@ -308,6 +308,11 @@ jobs:
           token: ${{env.HOMEBREW_TOKEN}}
           formula: argocd
         if: ${{ env.HOMEBREW_TOKEN != '' && env.UPDATE_HOMEBREW == 'true' && env.PRE_RELEASE != 'true' }}
+      - name: Delete original request tag from repository
+        run: |
+          set -ue
+          git push --delete origin ${SOURCE_TAG}
+        if: ${{ failure() }}
 
   push-multiarch-images:
     name: Perform automatic multiarch release on trigger ${{ github.ref }}
