@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -144,7 +144,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
     }
 
     public render() {
-        console.log(navItems, Tooltip, Layout);
         if (this.state.error != null) {
             const stack = this.state.error.stack;
             const url = 'https://github.com/argoproj/argo-cd/issues/new?labels=bug&template=bug_report.md';
