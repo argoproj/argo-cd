@@ -157,3 +157,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [MariaDB](https://mariadb.com)
 1. [Lightricks](https://www.lightricks.com/)
 1. [RightRev] (https://rightrev.com/)
+1. [MeDirect] (https://medirect.com.mt/)
