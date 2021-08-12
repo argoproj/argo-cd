@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
 import {DataLoader, EmptyState, ErrorNotification, Query} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {Consumer} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -15,7 +15,7 @@ export class ProjectsList extends React.Component {
         return (
             <Consumer>
                 {ctx => (
-                    <NewPage
+                    <Page
                         title='Projects'
                         breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Projects'}]}
                         actionMenu={[
@@ -109,7 +109,7 @@ export class ProjectsList extends React.Component {
                                 </SlidingPanel>
                             )}
                         </Query>
-                    </NewPage>
+                    </Page>
                 )}
             </Consumer>
         );

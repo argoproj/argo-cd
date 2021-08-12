@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {DataLoader, ErrorNotification, Spinner} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import {services} from '../../../shared/services';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 
 require('./user-info-overview.scss');
 
@@ -29,7 +29,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
         return (
             <DataLoader key='userInfo' load={() => services.users.get()}>
                 {userInfo => (
-                    <NewPage
+                    <Page
                         title='User Info'
                         toolbar={{
                             breadcrumbs: [{title: 'User Info'}],
@@ -133,7 +133,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                 <div />
                             )}
                         </div>
-                    </NewPage>
+                    </Page>
                 )}
             </DataLoader>
         );

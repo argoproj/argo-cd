@@ -21,7 +21,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 // import {Filters} from './application-resource-filter';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 
 require('./application-details.scss');
 
@@ -90,8 +90,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             <ObservableQuery>
                 {q => (
                     <DataLoader
-                        errorRenderer={error => <NewPage title='Application Details'>{error}</NewPage>}
-                        loadingRenderer={() => <NewPage title='Application Details'>Loading...</NewPage>}
+                        errorRenderer={error => <Page title='Application Details'>{error}</Page>}
+                        loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name), services.viewPreferences.getPreferences(), q]).pipe(
@@ -163,7 +163,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
                             return (
                                 <div className='application-details'>
-                                    <NewPage
+                                    <Page
                                         title='Application Details'
                                         breadcrumbs={[{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}]}
                                         actions={this.getApplicationActionMenu(application, true)}
@@ -335,7 +335,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </DataLoader>
                                             )}
                                         </SlidingPanel>
-                                    </NewPage>
+                                    </Page>
                                 </div>
                             );
                         }}

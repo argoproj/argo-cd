@@ -4,7 +4,7 @@ import {Form, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {DataLoader, Timestamp} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {Context} from '../../../shared/context';
 import {Account, Token} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -18,7 +18,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
     const [newToken, setNewToken] = React.useState(null);
     const tokensLoaderRef = React.useRef<DataLoader>();
     return (
-        <NewPage
+        <Page
             title={props.match.params.name}
             breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}]}>
             <p />
@@ -155,6 +155,6 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                     )}
                 </DataLoader>
             </div>
-        </NewPage>
+        </Page>
     );
 };

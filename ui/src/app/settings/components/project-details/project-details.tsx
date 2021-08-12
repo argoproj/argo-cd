@@ -16,7 +16,7 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 
 require('./project-details.scss');
 
@@ -144,7 +144,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         return (
             <Consumer>
                 {ctx => (
-                    <NewPage
+                    <Page
                         title='Projects'
                         breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}]}
                         actions={[
@@ -374,7 +374,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 </Query>
                             )}
                         </DataLoader>
-                    </NewPage>
+                    </Page>
                 )}
             </Consumer>
         );

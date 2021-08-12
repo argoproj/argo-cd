@@ -1,14 +1,14 @@
 import * as React from 'react';
 
 import {DataLoader, EmptyState} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
 export const AccountsList = () => {
     const ctx = React.useContext(Context);
     return (
-        <NewPage title='Accounts' breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]}>
+        <Page title='Accounts' breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]}>
             <div style={{padding: '0 80px'}}>
                 <DataLoader load={() => services.accounts.list()}>
                     {accounts =>
@@ -40,6 +40,6 @@ export const AccountsList = () => {
                     }
                 </DataLoader>
             </div>
-        </NewPage>
+        </Page>
     );
 };

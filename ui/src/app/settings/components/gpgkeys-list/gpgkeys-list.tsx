@@ -5,7 +5,7 @@ import {Form, FormApi, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {DataLoader, EmptyState, ErrorNotification} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -28,7 +28,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
 
     public render() {
         return (
-            <NewPage
+            <Page
                 title='GnuPG public keys'
                 breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}
                 actions={[
@@ -124,7 +124,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         )}
                     </Form>
                 </SlidingPanel>
-            </NewPage>
+            </Page>
         );
     }
 

@@ -5,9 +5,9 @@ import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Paginate, Query, Spinner} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
-import {Consumer, Context, ContextApis} from '../../../shared/context';
+import {ClusterCtx, DataLoader, EmptyState, ObservableQuery, Paginate, Query, Spinner} from '../../../shared/components';
+import {Page} from '../../../shared/components/page/page';
+import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -235,13 +235,11 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     );
 };
 
-const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
-    const ctx = React.useContext(Context);
-    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
+const FlexTopBar = (props: {toolbar: Observable<Toolbar>}) => {
     return (
         <React.Fragment>
             <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => loadToolbar}>
+                <DataLoader load={() => props.toolbar}>
                     {toolbar => (
                         <React.Fragment>
                             <div className='flex-top-bar__actions'>
@@ -311,7 +309,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             <KeybindingProvider>
                 <Consumer>
                     {ctx => (
-                        <NewPage title='Applications' breadcrumbs={[{title: 'Applications', path: '/applications'}]}>
+                        <Page title='Applications' breadcrumbs={[{title: 'Applications', path: '/applications'}]}>
                             <DataLoader
                                 ref={loaderRef}
                                 load={() => AppUtils.handlePageVisibility(() => loadApplications())}
@@ -520,7 +518,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     </React.Fragment>
                                 )}
                             </DataLoader>
-                        </NewPage>
+                        </Page>
                     )}
                 </Consumer>
             </KeybindingProvider>

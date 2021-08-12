@@ -1,7 +1,7 @@
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {AppContext} from '../../../shared/context';
 
 require('./settings-overview.scss');
@@ -40,7 +40,7 @@ const settings = [
 ];
 
 export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
-    <NewPage title='Settings' breadcrumbs={[{title: 'Settings'}]}>
+    <Page title='Settings' breadcrumbs={[{title: 'Settings'}]}>
         <div className='settings-overview'>
             <div style={{padding: '0 80px'}}>
                 {settings.map(item => (
@@ -56,7 +56,7 @@ export const SettingsOverview: React.StatelessComponent = (props: any, context: 
                 ))}
             </div>
         </div>
-    </NewPage>
+    </Page>
 );
 
 SettingsOverview.contextTypes = {

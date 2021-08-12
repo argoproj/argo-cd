@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {NewPage} from '../../shared/components/newpage/page';
+import {Page} from '../../shared/components/page/page';
 import {Consumer} from '../../shared/context';
 
 require('./help.scss');
@@ -7,7 +7,7 @@ require('./help.scss');
 export const Help = () => (
     <Consumer>
         {ctx => (
-            <NewPage title='Help'>
+            <Page title='Help'>
                 <div className='row'>
                     <div className='columns large-4 small-6'>
                         <div className='help-box'>
@@ -42,7 +42,7 @@ export const Help = () => (
                         </div>
                     </div>
                 </div>
-            </NewPage>
+            </Page>
         )}
     </Consumer>
 );

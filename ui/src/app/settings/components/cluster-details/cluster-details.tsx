@@ -9,7 +9,7 @@ import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, DataLoader, EditablePanel, Timestamp} from '../../../shared/components';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 
 function isRefreshRequested(cluster: Cluster): boolean {
     return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
@@ -27,7 +27,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
     return (
         <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
             {(cluster: Cluster) => (
-                <NewPage
+                <Page
                     title={server}
                     breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Cluster', path: '/settings/clusters'}, {title: server}]}
                     actions={[
@@ -149,7 +149,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                             </div>
                         </div>
                     </div>
-                </NewPage>
+                </Page>
             )}
         </DataLoader>
     );

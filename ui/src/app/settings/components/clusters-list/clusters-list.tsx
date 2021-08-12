@@ -2,7 +2,7 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -13,7 +13,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <NewPage title='Clusters' breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}>
+                    <Page title='Clusters' breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}>
                         <div className='repos-list'>
                             <div style={{padding: '0 80px'}}>
                                 <DataLoader
@@ -77,7 +77,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                 </DataLoader>
                             </div>
                         </div>
-                    </NewPage>
+                    </Page>
                 </React.Fragment>
             )}
         </Consumer>

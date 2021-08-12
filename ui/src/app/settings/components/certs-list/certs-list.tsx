@@ -5,7 +5,7 @@ import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {DataLoader, EmptyState, ErrorNotification} from '../../../shared/components';
-import {NewPage} from '../../../shared/components/newpage/page';
+import {Page} from '../../../shared/components/page/page';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -35,7 +35,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
 
     public render() {
         return (
-            <NewPage
+            <Page
                 title='Repository certificates'
                 breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Repository certificates'}]}
                 actions={[
@@ -193,7 +193,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         </div>
                     </div>
                 </SlidingPanel>
-            </NewPage>
+            </Page>
         );
     }
 
