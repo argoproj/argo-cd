@@ -156,5 +156,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Beleza Na Web](https://www.belezanaweb.com.br/)
 1. [MariaDB](https://mariadb.com)
 1. [Lightricks](https://www.lightricks.com/)
-1. [RightRev] (https://rightrev.com/)
-1. [MeDirect] (https://medirect.com.mt/)
+1. [RightRev](https://rightrev.com/)
+1. [MeDirect](https://medirect.com.mt/)
