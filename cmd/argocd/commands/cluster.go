@@ -169,8 +169,8 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
-			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+			for _, clusterSelector := range args {
+				clst, err := clusterIf.Get(context.Background(), clusterpkg.GetQueryBySelector(clusterSelector))
 				errors.CheckError(err)
 				clusters = append(clusters, *clst)
 			}

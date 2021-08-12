@@ -21,6 +21,7 @@ import (
 	_ "k8s.io/api/core/v1"
 	math "math"
 	math_bits "math/bits"
+	"regexp"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -43,6 +44,16 @@ type ClusterQuery struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
+func GetQueryBySelector(clusterSelector string) *ClusterQuery {
+	var query ClusterQuery
+	isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
+	if isServer || err != nil {
+		query.Server = clusterSelector
+	} else {
+		query.Name = clusterSelector
+	}
+	return &query
+}
 func (m *ClusterQuery) Reset()         { *m = ClusterQuery{} }
 func (m *ClusterQuery) String() string { return proto.CompactTextString(m) }
 func (*ClusterQuery) ProtoMessage()    {}
