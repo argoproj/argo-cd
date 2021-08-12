@@ -25,8 +25,6 @@ jobs:
       IMAGE_NAMESPACE: quay.io/argoproj
       # Whether to create & push image and release assets
       DRY_RUN: false
-      # Whether a draft release should be created, instead of public one
-      DRAFT_RELEASE: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -94,7 +92,7 @@ jobs:
           load: true
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Push docker image to repository
+      - name: Push docker image and multiarch manifest to repository
         env:
           DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
@@ -116,4 +114,20 @@ jobs:
             --amend argoproj/argocd:${RELEASE_TAG} \
             --amend argoproj/argocd:${RELEASE_TAG}-arm64
           docker push argoproj/argocd:${RELEASE_TAG}-multiarch
-        if: ${{ env.DRY_RUN != 'true' }}
+        if: ${{ env.DRY_RUN != 'true' && github.event_name == 'workflow_run' }}
+
+      - name: Push docker image to repository
+        env:
+          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker push ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-arm64
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+          docker push argoproj/argocd:${RELEASE_TAG}-arm64
+        if: ${{ env.DRY_RUN != 'true' && github.event_name == 'workflow_dispatch' }}
+
