@@ -69,6 +69,7 @@ jobs:
           if ! git checkout ${TARGET_BRANCH}; then
             echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
             exit 1
+          fi
           
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
