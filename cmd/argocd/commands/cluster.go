@@ -158,9 +158,10 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		output string
 	)
 	var command = &cobra.Command{
-		Use:     "get SERVER",
-		Short:   "Get cluster information",
-		Example: `argocd cluster get https://12.34.567.89`,
+		Use:   "get SERVER/NAME",
+		Short: "Get cluster information",
+		Example: `argocd cluster get https://12.34.567.89
+argocd cluster get in-cluster`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
