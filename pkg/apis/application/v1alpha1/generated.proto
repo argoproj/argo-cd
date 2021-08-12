@@ -48,13 +48,6 @@ message AppProjectList {
   repeated AppProject items = 2;
 }
 
-// AppProjectScopedResources is the wrapper for project and scoped resources like repositories and clusters
-message AppProjectScopedResources {
-  optional AppProject project = 1;
-
-  repeated Repository repositories = 2;
-}
-
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
   // SourceRepos contains list of repository URLs which can be used for deployment
