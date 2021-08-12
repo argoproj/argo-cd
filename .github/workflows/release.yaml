@@ -312,6 +312,7 @@ jobs:
   push-multiarch-images:
     name: Perform automatic multiarch release on trigger ${{ github.ref }}
     runs-on: ubuntu-latest
+    needs: prepare-release
     env:
       # The name of the tag as supplied by the GitHub event
       SOURCE_TAG: ${{ github.ref }}
