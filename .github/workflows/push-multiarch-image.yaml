@@ -5,9 +5,10 @@ on:
     types: 
       - completed
   workflow_dispatch:
-    release-tag-name:
-      description: 'The release tag name that triggers this workflow (i.e. release-v2.0.0)'
-      required: true
+    input:
+      release-tag-name:
+        description: 'The release tag name that triggers this workflow (i.e. release-v2.0.0)'
+        required: true
 
 env:
     GOLANG_VERSION: '1.16.5'
