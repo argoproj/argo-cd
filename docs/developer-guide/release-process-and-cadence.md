@@ -42,7 +42,8 @@ the maintainer should label it with a `verified` label.
 
 The releasing procedure is described in [releasing](./releasing.md) document. Before closing the release milestone following should be verified:
 
-- [ ] All merged PRs have the `verified` label
+- [ ] All merged PRs and verified (verify and remove `needs-verification` label):
+- [ ] Triage issues reported by `yarn audit` and ensure there are no exploitable security issues.
 - [ ] Roadmap is updated based one current release changes
 - [ ] Next release milestone is created
 - [ ] Upcoming release milestone is updated
