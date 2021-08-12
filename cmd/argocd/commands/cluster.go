@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 
@@ -158,9 +159,10 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		output string
 	)
 	var command = &cobra.Command{
-		Use:     "get SERVER",
-		Short:   "Get cluster information",
-		Example: `argocd cluster get https://12.34.567.89`,
+		Use:   "get SERVER/NAME",
+		Short: "Get cluster information",
+		Example: `argocd cluster get https://12.34.567.89
+argocd cluster get in-cluster`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -169,8 +171,8 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
-			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+			for _, clusterSelector := range args {
+				clst, err := clusterIf.Get(context.Background(), getQueryBySelector(clusterSelector))
 				errors.CheckError(err)
 				clusters = append(clusters, *clst)
 			}
@@ -266,6 +268,18 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
 	}
 	_ = w.Flush()
+}
+
+// Returns cluster query for getting cluster depending on the cluster selector
+func getQueryBySelector(clusterSelector string) *clusterpkg.ClusterQuery {
+	var query clusterpkg.ClusterQuery
+	isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
+	if isServer || err != nil {
+		query.Server = clusterSelector
+	} else {
+		query.Name = clusterSelector
+	}
+	return &query
 }
 
 // Print list of cluster servers
