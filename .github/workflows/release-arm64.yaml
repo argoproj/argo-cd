@@ -1,0 +1,141 @@
+name: Create ArgoCD arm64 release
+on:
+  workflow_run:
+    workflows: ["Create ArgoCD release"]
+    types: 
+      - completed
+
+env:
+    GOLANG_VERSION: '1.16.5'
+
+jobs:
+  prepare-release:
+    name: Perform automatic arm64 release on trigger ${{ github.ref }}
+    runs-on: ubuntu-latest
+    env:
+      # The name of the tag as supplied by the GitHub event
+      SOURCE_TAG: ${{ github.ref }}
+      # The image namespace where Docker image will be published to
+      IMAGE_NAMESPACE: quay.io/argoproj
+      # Whether to create & push image and release assets
+      DRY_RUN: false
+      # Whether a draft release should be created, instead of public one
+      DRAFT_RELEASE: false
+      # Whether to update homebrew with this release as well
+      # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
+      # access to public repositories
+      UPDATE_HOMEBREW: false
+      # Name of the GitHub user for Git config
+      GIT_USERNAME: argo-bot
+      # E-Mail of the GitHub user for Git config
+      GIT_EMAIL: argoproj@gmail.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: Check if the published tag is well formed and setup vars
+        run: |
+          set -xue
+          # Target version must match major.minor.patch and optional -rcX suffix
+          # where X must be a number.
+          TARGET_VERSION=${SOURCE_TAG#*release-v}
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+            echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
+            exit 1
+          fi
+
+          # Target branch is the release branch we're going to operate on
+          # Its name is 'release-<major>.<minor>'
+          TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
+
+          # The release tag is the source tag, minus the release- prefix
+          RELEASE_TAG="${SOURCE_TAG#*release-}"
+
+          # Whether this is a pre-release (indicated by -rc suffix)
+          PRE_RELEASE=false
+          if echo "${RELEASE_TAG}" | egrep -- '-rc[0-9]+$'; then
+            PRE_RELEASE=true
+          fi
+
+          # We must not have a release trigger within the same release branch,
+          # because that means a release for this branch is already running.
+          if git tag -l | grep "release-v${TARGET_VERSION%\.[0-9]*}" | grep -v "release-v${TARGET_VERSION}"; then
+            echo "::error::Another release for branch ${TARGET_BRANCH} is currently in progress."
+            exit 1
+          fi
+
+          # Ensure that release do not yet exist
+          if git rev-parse ${RELEASE_TAG}; then
+            echo "::error::Release tag ${RELEASE_TAG} already exists in repository. Refusing to continue."
+            exit 1
+          fi
+
+          # Make the variables available in follow-up steps
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
+
+      - name: Setup Golang
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Checkout corresponding release branch
+        run: |
+          set -ue
+          echo "Switching to release branch '${TARGET_BRANCH}'"
+          if ! git checkout ${TARGET_BRANCH}; then
+            echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
+            exit 1
+          
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build arm64 Docker image for release
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/arm64
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/argocd:${{ env.RELEASE_TAG }}-arm64
+            argoproj/argocd:${{ env.RELEASE_TAG }}-arm64
+          build-args: |
+            BUILD_ALL_CLIS=false
+          load: true
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Push docker image to repository
+        env:
+          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker push ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-arm64
+          # Create docker multi-arch manifest
+          docker manifest create ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-multiarch \
+            --amend ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG} \
+            --amend ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-arm64
+          docker push ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-multiarch
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+          docker push argoproj/argocd:${RELEASE_TAG}-amd64
+          docker push argoproj/argocd:${RELEASE_TAG}-arm64
+          docker manifest create argoproj/argocd:${RELEASE_TAG}-multiarch \
+            --amend argoproj/argocd:${RELEASE_TAG} \
+            --amend argoproj/argocd:${RELEASE_TAG}-arm64
+          docker push argoproj/argocd:${RELEASE_TAG}-multiarch
+        if: ${{ env.DRY_RUN != 'true' }}
