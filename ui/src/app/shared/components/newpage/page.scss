@@ -1,0 +1,13 @@
+@import 'node_modules/argo-ui/v2/styles/colors.scss';
+
+.new-toolbar {
+    position: sticky;
+    top: 0;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    background-color: white;
+    box-shadow: 0 -2px 0 0 $argo-color-gray-3 inset;
+    z-index: 5;
+}

@@ -1,0 +1,54 @@
+@import 'node_modules/argo-ui/v2/styles/colors.scss';
+
+.sidebar {
+    min-width: 200px;
+    padding: 15px;
+    position: sticky;
+    overflow: scroll;
+    height: 100vh;
+    max-height: 100vh;
+    top: 0;
+    color: white;
+    background-color: $silver-lining;
+
+    &__logo {
+        justify-content: center;
+        display: flex;
+        align-items: center;
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 0.5em;
+
+        img {
+            width: 40px;
+            margin-right: 7px;
+        }
+    }
+
+    &__version {
+        cursor: pointer;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 1em;
+    }
+
+    &__nav-item {
+        cursor: pointer;
+        font-size: 17px;
+        height: 1.9em;
+        line-height: 1.9em;
+        color: $dull-shine;
+
+        i {
+            font-size: 24px;
+            color: white;
+            margin-right: 5px;
+        }
+
+        &--active {
+            color: white;
+            font-weight: 500;
+            box-shadow: -3px 0 0px 0 inset $sky;
+        }
+    }
+}

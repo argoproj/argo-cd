@@ -5,7 +5,8 @@ import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Paginate, Query, Spinner} from '../../../shared/components';
+import {NewPage} from '../../../shared/components/newpage/page';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
@@ -13,7 +14,7 @@ import {ApplicationCreatePanel} from '../application-create-panel/application-cr
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
+import {FilteredApp, getFilterResults} from './applications-filter';
 import {ApplicationsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
@@ -266,7 +267,6 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                     )}
                 </DataLoader>
             </div>
-            <div className='flex-top-bar__padder' />
         </React.Fragment>
     );
 };
@@ -311,7 +311,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             <KeybindingProvider>
                 <Consumer>
                     {ctx => (
-                        <Page title='Applications' toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}} hideAuth={true}>
+                        <NewPage title='Applications' breadcrumbs={[{title: 'Applications', path: '/applications'}]}>
                             <DataLoader
                                 ref={loaderRef}
                                 load={() => AppUtils.handlePageVisibility(() => loadApplications())}
@@ -377,7 +377,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
+                                                    const {filteredApps} = filterApps(applications, pref, pref.search);
                                                     const appsView =
                                                         applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
@@ -391,7 +391,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </button>
                                                             </EmptyState>
                                                         ) : (
-                                                            <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref}>
+                                                            <>
+                                                                {/* <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} /> */}
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
@@ -433,7 +434,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                            </ApplicationsFilter>
+                                                            </>
                                                         );
                                                     return (
                                                         <>
@@ -519,7 +520,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     </React.Fragment>
                                 )}
                             </DataLoader>
-                        </Page>
+                        </NewPage>
                     )}
                 </Consumer>
             </KeybindingProvider>
