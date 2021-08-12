@@ -5,7 +5,7 @@ on:
     types: 
       - completed
   workflow_dispatch:
-    input:
+    inputs:
       release-tag-name:
         description: 'The release tag name that triggers this workflow (i.e. release-v2.0.0)'
         required: true
