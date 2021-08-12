@@ -1,4 +1,4 @@
-name: Push ArgoCD multiarch image
+name: Push ArgoCD arm64 image
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   prepare-release:
-    name: Perform automatic multiarch release on trigger ${{ github.event.inputs.release-tag-name }}
+    name: Perform automatic arm64 release on trigger ${{ github.event.inputs.release-tag-name }}
     runs-on: ubuntu-latest
     env:
       # The name of the tag as supplied by the GitHub event
