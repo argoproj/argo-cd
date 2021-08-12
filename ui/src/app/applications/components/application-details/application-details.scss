@@ -12,6 +12,9 @@ $header: 120px;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
         }
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            top: 146px;
+        }
     }
 
     .argo-dropdown__content.is-menu {
