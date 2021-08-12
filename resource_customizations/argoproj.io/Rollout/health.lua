@@ -87,7 +87,12 @@ end
 
 -- Argo Rollouts v1.0 has been improved to record a phase/message in status, which Argo CD can blindly surface
 if obj.status.phase ~= nil then
-  hs.status = obj.status.phase
+  if obj.status.phase == "Paused" then
+    -- Map Rollout's "Paused" status to Argo CD's "Suspended"
+    hs.status = "Suspended"
+  else 
+    hs.status = obj.status.phase
+  end
   hs.message = obj.status.message
   return hs
 end
