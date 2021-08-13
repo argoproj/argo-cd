@@ -1,4 +1,4 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
+import {Autocomplete, Checkbox} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 
@@ -16,6 +16,40 @@ interface FilterProps {
     loading?: boolean;
     radio?: boolean;
 }
+
+export interface CheckboxOption {
+    label: string;
+    count?: number;
+    icon?: React.ReactNode;
+}
+
+export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
+    const [value, setValue] = React.useState(props.value);
+
+    React.useEffect(() => {
+        setValue(props.value);
+    }, [props.value]);
+
+    return (
+        <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
+            <Checkbox
+                onChange={val => {
+                    setValue(val);
+                    if (props.onChange) {
+                        props.onChange(val);
+                    }
+                }}
+                value={value}
+                style={{
+                    marginRight: '8px'
+                }}
+            />
+            {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
+            <div className='checkbox__item__label'>{props.option.label}</div>
+            <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
+        </div>
+    );
+};
 
 export const FiltersGroup = (props: {
     children?: React.ReactNode;
