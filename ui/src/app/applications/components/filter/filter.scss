@@ -43,6 +43,32 @@
     &__loading {
         text-align: center;
     }
+
+    &__item {
+        height: 2em;
+        padding: 0 5px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        background-color: white;
+        transition: background-color 200ms ease;
+        margin: 0.25em 0;
+        cursor: pointer;
+        flex-wrap: nowrap;
+
+        &__label {
+            text-overflow: ellipsis;
+            flex-grow: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        &--selected {
+            background-color: $argo-color-teal-3;
+            color: $argo-color-teal-8;
+            font-weight: 500;
+        }
+    }
 }
 
 .filters-group {
@@ -96,7 +122,6 @@
         padding-left: 230px;
     }
 }
-
 
 @include breakpoint(xlarge down) {
     .filters-group__toggle {
