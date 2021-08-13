@@ -1,5 +1,5 @@
-import {ActionButton, Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
-import classNames from 'classnames';
+import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import './filter.scss';
@@ -15,24 +15,32 @@ interface FilterProps {
     retry?: () => void;
     loading?: boolean;
     radio?: boolean;
-    wrap?: boolean;
 }
 
-export const FiltersGroup = (props: {children?: React.ReactNode; appliedFilter?: string[]; shown: boolean; setShown: (val: boolean) => void; onClearFilter?: () => void}) => {
+export const FiltersGroup = (props: {
+    children?: React.ReactNode;
+    content: React.ReactNode;
+    appliedFilter?: string[];
+    expanded: boolean;
+    setShown: (val: boolean) => void;
+    onClearFilter?: () => void;
+}) => {
     return (
-        <div className='filters-group'>
-            <div className='filters-group__container__title'>
-                FILTERS <i className='fa fa-filter' />
-                {props.appliedFilter?.length > 0 && props.onClearFilter && (
-                    <ActionButton label={'CLEAR ALL'} action={() => props.onClearFilter()} style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: 'block'}} />
-                )}
-                <ActionButton
-                    label={!props.shown ? 'SHOW' : 'HIDE'}
-                    action={() => props.setShown(!props.shown)}
-                    style={{marginLeft: props.appliedFilter?.length > 0 ? '5px' : 'auto', fontSize: '12px', lineHeight: '5px'}}
-                />
+        <div className={classNames('filters-group', {'filters-group--expanded': props.expanded})}>
+            <div className='filters-group__panel'>
+                <i className='fa fa-filter' />
+                <div className='filters-group__panel__title'>
+                    FILTERS{' '}
+                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                        <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
+                            CLEAR ALL
+                        </button>
+                    )}
+                    <i className='fa fa-thumbtack filters-group__toggle' onClick={() => props.setShown(!props.expanded)} />
+                </div>
+                <>{props.children}</>
             </div>
-            <div className={classNames('filters-group__container', {'filters-group__container--hidden': !props.shown})}>{props.children}</div>
+            <div className='filters-group__content'>{props.content}</div>
         </div>
     );
 };
@@ -68,11 +76,11 @@ export const Filter = (props: FilterProps) => {
     }, [props.selected.length]);
 
     return (
-        <div className={classNames('filter', {'filter--wrap': props.wrap})}>
+        <div className='filter'>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
-                    <div
+                    <button
                         className='argo-button argo-button--base argo-button--sm'
                         style={{marginLeft: 'auto'}}
                         onClick={() => {
@@ -80,7 +88,7 @@ export const Filter = (props: FilterProps) => {
                             setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR
-                    </div>
+                    </button>
                 ) : (
                     <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 )}
