@@ -540,9 +540,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
 
-            const updated = await services.projects.update(proj);
-            const globalProj = await loadGlobal(updatedProj.metadata.name);
-            this.loader.setData([updated, globalProj]);
+            await services.projects.update(proj);
+            const scopedProj = await services.projects.getScoped(this.props.match.params.name);
+            this.loader.setData(scopedProj);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
