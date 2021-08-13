@@ -6,7 +6,7 @@
     - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
     - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
     - [Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
-  - [v2.3 and beyond](#v22-and-beyond)
+  - [v2.3 and beyond](#v23-and-beyond)
     - [Application Details Page Usability](#application-details-page-usability)
     - [Cluster Management User Interface](#cluster-management-user-interface)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
