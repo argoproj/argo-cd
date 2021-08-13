@@ -128,6 +128,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [tru.ID](https://tru.id)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
+1. [ungleich.ch](https://ungleich.ch/)
 1. [UBIO](https://ub.io/)
 1. [UFirstGroup](https://www.ufirstgroup.com/en/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
