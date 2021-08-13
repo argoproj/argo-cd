@@ -152,7 +152,7 @@ Connect the [https://github.com/argoproj/argocd-example-apps.git](https://github
 
 ![connect repo](assets/connect-repo.png)
 
-For **Destination**, set cluster to `in-cluster` and namespace to `default`:
+For **Destination**, set cluster URL to `https://kubernetes.default.svc` (or `in-cluster` for cluster name) and namespace to `default`:
 
 ![destination](assets/destination.png)
 
