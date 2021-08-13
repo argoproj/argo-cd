@@ -67,7 +67,7 @@ export class ProjectsService {
     }
 
     public getScoped(name: string): Promise<models.ProjectScoped> {
-        return requests.get(`/projects/${name}/scoped`).then(res => res.body as models.ProjectScoped);
+        return requests.get(`/projects/${name}/detailed`).then(res => res.body as models.ProjectScoped);
     }
 
     public getGlobalProjects(name: string): Promise<models.Project[]> {
