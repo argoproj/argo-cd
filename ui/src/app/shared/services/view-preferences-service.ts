@@ -63,6 +63,7 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    hideSidebar: boolean;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -71,6 +72,7 @@ const minVer = 5;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
+    hideSidebar: false,
     appDetails: {
         view: 'tree',
         hideFilters: false,
