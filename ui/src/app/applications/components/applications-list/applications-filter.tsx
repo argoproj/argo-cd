@@ -59,6 +59,7 @@ interface AppFilterProps {
     apps: FilteredApp[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
+    children?: React.ReactNode;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -218,15 +219,13 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     };
 
     return (
-        <FiltersGroup setShown={setShown} shown={!props.pref.hideFilters}>
+        <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
             <SyncFilter {...props} />
             <HealthFilter {...props} />
-            <div className='filters-container__subgroup'>
-                <LabelsFilter {...props} />
-                <ProjectFilter {...props} />
-                <ClusterFilter {...props} />
-                <NamespaceFilter {...props} />
-            </div>
+            <LabelsFilter {...props} />
+            <ProjectFilter {...props} />
+            <ClusterFilter {...props} />
+            <NamespaceFilter {...props} />
         </FiltersGroup>
     );
 };

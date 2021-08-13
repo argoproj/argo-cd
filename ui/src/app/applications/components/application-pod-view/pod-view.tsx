@@ -1,11 +1,10 @@
 import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox as ReactCheckbox} from 'react-form';
 import Moment from 'react-moment';
 
-import {EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
+import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
@@ -213,7 +212,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                         <div>
                                                                                             <p>Are your sure you want to delete Pod '{pod.name}'?</p>
                                                                                             <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                                                                                                <ReactCheckbox id='force-delete-checkbox' field='force' />
+                                                                                                <CheckboxField id='force-delete-checkbox' field='force' />
                                                                                                 <label htmlFor='force-delete-checkbox'>Force delete</label>
                                                                                             </div>
                                                                                         </div>
