@@ -150,7 +150,8 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
+                                inputStyle={{marginBottom: '0.5em'}}
+                                dark={true}
                             />
                         )}
                         {((props.field ? tags : props.options) || []).map((opt, i) => (
