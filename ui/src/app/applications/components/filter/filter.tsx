@@ -1,10 +1,10 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import {ActionButton, Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
 import * as React from 'react';
+import {SIDEBAR_COLOR, SLATE} from '../../../shared/components';
 
 import './filter.scss';
 
-interface FilterProps {
+export interface FilterProps {
     selected: string[];
     setSelected: (items: string[]) => void;
     options?: CheckboxOption[];
@@ -17,30 +17,23 @@ interface FilterProps {
     radio?: boolean;
 }
 
-export const FiltersGroup = (props: {
-    children?: React.ReactNode;
-    content: React.ReactNode;
-    appliedFilter?: string[];
-    expanded: boolean;
-    setShown: (val: boolean) => void;
-    onClearFilter?: () => void;
-}) => {
+const SM_ACTION_BUTTON_STYLE = {marginLeft: 'auto', width: '60px', height: '24px', borderRadius: '3px', marginRight: 0};
+
+export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void}) => {
     return (
-        <div className={classNames('filters-group', {'filters-group--expanded': props.expanded})}>
-            <div className='filters-group__panel'>
-                <i className='fa fa-filter' />
-                <div className='filters-group__panel__title'>
-                    FILTERS{' '}
-                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
-                        <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            CLEAR ALL
-                        </button>
+        <div className='filters-group'>
+            <div style={{display: 'flex', marginBottom: '1em'}}>
+                FILTERS
+                <div style={{marginLeft: 'auto'}}>
+                    {props.appliedFilter?.length > 0 && props.onClearFilter ? (
+                        <ActionButton action={() => props.onClearFilter()} label='CLEAR ALL' style={SM_ACTION_BUTTON_STYLE} />
+                    ) : (
+                        <i className='fa fa-filter' />
                     )}
-                    <i className='fa fa-thumbtack filters-group__toggle' onClick={() => props.setShown(!props.expanded)} />
                 </div>
-                <>{props.children}</>
             </div>
-            <div className='filters-group__content'>{props.content}</div>
+            <>{props.children}</>
+            <div>{props.content}</div>
         </div>
     );
 };
@@ -80,17 +73,21 @@ export const Filter = (props: FilterProps) => {
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
-                    <button
-                        className='argo-button argo-button--base argo-button--sm'
-                        style={{marginLeft: 'auto'}}
-                        onClick={() => {
+                    <ActionButton
+                        action={() => {
                             setValues({} as {[label: string]: boolean});
                             setInput('');
-                        }}>
-                        <i className='fa fa-times-circle' /> CLEAR
-                    </button>
+                        }}
+                        label='CLEAR'
+                        style={SM_ACTION_BUTTON_STYLE}
+                        dark
+                    />
                 ) : (
-                    <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
+                    <i
+                        className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`}
+                        onClick={() => setCollapsed(!collapsed)}
+                        style={{marginLeft: 'auto', color: 'white'}}
+                    />
                 )}
             </div>
             {!collapsed &&
@@ -126,6 +123,8 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 option={opt}
+                                style={{backgroundColor: SIDEBAR_COLOR, border: `1px solid ${SLATE}`}}
+                                selectedStyle={{backgroundColor: SLATE, color: 'white', border: `1px solid ${SLATE}`}}
                             />
                         ))}
                     </React.Fragment>

@@ -214,12 +214,8 @@ const NamespaceFilter = (props: AppFilterProps) => {
 };
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
-    const setShown = (val: boolean) => {
-        services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
-    };
-
     return (
-        <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+        <FiltersGroup content={props.children}>
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <LabelsFilter {...props} />

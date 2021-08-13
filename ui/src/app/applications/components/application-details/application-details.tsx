@@ -1,6 +1,7 @@
 import {Checkbox as ArgoCheckbox, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
@@ -20,8 +21,9 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-// import {Filters} from './application-resource-filter';
+import {ApplicationResourceFilters, ApplicationResourceFiltersProps} from './application-resource-filter';
 import {Page} from '../../../shared/components/page/page';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 require('./application-details.scss');
 
@@ -50,6 +52,11 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
     appContext.navigation.goto('.', {node, tab});
+};
+
+const ApplicationDetailsFilters = (props: ApplicationResourceFiltersProps) => {
+    const sidebarTarget = useSidebarTarget();
+    return ReactDOM.createPortal(<ApplicationResourceFilters {...props} />, sidebarTarget?.current);
 };
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
@@ -193,23 +200,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </div>
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                // <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                <ApplicationResourceTree
-                                                    nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                    selectedNodeFullName={this.selectedNodeKey}
-                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                    nodeMenu={node =>
-                                                        AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                            this.getApplicationActionMenu(application, false)
-                                                        )
-                                                    }
-                                                    tree={tree}
-                                                    app={application}
-                                                    showOrphanedResources={pref.orphanedResources}
-                                                    useNetworkingHierarchy={pref.view === 'network'}
-                                                    onClearFilter={clearFilter}
-                                                />
-                                                // </Filters>
+                                                <>
+                                                    <ApplicationDetailsFilters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
+                                                    <ApplicationResourceTree
+                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                        selectedNodeFullName={this.selectedNodeKey}
+                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                this.getApplicationActionMenu(application, false)
+                                                            )
+                                                        }
+                                                        tree={tree}
+                                                        app={application}
+                                                        showOrphanedResources={pref.orphanedResources}
+                                                        useNetworkingHierarchy={pref.view === 'network'}
+                                                        onClearFilter={clearFilter}
+                                                    />
+                                                </>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView

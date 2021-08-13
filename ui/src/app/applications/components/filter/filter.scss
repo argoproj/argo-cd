@@ -1,27 +1,27 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
 
+.sidebar--collapsed .filter {
+    display: none;
+}
+
 .filter {
-    background-color: white;
-    padding: 10px;
-    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     margin-bottom: 1em;
 
     &__header {
         font-size: 13px;
-        color: $argo-color-gray-5;
+        color: white;
         font-weight: 500;
         margin-bottom: 0.5em;
         height: 28px;
         position: relative;
+        display: flex;
+        align-items: center;
     }
 
     &__collapse {
-        position: absolute;
-        right: 0;
         cursor: pointer;
-        margin-left: auto;
         color: $argo-color-gray-7;
         font-size: 20px;
     }
@@ -44,59 +44,6 @@
         text-align: center;
     }
 }
-
-.filters-group {
-    &__toggle {
-        display: none;
-        cursor: pointer;
-        position: absolute;
-        left: 16em;
-        color: $argo-color-gray-6;
-    }
-
-    .fa-filter {
-        float: left;
-        margin-right: 1em;
-    }
-
-    &__panel {
-        transition: width 0.2s ease-in-out;
-        background-color: $argo-color-gray-3;
-        box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
-        padding: 10px;
-        overflow-y: hidden;
-        overflow-x: hidden;
-        z-index: 1;
-
-        position: fixed;
-        width: 240px;
-        margin-top: -18px;
-        left: 60px;
-        bottom: 0;
-
-        &__title {
-            margin-bottom: 1em;
-            font-size: 13px;
-            color: $argo-color-gray-6;
-            align-items: center;
-            width: 200px;
-        }
-
-        &:hover {
-            overflow-y: auto;
-        }
-
-        .filter {
-            width: 205px;
-            transition: visibility 0.2s ease-in-out;
-        }
-    }
-
-    &__content {
-        padding-left: 230px;
-    }
-}
-
 
 @include breakpoint(xlarge down) {
     .filters-group__toggle {

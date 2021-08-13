@@ -4,6 +4,9 @@ export const ARGO_FAILED_COLOR = '#E96D76';
 export const ARGO_RUNNING_COLOR = '#0DADEA';
 export const ARGO_GRAY4_COLOR = '#CCD6DD';
 export const ARGO_TERMINATING_COLOR = '#DE303D';
+export const SILVER_LINING = '#30303d';
+export const SIDEBAR_COLOR = SILVER_LINING;
+export const SLATE = '#191826';
 
 export const COLORS = {
     connection_status: {

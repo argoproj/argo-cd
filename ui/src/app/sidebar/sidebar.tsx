@@ -10,6 +10,22 @@ interface SidebarProps {
     navItems: {path: string; iconClassName: string; title: string}[];
 }
 
+export const SIDEBAR_TOOLS_ID = 'sidebar-tools';
+
+export const useSidebarTarget = () => {
+    const sidebarTarget = React.useRef(document.createElement('div'));
+
+    React.useEffect(() => {
+        const sidebar = document.getElementById(SIDEBAR_TOOLS_ID);
+        sidebar.appendChild(sidebarTarget?.current);
+        return () => {
+            sidebarTarget.current?.remove();
+        };
+    }, []);
+
+    return sidebarTarget;
+};
+
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
     const [version, loading, error] = useData(() => services.version.version());
@@ -36,6 +52,7 @@ export const Sidebar = (props: SidebarProps) => {
             <div onClick={() => setCollapsed(!collapsed)} className='sidebar__collapse-button'>
                 <i className={`fas fa-arrow-${collapsed ? 'right' : 'left'}`} />
             </div>
+            <div id={SIDEBAR_TOOLS_ID} />
         </div>
     );
 };

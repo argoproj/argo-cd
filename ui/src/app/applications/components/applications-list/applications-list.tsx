@@ -1,6 +1,7 @@
 import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
@@ -10,11 +11,12 @@ import {Page} from '../../../shared/components/page/page';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewType, services} from '../../../shared/services';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {FilteredApp, getFilterResults} from './applications-filter';
+import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
 import {ApplicationsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
@@ -278,6 +280,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
 
+    const sidebarTarget = useSidebarTarget();
+
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -375,7 +379,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         <div className='applications-list'>
                                             <ViewPref>
                                                 {pref => {
-                                                    const {filteredApps} = filterApps(applications, pref, pref.search);
+                                                    const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
                                                     const appsView =
                                                         applications.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
@@ -390,7 +394,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             </EmptyState>
                                                         ) : (
                                                             <>
-                                                                {/* <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} /> */}
+                                                                {ReactDOM.createPortal(
+                                                                    <ApplicationsFilter
+                                                                        apps={filterResults}
+                                                                        onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                        pref={pref}
+                                                                    />,
+                                                                    sidebarTarget?.current
+                                                                )}
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}

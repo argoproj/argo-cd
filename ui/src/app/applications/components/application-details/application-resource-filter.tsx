@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {AppDetailsPreferences, services} from '../../../shared/services';
+import {AppDetailsPreferences} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
@@ -10,22 +10,21 @@ function toOption(label: string) {
     return {label};
 }
 
-export const Filters = (props: {
+export interface ApplicationResourceFiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
     tree: ApplicationTree;
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
-}) => {
+}
+
+export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProps) => {
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
         setLoading(true);
         props.onClearFilter();
     };
-
-    const shown = pref.hideFilters;
-    const setShown = (val: boolean) => services.viewPreferences.updatePreferences({appDetails: {...pref, hideFilters: val}});
 
     const resourceFilter = pref.resourceFilter || [];
     const removePrefix = (prefix: string) => (v: string) => v.replace(prefix + ':', '');
@@ -86,7 +85,7 @@ export const Filters = (props: {
     };
 
     return (
-        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter}>
             {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',
