@@ -11,14 +11,14 @@
     - [Cluster Management User Interface](#cluster-management-user-interface)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
-    - [✅ Core Functionality Bug Fixes](#core-functionality-bug-fixes)
-    - [✅ Performance](#performance)
-    - [✅ ApplicationSet](#applicationset)
-    - [✅ Large Applications support](#large-applications-support)
-    - [✅ Serviceability](#serviceability)
-    - [✅ Argo CD Notifications](#argo-cd-notifications)
-    - [✅ Automated Registry Monitoring](#automated-registry-monitoring)
-    - [✅ Projects Enhancements](#projects-enhancements)
+    - [✅ Core Functionality Bug Fixes](#-core-functionality-bug-fixes)
+    - [✅ Performance](#-performance)
+    - [✅ ApplicationSet](#-applicationset)
+    - [✅ Large Applications support](#-large-applications-support)
+    - [✅ Serviceability](#-serviceability)
+    - [✅ Argo CD Notifications](#-argo-cd-notifications)
+    - [✅ Automated Registry Monitoring](#-automated-registry-monitoring)
+    - [✅ Projects Enhancements](#-projects-enhancements)
 
 
 ## v2.2
