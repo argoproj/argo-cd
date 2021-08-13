@@ -696,7 +696,8 @@ export interface Project {
 
 export interface ProjectScoped {
     project: Project;
-    repositories: Repository[]
+    globalProjects: Project[];
+    repositories: Repository[];
 }
 
 export type ProjectList = ItemsList<Project>;
