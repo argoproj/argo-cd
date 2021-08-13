@@ -31,7 +31,7 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     }, [props.value]);
 
     return (
-        <div className={`checkbox__item ${value ? 'checkbox__item--selected' : ''}`} onClick={() => setValue(!value)}>
+        <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
             <Checkbox
                 onChange={val => {
                     setValue(val);
