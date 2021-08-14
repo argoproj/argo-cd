@@ -1537,7 +1537,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		certOpts := tlsutil.CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         true,
+			IsCA:         false,
 		}
 		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
 		if err != nil {
