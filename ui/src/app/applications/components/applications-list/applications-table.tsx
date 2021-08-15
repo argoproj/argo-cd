@@ -6,9 +6,9 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import { OperationState } from '../utils';
-import { ApplicationsLabels } from './applications-labels';
-import { ApplicationsSource } from './applications-source';
+import {OperationState} from '../utils';
+import {ApplicationsLabels} from './applications-labels';
+import {ApplicationsSource} from './applications-source';
 require('./applications-table.scss');
 
 export const ApplicationsTable = (props: {
@@ -57,12 +57,11 @@ export const ApplicationsTable = (props: {
                                 <div className='columns small-6'>
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-2'>Source:</div>
-                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{ position: 'relative' }}>
-                                            <div className="applications-table-source__link">
+                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
+                                            <div className='applications-table-source__link'>
                                                 <ApplicationsSource source={app.spec.source} />
-
                                             </div>
-                                            <div className="applications-table-source__labels">
+                                            <div className='applications-table-source__labels'>
                                                 <ApplicationsLabels app={app} />
                                             </div>
                                         </div>
