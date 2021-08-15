@@ -1,10 +1,10 @@
-import { DropDownMenu } from 'argo-ui';
+import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
-import { Key, KeybindingContext, useNav } from 'react-keyhooks';
-import { Cluster } from '../../../shared/components';
-import { Consumer } from '../../../shared/context';
+import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
+import {Cluster} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { ApplicationURLs } from '../application-urls';
+import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import { OperationState } from '../utils';
 import { ApplicationsLabels } from './applications-labels';
@@ -19,13 +19,16 @@ export const ApplicationsTable = (props: {
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
 
-    const { useKeybinding } = React.useContext(KeybindingContext);
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding(Key.DOWN, () => navApp(1));
-    useKeybinding(Key.UP, () => navApp(-1));
-    useKeybinding(Key.ESCAPE, () => {
-        reset();
-        return selectedApp > -1 ? true : false;
+    useKeybinding({keys: Key.DOWN, action: () => navApp(1)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1)});
+    useKeybinding({
+        keys: Key.ESCAPE,
+        action: () => {
+            reset();
+            return selectedApp > -1 ? true : false;
+        }
     });
 
     return (
@@ -38,7 +41,7 @@ export const ApplicationsTable = (props: {
                             className={`argo-table-list__row
                 applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                 applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                            <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
+                            <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                 <div className='columns small-4'>
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-3'>Project:</div>
@@ -83,9 +86,9 @@ export const ApplicationsTable = (props: {
                                             </button>
                                         )}
                                         items={[
-                                            { title: 'Sync', action: () => props.syncApplication(app.metadata.name) },
-                                            { title: 'Refresh', action: () => props.refreshApplication(app.metadata.name) },
-                                            { title: 'Delete', action: () => props.deleteApplication(app.metadata.name) }
+                                            {title: 'Sync', action: () => props.syncApplication(app.metadata.name)},
+                                            {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name)},
+                                            {title: 'Delete', action: () => props.deleteApplication(app.metadata.name)}
                                         ]}
                                     />
                                 </div>
