@@ -410,7 +410,7 @@ func GetAppProjectWithScopedResources(name string, projLister applicationsv1.App
 
 }
 
-// GetAppProject returns a project from an application based on name
+// GetAppProjectByName returns a project from an application based on name
 func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {

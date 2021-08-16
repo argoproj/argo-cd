@@ -730,7 +730,7 @@ type ProjectServiceClient interface {
 	Create(ctx context.Context, in *ProjectCreateRequest, opts ...grpc.CallOption) (*v1alpha1.AppProject, error)
 	// List returns list of projects
 	List(ctx context.Context, in *ProjectQuery, opts ...grpc.CallOption) (*v1alpha1.AppProjectList, error)
-	// Get returns a project by name
+	// GetDetailedProject returns a project that include project, global project and scoped resources by name
 	GetDetailedProject(ctx context.Context, in *ProjectQuery, opts ...grpc.CallOption) (*DetailedProjectsResponse, error)
 	// Get returns a project by name
 	Get(ctx context.Context, in *ProjectQuery, opts ...grpc.CallOption) (*v1alpha1.AppProject, error)
@@ -863,7 +863,7 @@ type ProjectServiceServer interface {
 	Create(context.Context, *ProjectCreateRequest) (*v1alpha1.AppProject, error)
 	// List returns list of projects
 	List(context.Context, *ProjectQuery) (*v1alpha1.AppProjectList, error)
-	// Get returns a project by name
+	// GetDetailedProject returns a project that include project, global project and scoped resources by name
 	GetDetailedProject(context.Context, *ProjectQuery) (*DetailedProjectsResponse, error)
 	// Get returns a project by name
 	Get(context.Context, *ProjectQuery) (*v1alpha1.AppProject, error)

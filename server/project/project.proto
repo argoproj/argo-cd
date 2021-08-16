@@ -100,7 +100,7 @@ service ProjectService {
       option (google.api.http).get = "/api/v1/projects";
   }
 
-  // Get returns a project by name
+  // GetDetailedProject returns a project that include project, global project and scoped resources by name
   rpc GetDetailedProject(ProjectQuery) returns (DetailedProjectsResponse) {
       option (google.api.http).get = "/api/v1/projects/{name}/detailed";
   }
