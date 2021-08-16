@@ -349,7 +349,7 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
