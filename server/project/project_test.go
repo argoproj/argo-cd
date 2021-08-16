@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 	"testing"
 
@@ -83,20 +82,14 @@ func TestProjectServer(t *testing.T) {
 		panic("Timed out waiting forfff caches to sync")
 	}
 
-	createProjectServer := func(existingApp runtime.Object, sessionMgr *session.SessionManager) *Server {
-		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		return NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, existingApp), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB)
-	}
-
 	t.Run("TestNormalizeProj", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
 		projectWithRole := existingProj.DeepCopy()
 		roleName := "roleName"
 		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
-
-		projectServer := createProjectServer(&existingApp, sessionMgr)
-
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB)
 		err := projectServer.NormalizeProjs()
 		assert.NoError(t, err)
 
@@ -111,11 +104,11 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = nil
-
-		projectServer := createProjectServer(&existingApp, nil)
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
@@ -126,8 +119,8 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = nil
@@ -141,8 +134,8 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
@@ -156,8 +149,8 @@ func TestProjectServer(t *testing.T) {
 
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
-
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
@@ -175,7 +168,8 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -191,7 +185,8 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -209,7 +204,8 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -225,7 +221,8 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
-		projectServer := createProjectServer(&existingApp, nil)
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
