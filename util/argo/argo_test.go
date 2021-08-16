@@ -3,9 +3,10 @@ package argo
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"path/filepath"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"

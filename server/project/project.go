@@ -3,9 +3,10 @@ package project
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"reflect"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go/v4"
