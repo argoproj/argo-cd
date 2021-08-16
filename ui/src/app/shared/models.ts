@@ -694,7 +694,7 @@ export interface Project {
     status: AppProjectStatus;
 }
 
-export interface ProjectScoped {
+export interface DetailedProjectsResponse {
     project: Project;
     globalProjects: Project[];
     repositories: Repository[];

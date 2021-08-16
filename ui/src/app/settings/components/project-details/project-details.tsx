@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
-import {GroupKind, Groups, Project, ProjectScoped, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -124,10 +124,6 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
-function loadGlobal(name: string) {
-    return services.projects.getGlobalProjects(name).then(reduceGlobal);
-}
-
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
@@ -176,7 +172,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         }}>
                         <DataLoader
                             load={() => {
-                                return services.projects.getScoped(this.props.match.params.name);
+                                return services.projects.getDetailed(this.props.match.params.name);
                             }}
                             ref={loader => (this.loader = loader)}>
                             {scopedProj => (
@@ -325,7 +321,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             {params.get('newWindow') === null ? (
                                                                 <button
                                                                     onClick={async () => {
-                                                                        const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
+                                                                        const confirmed = await ctx.popup.confirm(
+                                                                            'Delete sync window',
+                                                                            'Are you sure you want to delete sync window?'
+                                                                        );
                                                                         if (confirmed) {
                                                                             try {
                                                                                 this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
@@ -391,9 +390,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async deleteJWTToken(params: DeleteJWTTokenParams, notifications: NotificationsApi) {
         try {
             await services.projects.deleteJWTToken(params);
-            const proj = await services.projects.get(this.props.match.params.name);
-            const globalProj = await loadGlobal(proj.metadata.name);
-            this.loader.setData([proj, globalProj]);
+            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData([project, globalProjects]);
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
@@ -405,9 +403,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async createJWTToken(params: CreateJWTTokenParams, notifications: NotificationsApi) {
         try {
             const jwtToken = await services.projects.createJWTToken(params);
-            const proj = await services.projects.get(this.props.match.params.name);
-            const globalProj = await loadGlobal(proj.metadata.name);
-            this.loader.setData([proj, globalProj]);
+            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData([project, globalProjects]);
             this.setState({token: jwtToken.token});
         } catch (e) {
             notifications.show({
@@ -541,7 +538,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
             proj.spec = updatedProj.spec;
 
             await services.projects.update(proj);
-            const scopedProj = await services.projects.getScoped(this.props.match.params.name);
+            const scopedProj = await services.projects.getDetailed(this.props.match.params.name);
             this.loader.setData(scopedProj);
         } catch (e) {
             this.appContext.apis.notifications.show({
@@ -551,7 +548,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         }
     }
 
-    private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}, scopedProj: ProjectScoped) {
+    private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}, scopedProj: DetailedProjectsResponse) {
         return (
             <div className='argo-container'>
                 <EditablePanel
