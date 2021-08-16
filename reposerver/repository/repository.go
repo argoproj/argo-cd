@@ -115,7 +115,7 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 
 	refs, err := gitClient.LsRefs()
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 
 	res := apiclient.Refs{
@@ -130,7 +130,7 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
-		return nil, err
+		return nil, mapError(err)
 	}
 	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)

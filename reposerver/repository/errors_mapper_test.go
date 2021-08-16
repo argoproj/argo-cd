@@ -1,4 +1,4 @@
-package git
+package repository
 
 import (
 	"errors"
@@ -9,25 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_MapError(t *testing.T) {
+func Test_mapError(t *testing.T) {
 	var ok bool
-	assert.Equal(t, MapError(nil), nil)
+	assert.Equal(t, mapError(nil), nil)
 
 	defaultErrorMsg := "default error"
-	defaultError := MapError(errors.New(defaultErrorMsg))
+	defaultError := mapError(errors.New(defaultErrorMsg))
 	_, ok = defaultError.(interface{ GRPCStatus() *status.Status })
 	assert.Equal(t, ok, false)
 	assert.Equal(t, defaultError.Error(), defaultErrorMsg)
 
 	grpcErrorMsg := "grpc error"
-	grpcError := status.Errorf(codes.Unknown, grpcErrorMsg)
+	grpcError := mapError(status.Errorf(codes.Unknown, grpcErrorMsg))
 	se, ok := grpcError.(interface{ GRPCStatus() *status.Status })
 	assert.Equal(t, ok, true)
 	assert.Equal(t, se.GRPCStatus().Code(), codes.Unknown)
 	assert.Equal(t, se.GRPCStatus().Message(), grpcErrorMsg)
 
 	notFoundMsg := "repository not found"
-	notFound := status.Errorf(codes.NotFound, notFoundMsg)
+	notFound := mapError(status.Errorf(codes.NotFound, notFoundMsg))
 	se1, ok := notFound.(interface{ GRPCStatus() *status.Status })
 	assert.Equal(t, ok, true)
 	assert.Equal(t, se1.GRPCStatus().Code(), codes.NotFound)

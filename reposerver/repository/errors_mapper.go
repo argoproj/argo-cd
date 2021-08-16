@@ -1,12 +1,12 @@
-package git
+package repository
 
 import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// GetError - returns custom grpc error based on error msg
-func MapError(err error) error {
+// mapError - returns custom grpc error based on error msg
+func mapError(err error) error {
 	if err == nil {
 		return nil
 	}
