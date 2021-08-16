@@ -2997,6 +2997,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},
