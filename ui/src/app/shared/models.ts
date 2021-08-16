@@ -694,6 +694,12 @@ export interface Project {
     status: AppProjectStatus;
 }
 
+export interface DetailedProjectsResponse {
+    project: Project;
+    globalProjects: Project[];
+    repositories: Repository[];
+}
+
 export type ProjectList = ItemsList<Project>;
 
 export const DEFAULT_PROJECT_NAME = 'default';
