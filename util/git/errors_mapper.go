@@ -5,8 +5,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GetError - returns grpc error based on error msg
-func GetError(err error) error {
+// GetError - returns custom grpc error based on error msg
+func MapError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -19,7 +19,7 @@ func GetError(err error) error {
 	case "repository not found":
 		return status.Errorf(codes.NotFound, err.Error())
 	default:
-		return status.Errorf(codes.Unknown, err.Error())
+		return err
 	}
 
 }

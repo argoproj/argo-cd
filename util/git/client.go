@@ -428,7 +428,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 		}
 		return res, nil
 	}
-	return res, GetError(err)
+	return res, MapError(err)
 }
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {
