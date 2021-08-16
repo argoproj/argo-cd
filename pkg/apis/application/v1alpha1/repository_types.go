@@ -80,6 +80,8 @@ type Repository struct {
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification

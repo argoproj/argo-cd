@@ -275,6 +275,7 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		Proxy:                      string(secret.Data["proxy"]),
+		Project:                    string(secret.Data["project"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
@@ -322,6 +323,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	}
 
 	updateSecretString(secret, "name", repository.Name)
+	updateSecretString(secret, "project", repository.Project)
 	updateSecretString(secret, "url", repository.Repo)
 	updateSecretString(secret, "username", repository.Username)
 	updateSecretString(secret, "password", repository.Password)
