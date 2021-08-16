@@ -5,6 +5,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// GetError - returns grpc error based on error msg
 func GetError(err error) error {
 	if err == nil {
 		return nil

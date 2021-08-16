@@ -163,7 +163,6 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
-//
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
