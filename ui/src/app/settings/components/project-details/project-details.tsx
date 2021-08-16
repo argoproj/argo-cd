@@ -630,10 +630,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <React.Fragment>
                             {scopedProj.repositories && scopedProj.repositories.length
                                 ? scopedProj.repositories.map((repo, i) => (
-                                    <div className='row white-box__details-row' key={i}>
-                                        <div className='columns small-12'>{repo.repo}</div>
-                                    </div>
-                                ))
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{repo.repo}</div>
+                                      </div>
+                                  ))
                                 : emptyMessage('source repositories')}
                         </React.Fragment>
                     }
