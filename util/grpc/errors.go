@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"errors"
+
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

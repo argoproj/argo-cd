@@ -2,9 +2,10 @@ package grpc
 
 import (
 	"errors"
+	"testing"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
