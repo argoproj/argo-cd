@@ -2081,6 +2081,37 @@
         }
       }
     },
+    "/api/v1/projects/{name}/detailed": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "GetDetailedProject returns a project that include project, global project and scoped resources by name",
+        "operationId": "ProjectService_GetDetailedProject",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectDetailedProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/events": {
       "get": {
         "tags": [
@@ -2862,6 +2893,12 @@
             "type": "string",
             "description": "HTTP/HTTPS proxy to access the repository.",
             "name": "proxy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -3670,6 +3707,26 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "projectDetailedProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "globalProjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        },
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
           }
         }
       }
@@ -5845,6 +5902,10 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
         },
         "proxy": {
           "type": "string",

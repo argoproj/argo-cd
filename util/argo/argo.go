@@ -379,13 +379,54 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 	return apiVersions
 }
 
-// GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Repository {
+	var repositories []*argoappv1.Repository
+	allRepos, err := db.ListRepositories(ctx)
+	if err != nil {
+		return repositories
+	}
+	for _, repo := range allRepos {
+		if repo.Project == name {
+			repositories = append(repositories, repo)
+		}
+	}
+	return repositories
+}
+
+//GetAppProject returns a project from an application
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return project, retrieveScopedRepositories(name, db, ctx), nil
+
+}
+
+// GetAppProjectByName returns a project from an application based on name
+func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
 	}
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+	project := projOrig.DeepCopy()
+	repos := retrieveScopedRepositories(name, db, ctx)
+	for _, repo := range repos {
+		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
+	}
+	return GetAppVirtualProject(project, projLister, settingsManager)
+}
+
+// GetAppProject returns a project from an application
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests

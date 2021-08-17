@@ -76,6 +76,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Lytt](https://www.lytt.co/)
 1. [Major League Baseball](https://mlb.com)
 1. [Mambu](https://www.mambu.com/)
+1. [Mattermost](https://www.mattermost.com)
 1. [Max Kelsen](https://www.maxkelsen.com/)
 1. [MindSpore](https://mindspore.cn)
 1. [Mirantis](https://mirantis.com/)
