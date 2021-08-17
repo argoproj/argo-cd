@@ -94,7 +94,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +134,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 	items := appsv1.Repositories{}
 	for _, repo := range repos {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Repo)) {
 			// For backwards compatibility, if we have no repo type set assume a default
 			rType := repo.Type
 			if rType == "" {
@@ -164,7 +164,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -185,7 +185,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 
 // ListApps returns list of apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -218,7 +218,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Source.RepoURL); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Source.RepoURL)); err != nil {
 		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Source.RepoURL)
@@ -253,7 +253,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 
 // GetHelmCharts returns list of helm charts in the specified repository
 func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -364,7 +364,7 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 
