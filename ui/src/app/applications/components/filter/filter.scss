@@ -9,17 +9,17 @@
     margin-bottom: 1em;
 
     &__header {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
         font-size: 13px;
         color: $argo-color-gray-5;
         font-weight: 500;
         margin-bottom: 0.5em;
         height: 28px;
+        position: relative;
     }
 
     &__collapse {
+        position: absolute;
+        right: 0;
         cursor: pointer;
         margin-left: auto;
         color: $argo-color-gray-7;
@@ -44,69 +44,119 @@
         text-align: center;
     }
 
-    &--wrap {
-        overflow: auto;
-        .checkbox__item {
-            min-width: 4.5em;
-            float: left;
+    &__item {
+        height: 2em;
+        padding: 0 5px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        background-color: white;
+        transition: background-color 200ms ease;
+        margin: 0.25em 0;
+        cursor: pointer;
+        flex-wrap: nowrap;
+
+        &__label {
+            text-overflow: ellipsis;
+            flex-grow: 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        &--selected {
+            background-color: $argo-color-teal-3;
+            color: $argo-color-teal-8;
+            font-weight: 500;
         }
     }
 }
 
 .filters-group {
-    &__container {
-        display: flex;
+    &__toggle {
+        display: none;
+        cursor: pointer;
+        position: absolute;
+        left: 16em;
+        color: $argo-color-gray-6;
+    }
+
+    .fa-filter {
+        float: left;
+        margin-right: 1em;
+    }
+
+    &__panel {
+        transition: width 0.2s ease-in-out;
+        background-color: $argo-color-gray-3;
+        box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+        padding: 10px;
+        overflow-y: hidden;
+        overflow-x: hidden;
+        z-index: 1;
+
+        position: fixed;
+        width: 240px;
+        margin-top: -18px;
+        left: 60px;
+        bottom: 0;
+
         &__title {
             margin-bottom: 1em;
             font-size: 13px;
             color: $argo-color-gray-6;
-            display: flex;
             align-items: center;
             width: 200px;
         }
 
-        .filter {
-            margin-right: 15px;
-            height: max-content;
-            min-width: 200px;
-            max-width: 200px;
+        &:hover {
+            overflow-y: auto;
         }
 
-        &__subgroup {
-            align-self: start;
-            display: flex;
-            flex-wrap: wrap;
+        .filter {
+            width: 205px;
+            transition: visibility 0.2s ease-in-out;
         }
     }
 
-    &__container--hidden {
-        display: none;
+    &__content {
+        padding-left: 230px;
     }
 }
 
-@include breakpoint(xxlarge up) {
-    .filter {
-        width: 100%;
-        margin-right: 0;
+@include breakpoint(xlarge down) {
+    .filters-group__toggle {
+        display: inline;
     }
 
-    .filters-group {
-        &__container {
-            width: 260px;
-            flex-wrap: wrap;
-            padding-bottom: 6em;
+    .filters-group--expanded {
+        .filters-group__toggle {
+            color: $argo-color-gray-8;
+        }
+    }
 
-            &__title .action-button {
+    .filters-group__toggle:hover {
+        color: $argo-color-gray-7;
+    }
+
+    .filters-group:not(.filters-group--expanded) {
+        .filters-group__panel:not(.filters-group__panel:hover) {
+            width: 30px;
+
+            .filters-group__toggle {
                 display: none;
             }
 
-            &__text-filters {
-                width: 100%;
+            &__title {
+                display: none;
+            }
+
+            .filter {
+                visibility: hidden;
             }
         }
 
-        &__container--hidden {
-            display: flex;
+        .filters-group__content {
+            padding-left: 30px;
         }
     }
 }

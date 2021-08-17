@@ -22,7 +22,8 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
     formApi => buildFormItem('Factor', 'backoff.factor', NumberField, formApi, onlyPositiveValidation)
 ];
 
-const regex = /\b((\d+(\.\d+)?)\s*(h|hr|hrs?|hours?))?(\s*(\d+)\s*(m|min|mins?|minutes?))\b/m;
+const durationRegex = /T?([\d\.]+H)?([\d\.]+M)?([\d\.]+?S)?$/i;
+const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 
 export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi; initValues?: models.RetryStrategy}) => {
     const [retry, setRetry] = React.useState(!!initValues);
@@ -64,12 +65,12 @@ export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi
                                 'backoff.duration':
                                     isRetryEnabled() &&
                                     getBackoffSafe().hasOwnProperty('duration') &&
-                                    ((!getBackoffSafe().duration && 'Duration is required') || (!regex.test(getBackoffSafe().duration) && 'Should be 10m/1h10m')),
+                                    ((!getBackoffSafe().duration && 'Duration is required') || (!durationRegex.test(getBackoffSafe().duration) && durationRegexError)),
 
                                 'backoff.maxDuration':
                                     isRetryEnabled() &&
                                     getBackoffSafe().hasOwnProperty('maxDuration') &&
-                                    ((!getBackoffSafe().maxDuration && 'Max Duration is required') || (!regex.test(getBackoffSafe().maxDuration) && 'Should be 10m/1h10m')),
+                                    ((!getBackoffSafe().maxDuration && 'Max Duration is required') || (!durationRegex.test(getBackoffSafe().maxDuration) && durationRegexError)),
 
                                 'backoff.factor': isRetryEnabled() && getBackoffSafe().hasOwnProperty('factor') && !getBackoffSafe().factor && 'Factor is required'
                             };

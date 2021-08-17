@@ -848,7 +848,11 @@ func uiAssetExists(filename string) bool {
 		return false
 	}
 	defer io.Close(f)
-	return true
+	stat, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return !stat.IsDir()
 }
 
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets

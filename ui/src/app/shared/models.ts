@@ -37,8 +37,8 @@ export interface SyncOperation {
 
 export interface RetryBackoff {
     duration: string;
-    maxDuration: string; 
-    factor: number
+    maxDuration: string;
+    factor: number;
 }
 
 export interface RetryStrategy {
@@ -243,7 +243,7 @@ export interface Automated {
 export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
-    retry?: RetryStrategy
+    retry?: RetryStrategy;
 }
 
 export interface Info {
