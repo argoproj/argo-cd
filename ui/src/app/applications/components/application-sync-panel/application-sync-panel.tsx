@@ -174,8 +174,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     const resKey = nodeKey(item);
                                                     const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
                                                     let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
-                                                    // contentEnd needs 'direction: rtl;' to make ellipsis in the beginning of the string instead of the end.
-                                                    // And because we've direction swapped, we now trip on strong LTR characters, so this extra work fixes it
+                                                    // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
+                                                    // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
                                                     const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
                                                     contentEnd = contentEnd.slice(indexOfFirstLetter);
                                                     return (
