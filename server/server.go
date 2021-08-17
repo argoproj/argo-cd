@@ -533,7 +533,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
-		grpc_util.ErrorCodeStreamServerInterceptor(),
+		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
+		grpc_util.ErrorCodeGitStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
@@ -545,7 +546,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
-		grpc_util.ErrorCodeUnaryServerInterceptor(),
+		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
+		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
