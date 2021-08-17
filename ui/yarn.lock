@@ -1667,9 +1667,8 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-"argo-ui@git+https://github.com/argoproj/argo-ui.git":
+"argo-ui@file:.yalc/argo-ui":
   version "1.0.0"
-  resolved "git+https://github.com/argoproj/argo-ui.git#a2152a377067f83a7074d2e031673806b427b011"
   dependencies:
     "@fortawesome/fontawesome-free" "^5.8.1"
     "@tippy.js/react" "^2.1.2"
