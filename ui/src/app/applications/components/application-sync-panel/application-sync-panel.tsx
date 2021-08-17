@@ -174,7 +174,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     const resKey = nodeKey(item);
                                                     const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
                                                     let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
-                                                    // Fix Latin letters being rendered left to right on ellipsis with direction set to rtl
+                                                    // contentEnd needs 'direction: rtl;' to make ellipsis in the beginning of the string instead of the end.
+                                                    // And because we've direction swapped, we now trip on strong LTR characters, so this extra work fixes it
                                                     const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
                                                     contentEnd = contentEnd.slice(indexOfFirstLetter);
                                                     return (
