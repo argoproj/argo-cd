@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"errors"
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -17,10 +18,14 @@ func gitErrToGRPC(err error) error {
 	if err == nil {
 		return err
 	}
+	var errMsg = err.Error()
+	if se, ok := err.(interface{ GRPCStatus() *status.Status }); ok {
+		errMsg = se.GRPCStatus().Message()
+	}
 
-	switch err.Error() {
+	switch errMsg {
 	case giterr.ErrRepositoryNotFound.Error():
-		err = rewrapError(err, codes.NotFound)
+		err = rewrapError(errors.New(errMsg), codes.NotFound)
 	}
 	return err
 }
