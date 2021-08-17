@@ -68,8 +68,8 @@ type Service struct {
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
-	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, opts ...git.ClientOpts) (git.Client, error)
-	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, opts ...helm.ClientOpts) helm.Client
+	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
+	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -95,8 +95,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
-		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, opts ...helm.ClientOpts) helm.Client {
-			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, opts...)
+		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
+			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, opts...)
 		},
 		initConstants: initConstants,
 		now:           time.Now,
@@ -175,7 +175,7 @@ type operationContext struct {
 	// application path or helm chart path
 	appPath string
 
-	// output of 'git verify-(tag/commit)', if signature verifiction is enabled (otherwise "")
+	// output of 'git verify-(tag/commit)', if signature verification is enabled (otherwise "")
 	verificationResult string
 }
 
@@ -329,7 +329,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -344,7 +344,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
 				return nil, cacheErr
@@ -363,22 +363,22 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = ctx.verificationResult
-	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
 	return manifestGenCacheEntry.ManifestResponse, nil
 }
 
-// getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, eg:
+// getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
 // - If the cache result is empty for the requested key
-// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (eg res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
+// - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName, &res)
 	if err == nil {
 
 		// The cache contains an existing value
@@ -389,15 +389,15 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 			// If we are already in the 'manifest generation caching' state, due to too many consecutive failures...
 			if res.NumberOfConsecutiveFailures >= s.initConstants.PauseGenerationAfterFailedGenerationAttempts {
 
-				// Check if enough time has passed to try generation again (eg to exit the 'manifest generation caching' state)
+				// Check if enough time has passed to try generation again (e.g. to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForMinutes > 0 {
 
 					elapsedTimeInMinutes := int((s.now().Unix() - res.FirstFailureTimestamp) / 60)
 
-					// After X minutes, reset the cache and retry the operation (eg perhaps the error is ephemeral and has passed)
+					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -406,12 +406,12 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					}
 				}
 
-				// Check if enough cached responses have been returned to try generation again (eg to exit the 'manifest generation caching' state)
+				// Check if enough cached responses have been returned to try generation again (e.g. to exit the 'manifest generation caching' state)
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -429,7 +429,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppName, &res)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.AppLabelKey, q.AppName, &res)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -657,7 +657,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version)
+	var proxy string
+	if q.Repo != nil {
+		proxy = q.Repo.Proxy
+	}
+
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -1097,7 +1102,7 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
-		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
+		return nil, fmt.Errorf("config management plugin with name '%s' is not supported", q.ApplicationSource.Plugin.Name)
 	}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
@@ -1108,9 +1113,24 @@ func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclie
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, q.ApplicationSource.Plugin.Env.Environ()...)
 	env = append(env, "KUBE_VERSION="+q.KubeVersion)
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+
+	parsedEnv := make(v1alpha1.Env, len(env))
+	for i, v := range env {
+		parsedVar, err := v1alpha1.NewEnvEntry(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse env vars")
+		}
+		parsedEnv[i] = parsedVar
+	}
+
+	pluginEnv := q.ApplicationSource.Plugin.Env
+	for i, j := range pluginEnv {
+		pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+	}
+	env = append(env, pluginEnv.Environ()...)
+
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
@@ -1159,7 +1179,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		return nil
 	}
 
-	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing()}
+	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache}
 	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings)
 
 	return res, err
@@ -1224,7 +1244,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 			version = q.Source.Helm.Version
 		}
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy)
 	if err != nil {
 		return err
 	}
@@ -1393,7 +1413,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
 	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
-	return s.newGitClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.EnableLFS, opts...)
+	return s.newGitClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, opts...)
 }
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
@@ -1412,7 +1432,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, helm.WithIndexCache(s.cache))
+	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache))
 	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
 	if helm.IsVersion(revision) || enableOCI {
 		return helmClient, revision, nil
@@ -1470,7 +1490,7 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI).GetIndex(true)
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy).GetIndex(true)
 	if err != nil {
 		return nil, err
 	}
@@ -1491,17 +1511,17 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	repo := q.Repo
 	checks := map[string]func() error{
 		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
+			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
 		},
 		"helm": func() error {
 			if repo.EnableOCI {
 				if !helm.IsHelmOciRepo(repo.Repo) {
 					return errors.New("OCI Helm repository URL should include hostname and port only")
 				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).TestHelmOCI()
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy).TestHelmOCI()
 				return err
 			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI).GetIndex(false)
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy).GetIndex(false)
 				return err
 			}
 		},

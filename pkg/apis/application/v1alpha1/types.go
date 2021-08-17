@@ -75,11 +75,12 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group        string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
+	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind              string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name              string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -365,6 +366,10 @@ type ApplicationSourceKustomize struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
+	// ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
+	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -1266,6 +1271,8 @@ type Cluster struct {
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
+	// Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -1290,6 +1297,10 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	if shard != otherShard {
 		return false
 	}
+
+	if c.ClusterResources != other.ClusterResources {
+		return false
+	}
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
@@ -1303,6 +1314,16 @@ type ClusterInfo struct {
 	CacheInfo ClusterCacheInfo `json:"cacheInfo,omitempty" protobuf:"bytes,3,opt,name=cacheInfo"`
 	// ApplicationsCount is the number of applications managed by Argo CD on the cluster
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
+	// APIVersions contains list of API versions supported by the cluster
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+}
+
+func (c *ClusterInfo) GetKubeVersion() string {
+	return c.ServerVersion
+}
+
+func (c *ClusterInfo) GetApiVersions() []string {
+	return c.APIVersions
 }
 
 // ClusterCacheInfo contains information about the cluster cache
@@ -1400,7 +1421,8 @@ type KnownTypeField struct {
 
 // TODO: describe this type
 type OverrideIgnoreDiff struct {
-	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
 }
 
 type rawResourceOverride struct {
@@ -1585,7 +1607,7 @@ type OrphanedResourceKey struct {
 
 // IsWarn returns true if warnings are enabled for orphan resources monitoring
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
-	return s.Warn == nil || *s.Warn
+	return s.Warn != nil && *s.Warn
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
@@ -1947,7 +1969,7 @@ type ProjectRole struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Description is a description of the role
 	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
-	// Policies Stores a list of casbin formated strings that define access policies for the role in the project
+	// Policies Stores a list of casbin formatted strings that define access policies for the role in the project
 	Policies []string `json:"policies,omitempty" protobuf:"bytes,3,rep,name=policies"`
 	// JWTTokens are a list of generated JWT tokens bound to this role
 	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
@@ -2380,13 +2402,19 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
-// TODO: document this method
+// SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
+
 	d.isServerInferred = true
 	d.Server = server
 }
 
-// TODO: document this method
+// An ApplicationDestination has an 'inferred server' if the ApplicationDestination
+// contains a Name, but not a Server URL. In this case it is necessary to retrieve
+// the Server URL by looking up the cluster name.
+//
+// As of this writing, looking up the cluster name, and setting the URL, is
+// performed by 'utils.ValidateDestination(...)', which then calls SetInferredServer.
 func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }

@@ -35,6 +35,17 @@ export interface SyncOperation {
     resources?: SyncOperationResource[];
 }
 
+export interface RetryBackoff {
+    duration: string;
+    maxDuration: string;
+    factor: number;
+}
+
+export interface RetryStrategy {
+    limit: number;
+    backoff: RetryBackoff;
+}
+
 export interface RollbackOperation {
     id: number;
     prune: boolean;
@@ -232,6 +243,7 @@ export interface Automated {
 export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
+    retry?: RetryStrategy;
 }
 
 export interface Info {
@@ -680,6 +692,12 @@ export interface Project {
     metadata: models.ObjectMeta;
     spec: ProjectSpec;
     status: AppProjectStatus;
+}
+
+export interface DetailedProjectsResponse {
+    project: Project;
+    globalProjects: Project[];
+    repositories: Repository[];
 }
 
 export type ProjectList = ItemsList<Project>;

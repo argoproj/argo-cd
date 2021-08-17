@@ -289,9 +289,15 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
-// ValidateDestination checks:
-// if we used destination name we infer the server url
-// if we used both name and server then we return an invalid spec error
+// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
+//
+// If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
+// ValidationDestination will look up the cluster by name (to get the server URL), and
+// set the corresponding Server field value.
+//
+// It also checks:
+// - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
@@ -373,13 +379,54 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 	return apiVersions
 }
 
-// GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Repository {
+	var repositories []*argoappv1.Repository
+	allRepos, err := db.ListRepositories(ctx)
+	if err != nil {
+		return repositories
+	}
+	for _, repo := range allRepos {
+		if repo.Project == name {
+			repositories = append(repositories, repo)
+		}
+	}
+	return repositories
+}
+
+//GetAppProject returns a project from an application
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return project, retrieveScopedRepositories(name, db, ctx), nil
+
+}
+
+// GetAppProjectByName returns a project from an application based on name
+func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
 	}
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+	project := projOrig.DeepCopy()
+	repos := retrieveScopedRepositories(name, db, ctx)
+	for _, repo := range repos {
+		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
+	}
+	return GetAppVirtualProject(project, projLister, settingsManager)
+}
+
+// GetAppProject returns a project from an application
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -406,9 +453,10 @@ func verifyGenerateManifests(
 
 	req := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{
-			Repo: spec.Source.RepoURL,
-			Type: repoRes.Type,
-			Name: repoRes.Name,
+			Repo:  spec.Source.RepoURL,
+			Type:  repoRes.Type,
+			Name:  repoRes.Name,
+			Proxy: repoRes.Proxy,
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
@@ -579,7 +627,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 			}
 		}
 		if !matchMe {
-			break
+			continue
 		}
 		//If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)

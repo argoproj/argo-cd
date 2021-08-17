@@ -7,8 +7,8 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.3.1-0.20210527164222-411c8d0f1cca
-	github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b
+	github.com/argoproj/gitops-engine v0.4.0
+	github.com/argoproj/pkg v0.9.1
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation v1.1.1
 	github.com/casbin/casbin v1.9.1
@@ -31,7 +31,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.4
 	github.com/google/go-jsonnet v0.17.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.1.2
@@ -40,10 +40,12 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	github.com/itchyny/gojq v0.12.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
-	github.com/mattn/go-isatty v0.0.11
+	github.com/mattn/go-isatty v0.0.12
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -60,11 +62,11 @@ require (
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
-	golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	gopkg.in/go-playground/webhooks.v5 v5.11.0

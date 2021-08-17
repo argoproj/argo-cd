@@ -118,6 +118,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelApp()
 	clusterCacheMock := mocks.ClusterCache{}
 	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
 
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
@@ -633,26 +634,43 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.True(t, patched)
 	})
 
-	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
-		app := newFakeAppWithDestMismatch()
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}})
-		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		func() {
-			fakeAppCs.Lock()
-			defer fakeAppCs.Unlock()
+	// Create an Application with a cluster that doesn't exist
+	// Ensure it can be deleted.
+	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
 
+		appTemplate := newFakeAppWithDestName()
+
+		testShouldDelete := func(app *argoappv1.Application) {
+			appObj := kube.MustToUnstructured(&app)
+			ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj): appObj,
+			}})
+
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 			defaultReactor := fakeAppCs.ReactionChain[0]
 			fakeAppCs.ReactionChain = nil
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-		}()
-		_, err := ctrl.finalizeApplicationDeletion(app)
-		assert.EqualError(t, err, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+			_, err := ctrl.finalizeApplicationDeletion(app)
+			assert.NoError(t, err)
+		}
+
+		app1 := appTemplate.DeepCopy()
+		app1.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app1)
+
+		app2 := appTemplate.DeepCopy()
+		app2.Spec.Destination.Name = "invalid"
+		testShouldDelete(app2)
+
+		app3 := appTemplate.DeepCopy()
+		app3.Spec.Destination.Name = "invalid"
+		app3.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app3)
+
 	})
+
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
@@ -1065,10 +1083,12 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, nil, nil
+		return true, patchedApp, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1090,10 +1110,12 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		fakeAppCs.Lock()
 		defer fakeAppCs.Unlock()
 		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patchedApp := &v1alpha1.Application{}
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 			}
-			return true, nil, nil
+			return true, patchedApp, nil
 		})
 	}()
 
@@ -1116,10 +1138,12 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, nil, nil
+		return true, patchedApp, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1159,10 +1183,12 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, nil, nil
+		return true, patchedApp, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1192,10 +1218,12 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, nil, nil
+		return true, patchedApp, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)

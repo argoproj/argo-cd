@@ -231,7 +231,7 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 }
 
 func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
+	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, context.TODO())
 }
 
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
@@ -316,7 +316,7 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -666,18 +666,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	app := origApp.DeepCopy()
 
 	if app.Operation != nil {
-		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
-		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
-		// This code should be deleted when https://github.com/argoproj/argo-cd/pull/6294 is implemented.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
-		if err != nil {
-			log.Errorf("Failed to retrieve latest application state: %v", err)
-			return
-		}
-		app = freshApp
-	}
-
-	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
@@ -824,79 +812,100 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return nil, err
 	}
 
-	err = argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db)
-	if err != nil {
-		return nil, err
-	}
+	// validDestination is true if the Application destination points to a cluster that is managed by Argo CD
+	// (and thus either a cluster secret exists for it, or it's local); validDestination is false otherwise.
+	validDestination := true
 
-	objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
-	if err != nil {
-		return nil, err
+	// Validate the cluster using the Application destination's `name` field, if applicable,
+	// and set the Server field, if needed.
+	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
+		log.Warnf("Unable to validate destination of the Application being deleted: %v", err)
+		validDestination = false
 	}
 
 	objs := make([]*unstructured.Unstructured, 0)
-	for k := range objsMap {
-		// Wait for objects pending deletion to complete before proceeding with next sync wave
-		if objsMap[k].GetDeletionTimestamp() != nil {
+	var cluster *appv1.Cluster
+
+	// Attempt to validate the destination via its URL
+	if validDestination {
+		if cluster, err = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server); err != nil {
+			log.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
+			validDestination = false
+		}
+	}
+
+	if validDestination {
+		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
+
+		objsMap, err := ctrl.getPermittedAppLiveObjects(app, proj)
+		if err != nil {
+			return nil, err
+		}
+
+		for k := range objsMap {
+			// Wait for objects pending deletion to complete before proceeding with next sync wave
+			if objsMap[k].GetDeletionTimestamp() != nil {
+				logCtx.Infof("%d objects remaining for deletion", len(objsMap))
+				return objs, nil
+			}
+
+			if ctrl.shouldBeDeleted(app, objsMap[k]) {
+				objs = append(objs, objsMap[k])
+			}
+		}
+
+		config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+
+		filteredObjs := FilterObjectsForDeletion(objs)
+
+		propagationPolicy := metav1.DeletePropagationForeground
+		if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+			propagationPolicy = metav1.DeletePropagationBackground
+		}
+		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
+		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
+			obj := filteredObjs[i]
+			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		})
+		if err != nil {
+			return objs, err
+		}
+
+		objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj)
+		if err != nil {
+			return nil, err
+		}
+
+		for k, obj := range objsMap {
+			if !ctrl.shouldBeDeleted(app, obj) {
+				delete(objsMap, k)
+			}
+		}
+		if len(objsMap) > 0 {
 			logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 			return objs, nil
 		}
-		if ctrl.shouldBeDeleted(app, objsMap[k]) {
-			objs = append(objs, objsMap[k])
-		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return nil, err
-	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
-
-	filteredObjs := FilterObjectsForDeletion(objs)
-
-	propagationPolicy := metav1.DeletePropagationForeground
-	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-		propagationPolicy = metav1.DeletePropagationBackground
-	}
-	logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
-
-	err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
-		obj := filteredObjs[i]
-		return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-	})
-	if err != nil {
+	if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
 		return objs, err
 	}
 
-	objsMap, err = ctrl.getPermittedAppLiveObjects(app, proj)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, obj := range objsMap {
-		if !ctrl.shouldBeDeleted(app, obj) {
-			delete(objsMap, k)
-		}
-	}
-	if len(objsMap) > 0 {
-		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
-		return objs, nil
-	}
-	err = ctrl.cache.SetAppManagedResources(app.Name, nil)
-	if err != nil {
-		return objs, err
-	}
-	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
-	if err != nil {
+	if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
 		return objs, err
 	}
 
-	err = ctrl.removeCascadeFinalizer(app)
-	if err != nil {
+	if err := ctrl.removeCascadeFinalizer(app); err != nil {
 		return objs, err
 	}
 
-	logCtx.Infof("Successfully deleted %d resources", len(objs))
+	if validDestination {
+		logCtx.Infof("Successfully deleted %d resources", len(objs))
+	} else {
+		logCtx.Infof("Resource entries removed from undefined cluster")
+	}
+
 	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", app.Namespace, app.Spec.GetProject()))
 	return objs, nil
 }
@@ -1076,7 +1085,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1105,6 +1114,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
+		}
+		// write back to informer in order to avoid stale cache
+		if err := ctrl.appInformer.GetStore().Update(patchedApp); err != nil {
+			log.Warnf("Fails to update informer: %v", err)
 		}
 		return nil
 	})
@@ -1163,7 +1176,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
 		if err := ctrl.cache.GetAppManagedResources(app.Name, &managedResources); err != nil {
-			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
+			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		} else {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
@@ -1554,6 +1567,12 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
+					// This call to 'ValidateDestination' ensures that the .spec.destination field of all Applications
+					// returned by the informer/lister will have server field set (if not already set) based on the name.
+					// (or, if not found, an error app condition)
+
+					// If the server field is not set, set it based on the cluster name; if the cluster name can't be found,
+					// log an error as an App Condition.
 					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
 						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
 					}

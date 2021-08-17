@@ -1,0 +1,54 @@
+# Git repositories configure Argo CD with (optional).
+# This list is updated when configuring/removing repos from the UI/CLI
+# Note: the last example in the list would use a repository credential template, configured under "argocd-repo-creds.yaml".
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://github.com/argoproj/my-private-repository
+  password: my-password
+  username: my-username
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: istio-helm-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+  name: istio.io
+  type: helm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-helm-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://my-private-chart-repo.internal
+  name: private-repo
+  type: helm
+  password: my-password
+  username: my-username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://github.com/argoproj/private-repo

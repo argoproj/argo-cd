@@ -78,6 +78,10 @@ type Repository struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -167,7 +171,7 @@ func (repo *Repository) GetGitCreds() git.Creds {
 		return git.NopCreds{}
 	}
 	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())

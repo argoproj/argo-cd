@@ -19,7 +19,7 @@ The diffing customization can be configured for single or multiple application r
 
 ## Application Level Configuration
 
-Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
+Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
 ```yaml
 spec:
@@ -43,6 +43,16 @@ spec:
     - /spec/replicas
 ```
 
+To ignore elements of a list, you can use JQ path expressions to identify list items based on item content:
+```yaml
+spec:
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jqPathExpressions:
+    - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
+```
+
 ## System-Level Configuration
 
 The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind
@@ -51,11 +61,9 @@ of a `MutatingWebhookConfiguration` webhooks:
 
 ```yaml
 data:
-  resource.customizations: |
-    admissionregistration.k8s.io/MutatingWebhookConfiguration:
-      ignoreDifferences: |
-        jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jqPathExpressions:
+    - '.webhooks[]?.clientConfig.caBundle'
 ```
 
 The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
@@ -109,11 +117,9 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  resource.customizations: |
-    argoproj.io/Rollout:
-      knownTypeFields:
-      - field: spec.template.spec
-        type: core/v1/PodSpec
+  resource.customizations.knownTypeFields.argoproj.io_Rollout: |
+    - field: spec.template.spec
+      type: core/v1/PodSpec
 ```
 
 The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)

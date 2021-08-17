@@ -119,7 +119,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return Math.sign(numberA - numberB);
     }
     function getRevision(a: ResourceTreeNode) {
-        const filtered = a.info.filter(b => b.name === 'Revision' && b)[0];
+        const filtered = (a.info || []).filter(b => b.name === 'Revision' && b)[0];
         if (filtered == null) {
             return '';
         }
@@ -399,7 +399,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setNode(EXTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.externalTraffic});
             externalRoots.sort(compareNodes).forEach(root => {
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
-                processNode(root, root, loadBalancers.map(lb => colorsBySource.get(lb)));
+                processNode(
+                    root,
+                    root,
+                    loadBalancers.map(lb => colorsBySource.get(lb))
+                );
                 loadBalancers.forEach(key => {
                     const loadBalancerNodeKey = `${EXTERNAL_TRAFFIC_NODE}:${key}`;
                     graph.setNode(loadBalancerNodeKey, {
@@ -429,12 +433,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     } else {
         // Tree view
         const managedKeys = new Set(props.app.status.resources.map(nodeKey));
+        const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
         nodes.forEach(node => {
             if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
                 roots.push(node);
             } else {
-                orphans.push(node);
+                if (orphanedKeys.has(nodeKey(node))) {
+                    orphans.push(node);
+                }
                 node.parentRefs.forEach(parent => {
                     const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                     children.push(node);

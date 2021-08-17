@@ -31,6 +31,7 @@ nav:
   - Operator Manual:
     - operator-manual/index.md
     - operator-manual/architecture.md
+    - operator-manual/installation.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
     - User Management:
@@ -62,7 +63,7 @@ nav:
       - operator-manual/server-commands/argocd-application-controller.md
       - operator-manual/server-commands/argocd-repo-server.md
       - operator-manual/server-commands/argocd-dex.md
-    - argocd-util Tools: operator-manual/server-commands/argocd-util.md
+      - operator-manual/server-commands/additional-configuration-method.md
     - Upgrading:
         - operator-manual/upgrading/overview.md
         - operator-manual/upgrading/2.0-2.1.md
@@ -108,7 +109,9 @@ nav:
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
-    - developer-guide/contributing.md
+    - Code Contribution Guide: developer-guide/code-contributions.md
+    - Toolchain Guide: developer-guide/toolchain-guide.md
+    - developer-guide/release-process-and-cadence.md
     - developer-guide/running-locally.md
     - developer-guide/debugging-remote-environment.md
     - developer-guide/use-gitpod.md

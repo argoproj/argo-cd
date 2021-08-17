@@ -2,11 +2,13 @@ package settings
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"net/url"
 	"path"
 	"reflect"
@@ -23,6 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -34,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
-	argorand "github.com/argoproj/argo-cd/v2/util/rand"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
@@ -196,6 +198,8 @@ type Repository struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
+	Proxy string `json:"proxy,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -303,6 +307,8 @@ const (
 	initialPasswordLength = 16
 	// externalServerTLSSecretName defines the name of the external secret holding the server's TLS certificate
 	externalServerTLSSecretName = "argocd-server-tls"
+	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
+	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -384,7 +390,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 		return err
 	}
 
-	if !createSecret && reflect.DeepEqual(argoCDSecret, updatedSecret) {
+	if !createSecret && reflect.DeepEqual(argoCDSecret.Data, updatedSecret.Data) {
 		return nil
 	}
 
@@ -417,9 +423,13 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	if argoCDCM.Data == nil {
 		argoCDCM.Data = make(map[string]string)
 	}
+	beforeUpdate := argoCDCM.DeepCopy()
 	err = callback(argoCDCM)
 	if err != nil {
 		return err
+	}
+	if reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
+		return nil
 	}
 
 	if createCM {
@@ -548,12 +558,14 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
 		addStatusOverrideToGK(resourceOverrides, crdGK)
 		log.Info("Ignore status for CustomResourceDefinitions")
-
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
+		log.Infof("Ignore '%v' for CustomResourceDefinitions", crdPrsvUnkn)
 	case "all":
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
@@ -576,6 +588,17 @@ func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverrid
 	} else {
 		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
+		}
+	}
+}
+
+func addIgnoreDiffItemOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind, ignoreItem string) {
+	if val, ok := resourceOverrides[groupKind]; ok {
+		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, ignoreItem)
+		resourceOverrides[groupKind] = val
+	} else {
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{ignoreItem}},
 		}
 	}
 }
@@ -880,10 +903,18 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	selector, err := labels.Parse(partOfArgoCDSelector)
+	if err != nil {
+		return nil, err
+	}
+	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
-	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
+	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
@@ -904,7 +935,7 @@ func (mgr *SettingsManager) invalidateCache() {
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmLabelSelector := fields.ParseSelectorOrDie("app.kubernetes.io/part-of=argocd")
+		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
 		options.LabelSelector = cmLabelSelector.String()
 	}
 
@@ -1026,7 +1057,7 @@ func validateExternalURL(u string) error {
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret, secrets []*apiv1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -1076,6 +1107,11 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		}
 	}
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
+	for _, s := range secrets {
+		for k, v := range s.Data {
+			secretValues[fmt.Sprintf("%s:%s", s.Name, k)] = string(v)
+		}
+	}
 	for k, v := range argoCDSecret.Data {
 		secretValues[k] = string(v)
 	}
@@ -1146,7 +1182,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	err = mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
+	return mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 		if settings.WebhookGitHubSecret != "" {
 			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
@@ -1175,12 +1211,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		return nil
 	})
-
-	if err != nil {
-		return err
-	}
-
-	return mgr.ResyncInformers()
 }
 
 // Save the SSH known host data into the corresponding ConfigMap
@@ -1437,6 +1467,8 @@ func isIncompleteSettingsError(err error) bool {
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
+
 	cdSettings, err := mgr.GetSettings()
 	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
@@ -1457,7 +1489,16 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
-				initialPassword := argorand.RandString(initialPasswordLength)
+				randBytes := make([]byte, initialPasswordLength)
+				for i := 0; i < initialPasswordLength; i++ {
+					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+					if err != nil {
+						return err
+					}
+					randBytes[i] = letters[num.Int64()]
+				}
+				initialPassword := string(randBytes)
+
 				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
 					return err
@@ -1496,7 +1537,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		certOpts := tlsutil.CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         true,
+			IsCA:         false,
 		}
 		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
 		if err != nil {

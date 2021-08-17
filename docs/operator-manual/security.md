@@ -11,7 +11,8 @@ Authentication to Argo CD API server is performed exclusively using [JSON Web To
 in one of the following ways:
 
 1. For the local `admin` user, a username/password is exchanged for a JWT using the `/api/v1/session`
-   endpoint. This token is signed & issued by the Argo CD API server itself, and has no expiration.
+   endpoint. This token is signed & issued by the Argo CD API server itself and it expires after 24 hours 
+   (this token used not to expire, see [CVE-2021-26921](https://github.com/argoproj/argo-cd/security/advisories/GHSA-9h6w-j7w4-jr52)).
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
    The password is stored as a bcrypt hash in the [`argocd-secret`](https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml) Secret.
 
@@ -37,6 +38,7 @@ permits access to the API request.
 All network communication is performed over TLS including service-to-service communication between
 the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
+Communication with Redis is performed over plain HTTP by default. TLS can be setup with command line arguments.
 
 ## Sensitive Information
 

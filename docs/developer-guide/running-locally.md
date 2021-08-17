@@ -4,9 +4,9 @@
 
 During development, it might be viable to run ArgoCD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new ArgoCD Docker images with your latest changes.
 
-You will still need a working Kubernetes cluster, as described in the [Contribution Guide](contributing.md), where ArgoCD will store all of its resources.
+You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where ArgoCD will store all of its resources and configuration.
 
-If you followed the [Contribution Guide](contributing.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
+If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
 
 ### Install ArgoCD resources to your cluster
 

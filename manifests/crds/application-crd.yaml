@@ -313,6 +313,15 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
+                          forceCommonAnnotations:
+                            description: ForceCommonAnnotations specifies whether
+                              to force applying common annotations to resources for
+                              Kustomize apps
+                            type: boolean
+                          forceCommonLabels:
+                            description: ForceCommonLabels specifies whether to force
+                              applying common labels to resources for Kustomize apps
+                            type: boolean
                           images:
                             description: Images is a list of Kustomize image override
                               specifications
@@ -442,6 +451,10 @@ spec:
                   properties:
                     group:
                       type: string
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
                     jsonPointers:
                       items:
                         type: string
@@ -453,7 +466,6 @@ spec:
                     namespace:
                       type: string
                   required:
-                  - jsonPointers
                   - kind
                   type: object
                 type: array
@@ -652,6 +664,14 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
+                      forceCommonAnnotations:
+                        description: ForceCommonAnnotations specifies whether to force
+                          applying common annotations to resources for Kustomize apps
+                        type: boolean
+                      forceCommonLabels:
+                        description: ForceCommonLabels specifies whether to force
+                          applying common labels to resources for Kustomize apps
+                        type: boolean
                       images:
                         description: Images is a list of Kustomize image override
                           specifications
@@ -1011,6 +1031,16 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
+                            forceCommonAnnotations:
+                              description: ForceCommonAnnotations specifies whether
+                                to force applying common annotations to resources
+                                for Kustomize apps
+                              type: boolean
+                            forceCommonLabels:
+                              description: ForceCommonLabels specifies whether to
+                                force applying common labels to resources for Kustomize
+                                apps
+                              type: boolean
                             images:
                               description: Images is a list of Kustomize image override
                                 specifications
@@ -1384,6 +1414,16 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
+                                  forceCommonAnnotations:
+                                    description: ForceCommonAnnotations specifies
+                                      whether to force applying common annotations
+                                      to resources for Kustomize apps
+                                    type: boolean
+                                  forceCommonLabels:
+                                    description: ForceCommonLabels specifies whether
+                                      to force applying common labels to resources
+                                      for Kustomize apps
+                                    type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
                                       override specifications
@@ -1732,6 +1772,16 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              forceCommonAnnotations:
+                                description: ForceCommonAnnotations specifies whether
+                                  to force applying common annotations to resources
+                                  for Kustomize apps
+                                type: boolean
+                              forceCommonLabels:
+                                description: ForceCommonLabels specifies whether to
+                                  force applying common labels to resources for Kustomize
+                                  apps
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -2069,6 +2119,16 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              forceCommonAnnotations:
+                                description: ForceCommonAnnotations specifies whether
+                                  to force applying common annotations to resources
+                                  for Kustomize apps
+                                type: boolean
+                              forceCommonLabels:
+                                description: ForceCommonLabels specifies whether to
+                                  force applying common labels to resources for Kustomize
+                                  apps
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications

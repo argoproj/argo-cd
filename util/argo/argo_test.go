@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -73,7 +75,8 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr)
+	argoDB := db.NewDB("default", settingsMgr, kubeClient)
+	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -757,4 +760,123 @@ func TestFilterByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, res, 0)
 	})
+}
+
+func TestGetGlobalProjects(t *testing.T) {
+	t.Run("Multiple global projects", func(t *testing.T) {
+		namespace := "default"
+
+		cm := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"globalProjects": `
+ - projectName: default-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: Exists
+ - projectName: default-non-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: DoesNotExist
+`,
+			},
+		}
+
+		defaultX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
+			Spec: argoappv1.AppProjectSpec{
+				ClusterResourceWhitelist: []metav1.GroupKind{
+					{Group: "*", Kind: "*"},
+				},
+				ClusterResourceBlacklist: []metav1.GroupKind{
+					{Kind: "Volume"},
+				},
+			},
+		}
+
+		defaultNonX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
+			Spec: argoappv1.AppProjectSpec{
+				ClusterResourceBlacklist: []metav1.GroupKind{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+
+		isX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "is-x",
+				Namespace: namespace,
+				Labels: map[string]string{
+					"is-x": "yep",
+				},
+			},
+		}
+
+		isNoX := &argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "is-no-x", Namespace: namespace},
+		}
+
+		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+		informer := v1alpha1.NewAppProjectInformer(projClientset, namespace, 0, indexers)
+		go informer.Run(ctx.Done())
+		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+		kubeClient := fake.NewSimpleClientset(&cm)
+		settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+
+		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
+
+		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
+		assert.Len(t, xGlobalProjects, 1)
+		assert.Equal(t, xGlobalProjects[0].Name, "default-x")
+
+		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
+		assert.Len(t, nonXGlobalProjects, 1)
+		assert.Equal(t, nonXGlobalProjects[0].Name, "default-non-x")
+	})
+}
+
+func Test_retrieveScopedRepositories(t *testing.T) {
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test"), Project: "test"}
+
+	repos := make([]*argoappv1.Repository, 0)
+	repos = append(repos, repo)
+
+	db := &dbmocks.ArgoDB{}
+
+	db.On("ListRepositories", context.TODO()).Return(repos, nil)
+
+	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
+
+	assert.Len(t, scopedRepos, 1)
+	assert.Equal(t, scopedRepos[0].Repo, repo.Repo)
+
+}
+
+func Test_retrieveScopedRepositoriesWithNotProjectAssigned(t *testing.T) {
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test")}
+
+	repos := make([]*argoappv1.Repository, 0)
+	repos = append(repos, repo)
+
+	db := &dbmocks.ArgoDB{}
+
+	db.On("ListRepositories", context.TODO()).Return(repos, nil)
+
+	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
+
+	assert.Len(t, scopedRepos, 0)
+
 }

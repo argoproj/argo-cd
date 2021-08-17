@@ -11,6 +11,7 @@ argocd cluster add CONTEXT [flags]
 ```
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
+      --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
       --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable
@@ -35,9 +36,11 @@ argocd cluster add CONTEXT [flags]
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")

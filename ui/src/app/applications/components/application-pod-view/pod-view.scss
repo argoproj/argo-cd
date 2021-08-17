@@ -87,9 +87,7 @@ $num-stats: 2;
             &__pods {
                 display: flex;
                 flex-wrap: wrap;
-                max-height: $pod-container-height;
                 width: 100%;
-                overflow: auto;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
                 padding: $gutter * 2;
@@ -122,7 +120,7 @@ $num-stats: 2;
             &--suspended {
                 background-color: $argo-status-warning-color;
                 &:hover {
-                    background-color: $argo-status-warning-color - #111;
+                    background-color: darken($argo-status-warning-color, 10%);
                 }
             }
             &--running,

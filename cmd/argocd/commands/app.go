@@ -101,11 +101,12 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts cmdutil.AppOptions
-		fileURL string
-		appName string
-		upsert  bool
-		labels  []string
+		appOpts     cmdutil.AppOptions
+		fileURL     string
+		appName     string
+		upsert      bool
+		labels      []string
+		annotations []string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -132,7 +133,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -156,6 +157,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -673,9 +675,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 				for _, env := range pluginEnvs {
 					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
-					errors.CheckError(err)
+					if err == nil {
+						updated = true
+					}
 				}
-				updated = true
 			}
 
 			if !updated {
@@ -1811,6 +1814,23 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
+func findRevisionHistory(application *argoappv1.Application, historyId int64) (*argoappv1.RevisionHistory, error) {
+	// in case if history id not passed and need fetch previous history revision
+	if historyId == -1 {
+		l := len(application.Status.History)
+		if l < 2 {
+			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.ObjectMeta.Name)
+		}
+		return &application.Status.History[l-2], nil
+	}
+	for _, di := range application.Status.History {
+		if di.ID == historyId {
+			return &di, nil
+		}
+	}
+	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId)
+}
+
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1818,36 +1838,33 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout uint
 	)
 	var command = &cobra.Command{
-		Use:   "rollback APPNAME ID",
-		Short: "Rollback application to a previous deployed version by History ID",
+		Use:   "rollback APPNAME [ID]",
+		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			appName := args[0]
-			depID, err := strconv.Atoi(args[1])
-			errors.CheckError(err)
+			var err error
+			depID := -1
+			if len(args) > 1 {
+				depID, err = strconv.Atoi(args[1])
+				errors.CheckError(err)
+			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			var depInfo *argoappv1.RevisionHistory
-			for _, di := range app.Status.History {
-				if di.ID == int64(depID) {
-					depInfo = &di
-					break
-				}
-			}
-			if depInfo == nil {
-				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
-			}
+
+			depInfo, err := findRevisionHistory(app, int64(depID))
+			errors.CheckError(err)
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
-				ID:    int64(depID),
+				ID:    depInfo.ID,
 				Prune: prune,
 			})
 			errors.CheckError(err)

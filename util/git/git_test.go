@@ -146,8 +146,8 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false)
-	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds)
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000")
+	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
@@ -166,11 +166,19 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.NotNil(t, cert.PrivateKey)
 			}
 		}
+		proxy, err := httpClient.Proxy(nil)
+		assert.Nil(t, err)
+		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
+	os.Setenv("http_proxy", "http://proxy-from-env:7878")
+	defer func() {
+		assert.Nil(t, os.Unsetenv("http_proxy"))
+	}()
+
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", true)
-	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds)
+	creds = NewHTTPSCreds("test", "test", "", "", true, "")
+	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
@@ -189,11 +197,16 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
+		req, err := http.NewRequest("GET", "http://proxy-from-env:7878", nil)
+		assert.Nil(t, err)
+		proxy, err := httpClient.Proxy(req)
+		assert.Nil(t, err)
+		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
 	}
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false)
+	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "")
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -238,7 +251,7 @@ func TestLFSClient(t *testing.T) {
 		defer func() { _ = os.RemoveAll(tempDir) }()
 	}
 
-	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true)
+	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "")
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -277,7 +290,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	}
 	defer os.RemoveAll(p)
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false)
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "")
 	assert.NoError(t, err)
 
 	err = client.Init()
@@ -323,7 +336,7 @@ func TestNewFactory(t *testing.T) {
 		name string
 		args args
 	}{
-		{"Github", args{url: "https://github.com/argoproj/argocd-example-apps"}},
+		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 	}
 	for _, tt := range tests {
@@ -336,7 +349,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false)
+		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "")
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)
@@ -377,7 +390,7 @@ func TestListRevisions(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
-	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false)
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "")
 	assert.NoError(t, err)
 
 	lsResult, err := client.LsRefs()

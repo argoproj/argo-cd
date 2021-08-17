@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 $header: 120px;
 
@@ -10,6 +11,9 @@ $header: 120px;
         z-index: 2;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
+        }
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            top: 146px;
         }
     }
 
@@ -37,12 +41,13 @@ $header: 120px;
         position: fixed;
         top: $header + 100px;
         right: 60px;
+        z-index: 1;
     }
 
     &__refreshing-label {
         position: fixed;
         top: $header + 100px;
-        left: 60px;
+        left: 310px;
         background-color: $argo-color-gray-4;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
@@ -188,5 +193,14 @@ $header: 120px;
 
     &__commit-message {
         line-height: 1.5em;
+    }
+
+    .filters-group__panel {
+        top: 230px;
+    }
+    @include breakpoint(large down) {
+        .filters-group__panel {
+            top: 280px;
+        }
     }
 }

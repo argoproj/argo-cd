@@ -148,6 +148,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
 	}}
+	ignoreCRDFields := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status", "/spec/preserveUnknownFields"},
+	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -155,7 +158,9 @@ func TestGetResourceOverrides(t *testing.T) {
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err := settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
@@ -164,13 +169,16 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.NotNil(t, webHookOverrides)
 
 	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle"}},
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+		},
 	}, webHookOverrides)
 
 	// by default, crd status should be ignored
 	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreStatus, crdOverrides)
+	assert.Equal(t, ignoreCRDFields, crdOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -193,14 +201,19 @@ func TestGetResourceOverrides(t *testing.T) {
     apiextensions.k8s.io/CustomResourceDefinition:
       ignoreDifferences: |
         jsonPointers:
-        - /webhooks/0/clientConfig/caBundle`,
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 
 	crdOverrides = overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/webhooks/0/clientConfig/caBundle", "/status"}}}, crdOverrides)
+	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
+		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+	}}, crdOverrides)
 
 	// with incorrect value, status of crd objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -247,10 +260,10 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
       health.lua.useOpenLibs: true
       health.lua: |
         foo
-    cert-manager.io/Certificate: 
+    cert-manager.io/Certificate:
       health.lua: |
         foo
-    apps/Deployment: 
+    apps/Deployment:
       actions: |
         foo`,
 	}
@@ -262,7 +275,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
 		assert.Equal(t, 5, len(overrides))
-		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
@@ -290,6 +303,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.health.Iamrole":                             "bar",
 			"resource.customizations.ignoreDifferences.iam-manager.k8s.io_Iamrole": `jsonPointers:
         - bar`,
+			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
+        - bar`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -298,8 +313,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
 		assert.Equal(t, 8, len(overrides))
-		assert.Equal(t, 1, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
@@ -314,6 +330,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
 		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
+		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
+		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
@@ -875,4 +893,57 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.NotNil(t, settings.Certificate)
 		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
 	})
+}
+
+func TestSecretKeyRef(t *testing.T) {
+	data := map[string]string{
+		"oidc.config": `name: Okta
+issuer: https://dev-123456.oktapreview.com
+clientID: aaaabbbbccccddddeee
+clientSecret: $acme:clientSecret
+# Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
+requestedScopes: ["openid", "profile", "email"]
+# Optional set of OIDC claims to request on the ID token.
+requestedIDTokenClaims: {"groups": {"essential": true}}`,
+	}
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: data,
+	}
+	argocdSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "acme",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"clientSecret": []byte("deadbeef"),
+		},
+	}
+	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+
+	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
