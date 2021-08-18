@@ -25,7 +25,7 @@
         label::after {
             content: attr(content-end);
             text-overflow: clip;
-            direction: rtl; // This is for ellipsis in the middle instead of the end of resource path
+            direction: rtl; // This is to help put the ellipsis in the middle instead of at the end of the resource path
         }
     }
 }
