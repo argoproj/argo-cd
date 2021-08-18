@@ -3818,7 +3818,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
