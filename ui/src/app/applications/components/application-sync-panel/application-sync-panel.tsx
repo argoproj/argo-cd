@@ -178,20 +178,14 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
                                                     const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
                                                     contentEnd = contentEnd.slice(indexOfFirstLetter);
+                                                    const isLongLabel = resKey.length > 68;
                                                     return (
                                                         <div key={resKey} className='application-sync-panel__resource'>
                                                             <CheckboxField id={resKey} field={`resources[${i}]`} />
                                                             <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
                                                                 <div className='container'>
-                                                                    <label htmlFor={resKey} style={{display: resKey.length <= 68 ? '' : 'none'}}>
-                                                                        {resKey}
-                                                                    </label>
-                                                                    <label
-                                                                        style={{display: resKey.length > 68 ? '' : 'none'}}
-                                                                        htmlFor={resKey}
-                                                                        content-start={contentStart}
-                                                                        content-end={contentEnd}
-                                                                    />
+                                                                    {!isLongLabel && <label htmlFor={resKey}>{resKey}</label>}
+                                                                    {isLongLabel && <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />}
                                                                 </div>
                                                             </Tooltip>
                                                             <ComparisonStatusIcon status={item.status} resource={item} />
