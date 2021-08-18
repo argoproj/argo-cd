@@ -12,7 +12,6 @@ import {COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {debounce} from 'argo-ui/v2/utils';
 
 require('./utils.scss');
 
@@ -917,15 +916,3 @@ export const BASE_COLORS = [
     '#964B00' // brown
 ];
 
-export const useActionOnLargeWindow = (action: () => void) => {
-    React.useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1440) {
-                action();
-            }
-        };
-
-        window.addEventListener('resize', debounce(handleResize, 1000));
-        return () => window.removeEventListener('resize', handleResize);
-    });
-};

@@ -5,7 +5,7 @@ import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthSt
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon, useActionOnLargeWindow} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
     projects: boolean;
