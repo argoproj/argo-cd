@@ -2582,12 +2582,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
-          },
-          {
-            "type": "string",
-            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2899,12 +2893,6 @@
             "type": "string",
             "description": "HTTP/HTTPS proxy to access the repository.",
             "name": "proxy",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
-            "name": "project",
             "in": "query"
           }
         ],
