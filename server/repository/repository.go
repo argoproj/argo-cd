@@ -330,7 +330,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
-			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r, Project: r.Project})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
@@ -352,10 +352,21 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
+
+	repo, err := s.db.GetRepository(ctx, q.Repo.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	// verify that user can do update inside project where repository is located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+	// verify that user can do update inside project where repository will be located
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
-	_, err := s.db.UpdateRepository(ctx, q.Repo)
+	_, err = s.db.UpdateRepository(ctx, q.Repo)
 	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 

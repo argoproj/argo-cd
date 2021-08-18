@@ -94,6 +94,8 @@ message RepoCreateRequest {
 
 message RepoUpdateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+    string project = 2;
 }
 
 // RepositoryService
