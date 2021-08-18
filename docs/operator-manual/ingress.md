@@ -513,9 +513,9 @@ spec:
 ```
 
 ---
-**NOTE**
+!!! note
 
-The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).  
+    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).  
 
 ---
 
@@ -552,9 +552,9 @@ spec:
               servicePort: http
 ```
 ---
-**Deprecation Warning**
+!!! warning "Deprecation Warning"
 
-Note that, according to this [deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122), if you're using Kubernetes 1.22+, instead of `networking.k8s.io/v1beta1`, you should use `networking.k8s.io/v1`.
+    Note that, according to this [deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122), if you're using Kubernetes 1.22+, instead of `networking.k8s.io/v1beta1`, you should use `networking.k8s.io/v1`.
 
 ---
 
