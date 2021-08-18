@@ -182,6 +182,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
@@ -198,6 +199,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
@@ -215,6 +217,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   repo: https://github.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
@@ -231,6 +234,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   repo: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
@@ -257,6 +261,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
 ---
 apiVersion: v1
@@ -267,6 +272,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/other-private-repo
 ---
 apiVersion: v1
@@ -277,6 +283,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
+  type: git
   url: https://github.com/argoproj
   password: my-password
   username: my-username
@@ -416,6 +423,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
   password: my-password
