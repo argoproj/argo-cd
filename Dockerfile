@@ -47,7 +47,6 @@ RUN groupadd -g 999 argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
-    chmod g=u /etc/passwd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
@@ -62,9 +61,7 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-# script to add current (possibly arbitrary) user to /etc/passwd at runtime
-# (if it's not already there, to be openshift friendly)
-COPY uid_entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \

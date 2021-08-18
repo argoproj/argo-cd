@@ -274,12 +274,20 @@ func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest)
 	return s.CreateRepository(ctx, q)
 }
 
+func createRBACObject(project string, repo string) string {
+	if project != "" {
+		return project + "/" + repo
+	}
+	return repo
+}
+
 // CreateRepository creates a repository configuration
 func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
 
@@ -341,7 +349,7 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
@@ -372,7 +380,7 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 // ValidateAccess checks whether access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 

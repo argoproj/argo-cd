@@ -441,8 +441,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const hook = root && root.hook;
         if (
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
+            // include if node's root sync matches filter
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
-            (filterInput.health.length === 0 || hook || (root.health && filterInput.health.indexOf(root.health.status) > -1)) &&
+            // include if node or node's root health matches filter
+            (filterInput.health.length === 0 ||
+                hook ||
+                (root.health && filterInput.health.indexOf(root.health.status) > -1) ||
+                (node.health && filterInput.health.indexOf(node.health.status) > -1)) &&
             (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
         ) {
             return true;

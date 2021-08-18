@@ -1,6 +1,6 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
-import {Key, KeybindingContext, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -19,11 +19,14 @@ export const ApplicationsTable = (props: {
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding(Key.DOWN, () => navApp(1));
-    useKeybinding(Key.UP, () => navApp(-1));
-    useKeybinding(Key.ESCAPE, () => {
-        reset();
-        return selectedApp > -1 ? true : false;
+    useKeybinding({keys: Key.DOWN, action: () => navApp(1)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1)});
+    useKeybinding({
+        keys: Key.ESCAPE,
+        action: () => {
+            reset();
+            return selectedApp > -1 ? true : false;
+        }
     });
 
     return (
