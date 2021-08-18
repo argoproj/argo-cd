@@ -11,7 +11,6 @@ argocd repo get [flags]
 ```
   -h, --help             help for get
   -o, --output string    Output format. One of: json|yaml|wide|url (default "wide")
-      --project string   Project of the repository
       --refresh string   Force a cache refresh on connection status
 ```
 

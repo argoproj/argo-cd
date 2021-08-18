@@ -204,9 +204,6 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		project string
-	)
 	var command = &cobra.Command{
 		Use:   "rm REPO",
 		Short: "Remove repository credentials",
@@ -218,13 +215,12 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, Project: project})
+				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
 		},
 	}
-	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	return command
 }
 
@@ -302,7 +298,6 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output  string
 		refresh string
-		project string
 	)
 	var command = &cobra.Command{
 		Use:   "get",
@@ -326,7 +321,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh, Project: project})
+			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -344,6 +339,5 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
-	command.Flags().StringVar(&project, "project", "", "Project of the repository")
 	return command
 }
