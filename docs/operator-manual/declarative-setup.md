@@ -171,6 +171,9 @@ Repository details are stored in secrets. To configure a repo, create a secret w
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 
+!!!warning
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+    
 Example for HTTPS:
 
 ```yaml
