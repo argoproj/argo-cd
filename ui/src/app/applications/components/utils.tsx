@@ -915,4 +915,3 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
-
