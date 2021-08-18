@@ -62,10 +62,10 @@ spec:
                     storage: 200Gi
         resources:
           requests:
-            cpu: 9
+            cpu: 8
             memory: 32Gi
           limits:
-            cpu: 9
+            cpu: 8
             memory: 32Gi
         # A key/value list of annotations
         annotations:
