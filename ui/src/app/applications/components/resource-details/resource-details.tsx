@@ -1,9 +1,11 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ExtensionComponentProps} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -38,7 +40,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], ExtensionComponent: React.ComponentType<ExtensionComponentProps>, tabs: Tab[]) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -112,6 +114,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
+        if (ExtensionComponent) {
+            tabs.push({
+                title: 'More',
+                key: 'extension',
+                content: (
+                    <div>
+                        <ExtensionComponent node={node} tree={tree} />
+                    </div>
+                )
+            });
+        }
         return tabs;
     };
 
@@ -182,6 +195,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
         return tabs;
     };
+
+    const [extension] = useData(() => services.extensions.loadResourceExtension(selectedNode.group, selectedNode.kind));
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -254,7 +269,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, [
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, extension.component, [
                                     {
                                         title: 'SUMMARY',
                                         icon: 'fa fa-file-alt',
