@@ -51,6 +51,21 @@ func NewServer(
 	}
 }
 
+func (s *Server) getRepo(ctx context.Context, url string) (*appsv1.Repository, error) {
+	repo, err := s.db.GetRepository(ctx, url)
+	if err != nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+	return repo, nil
+}
+
+func createRBACObject(project string, repo string) string {
+	if project != "" {
+		return project + "/" + repo
+	}
+	return repo
+}
+
 // Get the connection state for a given repository URL by connecting to the
 // repo and evaluate the results. Unless forceRefresh is set to true, the
 // result may be retrieved out of the cache.
@@ -94,14 +109,15 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
-		return nil, err
-	}
-
-	repo, err := s.db.GetRepository(ctx, q.Repo)
+	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
 	// For backwards compatibility, if we have no repo type set assume a default
 	rType := repo.Type
 	if rType == "" {
@@ -134,7 +150,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 	items := appsv1.Repositories{}
 	for _, repo := range repos {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo.Repo) {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)) {
 			// For backwards compatibility, if we have no repo type set assume a default
 			rType := repo.Type
 			if rType == "" {
@@ -164,11 +180,12 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	repo, err := s.getRepo(ctx, q.Repo)
+	if err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, q.Repo)
-	if err != nil {
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 
@@ -185,11 +202,12 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 
 // ListApps returns list of apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	repo, err := s.getRepo(ctx, q.Repo)
+	if err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, q.Repo)
-	if err != nil {
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 
@@ -218,11 +236,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Source.RepoURL); err != nil {
+	repo, err := s.getRepo(ctx, q.Source.RepoURL)
+	if err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, q.Source.RepoURL)
-	if err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
@@ -253,11 +271,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 
 // GetHelmCharts returns list of helm charts in the specified repository
 func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+	repo, err := s.getRepo(ctx, q.Repo)
+	if err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, q.Repo)
-	if err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
@@ -272,13 +290,6 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 // Deprecated: Use CreateRepository() instead
 func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
 	return s.CreateRepository(ctx, q)
-}
-
-func createRBACObject(project string, repo string) string {
-	if project != "" {
-		return project + "/" + repo
-	}
-	return repo
 }
 
 // CreateRepository creates a repository configuration
@@ -327,6 +338,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
+			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
@@ -349,10 +361,21 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
+
+	repo, err := s.getRepo(ctx, q.Repo.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	// verify that user can do update inside project where repository is located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+	// verify that user can do update inside project where repository will be located
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
-	_, err := s.db.UpdateRepository(ctx, q.Repo)
+	_, err = s.db.UpdateRepository(ctx, q.Repo)
 	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
@@ -364,7 +387,12 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
+	repo, err := s.getRepo(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 
@@ -373,18 +401,22 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
-	err := s.db.DeleteRepository(ctx, q.Repo)
+	err = s.db.DeleteRepository(ctx, q.Repo)
 	return &repositorypkg.RepoResponse{}, err
 }
 
 // ValidateAccess checks whether access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
+	repo, err := s.getRepo(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 
-	repo := &appsv1.Repository{
+	repo = &appsv1.Repository{
 		Repo:                       q.Repo,
 		Type:                       q.Type,
 		Name:                       q.Name,
@@ -403,7 +435,6 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	var repoCreds *appsv1.RepoCreds
-	var err error
 
 	// If repo does not have credentials, check if there are credentials stored
 	// for it and if yes, copy them
