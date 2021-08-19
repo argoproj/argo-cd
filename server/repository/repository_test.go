@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 )
 
 const testNamespace = "default"
@@ -102,6 +104,21 @@ func TestRepositoryServer(t *testing.T) {
 		})
 		assert.Nil(t, err)
 		assert.Equal(t, repo.Repo, url)
+	})
+
+	t.Run("Test_GetWithNotExistRepoShouldReturn403", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), "test").Return(nil, errors.New("not found"))
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: "test",
+		})
+		assert.Nil(t, repo)
+		assert.Equal(t, err.Error(), "rpc error: code = PermissionDenied desc = permission denied")
 	})
 }
 
