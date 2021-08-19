@@ -5,6 +5,7 @@ module.exports = {
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
   globals: {
+    'window': {},
     'ts-jest': {
       isolatedModules: true,
     },

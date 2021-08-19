@@ -21,7 +21,7 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - $(ARGOCD_REDIS_SERVICE):6379
