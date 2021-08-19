@@ -6,6 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/v2/server/cache"
 
 	"github.com/stretchr/testify/mock"
@@ -120,6 +125,56 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Nil(t, repo)
 		assert.Equal(t, err.Error(), "rpc error: code = PermissionDenied desc = permission denied")
 	})
+
+	t.Run("Test_CreateRepositoryWithoutUpsert", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), "test").Return(nil, errors.New("not found"))
+		db.On("CreateRepository", context.TODO(), mock.Anything).Return(&apiclient.TestRepositoryResponse{}).Return(&v1alpha1.Repository{
+			Repo:    "repo",
+			Project: "proj",
+		}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
+			Repo: &v1alpha1.Repository{
+				Repo:     "test",
+				Username: "test",
+			},
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, repo.Repo, "repo")
+	})
+
+	t.Run("Test_CreateRepositoryWithUpsert", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), "test").Return(&v1alpha1.Repository{
+			Repo:     "test",
+			Username: "test",
+		}, nil)
+		db.On("CreateRepository", context.TODO(), mock.Anything).Return(nil, status.Errorf(codes.AlreadyExists, "repository already exists"))
+		db.On("UpdateRepository", context.TODO(), mock.Anything).Return(nil, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
+			Repo: &v1alpha1.Repository{
+				Repo:     "test",
+				Username: "test",
+			},
+			Upsert: true,
+		})
+
+		assert.Nil(t, err)
+		assert.Equal(t, repo.Repo, "test")
+	})
+
 }
 
 type fixtures struct {
