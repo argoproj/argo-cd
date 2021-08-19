@@ -3,5 +3,8 @@ kind: Kustomization
 
 resources:
 - argocd-repo-server-deployment.yaml
+- argocd-repo-server-role.yaml
+- argocd-repo-server-rolebinding.yaml
+- argocd-repo-server-sa.yaml
 - argocd-repo-server-service.yaml
 - argocd-repo-server-network-policy.yaml
