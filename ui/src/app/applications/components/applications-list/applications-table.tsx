@@ -9,8 +9,8 @@ import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
-
 require('./applications-table.scss');
+
 export const ApplicationsTable = (props: {
     applications: models.Application[];
     syncApplication: (appName: string) => any;
