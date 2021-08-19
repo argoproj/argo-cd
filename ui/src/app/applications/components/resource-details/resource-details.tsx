@@ -269,7 +269,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, extension.component, [
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, extension?.component, [
                                     {
                                         title: 'SUMMARY',
                                         icon: 'fa fa-file-alt',
