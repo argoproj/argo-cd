@@ -3,6 +3,9 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/argoproj/argo-cd/v2/server/cache"
 
 	"github.com/stretchr/testify/mock"
 
@@ -26,6 +29,9 @@ import (
 	"github.com/dgrijalva/jwt-go/v4"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
 
 const testNamespace = "default"
@@ -83,6 +89,36 @@ func TestRepositoryServer(t *testing.T) {
 		})
 		assert.Nil(t, err)
 	})
+
+	t.Run("Test_Get", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		s := NewServer(&repoServerClientset, argoDB, enforcer, newFixtures().Cache, settingsMgr)
+		url := "https://test"
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, repo.Repo, url)
+	})
+}
+
+type fixtures struct {
+	*cache.Cache
+}
+
+func newFixtures() *fixtures {
+	return &fixtures{cache.NewCache(
+		appstatecache.NewCache(
+			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+			1*time.Minute,
+		),
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+	)}
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
