@@ -329,11 +329,11 @@ func reconcileApplications(
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
-	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
+	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
 		1*time.Hour,
-		namespace,
-		func(options *v1.ListOptions) {},
+		appinformers.WithNamespace(namespace),
+		appinformers.WithTweakListOptions(func(options *v1.ListOptions) {}),
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()

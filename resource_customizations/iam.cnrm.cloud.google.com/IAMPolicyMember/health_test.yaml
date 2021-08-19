@@ -1,0 +1,31 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message:
+        'Update call failed: error setting policy member: error applying changes:
+        summary: Request "Create IAM Members roles/storage.objects.create serviceAccount:test-sa@test-project.iam.gserviceaccount.com
+        for \"project \\\"projects/test-project\\\"\"" returned error: Batch request
+        and retried single request "Create IAM Members roles/storage.objects.create
+        serviceAccount:test-sa@test-project.iam.gserviceaccount.com
+        for \"project \\\"projects/test-project\\\"\"" both failed. Final error:
+        Error applying IAM policy for project "projects/test-project": Error setting
+        IAM policy for project "projects/test-project": googleapi: Error 400: Role
+        roles/storage.objects.create is not supported for this resource., badRequest,
+        detail: '
+    inputPath: testdata/degraded_updateFailed.yaml
+  - healthStatus:
+      status: Healthy
+      message: "The resource is up to date"
+    inputPath: testdata/healthy_upToDate.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Successfully deleted"
+    inputPath: testdata/progressing_deleted.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning IAMPolicyMember..."
+    inputPath: testdata/progressing_noStatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning IAMPolicyMember..."
+    inputPath: testdata/progressing_statusGeneration.yaml
