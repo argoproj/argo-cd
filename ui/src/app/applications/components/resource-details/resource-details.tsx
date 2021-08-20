@@ -196,7 +196,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         return tabs;
     };
 
-    const [extension] = useData(() => services.extensions.loadResourceExtension(selectedNode.group, selectedNode.kind));
+    const [extension] = useData(() => services.extensions.loadResourceExtension(selectedNode?.group || '', selectedNode?.kind || ''), null, null, [
+        selectedNode?.group,
+        selectedNode?.kind
+    ]);
 
     return (
         <div style={{width: '100%', height: '100%'}}>
