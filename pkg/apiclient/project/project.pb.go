@@ -10,18 +10,20 @@ package project
 import (
 	context "context"
 	fmt "fmt"
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	io "io"
 	v1 "k8s.io/api/core/v1"
 	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
-	math "math"
-	math_bits "math/bits"
+
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -571,6 +573,7 @@ type DetailedProjectsResponse struct {
 	GlobalProjects       []*v1alpha1.AppProject `protobuf:"bytes,1,rep,name=globalProjects,proto3" json:"globalProjects,omitempty"`
 	Project              *v1alpha1.AppProject   `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
 	Repositories         []*v1alpha1.Repository `protobuf:"bytes,3,rep,name=repositories,proto3" json:"repositories,omitempty"`
+	Clusters             []*v1alpha1.Cluster    `protobuf:"bytes,3,rep,name=clusters,proto3" json:"clusters,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
 	XXX_unrecognized     []byte                 `json:"-"`
 	XXX_sizecache        int32                  `json:"-"`

@@ -135,6 +135,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
 			}
+			if clusterOpts.Project != "" {
+				clst.Project = clusterOpts.Project
+			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
 				Upsert:  clusterOpts.Upsert,
