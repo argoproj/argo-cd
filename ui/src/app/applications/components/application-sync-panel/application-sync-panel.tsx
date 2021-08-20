@@ -184,8 +184,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                             <CheckboxField id={resKey} field={`resources[${i}]`} />
                                                             <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
                                                                 <div className='container'>
-                                                                    {!isLongLabel && <label htmlFor={resKey}>{resKey}</label>}
-                                                                    {isLongLabel && <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />}
+                                                                    {isLongLabel ? (
+                                                                        <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
+                                                                    ) : (
+                                                                        <label htmlFor={resKey}>{resKey}</label>
+                                                                    )}
                                                                 </div>
                                                             </Tooltip>
                                                             <ComparisonStatusIcon status={item.status} resource={item} />
