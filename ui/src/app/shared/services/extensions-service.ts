@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {ApplicationTree, ResourceNode} from '../models';
+import {ApplicationTree, ResourceNode, State} from '../models';
 
 const extensions: {[key: string]: Extension} = {};
 const cache = new Map<string, Promise<Extension>>();
@@ -11,6 +11,7 @@ export interface Extension {
 export interface ExtensionComponentProps {
     node: ResourceNode;
     tree: ApplicationTree;
+    state: {spec: State}
 }
 
 export class ExtensionsService {
