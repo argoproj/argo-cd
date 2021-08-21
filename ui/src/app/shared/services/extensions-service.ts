@@ -11,7 +11,7 @@ export interface Extension {
 export interface ExtensionComponentProps {
     node: ResourceNode;
     tree: ApplicationTree;
-    state: {spec: State}
+    state: {spec: State};
 }
 
 export class ExtensionsService {
