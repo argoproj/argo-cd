@@ -71,7 +71,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, createRBACObject(c.Project, q.Cluster.Server)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, createRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
 		return nil, err
 	}
 	c := q.Cluster
