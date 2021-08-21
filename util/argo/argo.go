@@ -435,6 +435,12 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 	for _, repo := range repos {
 		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
 	}
+	clusters := retrieveScopedClusters(name, db, ctx)
+	for _, cluster := range clusters {
+		for _, namespace := range cluster.Namespaces {
+			project.Spec.Destinations = append(project.Spec.Destinations, argoappv1.ApplicationDestination{Server: cluster.Server, Namespace: namespace})
+		}
+	}
 	return GetAppVirtualProject(project, projLister, settingsManager)
 }
 
