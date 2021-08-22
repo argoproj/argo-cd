@@ -393,22 +393,23 @@ func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) 
 	return repositories
 }
 
-func retrieveScopedClusters(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Cluster {
-	var clusters []*argoappv1.Cluster
+func retrieveScopedClusters(name string, db db.ArgoDB, ctx context.Context) []argoappv1.Cluster {
+	var clusters []argoappv1.Cluster
 	allClusters, err := db.ListClusters(ctx)
 	if err != nil {
 		return clusters
 	}
 	for _, cluster := range allClusters.Items {
 		if cluster.Project == name {
-			clusters = append(clusters, &cluster)
+			fmt.Println("Append " + name)
+			clusters = append(clusters, cluster)
 		}
 	}
 	return clusters
 }
 
 //GetAppProject returns a project from an application
-func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []argoappv1.Cluster, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, nil, nil, err
