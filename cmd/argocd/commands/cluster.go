@@ -3,13 +3,15 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/mattn/go-isatty"
-	"k8s.io/client-go/kubernetes"
 	"os"
 	"regexp"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/mattn/go-isatty"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
