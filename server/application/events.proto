@@ -41,15 +41,14 @@ message Event {
 * with each event.
 */
 message EventPayload {
-<<<<<<< HEAD
+    // The timestamp of the event
     required string timestamp = 1 [(gogoproto.nullable) = false];
-=======
-    required k8s.io.apimachinery.pkg.apis.meta.v1.Time timestamp = 1 [(gogoproto.nullable) = false];
->>>>>>> d7c1eeaa8f49ce0d66164a03ba87bacc8accab5e
     // The object that the event is about
     required bytes object = 2;
     // The object source information
     required ObjectSource source = 3;
+    // The errors of this object
+    repeated ObjectError errors = 4;
 }
 
 /**
@@ -63,9 +62,19 @@ message ObjectSource {
     optional string path = 5 [(gogoproto.nullable) = false];
     optional string revision = 6 [(gogoproto.nullable) = false];
     optional string appName = 7 [(gogoproto.nullable) = false];
-    optional string syncStatus = 8 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 9 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 10;
-    optional string healthStatus = 11;
-    optional string healthMessage = 12;
+    map<string, string> appLabels = 8 [(gogoproto.nullable) = false];
+    optional string syncStatus = 9 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 10 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 11;
+    optional string healthStatus = 12;
+    optional string healthMessage = 13;
+}
+
+/**
+* Holds error information
+*/
+message ObjectError {
+    optional string level = 1 [(gogoproto.nullable) = false];
+    optional string message = 2 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 3 [(gogoproto.nullable) = false];
 }

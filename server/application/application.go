@@ -953,6 +953,7 @@ func getResourceEventPayload(
 	actualState *application.ApplicationResourceResponse,
 	desiredState *apiclient.Manifest,
 ) (*events.Event, error) {
+	errors := []*events.ObjectError{}
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
 		// no actual state, use desired state as event object
@@ -967,12 +968,14 @@ func getResourceEventPayload(
 		Path:            desiredState.Path,
 		Revision:        a.Status.Sync.Revision,
 		AppName:         a.Name,
+		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
 	}
 
 	if a.Status.OperationState != nil {
 		source.SyncStartedAt = a.Status.OperationState.StartedAt
 		source.SyncFinishedAt = a.Status.OperationState.FinishedAt
+		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
 	} else {
 		source.SyncStartedAt = metav1.Now() // new sync operation
 	}
@@ -983,13 +986,10 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-<<<<<<< HEAD
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
-=======
-		Timestamp: metav1.Now(),
->>>>>>> d7c1eeaa8f49ce0d66164a03ba87bacc8accab5e
 		Object:    object,
 		Source:    &source,
+		Errors:    errors,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
@@ -998,6 +998,33 @@ func getResourceEventPayload(
 	}
 
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
+}
+
+func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
+	errors := []*events.ObjectError{}
+	if os.SyncResult == nil {
+		return errors
+	}
+	_, sr := os.SyncResult.Resources.Find(
+		rs.Group,
+		rs.Kind,
+		rs.Namespace,
+		rs.Name,
+		common.SyncPhaseSync,
+	)
+	if sr == nil || !(sr.HookPhase == common.OperationFailed || sr.HookPhase == common.OperationError) {
+		return errors
+	}
+
+	for _, msg := range strings.Split(sr.Message, ",") {
+		errors = append(errors, &events.ObjectError{
+			Level:    "error",
+			Message:  msg,
+			LastSeen: os.StartedAt,
+		})
+	}
+
+	return errors
 }
 
 func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
@@ -1035,14 +1062,9 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 	}
 
 	payload := events.EventPayload{
-<<<<<<< HEAD
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
 		Source:    source,
-=======
-		Timestamp: metav1.Now(),
-		Object:    object,
->>>>>>> d7c1eeaa8f49ce0d66164a03ba87bacc8accab5e
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
