@@ -14,6 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	passwordvalidator "github.com/wagslane/go-password-validator"
 	"golang.org/x/term"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -80,6 +81,10 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				errors.CheckError(err)
 			}
 
+			const minEntropyBits = 60
+			err := passwordvalidator.Validate(newPassword, minEntropyBits)
+			errors.CheckError(err)
+
 			updatePasswordRequest := accountpkg.UpdatePasswordRequest{
 				NewPassword:     newPassword,
 				CurrentPassword: currentPassword,
@@ -87,7 +92,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 
 			ctx := context.Background()
-			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
+			_, err = usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("Password updated\n")
 
