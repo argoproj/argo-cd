@@ -44,7 +44,6 @@ require (
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/itchyny/gojq v0.12.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/lane-c-wagner/go-password-validator v0.2.0
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
@@ -62,7 +61,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
-	github.com/wagslane/go-password-validator v0.3.0 // indirect
+	github.com/wagslane/go-password-validator v0.3.0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
