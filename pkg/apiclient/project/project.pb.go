@@ -571,7 +571,7 @@ type DetailedProjectsResponse struct {
 	GlobalProjects       []*v1alpha1.AppProject `protobuf:"bytes,1,rep,name=globalProjects,proto3" json:"globalProjects,omitempty"`
 	Project              *v1alpha1.AppProject   `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
 	Repositories         []*v1alpha1.Repository `protobuf:"bytes,3,rep,name=repositories,proto3" json:"repositories,omitempty"`
-	Clusters             []v1alpha1.Cluster     `protobuf:"bytes,4,rep,name=clusters,proto3" json:"clusters,omitempty"`
+	Clusters             []*v1alpha1.Cluster    `protobuf:"bytes,4,rep,name=clusters,proto3" json:"clusters,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
 	XXX_unrecognized     []byte                 `json:"-"`
 	XXX_sizecache        int32                  `json:"-"`
@@ -631,7 +631,7 @@ func (m *DetailedProjectsResponse) GetRepositories() []*v1alpha1.Repository {
 	return nil
 }
 
-func (m *DetailedProjectsResponse) GetClusters() []v1alpha1.Cluster {
+func (m *DetailedProjectsResponse) GetClusters() []*v1alpha1.Cluster {
 	if m != nil {
 		return m.Clusters
 	}
@@ -3105,7 +3105,7 @@ func (m *DetailedProjectsResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Clusters = append(m.Clusters, v1alpha1.Cluster{})
+			m.Clusters = append(m.Clusters, &v1alpha1.Cluster{})
 			if err := m.Clusters[len(m.Clusters)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}

@@ -641,23 +641,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 />
 
                 <EditablePanel
-                    values={scopedProj}
-                    title={<React.Fragment>SCOPED CLUSTERS{helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
-                    view={
-                        <React.Fragment>
-                            {scopedProj.clusters && scopedProj.clusters.length
-                                ? scopedProj.clusters.map((cluster, i) => (
-                                      <div className='row white-box__details-row' key={i}>
-                                          <div className='columns small-12'>{cluster.server}</div>
-                                      </div>
-                                  ))
-                                : emptyMessage('source repositories')}
-                        </React.Fragment>
-                    }
-                    items={[]}
-                />
-
-                <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
                     title={<React.Fragment>DESTINATIONS {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
@@ -722,6 +705,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             )}
                         </DataLoader>
                     )}
+                    items={[]}
+                />
+
+                <EditablePanel
+                    values={scopedProj}
+                    title={<React.Fragment>SCOPED CLUSTERS{helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
+                    view={
+                        <React.Fragment>
+                            {scopedProj.clusters && scopedProj.clusters.length
+                                ? scopedProj.clusters.map((cluster, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{cluster.server}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('destinations')}
+                        </React.Fragment>
+                    }
                     items={[]}
                 />
 
