@@ -14,6 +14,6 @@ if obj.status ~= nil then
   end
 end
 
-hs.status = "Unknown"
+hs.status = "Progressing"
 hs.message = "Waiting for SchemaRegistry"
 return hs
