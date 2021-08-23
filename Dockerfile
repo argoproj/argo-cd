@@ -62,6 +62,8 @@ COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+# keep uid_entrypoint.sh for backward compatibility
+RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
