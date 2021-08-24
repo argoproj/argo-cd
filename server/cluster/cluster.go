@@ -180,6 +180,7 @@ var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv
 func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*appv1.Cluster, error) {
 	c, err := s.getClusterWith403IfNotExist(ctx, &cluster.ClusterQuery{
 		Server: q.Cluster.Server,
+		Name:   q.Cluster.Name,
 	})
 	if err != nil {
 		return nil, err
