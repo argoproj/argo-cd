@@ -4111,6 +4111,9 @@
         "loggedIn": {
           "type": "boolean"
         },
+        "passwordPattern": {
+          "type": "string"
+        },
         "username": {
           "type": "string"
         }

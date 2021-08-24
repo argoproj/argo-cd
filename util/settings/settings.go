@@ -309,6 +309,8 @@ const (
 	externalServerTLSSecretName = "argocd-server-tls"
 	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
+	// settingsPasswordPatternKey is the key to configure user password regular expression
+	settingsPasswordPatternKey = "passwordPattern"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -513,6 +515,18 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil
+}
+
+func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	passwordPattern := argoCDCM.Data[settingsPasswordPatternKey]
+	if passwordPattern == "" {
+		return common.PasswordPatten, nil
+	}
+	return passwordPattern, nil
 }
 
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {

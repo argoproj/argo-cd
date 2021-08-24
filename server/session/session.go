@@ -90,10 +90,15 @@ func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (c
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, q *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	if err != nil {
+		return nil, err
+	}
 	return &session.GetUserInfoResponse{
-		LoggedIn: sessionmgr.LoggedIn(ctx),
-		Username: sessionmgr.Username(ctx),
-		Iss:      sessionmgr.Iss(ctx),
-		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		LoggedIn:        sessionmgr.LoggedIn(ctx),
+		Username:        sessionmgr.Username(ctx),
+		Iss:             sessionmgr.Iss(ctx),
+		Groups:          sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		PasswordPattern: passwordPattern,
 	}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -77,6 +78,14 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			if newPassword == "" {
 				var err error
 				newPassword, err = cli.ReadAndConfirmPassword()
+				errors.CheckError(err)
+			}
+
+			//Need to validate password complexity with regular expression
+			passwordPattern := userInfo.PasswordPattern
+			var validPasswordRegexp = regexp.MustCompile(passwordPattern)
+			if !validPasswordRegexp.Match([]byte(newPassword)) {
+				err := fmt.Errorf("New password does not match requirements.")
 				errors.CheckError(err)
 			}
 
