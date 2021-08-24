@@ -87,6 +87,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			defer io.Close(settingsConn)
 			errors.CheckError(err)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+			errors.CheckError(err)
 			passwordPattern := argoSettings.PasswordPattern
 			var validPasswordRegexp = regexp.MustCompile(passwordPattern)
 			if !validPasswordRegexp.Match([]byte(newPassword)) {
