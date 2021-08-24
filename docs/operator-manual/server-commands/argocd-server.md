@@ -56,6 +56,7 @@ argocd-server [flags]
       --sentinel stringArray                          Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                         Redis sentinel master group name. (default "master")
       --server string                                 The address and port of the Kubernetes API server
+      --staticassets string                           Directory path that contains additional static assets (default "/shared/app")
       --tls-server-name string                        If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                             The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                          The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
