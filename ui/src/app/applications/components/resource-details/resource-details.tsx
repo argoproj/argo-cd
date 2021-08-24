@@ -120,7 +120,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 key: 'extension',
                 content: (
                     <div>
-                        <ExtensionComponent tree={tree} state={state} />
+                        <ExtensionComponent tree={tree} resource={state} />
                     </div>
                 )
             });
