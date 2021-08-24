@@ -20,6 +20,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -82,7 +83,11 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 
 			//Need to validate password complexity with regular expression
-			passwordPattern := userInfo.PasswordPattern
+			settingsConn, settingsIf, err := acdClient.NewSettingsClient()
+			defer io.Close(settingsConn)
+			errors.CheckError(err)
+			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+			passwordPattern := argoSettings.PasswordPattern
 			var validPasswordRegexp = regexp.MustCompile(passwordPattern)
 			if !validPasswordRegexp.Match([]byte(newPassword)) {
 				err := fmt.Errorf("New password does not match requirements.")
@@ -96,7 +101,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 
 			ctx := context.Background()
-			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
+			_, err = usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("Password updated\n")
 

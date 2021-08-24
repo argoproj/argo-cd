@@ -82,6 +82,8 @@ type ArgoCDSettings struct {
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	// PasswordPattern for password regular expression
+	PasswordPattern string `json:"passwordPattern,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -515,18 +517,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil
-}
-
-func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	passwordPattern := argoCDCM.Data[settingsPasswordPatternKey]
-	if passwordPattern == "" {
-		return common.PasswordPatten, nil
-	}
-	return passwordPattern, nil
 }
 
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
@@ -1052,6 +1042,10 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		}
 	} else {
 		settings.UserSessionDuration = time.Hour * 24
+	}
+	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
+	if settings.PasswordPattern == "" {
+		settings.PasswordPattern = common.PasswordPatten
 	}
 }
 

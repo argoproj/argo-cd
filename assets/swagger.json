@@ -3636,6 +3636,9 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "passwordPattern": {
+          "type": "string"
+        },
         "plugins": {
           "type": "array",
           "items": {
@@ -4110,9 +4113,6 @@
         },
         "loggedIn": {
           "type": "boolean"
-        },
-        "passwordPattern": {
-          "type": "string"
         },
         "username": {
           "type": "string"
