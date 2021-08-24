@@ -76,6 +76,7 @@ COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
 
+
 ARG UID
 
 # Prepare user configuration & build environments
