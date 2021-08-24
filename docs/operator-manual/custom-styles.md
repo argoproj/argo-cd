@@ -88,9 +88,10 @@ spec:
         name: styles
 ```
 
-Note that the CSS file should be mounted within a subdirectory of the existing "/shared/app" directory
+Note that the CSS file should be mounted within a subdirectory of the "/shared/app" directory
 (e.g. "/shared/app/custom").  Otherwise, the file will likely fail to be imported by the browser with an
-"incorrect MIME type" error.
+"incorrect MIME type" error. The subdirectory can be changed using `server.staticassets` key of the
+[argocd-cmd-params-cm.yaml](./argocd-cmd-params-cm.yaml) ConfigMap.
 
 ## Developing Style Overlays
 The styles specified in the injected CSS file should be specific to components and classes defined in [argo-ui](https://github.com/argoproj/argo-ui).
