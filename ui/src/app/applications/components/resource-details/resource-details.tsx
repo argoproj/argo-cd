@@ -114,7 +114,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
-        if (ExtensionComponent) {
+        if (ExtensionComponent && state) {
             tabs.push({
                 title: 'More',
                 key: 'extension',
