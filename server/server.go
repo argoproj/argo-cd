@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	goio "io"
 	"io/fs"
 	"math"
 	"net"
@@ -12,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	gosync "sync"
@@ -134,7 +132,6 @@ var (
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
 	enableGRPCTimeHistogram         = true
-	staticAssets                    = http.FS(&subDirFs{dir: "dist/app", fs: ui.Embedded})
 )
 
 func init() {
@@ -167,12 +164,14 @@ type ArgoCDServer struct {
 	indexDataInit    gosync.Once
 	indexData        []byte
 	indexDataErr     error
+	staticAssets     http.FileSystem
 }
 
 type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	EnableGZip          bool
 	Insecure            bool
+	StaticAssetsDir     string
 	ListenPort          int
 	MetricsPort         int
 	Namespace           string
@@ -236,6 +235,11 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
+	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
+	if opts.StaticAssetsDir != "" {
+		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	}
+
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.StandardLogger()),
@@ -248,6 +252,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
 		userStateStorage: userStateStorage,
+		staticAssets:     http.FS(staticFS),
 	}
 }
 
@@ -844,8 +849,8 @@ func (s *ArgoCDServer) getIndexData() ([]byte, error) {
 	return s.indexData, s.indexDataErr
 }
 
-func uiAssetExists(filename string) bool {
-	f, err := staticAssets.Open(strings.Trim(filename, "/"))
+func (server *ArgoCDServer) uiAssetExists(filename string) bool {
+	f, err := server.staticAssets.Open(strings.Trim(filename, "/"))
 	if err != nil {
 		return false
 	}
@@ -868,7 +873,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 		}
 
-		fileRequest := r.URL.Path != "/index.html" && uiAssetExists(r.URL.Path)
+		fileRequest := r.URL.Path != "/index.html" && server.uiAssetExists(r.URL.Path)
 
 		// Set X-Frame-Options according to configuration
 		if server.XFrameOptions != "" {
@@ -891,48 +896,11 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			if err != nil {
 				modTime = time.Now()
 			}
-			http.ServeContent(w, r, "index.html", modTime, byteReadSeeker{data: data})
+			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
-			http.FileServer(staticAssets).ServeHTTP(w, r)
+			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
-}
-
-type subDirFs struct {
-	dir string
-	fs  fs.FS
-}
-
-func (s subDirFs) Open(name string) (fs.File, error) {
-	return s.fs.Open(filepath.Join(s.dir, name))
-}
-
-type byteReadSeeker struct {
-	data   []byte
-	offset int64
-}
-
-func (f byteReadSeeker) Read(b []byte) (int, error) {
-	if f.offset >= int64(len(f.data)) {
-		return 0, goio.EOF
-	}
-	n := copy(b, f.data[f.offset:])
-	f.offset += int64(n)
-	return n, nil
-}
-
-func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	switch whence {
-	case 1:
-		offset += f.offset
-	case 2:
-		offset += int64(len(f.data))
-	}
-	if offset < 0 || offset > int64(len(f.data)) {
-		return 0, &fs.PathError{Op: "seek", Err: fs.ErrInvalid}
-	}
-	f.offset = offset
-	return offset, nil
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
