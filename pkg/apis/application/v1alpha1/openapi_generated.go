@@ -1442,7 +1442,7 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"project": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reference between project and repository that allow you automatically to be added as item inside Destinations project entity",
+							Description: "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity",
 							Type:        []string{"string"},
 							Format:      "",
 						},

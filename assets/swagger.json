@@ -5189,7 +5189,7 @@
         },
         "project": {
           "type": "string",
-          "title": "Reference between project and repository that allow you automatically to be added as item inside Destinations project entity"
+          "title": "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity"
         },
         "refreshRequestedAt": {
           "$ref": "#/definitions/v1Time"
