@@ -22,6 +22,7 @@ argocd cluster add CONTEXT [flags]
       --kubeconfig string                  use a particular kubeconfig file
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
+      --project string                     project of the cluster
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")
