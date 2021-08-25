@@ -3,6 +3,7 @@ package account
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -74,6 +75,22 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
 			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
 		}
+	}
+
+	//Need to validate password complexity with regular expression
+	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	if err != nil {
+		return nil, err
+	}
+
+	validPasswordRegexp, err := regexp.Compile(passwordPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
+		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
+		return nil, err
 	}
 
 	hashedPassword, err := password.HashPassword(q.NewPassword)
