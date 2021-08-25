@@ -37,8 +37,8 @@ export const Filters = (props: {
     const [groupedFilters, setGroupedFilters] = React.useState<{[key: string]: string}>({});
     const [loading, setLoading] = React.useState(true);
 
-    const OrphanedCheckbox = (
-        <div>
+    const orphanedCheckbox = (
+        <>
             <Checkbox
                 checked={!!pref.orphanedResources}
                 id='orphanedFilter'
@@ -48,7 +48,7 @@ export const Filters = (props: {
                 }}
             />{' '}
             <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
-        </div>
+        </>
     );
 
     React.useEffect(() => {
@@ -123,7 +123,7 @@ export const Filters = (props: {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {OrphanedCheckbox}
+            {(tree.orphanedNodes || []).length > 0 && orphanedCheckbox}
         </FiltersGroup>
     );
 };
