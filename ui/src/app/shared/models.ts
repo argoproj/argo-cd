@@ -698,6 +698,7 @@ export interface DetailedProjectsResponse {
     project: Project;
     globalProjects: Project[];
     repositories: Repository[];
+    clusters: Cluster[];
 }
 
 export type ProjectList = ItemsList<Project>;

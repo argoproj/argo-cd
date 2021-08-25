@@ -9,9 +9,12 @@ import (
 	"text/tabwriter"
 
 	"github.com/mattn/go-isatty"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v2/util/cli"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -19,7 +22,6 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -134,6 +136,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
+			}
+			if clusterOpts.Project != "" {
+				clst.Project = clusterOpts.Project
 			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,

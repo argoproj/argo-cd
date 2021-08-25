@@ -393,20 +393,34 @@ func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) 
 	return repositories
 }
 
+func retrieveScopedClusters(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Cluster {
+	var clusters []*argoappv1.Cluster
+	allClusters, err := db.ListClusters(ctx)
+	if err != nil {
+		return clusters
+	}
+	for i, cluster := range allClusters.Items {
+		if cluster.Project == name {
+			clusters = append(clusters, &allClusters.Items[i])
+		}
+	}
+	return clusters
+}
+
 //GetAppProject returns a project from an application
-func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, error) {
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return project, retrieveScopedRepositories(name, db, ctx), nil
+	return project, retrieveScopedRepositories(name, db, ctx), retrieveScopedClusters(name, db, ctx), nil
 
 }
 
@@ -420,6 +434,16 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 	repos := retrieveScopedRepositories(name, db, ctx)
 	for _, repo := range repos {
 		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
+	}
+	clusters := retrieveScopedClusters(name, db, ctx)
+	for _, cluster := range clusters {
+		if len(cluster.Namespaces) == 0 {
+			project.Spec.Destinations = append(project.Spec.Destinations, argoappv1.ApplicationDestination{Server: cluster.Server, Namespace: "*"})
+		} else {
+			for _, ns := range cluster.Namespaces {
+				project.Spec.Destinations = append(project.Spec.Destinations, argoappv1.ApplicationDestination{Server: cluster.Server, Namespace: ns})
+			}
+		}
 	}
 	return GetAppVirtualProject(project, projLister, settingsManager)
 }
