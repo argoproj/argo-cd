@@ -451,6 +451,11 @@ start-local: mod-vendor-local dep-ui-local
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
+.PHONY: goreman-start
+goreman-start:
+	bash ./hack/goreman-start.sh
+
+
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
 pre-commit: codegen build lint test
