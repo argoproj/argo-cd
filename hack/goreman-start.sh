@@ -7,8 +7,10 @@ EXCLUDE=$exclude
 declare -a servicesToRun=()
 
 if [ "$EXCLUDE" != "" ]; then
+    # Parse services list by ',' character
     servicesToExclude=($(echo "$EXCLUDE" | tr ',' '\n'))
 
+    # Find subset of items from services array that not include servicesToExclude items
     for element in "${services[@]}"
     do
         found=false
