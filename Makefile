@@ -452,8 +452,8 @@ start-local: mod-vendor-local dep-ui-local
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Run goreman start with exclude option , provide exclude env variable with list of services
-.PHONY: goreman-start
-goreman-start:
+.PHONY: run
+start:
 	bash ./hack/goreman-start.sh
 
 
