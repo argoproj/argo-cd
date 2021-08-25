@@ -1273,6 +1273,8 @@ type Cluster struct {
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
 	// Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
 	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
+	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal

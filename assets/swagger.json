@@ -3711,6 +3711,12 @@
     "projectDetailedProjectsResponse": {
       "type": "object",
       "properties": {
+        "clusters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Cluster"
+          }
+        },
         "globalProjects": {
           "type": "array",
           "items": {
@@ -5183,6 +5189,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity"
         },
         "refreshRequestedAt": {
           "$ref": "#/definitions/v1Time"

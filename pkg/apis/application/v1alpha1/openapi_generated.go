@@ -1440,6 +1440,13 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
