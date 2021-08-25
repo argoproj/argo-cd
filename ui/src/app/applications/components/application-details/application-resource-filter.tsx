@@ -1,6 +1,8 @@
 import * as React from 'react';
+import {Checkbox} from 'argo-ui';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
+import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
@@ -17,6 +19,8 @@ export const Filters = (props: {
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
 }) => {
+    const ctx = React.useContext(Context);
+
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
@@ -32,6 +36,20 @@ export const Filters = (props: {
 
     const [groupedFilters, setGroupedFilters] = React.useState<{[key: string]: string}>({});
     const [loading, setLoading] = React.useState(true);
+
+    const OrphanedCheckbox = (
+        <div>
+            <Checkbox
+                checked={!!pref.orphanedResources}
+                id='orphanedFilter'
+                onChange={val => {
+                    ctx.navigation.goto('.', {orphaned: val});
+                    services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                }}
+            />{' '}
+            <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+        </div>
+    );
 
     React.useEffect(() => {
         const update: {[key: string]: string} = {};
@@ -105,6 +123,7 @@ export const Filters = (props: {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
+            {OrphanedCheckbox}
         </FiltersGroup>
     );
 };
