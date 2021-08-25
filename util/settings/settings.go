@@ -82,6 +82,8 @@ type ArgoCDSettings struct {
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	// PasswordPattern for password regular expression
+	PasswordPattern string `json:"passwordPattern,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -309,6 +311,8 @@ const (
 	externalServerTLSSecretName = "argocd-server-tls"
 	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
+	// settingsPasswordPatternKey is the key to configure user password regular expression
+	settingsPasswordPatternKey = "passwordPattern"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -511,6 +515,18 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
+	}
+	return label, nil
+}
+
+func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	label := argoCDCM.Data[settingsPasswordPatternKey]
+	if label == "" {
+		return common.PasswordPatten, nil
 	}
 	return label, nil
 }
@@ -1038,6 +1054,10 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		}
 	} else {
 		settings.UserSessionDuration = time.Hour * 24
+	}
+	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
+	if settings.PasswordPattern == "" {
+		settings.PasswordPattern = common.PasswordPatten
 	}
 }
 
