@@ -248,6 +248,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
+                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                         {(filteredRes.length > 0 && (
                                                             <Paginate
                                                                 page={this.state.page}
@@ -277,6 +278,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 <h5>Try to change filter criteria</h5>
                                                             </EmptyState>
                                                         )}
+                                                        </Filters>
                                                     </div>
                                                 )}
                                         </div>
