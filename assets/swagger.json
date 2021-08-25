@@ -3605,6 +3605,9 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "passwordPattern": {
+          "type": "string"
+        },
         "plugins": {
           "type": "array",
           "items": {

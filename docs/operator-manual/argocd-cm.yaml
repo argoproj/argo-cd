@@ -18,6 +18,9 @@ data:
   # Specifies token expiration duration
   users.session.duration: "24h"
 
+  # Specifies regex expression for password
+  passwordPattern: "^.{8,32}$"
+
   # Enables google analytics tracking is specified
   ga.trackingid: "UA-12345-1"
   # Unless set to 'false' then user ids are hashed before sending to google analytics
