@@ -453,7 +453,7 @@ start-local: mod-vendor-local dep-ui-local
 
 # Run goreman start with exclude option , provide exclude env variable with list of services
 .PHONY: run
-start:
+run:
 	bash ./hack/goreman-start.sh
 
 
