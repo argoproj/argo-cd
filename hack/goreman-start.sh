@@ -24,7 +24,6 @@ if [ "$EXCLUDE" != "" ]; then
           servicesToRun+=($element)
         fi
     done
-
 fi
 
 command="goreman start "
