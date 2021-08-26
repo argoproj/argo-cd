@@ -69,6 +69,7 @@ message DetailedProjectsResponse {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject globalProjects = 1;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 2;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repositories = 3;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
 }
 
 // ProjectService

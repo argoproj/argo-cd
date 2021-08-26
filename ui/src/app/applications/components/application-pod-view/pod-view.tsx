@@ -68,13 +68,13 @@ export class PodView extends React.Component<PodViewProps> {
                                     <div className='pod-view__settings__section'>
                                         <button
                                             className={`argo-button argo-button--base${podPrefs.hideUnschedulable ? '-o' : ''}`}
-                                            style={{border: '1px solid'}}
+                                            style={{border: 'none', width: '170px'}}
                                             onClick={() =>
                                                 services.viewPreferences.updatePreferences({
                                                     appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
                                                 })
                                             }>
-                                            <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{marginRight: '5px'}} />
+                                            <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
                                             UNSCHEDULABLE
                                         </button>
                                     </div>
