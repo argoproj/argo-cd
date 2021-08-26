@@ -4,7 +4,7 @@ import {SIDEBAR_COLOR, SLATE} from '../../../shared/components';
 
 import './filter.scss';
 
-const SM_ACTION_BUTTON_STYLE = {marginLeft: 'auto', width: '60px', height: '24px', borderRadius: '3px', marginRight: 0};
+const SM_ACTION_BUTTON_STYLE = {marginLeft: 'auto', width: '80px', height: '24px', borderRadius: '3px', marginRight: 0, fontSize: '14px'};
 
 export interface CheckboxOption {
     label: string;
@@ -68,7 +68,7 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
                         FILTERS
                         <div style={{marginLeft: 'auto'}}>
                             {props.appliedFilter?.length > 0 && props.onClearFilter ? (
-                                <ActionButton action={() => props.onClearFilter()} label='CLEAR ALL' style={SM_ACTION_BUTTON_STYLE} />
+                                <ActionButton action={() => props.onClearFilter()} label='CLEAR ALL' style={SM_ACTION_BUTTON_STYLE} dark={true} />
                             ) : (
                                 <i className='fa fa-filter' />
                             )}
