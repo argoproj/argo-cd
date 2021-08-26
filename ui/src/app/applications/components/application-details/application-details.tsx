@@ -201,7 +201,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <>
-                                                    <ApplicationDetailsFilters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter} />
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {viewPref => (
+                                                            <ApplicationDetailsFilters
+                                                                pref={pref}
+                                                                tree={tree}
+                                                                onSetFilter={setFilter}
+                                                                onClearFilter={clearFilter}
+                                                                collapsed={viewPref.hideSidebar}
+                                                            />
+                                                        )}
+                                                    </DataLoader>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}

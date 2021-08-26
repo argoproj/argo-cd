@@ -16,6 +16,7 @@ export interface ApplicationResourceFiltersProps {
     tree: ApplicationTree;
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
+    collapsed: boolean;
 }
 
 export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProps) => {
@@ -85,7 +86,7 @@ export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProp
     };
 
     return (
-        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter}>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',

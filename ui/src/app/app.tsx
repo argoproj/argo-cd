@@ -51,6 +51,11 @@ const navItems = [
         title: 'Documentation',
         path: '/help',
         iconClassName: 'argo-icon-docs'
+    },
+    {
+        title: 'Login',
+        path: '/login',
+        iconClassName: 'fa fa-sign-in-alt'
     }
 ];
 

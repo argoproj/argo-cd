@@ -59,18 +59,22 @@ export const CheckboxRow = (props: {
     );
 };
 
-export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void}) => {
+export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
     return (
         <div className='filters-group'>
             <div style={{display: 'flex', marginBottom: '1em'}}>
-                FILTERS
-                <div style={{marginLeft: 'auto'}}>
-                    {props.appliedFilter?.length > 0 && props.onClearFilter ? (
-                        <ActionButton action={() => props.onClearFilter()} label='CLEAR ALL' style={SM_ACTION_BUTTON_STYLE} />
-                    ) : (
-                        <i className='fa fa-filter' />
-                    )}
-                </div>
+                {!props.collapsed && (
+                    <React.Fragment>
+                        FILTERS
+                        <div style={{marginLeft: 'auto'}}>
+                            {props.appliedFilter?.length > 0 && props.onClearFilter ? (
+                                <ActionButton action={() => props.onClearFilter()} label='CLEAR ALL' style={SM_ACTION_BUTTON_STYLE} />
+                            ) : (
+                                <i className='fa fa-filter' />
+                            )}
+                        </div>
+                    </React.Fragment>
+                )}
             </div>
             <>{props.children}</>
             <div>{props.content}</div>

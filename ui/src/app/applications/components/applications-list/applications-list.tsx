@@ -401,11 +401,16 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <ApplicationsFilter
-                                                                        apps={filterResults}
-                                                                        onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                        pref={pref}
-                                                                    />,
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {viewPref => (
+                                                                            <ApplicationsFilter
+                                                                                apps={filterResults}
+                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                pref={pref}
+                                                                                collapsed={viewPref.hideSidebar}
+                                                                            />
+                                                                        )}
+                                                                    </DataLoader>,
                                                                     sidebarTarget?.current
                                                                 )}
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
