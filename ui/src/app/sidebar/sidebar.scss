@@ -36,8 +36,10 @@
 
     &__nav-item {
         cursor: pointer;
+        display: flex;
+        align-items: center;
         font-size: 17px;
-        $height: 2.25em;
+        $height: 2.5em;
         height: $height;
         line-height: $height;
         color: $dull-shine;
@@ -45,10 +47,10 @@
         i {
             font-size: 26px;
             color: white;
-            margin-right: 5px;
+            width: 35px;
         }
 
-        i.fa {
+        i.fa-sign-in-alt {
             font-size: 22px;
         }
 
