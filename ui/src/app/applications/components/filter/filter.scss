@@ -15,6 +15,15 @@
         margin-bottom: 0.5em;
         height: 28px;
         position: relative;
+        display: flex;
+
+        .filter-header-label {
+            flex:1;
+            min-width: 0;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
     }
 
     &__collapse {

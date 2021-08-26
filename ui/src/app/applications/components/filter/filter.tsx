@@ -51,6 +51,49 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     );
 };
 
+export const FilterCollapse = ({
+    label,
+    header, 
+    content,
+    isClearButtonVisible,
+    onClearButtonClick,
+    isCollapseButtonVisible,
+    initialCollapseState = false
+}: {
+    label: string, 
+    header: React.ReactNode, 
+    content: React.ReactNode,
+    isClearButtonVisible?: boolean,
+    isCollapseButtonVisible?: boolean,
+    onClearButtonClick?: () => void,
+    initialCollapseState?: boolean
+}) => {
+    const [collapsed, setCollapsed] = React.useState(initialCollapseState);
+
+    return <div className='filter'>
+            <div className='filter__header'>
+                <div className='filter-header-label'>{label || 'FILTER'}</div>
+                {isClearButtonVisible && (
+                    <button
+                        className='argo-button argo-button--base argo-button--sm'
+                        style={{marginLeft: 'auto'}}
+                        onClick={() => onClearButtonClick()}>
+                        <i className='fa fa-times-circle' /> CLEAR
+                    </button>
+                )}
+                
+                {isCollapseButtonVisible && (
+                    <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
+                )}
+             {header}
+            </div>
+            {
+                !collapsed && content
+            }
+        </div>
+    
+}
+
 export const FiltersGroup = (props: {
     children?: React.ReactNode;
     content: React.ReactNode;

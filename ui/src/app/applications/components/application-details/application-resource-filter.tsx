@@ -3,7 +3,7 @@ import {Checkbox} from 'argo-ui';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
-import {Filter, FiltersGroup} from '../filter/filter';
+import {Filter, FilterCollapse, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
@@ -123,7 +123,15 @@ export const Filters = (props: {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && orphanedCheckbox}
+            {/* {(tree.orphanedNodes || []).length > 0 &&  */}
+            {
+            <FilterCollapse
+                label={'ORPHANED'}
+                content={orphanedCheckbox}
+                header={<></>}
+                isClearButtonVisible={true}
+                isCollapseButtonVisible={true}
+            ></FilterCollapse>}
         </FiltersGroup>
     );
 };
