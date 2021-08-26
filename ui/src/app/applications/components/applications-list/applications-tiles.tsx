@@ -105,9 +105,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                         <div key={app.metadata.name} className='column column-block'>
                             <div
                                 ref={appRef.set ? null : appRef.ref}
-                                className={`argo-table-list__row applications-list__entry applications-list__entry--comparison-${
-                                    app.status.sync.status
-                                } applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                                className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status} ${
+                                    selectedApp === i ? 'applications-tiles__selected' : ''
+                                }`}>
                                 <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                     <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                         <div className='applications-list__external-link'>
