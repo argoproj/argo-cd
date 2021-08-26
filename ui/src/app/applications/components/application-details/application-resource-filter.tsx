@@ -74,7 +74,7 @@ export const Filters = (props: {
         .concat(alreadyFilteredOn('kind'))
         .filter(uniq)
         .sort();
-    
+
     const names = tree.nodes
         .map(x => x.name)
         .concat(alreadyFilteredOn('name'))
