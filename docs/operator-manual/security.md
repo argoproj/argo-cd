@@ -155,3 +155,12 @@ Payloads from webhook events are considered untrusted. Argo CD only examines the
 the involved applications of the webhook event (e.g. which repo was modified), then refreshes
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
+
+## Logging
+
+Argo CD logs payloads of most API requests except request that are considered sensitive, such as
+`/cluster.ClusterService/Create`, `/session.SessionService/Create` etc. The full list of method
+can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba8dddce8cd897ba23320e3715690f465b4a95/server/server.go#L516).
+
+Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
+to configure IP addresses logging in the proxy server that sits in front of the API server.
