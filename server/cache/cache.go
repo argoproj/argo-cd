@@ -73,6 +73,19 @@ func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState
 	return c.cache.SetItem(repoConnectionStateKey(repo), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
+func (c *Cache) SetLastApplicationEvent(a *appv1.Application, exp time.Duration) error {
+	return c.cache.SetItem(lastApplicationEventKey(a), a, exp, false)
+}
+
+func (c *Cache) GetLastApplicationEvent(a *appv1.Application) (*appv1.Application, error) {
+	cachedApp := appv1.Application{}
+	return &cachedApp, c.cache.GetItem(lastApplicationEventKey(a), &cachedApp)
+}
+
+func lastApplicationEventKey(a *appv1.Application) string {
+	return fmt.Sprintf("app|%s/%s|last-sent-event", a.Namespace, a.Name)
+}
+
 func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }

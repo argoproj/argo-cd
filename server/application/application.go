@@ -70,6 +70,8 @@ var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 	resourceStatusNotFoundErr = errors.New("resource status not found")
+
+	applicationEventCacheExpiration = time.Minute * 60
 )
 
 // Server provides a Application service
@@ -854,11 +856,16 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			logCtx.WithError(err).Error("failed to stream application events")
 			return
 		}
+
+		if err := s.cache.SetLastApplicationEvent(&a, applicationEventCacheExpiration); err != nil {
+			logCtx.WithError(err).Error("failed to cache last sent application event")
+			return
+		}
 	}
 
 	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 
-	unsubscribe := s.appBroadcaster.Subscribe(events)
+	unsubscribe := s.appBroadcaster.Subscribe(events, s.shouldSendApplicationEvent)
 	defer unsubscribe()
 	for {
 		select {
@@ -868,6 +875,67 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return nil
 		}
 	}
+}
+
+func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
+	logCtx := log.NewEntry(log.New()).WithField("application", ae.Application.Name)
+
+	cachedApp, err := s.cache.GetLastApplicationEvent(&ae.Application)
+	if err != nil || cachedApp == nil {
+		return true
+	}
+
+	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore this diff
+	cachedApp.Spec.Project = ae.Application.Spec.Project               //
+
+	cachedAppSpec, err := json.Marshal(&cachedApp.Spec)
+	if err != nil {
+		return true
+	}
+	cachedAppStatus, err := json.Marshal(&cachedApp.Status)
+	if err != nil {
+		return true
+	}
+	var cachedAppOperation []byte
+	if cachedApp.Operation != nil {
+		cachedAppOperation, err = json.Marshal(cachedApp.Operation)
+		if err != nil {
+			return true
+		}
+	}
+
+	appSpec, err := json.Marshal(&ae.Application.Spec)
+	if err != nil {
+		return true
+	}
+	appStatus, err := json.Marshal(&ae.Application.Status)
+	if err != nil {
+		return true
+	}
+	var appOperation []byte
+	if ae.Application.Operation != nil {
+		appOperation, err = json.Marshal(ae.Application.Operation)
+		if err != nil {
+			return true
+		}
+	}
+
+	if string(appSpec) != string(cachedAppSpec) {
+		logCtx.Info("application spec changed")
+		return true
+	}
+
+	if string(appStatus) != string(cachedAppStatus) {
+		logCtx.Info("application status changed")
+		return true
+	}
+
+	if string(appOperation) != string(cachedAppOperation) {
+		logCtx.Info("application operation changed")
+		return true
+	}
+
+	return false
 }
 
 func (s *Server) streamApplicationEvents(
@@ -1050,6 +1118,7 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 		Path:            "", // not sure
 		Revision:        "",
 		AppName:         "",
+		AppLabels:       map[string]string{},
 		SyncStatus:      string(a.Status.Sync.Status),
 	}
 
