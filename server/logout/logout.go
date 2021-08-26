@@ -88,17 +88,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		argocdCookiePath := h.rootPath
-		if argoCDSettings.IsSSOConfigured() {
-			argocdCookiePath = h.baseHRef
-		}
-
 		argocdCookie := http.Cookie{
 			Name:  cookie.Name,
 			Value: "",
 		}
 
-		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(argocdCookiePath, "/"), "/"))
+		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/"))
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
