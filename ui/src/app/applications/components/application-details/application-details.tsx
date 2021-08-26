@@ -31,6 +31,7 @@ interface ApplicationDetailsState {
 }
 
 interface FilterInput {
+    name: string[];
     kind: string[];
     health: string[];
     sync: string[];
@@ -247,35 +248,37 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
-                                                        {(filteredRes.length > 0 && (
-                                                            <Paginate
-                                                                page={this.state.page}
-                                                                data={filteredRes}
-                                                                onPageChange={page => this.setState({page})}
-                                                                preferencesKey='application-details'>
-                                                                {data => (
-                                                                    <ApplicationResourceList
-                                                                        onNodeClick={fullName => this.selectNode(fullName)}
-                                                                        resources={data}
-                                                                        nodeMenu={node =>
-                                                                            AppUtils.renderResourceMenu(
-                                                                                {...node, root: node},
-                                                                                application,
-                                                                                tree,
-                                                                                this.appContext,
-                                                                                this.appChanged,
-                                                                                () => this.getApplicationActionMenu(application, false)
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                )}
-                                                            </Paginate>
-                                                        )) || (
-                                                            <EmptyState icon='fa fa-search'>
-                                                                <h4>No resources found</h4>
-                                                                <h5>Try to change filter criteria</h5>
-                                                            </EmptyState>
-                                                        )}
+                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                            {(filteredRes.length > 0 && (
+                                                                <Paginate
+                                                                    page={this.state.page}
+                                                                    data={filteredRes}
+                                                                    onPageChange={page => this.setState({page})}
+                                                                    preferencesKey='application-details'>
+                                                                    {data => (
+                                                                        <ApplicationResourceList
+                                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                                            resources={data}
+                                                                            nodeMenu={node =>
+                                                                                AppUtils.renderResourceMenu(
+                                                                                    {...node, root: node},
+                                                                                    application,
+                                                                                    tree,
+                                                                                    this.appContext,
+                                                                                    this.appChanged,
+                                                                                    () => this.getApplicationActionMenu(application, false)
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    )}
+                                                                </Paginate>
+                                                            )) || (
+                                                                <EmptyState icon='fa fa-search'>
+                                                                    <h4>No resources found</h4>
+                                                                    <h5>Try to change filter criteria</h5>
+                                                                </EmptyState>
+                                                            )}
+                                                        </Filters>
                                                     </div>
                                                 )}
                                         </div>
@@ -440,6 +443,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
         if (
+            (filterInput.name.length === 0 || filterInput.name.indexOf(node.name) > -1) &&
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             // include if node's root sync matches filter
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
@@ -523,6 +527,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private getTreeFilter(filterInput: string[]): FilterInput {
+        const name = new Array<string>();
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
@@ -530,6 +535,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
+                case 'name':
+                    name.push(val);
+                    break;
                 case 'kind':
                     kind.push(val);
                     break;
@@ -544,7 +552,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     break;
             }
         }
-        return {kind, health, sync, namespace};
+        return {kind, health, sync, namespace, name};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {

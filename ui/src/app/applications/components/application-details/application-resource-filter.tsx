@@ -74,6 +74,13 @@ export const Filters = (props: {
         .concat(alreadyFilteredOn('kind'))
         .filter(uniq)
         .sort();
+
+    const names = tree.nodes
+        .map(x => x.name)
+        .concat(alreadyFilteredOn('name'))
+        .filter(uniq)
+        .sort();
+
     const namespaces = tree.nodes
         .map(x => x.namespace)
         .filter(x => !!x)
@@ -87,6 +94,7 @@ export const Filters = (props: {
 
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
+            {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
             {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',
