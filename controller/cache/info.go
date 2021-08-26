@@ -89,21 +89,21 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
-func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (error, string) {
+func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
 	switch gvk.Group {
 	case "extensions":
-		return nil, fmt.Sprintf("%s", backend["serviceName"])
+		return fmt.Sprintf("%s", backend["serviceName"]), nil
 	case "networking.k8s.io":
 		switch gvk.Version {
 		case "v1beta1":
-			return nil, fmt.Sprintf("%s", backend["serviceName"])
+			return fmt.Sprintf("%s", backend["serviceName"]), nil
 		case "v1":
 			if service, ok, err := unstructured.NestedMap(backend, "service"); ok && err == nil {
-				return nil, fmt.Sprintf("%s", service["name"])
+				return fmt.Sprintf("%s", service["name"]), nil
 			}
 		}
 	}
-	return errors.New("unable to resolve string"), ""
+	return "", errors.New("unable to resolve string")
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -111,7 +111,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	gvk := un.GroupVersionKind()
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
-		if err, serviceName := getServiceName(backend, gvk); err == nil {
+		if serviceName, err := getServiceName(backend, gvk); err == nil {
 			targetsMap[v1alpha1.ResourceRef{
 				Group:     "",
 				Kind:      kube.ServiceKind,
@@ -147,7 +147,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				}
 
 				if backend, ok, err := unstructured.NestedMap(path, "backend"); ok && err == nil {
-					if err, serviceName := getServiceName(backend, gvk); err == nil {
+					if serviceName, err := getServiceName(backend, gvk); err == nil {
 						targetsMap[v1alpha1.ResourceRef{
 							Group:     "",
 							Kind:      kube.ServiceKind,
