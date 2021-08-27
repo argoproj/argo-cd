@@ -1049,13 +1049,26 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        image: ghcr.io/dexidp/dex:v2.27.0
+        image: ghcr.io/dexidp/dex:v2.30.0
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz/live
+            port: 5558
+          initialDelaySeconds: 30
+          periodSeconds: 10
         name: dex
         ports:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 5558
+          initialDelaySeconds: 5
+          periodSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
