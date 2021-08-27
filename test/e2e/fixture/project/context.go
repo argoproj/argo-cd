@@ -1,4 +1,4 @@
-package repos
+package project
 
 import (
 	"testing"
@@ -10,29 +10,18 @@ import (
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
-	path        string
-	chart       string
-	repoURLType fixture.RepoURLType
+	t *testing.T
 	// seconds
 	timeout int
 	name    string
-	project string
 }
 
-func Given(t *testing.T, sameState bool) *Context {
-	if !sameState {
-		fixture.EnsureCleanState(t)
-	}
+func Given(t *testing.T) *Context {
+	fixture.EnsureCleanState(t)
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default"}
-}
-
-func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
-	c.repoURLType = urlType
-	return c
+	return &Context{t: t, name: fixture.Name(), timeout: timeout}
 }
 
 func (c *Context) GetName() string {
@@ -53,9 +42,4 @@ func (c *Context) When() *Actions {
 	// in case any settings have changed, pause for 1s, not great, but fine
 	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
-}
-
-func (c *Context) Project(project string) *Context {
-	c.project = project
-	return c
 }
