@@ -12,7 +12,6 @@ import (
 type Context struct {
 	t           *testing.T
 	path        string
-	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
 	timeout int
