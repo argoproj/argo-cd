@@ -166,6 +166,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				EnableLFS: repo.EnableLFS,
 				EnableOCI: repo.EnableOCI,
 				Proxy:     repo.Proxy,
+				Project:   repo.Project,
 			})
 		}
 	}
