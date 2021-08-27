@@ -534,7 +534,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
@@ -824,6 +824,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.login.attempts.expiration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_STATIC_ASSETS
+          valueFrom:
+            configMapKeyRef:
+              key: server.staticassets
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION

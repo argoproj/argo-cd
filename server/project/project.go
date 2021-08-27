@@ -243,7 +243,7 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, repositories, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -254,6 +254,7 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 		GlobalProjects: globalProjects,
 		Project:        proj,
 		Repositories:   repositories,
+		Clusters:       clusters,
 	}, err
 }
 

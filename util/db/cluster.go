@@ -264,6 +264,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	if c.ClusterResources {
 		data["clusterResources"] = []byte("true")
 	}
+	if c.Project != "" {
+		data["project"] = []byte(c.Project)
+	}
 	secret.Data = data
 
 	if secret.Annotations == nil {
@@ -319,6 +322,7 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		Config:             config,
 		RefreshRequestedAt: refreshRequestedAt,
 		Shard:              shard,
+		Project:            string(s.Data["project"]),
 	}
 	return &cluster, nil
 }
