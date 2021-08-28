@@ -39,19 +39,6 @@ spec:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
-        livenessProbe:
-          httpGet:
-            path: /healthz/live
-            port: 5558
-          failureThreshold: 3
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /healthz/ready
-            port: 5558
-          initialDelaySeconds: 5
-          periodSeconds: 10
         volumeMounts:
         - mountPath: /shared
           name: static-files
