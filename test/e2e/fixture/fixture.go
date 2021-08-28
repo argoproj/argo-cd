@@ -86,6 +86,7 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
@@ -246,6 +247,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	// When Helm Repo has sub repos, this is the parent repo URL
+	case RepoURLTypeHelmParent:
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
