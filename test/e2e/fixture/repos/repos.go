@@ -142,13 +142,6 @@ func AddHelmoOCICredentialsWithoutUserPass() {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
-// AddHelmCredentialsInsecure adds credentials for Helm insecure
-func AddHelmCredentialsInsecure() {
-	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelm),
-		"--insecure", "--type", "helm"}
-	errors.FailOnErr(fixture.RunCli(args...))
-}
-
 // AddSSHRepoCredentials adds E2E fixture credentials for SSH repos to context
 func AddSSHCredentials() {
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
