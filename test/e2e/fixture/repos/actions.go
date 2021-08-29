@@ -43,7 +43,6 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.project != "" {
 		args = append(args, "--project", a.context.project)
 	}
-
 	return args
 }
 
