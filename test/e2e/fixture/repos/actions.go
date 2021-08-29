@@ -39,7 +39,6 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	args = append([]string{
 		"repo", "add", a.context.path,
 	}, args...)
-
 	if a.context.project != "" {
 		args = append(args, "--project", a.context.project)
 	}
