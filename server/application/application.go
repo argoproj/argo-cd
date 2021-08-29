@@ -955,7 +955,7 @@ func (s *Server) streamApplicationEvents(
 	}
 
 	logCtx.Info("streaming application events")
-	appEvent, err := getApplicationEventPayload(a, es)
+	appEvent, err := getApplicationEventPayload(a, es, desiredManifests)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
 	}
@@ -979,7 +979,8 @@ func (s *Server) streamApplicationEvents(
 		// get resource desired state
 		desiredState, err := getResourceDesiredState(&rs, desiredManifests)
 		if err != nil {
-			return fmt.Errorf("failed to get desired state for resource %s/%s: %w", rsNs, rs.Name, err)
+			logCtx.WithError(err).Errorf("failed to get desired state for resource %s/%s", rsNs, rs.Name)
+			continue
 		}
 
 		// get resource actual state
@@ -993,21 +994,24 @@ func (s *Server) streamApplicationEvents(
 		})
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("failed to get actual state for resource %s/%s: %w", rsNs, rs.Name, err)
+				logCtx.WithError(err).Errorf("failed to get actual state for resource %s/%s", rsNs, rs.Name)
+				continue
 			}
 
 			// empty actual state
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests)
 		if err != nil {
-			return err
+			logCtx.WithError(err).Errorf("failed to get event payload for resource %s/%s", rsNs, rs.Name)
+			continue
 		}
 
 		logCtx.Debug("streaming resource event")
 		if err := stream.Send(ev); err != nil {
-			return fmt.Errorf("failed to send event for resource %s/%s: %w", rsNs, rs.Name, err)
+			logCtx.WithError(err).Errorf("failed to send event for resource %s/%s", rsNs, rs.Name)
+			continue
 		}
 	}
 
@@ -1020,12 +1024,22 @@ func getResourceEventPayload(
 	es *events.EventSource,
 	actualState *application.ApplicationResourceResponse,
 	desiredState *apiclient.Manifest,
+	manifestsResponse *apiclient.ManifestResponse,
 ) (*events.Event, error) {
 	errors := []*events.ObjectError{}
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
+		if len(desiredState.CompiledManifest) == 0 {
+			return nil, fmt.Errorf("cannot get resources desired and actual state")
+		}
 		// no actual state, use desired state as event object
 		object = []byte(desiredState.CompiledManifest)
+	}
+
+	if rs.RequiresPruning {
+		// resource should be deleted
+		desiredState.CompiledManifest = ""
+		actualState.Manifest = ""
 	}
 
 	source := events.ObjectSource{
@@ -1035,6 +1049,8 @@ func getResourceEventPayload(
 		RepoURL:         a.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
 		Revision:        a.Status.Sync.Revision,
+		CommitMessage:   manifestsResponse.CommitMessage,
+		CommitAuthor:    manifestsResponse.CommitAuthor,
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
@@ -1095,7 +1111,7 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 	return errors
 }
 
-func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*events.Event, error) {
+func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse) (*events.Event, error) {
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
@@ -1115,6 +1131,8 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource) (*
 		GitManifest:     "", // not sure
 		ActualManifest:  string(object),
 		RepoURL:         a.Spec.Source.RepoURL,
+		CommitMessage:   manifestsResponse.CommitMessage,
+		CommitAuthor:    manifestsResponse.CommitAuthor,
 		Path:            "", // not sure
 		Revision:        "",
 		AppName:         "",

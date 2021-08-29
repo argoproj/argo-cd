@@ -756,7 +756,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
-	}, true)
+	}, true, nil)
 	errors.CheckError(err)
 
 	return res.GetCompiledManifests()

@@ -325,9 +325,15 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // Returns a ManifestResponse, or an error, but not both
 func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var manifestGenResult *apiclient.ManifestResponse
+
+	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, err := ctxSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false)
+		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false, gitClient)
 	}
 	if err != nil {
 
@@ -748,9 +754,23 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
-	var manifests []manifest
-	var dest *v1alpha1.ApplicationDestination
+func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitClient git.Client) (*apiclient.ManifestResponse, error) {
+	var (
+		manifests     []manifest
+		dest          *v1alpha1.ApplicationDestination
+		commitMessage string
+		commitAuthor  string
+	)
+
+	if gitClient != nil {
+		m, err := gitClient.RevisionMetadata(revision)
+		if err != nil {
+			return nil, err
+		}
+
+		commitMessage = m.Message
+		commitAuthor = m.Author
+	}
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
@@ -803,8 +823,10 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	}
 
 	res := apiclient.ManifestResponse{
-		Manifests:  resManifests,
-		SourceType: string(appSourceType),
+		Manifests:     resManifests,
+		SourceType:    string(appSourceType),
+		CommitMessage: commitMessage,
+		CommitAuthor:  commitAuthor,
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace

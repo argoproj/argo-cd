@@ -3990,6 +3990,12 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commitAuthor": {
+          "type": "string"
+        },
+        "commitMessage": {
+          "type": "string"
+        },
         "manifests": {
           "type": "array",
           "items": {
