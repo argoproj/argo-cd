@@ -51,6 +51,10 @@ const (
 	submoduleParentDir = "submoduleParent.git"
 
 	GuestbookPath = "guestbook"
+
+	ProjectName = "argo-project"
+
+	KubernetesAPIServerAddr = "https://test.default.svc"
 )
 
 const (
