@@ -39,11 +39,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	args = append([]string{
 		"repo", "add", a.context.path,
 	}, args...)
-
 	if a.context.project != "" {
 		args = append(args, "--project", a.context.project)
 	}
-
 	return args
 }
 
@@ -53,9 +51,15 @@ func (a *Actions) Delete() *Actions {
 	return a
 }
 
-func (a *Actions) And(block func()) *Actions {
+func (a *Actions) List() *Actions {
 	a.context.t.Helper()
-	block()
+	a.runCli("repo", "list")
+	return a
+}
+
+func (a *Actions) Get() *Actions {
+	a.context.t.Helper()
+	a.runCli("repo", "get", a.context.path)
 	return a
 }
 
