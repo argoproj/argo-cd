@@ -399,11 +399,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setNode(EXTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.externalTraffic});
             externalRoots.sort(compareNodes).forEach(root => {
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
-                processNode(
-                    root,
-                    root,
-                    loadBalancers.map(lb => colorsBySource.get(lb))
-                );
+                const colorByService = new Map<string, string>();
+                (childrenByParentKey.get(treeNodeKey(root)) || []).forEach((child, i) => colorByService.set(treeNodeKey(child), TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
+                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach((child, i) => {
+                    processNode(child, root, [colorByService.get(treeNodeKey(child))]);
+                });
+                graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+                (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
+                    if (root.namespace === child.namespace) {
+                        graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
+                    }
+                });
                 loadBalancers.forEach(key => {
                     const loadBalancerNodeKey = `${EXTERNAL_TRAFFIC_NODE}:${key}`;
                     graph.setNode(loadBalancerNodeKey, {
