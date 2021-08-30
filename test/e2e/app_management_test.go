@@ -922,6 +922,7 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		Create().
 		Then().
 		Expect(Error("", "is not permitted in project"))
+
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
