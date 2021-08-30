@@ -877,11 +877,11 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 		Create()
 
 	GivenWithSameState(t).
+		Project(projName).
 		RepoURLType(RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
-		Project(projName).
 		Create().
 		Sync().
 		Then().
@@ -913,11 +913,11 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		Create()
 
 	GivenWithSameState(t).
+		Project(projName).
 		RepoURLType(RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
-		Project(projName).
 		IgnoreErrors().
 		Create().
 		Then().

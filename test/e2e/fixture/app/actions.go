@@ -280,12 +280,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) Project(project string) *Actions {
-	a.context.t.Helper()
-	a.context.project = project
-	return a
-}
-
 func (a *Actions) TerminateOp() *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "terminate-op", a.context.name)
