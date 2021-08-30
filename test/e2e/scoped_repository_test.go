@@ -56,3 +56,43 @@ func TestDeleteRepository(t *testing.T) {
 		})
 
 }
+
+func TestListRepoCLIOutput(t *testing.T) {
+	path := "https://github.com/argoproj/argo-cd.git"
+	repoFixture.Given(t, false).
+		When().
+		Path(path).
+		Project("argo-project").
+		Create().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
+		}).
+		When().
+		List().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
+git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
+		})
+}
+
+func TestGetRepoCLIOutput(t *testing.T) {
+	path := "https://github.com/argoproj/argo-cd.git"
+	repoFixture.Given(t, false).
+		When().
+		Path(path).
+		Project("argo-project").
+		Create().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
+		}).
+		When().
+		Get().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
+git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
+		})
+}
