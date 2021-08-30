@@ -12,8 +12,9 @@ import (
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout int
-	name    string
+	timeout     int
+	name        string
+	destination string
 }
 
 func Given(t *testing.T) *Context {
@@ -30,6 +31,11 @@ func (c *Context) GetName() string {
 
 func (c *Context) Name(name string) *Context {
 	c.name = name
+	return c
+}
+
+func (c *Context) Destination(destination string) *Context {
+	c.destination = destination
 	return c
 }
 
