@@ -35,6 +35,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -857,6 +859,70 @@ func TestPermissions(t *testing.T) {
 	}
 	assert.True(t, destinationErrorExist)
 	assert.True(t, sourceErrorExist)
+}
+
+func TestPermissionWithScopedRepo(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+}
+
+func TestPermissionDeniedWithScopedRepo(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		Create().
+		Then().
+		Expect(Error("", "is not permitted in project"))
+
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
