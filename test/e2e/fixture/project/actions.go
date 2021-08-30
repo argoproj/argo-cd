@@ -45,6 +45,10 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 		"proj", "create", a.context.name,
 	}, args...)
 
+	if a.context.destination != "" {
+		args = append(args, "--dest", a.context.destination)
+	}
+
 	return args
 }
 
