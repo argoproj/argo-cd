@@ -43,7 +43,7 @@ func TestClusterAdd(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, err error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add  %v    Successful           %s`, GetVersions().ServerVersion, ProjectName), output)
+https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, GetVersions().ServerVersion, ProjectName), output)
 		})
 }
 
