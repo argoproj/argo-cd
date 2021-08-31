@@ -58,6 +58,11 @@ project: %s
 server: https://kubernetes.default.svc
 serverVersion: %v`, ProjectName, GetVersions().ServerVersion))
 
+	assert.Contains(t, output, "name: test-cluster-add")
+	assert.Contains(t, output, "server: https://kubernetes.default.svc")
+	assert.Contains(t, output, fmt.Sprintf(`project: %s`, ProjectName))
+	assert.Contains(t, output, fmt.Sprintf(`serverVersion: %v`, GetVersions().ServerVersion))
+
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)
