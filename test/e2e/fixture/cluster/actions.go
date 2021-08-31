@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"log"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
@@ -33,7 +34,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 func (a *Actions) Create(args ...string) *Actions {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
-	_, _ = clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
+	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
 			Name:               a.context.name,
@@ -49,6 +50,10 @@ func (a *Actions) Create(args ...string) *Actions {
 		},
 		Upsert: a.context.upsert,
 	})
+
+	if err != nil {
+		log.Fatalf("Failed to upser cluster %v", err.Error())
+	}
 
 	return a
 }

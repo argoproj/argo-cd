@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
@@ -35,7 +36,7 @@ func TestClusterAdd(t *testing.T) {
 		Given(t).
 		Project(ProjectName).
 		Upsert(true).
-		Server(KubernetesAPIServerAddr).
+		Server(KubernetesInternalAPIServerAddr).
 		When().
 		Create().
 		List().
@@ -52,9 +53,10 @@ func TestClusterGet(t *testing.T) {
 	output := FailOnErr(RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
 
 	assert.Contains(t, output, fmt.Sprintf(`
-name: in-cluster
+name: test-cluster-add
+project: %s
 server: https://kubernetes.default.svc
-serverVersion: "%v"`, GetVersions().ServerVersion))
+serverVersion: %v`, ProjectName, GetVersions().ServerVersion))
 
 	assert.Contains(t, output, `config:
   tlsClientConfig:
