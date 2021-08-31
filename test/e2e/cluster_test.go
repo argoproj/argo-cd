@@ -52,16 +52,10 @@ func TestClusterGet(t *testing.T) {
 	defer RecordTestRun(t)
 	output := FailOnErr(RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
 
-	assert.Contains(t, output, fmt.Sprintf(`
-name: test-cluster-add
-project: %s
-server: https://kubernetes.default.svc
-serverVersion: %v`, ProjectName, GetVersions().ServerVersion))
-
 	assert.Contains(t, output, "name: test-cluster-add")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
 	assert.Contains(t, output, fmt.Sprintf(`project: %s`, ProjectName))
-	assert.Contains(t, output, fmt.Sprintf(`serverVersion: %v`, GetVersions().ServerVersion))
+	assert.Contains(t, output, fmt.Sprintf(`serverVersion: "%v"`, GetVersions().ServerVersion))
 
 	assert.Contains(t, output, `config:
   tlsClientConfig:
