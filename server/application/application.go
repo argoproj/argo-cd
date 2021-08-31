@@ -967,19 +967,15 @@ func (s *Server) streamApplicationEvents(
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
-		rsNs := rs.Namespace
-		if rsNs == "" {
-			rsNs = "default"
-		}
 		logCtx = logCtx.WithFields(log.Fields{
 			"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
-			"resource": fmt.Sprintf("%s/%s", rsNs, rs.Name),
+			"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 		})
 
 		// get resource desired state
 		desiredState, err := getResourceDesiredState(&rs, desiredManifests)
 		if err != nil {
-			logCtx.WithError(err).Errorf("failed to get desired state for resource %s/%s", rsNs, rs.Name)
+			logCtx.WithError(err).Errorf("failed to get desired state for resource %s/%s", rs.Namespace, rs.Name)
 			continue
 		}
 
@@ -994,7 +990,7 @@ func (s *Server) streamApplicationEvents(
 		})
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
-				logCtx.WithError(err).Errorf("failed to get actual state for resource %s/%s", rsNs, rs.Name)
+				logCtx.WithError(err).Errorf("failed to get actual state for resource %s/%s", rs.Namespace, rs.Name)
 				continue
 			}
 
@@ -1004,13 +1000,13 @@ func (s *Server) streamApplicationEvents(
 
 		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests)
 		if err != nil {
-			logCtx.WithError(err).Errorf("failed to get event payload for resource %s/%s", rsNs, rs.Name)
+			logCtx.WithError(err).Errorf("failed to get event payload for resource %s/%s", rs.Namespace, rs.Name)
 			continue
 		}
 
-		logCtx.Debug("streaming resource event")
+		logCtx.Info("streaming resource event")
 		if err := stream.Send(ev); err != nil {
-			logCtx.WithError(err).Errorf("failed to send event for resource %s/%s", rsNs, rs.Name)
+			logCtx.WithError(err).Errorf("failed to send event for resource %s/%s", rs.Namespace, rs.Name)
 			continue
 		}
 	}
@@ -1030,10 +1026,16 @@ func getResourceEventPayload(
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
+			// no actual or desired state, don't send event
 			return nil, fmt.Errorf("cannot get resources desired and actual state")
 		}
+
 		// no actual state, use desired state as event object
-		object = []byte(desiredState.CompiledManifest)
+		manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+		}
+		object = manifestWithNamespace
 	}
 
 	if rs.RequiresPruning {
@@ -1181,6 +1183,22 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 	// no desired state for resource
 	// it's probably deleted from git
 	return &apiclient.Manifest{}, nil
+}
+
+func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
+	u, err := appv1.UnmarshalToUnstructured(string(resourceManifest))
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
+	}
+
+	if u.GetNamespace() == rs.Namespace {
+		return resourceManifest, nil
+	}
+
+	// need to change namespace
+	u.SetNamespace(rs.Namespace)
+
+	return u.MarshalJSON()
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
