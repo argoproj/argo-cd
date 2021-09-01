@@ -45,7 +45,7 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='checkbox__item__label'>{props.option.label}</div>
+            <div className='filter__item__label'>{props.option.label}</div>
             <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
