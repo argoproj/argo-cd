@@ -178,9 +178,10 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			return err
 		}
 		command := &cobra.Command{}
-		dummy := false
-		command.Flags().BoolVar(&dummy, "save-config", false, "")
-		command.Flags().BoolVar(&dummy, "validate", false, "")
+		saveConfig := false
+		command.Flags().BoolVar(&saveConfig, "save-config", false, "")
+		val := false
+		command.Flags().BoolVar(&val, "validate", false, "")
 		if validate {
 			_ = command.Flags().Set("validate", "true")
 		}
