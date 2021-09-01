@@ -1,3 +1,4 @@
+import {ago} from 'argo-ui/v2';
 import * as moment from 'moment';
 import * as React from 'react';
 
@@ -27,8 +28,12 @@ export const EventsList = (props: {events: models.Event[]}) => {
                                 <div className='columns small-2 xxlarge-2'>{event.reason}</div>
                                 <div className='columns small-4 xxlarge-5'>{event.message}</div>
                                 <div className='columns small-2 xxlarge-1'>{event.count}</div>
-                                <div className='columns small-2 xxlarge-2'>{event.firstTimestamp}</div>
-                                <div className='columns small-2 xxlarge-2'>{event.lastTimestamp}</div>
+                                <div className='columns small-2 xxlarge-2'>
+                                    <strong>{ago(new Date(event.firstTimestamp))}</strong> ({event.firstTimestamp})
+                                </div>
+                                <div className='columns small-2 xxlarge-2'>
+                                    <strong>{ago(new Date(event.lastTimestamp))}</strong> ({event.lastTimestamp})
+                                </div>
                             </div>
                         </div>
                     ))}
