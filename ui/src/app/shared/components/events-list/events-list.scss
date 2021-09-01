@@ -12,6 +12,14 @@
             border-left-color: $argo-success-color;
         }
 
+        &__ago {
+            font-size: 14px;
+        }
+
+        &__time {
+            font-size: 12px;
+        }
+
         .row {
             line-height: 2;
             padding-top: 15px;
