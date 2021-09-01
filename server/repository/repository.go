@@ -135,6 +135,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		Proxy:                      repo.Proxy,
+		Project:                    repo.Project,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
@@ -166,6 +167,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				EnableLFS: repo.EnableLFS,
 				EnableOCI: repo.EnableOCI,
 				Proxy:     repo.Proxy,
+				Project:   repo.Project,
 			})
 		}
 	}
