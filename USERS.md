@@ -161,3 +161,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [RightRev](https://rightrev.com/)
 1. [MeDirect](https://medirect.com.mt/)
 1. [Technacy](https://www.technacy.it/)
+1. [freee](https://corp.freee.co.jp/en/company/)
