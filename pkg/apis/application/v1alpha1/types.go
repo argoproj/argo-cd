@@ -1275,6 +1275,10 @@ type Cluster struct {
 	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
 	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
+	// Labels for cluster secret metadata
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
+	// Annotations for cluster secret metadata
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -1303,6 +1307,15 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	if c.ClusterResources != other.ClusterResources {
 		return false
 	}
+
+	if !reflect.DeepEqual(c.Annotations, other.Annotations) {
+		return false
+	}
+
+	if !reflect.DeepEqual(c.Labels, other.Labels) {
+		return false
+	}
+
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
