@@ -436,7 +436,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.1.1
+        image: quay.io/argoproj/argocd:v2.1.2
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -611,7 +611,7 @@ spec:
               key: reposerver.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.1.1
+        image: quay.io/argoproj/argocd:v2.1.2
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -856,7 +856,7 @@ spec:
               key: server.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.1.1
+        image: quay.io/argoproj/argocd:v2.1.2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1046,7 +1046,7 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.1.1
+        image: quay.io/argoproj/argocd:v2.1.2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
