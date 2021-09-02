@@ -18,7 +18,7 @@ module.exports = {
 };
 
 const localStorageMock = (() => {
-  const store = {};
+  let store = {};
   return {
     getItem: (key) => store[key],
     setItem: (key, value) => {
