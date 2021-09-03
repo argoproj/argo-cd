@@ -1,0 +1,45 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: SchemaRegistry
+metadata:
+  finalizers:
+    - schemaregistry.finalizers.platform.confluent.io
+  generation: 1
+  name: schemaregistry
+  namespace: confluent
+spec:
+  replicas: 1
+status:
+  clusterName: schemaregistry
+  clusterNamespace: confluent
+  conditions:
+    - lastProbeTime: "2021-08-11T10:08:32Z"
+      lastTransitionTime: "2021-08-11T10:09:41Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: platform.confluent.io/statefulset-available
+    - lastProbeTime: "2021-08-11T10:08:32Z"
+      lastTransitionTime: "2021-08-11T10:09:41Z"
+      message: Kubernetes resources ready.
+      reason: KubernetesResourcesReady
+      status: "True"
+      type: platform.confluent.io/resources-ready
+    - lastProbeTime: "2021-08-11T10:08:32Z"
+      lastTransitionTime: "2021-08-11T10:08:32Z"
+      message: Cluster is not being garbage collected
+      reason: ClusterNotShrunk
+      status: "False"
+      type: platform.confluent.io/garbage-collecting
+  currentReplicas: 1
+  groupId: id_schemaregistry_confluent
+  internalTopicNames:
+    - _schemas_schemaregistry_confluent
+  kafka:
+    bootstrapEndpoint: kafka.confluent.svc.cluster.local:9071
+  metricPrefix: schemaregistry_confluent
+  operatorVersion: v0.174.13
+  phase: RUNNING
+  readyReplicas: 1
+  replicas: 1
+  restConfig:
+    internalEndpoint: http://schemaregistry.confluent.svc.cluster.local:8081
