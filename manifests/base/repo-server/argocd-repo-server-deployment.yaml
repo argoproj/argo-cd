@@ -132,6 +132,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - mountPath: /home/argocd
+          name: plugins-home
         - name: tmp
           mountPath: /tmp
       volumes:
@@ -146,6 +148,8 @@ spec:
             name: argocd-gpg-keys-cm
         - name: gpg-keyring
           emptyDir: {}
+        - emptyDir: {}
+          name: plugins-home
         - name: tmp
           emptyDir: {}
         - name: argocd-repo-server-tls
