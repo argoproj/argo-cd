@@ -27,4 +27,6 @@ if obj.status ~= nil then
     end
   end
 end
+health_status.status = "Progressing"
+health_status.message = "An install plan for a subscription is pending installation"
 return health_status
