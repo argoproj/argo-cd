@@ -1049,7 +1049,7 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        image: ghcr.io/dexidp/dex:v2.27.0
+        image: ghcr.io/dexidp/dex:v2.30.0
         imagePullPolicy: Always
         name: dex
         ports:
