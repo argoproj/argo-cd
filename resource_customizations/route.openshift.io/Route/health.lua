@@ -32,4 +32,6 @@ if obj.status ~= nil then
     end
   end
 end
+health_status.status = "Progressing"
+health_status.message = "Route is still getting admitted"
 return health_status
