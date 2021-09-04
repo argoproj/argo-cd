@@ -98,6 +98,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.default.cache.expiration
                   optional: true
+          - name: HELM_CACHE_HOME
+            value: /helm-working-dir
+          - name: HELM_CONFIG_HOME
+            value: /helm-working-dir
+          - name: HELM_DATA_HOME
+            value: /helm-working-dir
         ports:
         - containerPort: 8081
         - containerPort: 8084
@@ -134,6 +140,8 @@ spec:
           mountPath: /app/config/reposerver/tls
         - name: tmp
           mountPath: /tmp
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -147,6 +155,8 @@ spec:
         - name: gpg-keyring
           emptyDir: {}
         - name: tmp
+          emptyDir: {}
+        - name: helm-working-dir
           emptyDir: {}
         - name: argocd-repo-server-tls
           secret:
