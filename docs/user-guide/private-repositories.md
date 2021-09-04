@@ -8,7 +8,7 @@
 
 ## Credentials
 
-If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
+If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTPS and SSH Git credentials.
 
 ### HTTPS Username And Password Credential
 
