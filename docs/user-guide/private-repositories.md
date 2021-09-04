@@ -8,7 +8,7 @@
 
 ## Credentials
 
-If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
+If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTPS and SSH Git credentials.
 
 ### HTTPS Username And Password Credential
 
@@ -39,7 +39,7 @@ or UI:
 > earlier than v1.2
 
 1. Navigate to `Settings/Repositories`
-1. Click `Connect Repo` button and enter HTTP credentials
+1. Click `Connect Repo` button and enter HTTPS credentials
 
 ![connect repo](../assets/connect-repo.png)
 
