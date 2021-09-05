@@ -68,6 +68,7 @@ var (
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
+	SessionClient       sessionpkg.SessionServiceClient
 	adminUsername       string
 	adminPassword       string
 	apiServerAddress    string
@@ -158,6 +159,8 @@ func init() {
 	CheckError(err)
 	defer io.Close(closer)
 
+	SessionClient = client
+
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
 	CheckError(err)
 
@@ -194,6 +197,17 @@ func init() {
 		testsRun[scanner.Text()] = true
 	}
 
+}
+
+func LoginAs(username string) {
+	var err error
+	token, err = RunCli("account", "generate-token", "--account", username)
+	errors.CheckError(err)
+
+	clientOpts := ArgoCDClientset.ClientOptions()
+	clientOpts.AuthToken = token
+	ArgoCDClientset = argocdclient.NewClientOrDie(&clientOpts)
+	_, SessionClient = ArgoCDClientset.NewSessionClientOrDie()
 }
 
 func Name() string {
