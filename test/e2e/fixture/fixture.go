@@ -155,17 +155,9 @@ func init() {
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
-	LoginAsAdmin()
-
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  token,
-		PlainText:  !tlsTestResult.TLS,
-	})
-	CheckError(err)
-
 	plainText = !tlsTestResult.TLS
+
+	LoginAsAdmin()
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -201,6 +193,14 @@ func LoginAsAdmin() {
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
 	CheckError(err)
 	token = sessionResponse.Token
+
+	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+		Insecure:   true,
+		ServerAddr: apiServerAddress,
+		AuthToken:  token,
+		PlainText:  plainText,
+	})
+	CheckError(err)
 }
 
 func LoginAs(username string) {
