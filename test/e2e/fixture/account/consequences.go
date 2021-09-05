@@ -17,10 +17,6 @@ type Consequences struct {
 	actions *Actions
 }
 
-func (c *Consequences) Expect() *Consequences {
-	return c
-}
-
 func (c *Consequences) And(block func(account *account.Account, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.get())
