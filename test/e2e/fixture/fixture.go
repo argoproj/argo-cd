@@ -155,24 +155,16 @@ func init() {
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
-	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
-	defer io.Close(closer)
-
-	SessionClient = client
-
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
-	CheckError(err)
+	LoginAsAdmin()
 
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
-		AuthToken:  sessionResponse.Token,
+		AuthToken:  token,
 		PlainText:  !tlsTestResult.TLS,
 	})
 	CheckError(err)
 
-	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
@@ -199,7 +191,24 @@ func init() {
 
 }
 
+func LoginAsAdmin() {
+	closer, client, err := ArgoCDClientset.NewSessionClient()
+	CheckError(err)
+	defer io.Close(closer)
+
+	SessionClient = client
+
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
+	CheckError(err)
+	token = sessionResponse.Token
+}
+
 func LoginAs(username string) {
+	if username == "admin" {
+		LoginAsAdmin()
+		return
+	}
+
 	var err error
 	token, err = RunCli("account", "generate-token", "--account", username)
 	errors.CheckError(err)
@@ -468,6 +477,9 @@ func EnsureCleanState(t *testing.T) {
 		cm.Data = map[string]string{}
 		return nil
 	})
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	LoginAsAdmin()
 
 	// reset gpg-keys config map
 	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
