@@ -97,3 +97,22 @@ Note that the CSS file should be mounted within a subdirectory of the "/shared/a
 The styles specified in the injected CSS file should be specific to components and classes defined in [argo-ui](https://github.com/argoproj/argo-ui).
 It is recommended to test out the styles you wish to apply first by making use of your browser's built-in developer tools.  For a more full-featured
 experience, you may wish to build a separate project using the [Argo CD UI dev server](https://webpack.js.org/configuration/dev-server/).
+
+## Banners
+
+Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`.
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ...
+  name: argocd-cm
+data:
+    ui.bannercontent: "Banner message linked to a URL"
+    ui.bannerurl: "www.bannerlink.com"
+```
+
+![banner with link](../assets/banner.png)

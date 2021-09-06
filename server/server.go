@@ -372,6 +372,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
 	errors.CheckError(conn.Close())
+	if err := metricsServ.Shutdown(ctx); err != nil {
+		log.Fatalf("Failed to gracefully shutdown metrics server: %v", err)
+	}
 }
 
 func (a *ArgoCDServer) Initialized() bool {
@@ -632,7 +635,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")

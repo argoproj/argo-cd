@@ -51,6 +51,8 @@ const (
 	submoduleParentDir = "submoduleParent.git"
 
 	GuestbookPath = "guestbook"
+
+	ProjectName = "argo-project"
 )
 
 const (
@@ -86,6 +88,7 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
@@ -246,6 +249,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	// When Helm Repo has sub repos, this is the parent repo URL
+	case RepoURLTypeHelmParent:
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -433,6 +439,9 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
