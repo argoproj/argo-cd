@@ -1230,14 +1230,18 @@ func populateKsonnetAppDetails(res *apiclient.RepoAppDetailsResponse, appPath st
 }
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, q *apiclient.RepoServerAppDetailsQuery) error {
-	var valueFiles []string
+	var selectedValueFiles []string
 
-	valueFiles, err := findHelmValueFilesInPath(appPath)
+	if q.Source.Helm != nil {
+		selectedValueFiles = q.Source.Helm.ValueFiles
+	}
+
+	availableValueFiles, err := findHelmValueFilesInPath(appPath)
 	if err != nil {
 		return err
 	}
 
-	res.Helm = &apiclient.HelmAppSpec{ValueFiles: valueFiles}
+	res.Helm = &apiclient.HelmAppSpec{ValueFiles: availableValueFiles}
 	var version string
 	if q.Source.Helm != nil {
 		if q.Source.Helm.Version != "" {
@@ -1257,7 +1261,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err := loadFileIntoIfExists(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
 		return err
 	}
-	params, err := h.GetParameters(valueFiles)
+	params, err := h.GetParameters(selectedValueFiles)
 	if err != nil {
 		return err
 	}
