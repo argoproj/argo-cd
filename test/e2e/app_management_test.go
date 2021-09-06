@@ -148,6 +148,7 @@ func TestDeleteAppResource(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		Create().
+		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
