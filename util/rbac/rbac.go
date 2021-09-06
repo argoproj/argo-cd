@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/casbin/casbin/util"
-
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	"github.com/casbin/casbin/util"
 	jwt "github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
