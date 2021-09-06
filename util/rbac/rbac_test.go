@@ -337,7 +337,6 @@ func TestEnforceErrorMessage(t *testing.T) {
 
 }
 
-
 func TestDefaultGlobMatchMode(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
@@ -355,7 +354,7 @@ p, alice, clusters, get, "https://github.com/*/*.git", allow
 
 func TestGlobMatchMode(t *testing.T) {
 	cm := fakeConfigMap()
-	cm.Data[ConfigMapMatchModeKey]= GlobMatchMode
+	cm.Data[ConfigMapMatchModeKey] = GlobMatchMode
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(cm, noOpUpdate)
@@ -372,7 +371,7 @@ p, alice, clusters, get, "https://github.com/*/*.git", allow
 
 func TestRegexMatchMode(t *testing.T) {
 	cm := fakeConfigMap()
-	cm.Data[ConfigMapMatchModeKey]= RegexMatchMode
+	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(cm, noOpUpdate)
@@ -387,7 +386,7 @@ p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allo
 
 }
 
-func TestGlobMatchFunc(t *testing.T){
+func TestGlobMatchFunc(t *testing.T) {
 	ok, _ := globMatchFunc("arg1")
 	assert.False(t, ok.(bool))
 

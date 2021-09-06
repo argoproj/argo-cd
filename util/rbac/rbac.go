@@ -5,9 +5,10 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"github.com/casbin/casbin/util"
 	"strings"
 	"time"
+
+	"github.com/casbin/casbin/util"
 
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -116,7 +117,7 @@ func (e *Enforcer) SetMatchMode(mode string) {
 	e.Enforcer.AddFunction("globOrRegexMatch", func(args ...interface{}) (interface{}, error) {
 		if mode == RegexMatchMode {
 			return util.RegexMatchFunc(args...)
-		}else{
+		} else {
 			return globMatchFunc(args...)
 		}
 	})
