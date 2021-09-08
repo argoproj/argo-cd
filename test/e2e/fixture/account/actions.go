@@ -25,11 +25,9 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 
 func (a *Actions) prepareSetPasswordArgs(account string) []string {
 	a.context.t.Helper()
-	args := append([]string{
+	return []string{
 		"account", "update-password", "--account", account, "--current-password", fixture.AdminPassword, "--new-password", fixture.DefaultTestUserPassword, "--plaintext",
-	})
-
-	return args
+	}
 }
 
 func (a *Actions) Create() *Actions {
