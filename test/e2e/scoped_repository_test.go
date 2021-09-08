@@ -69,10 +69,10 @@ func TestCreateRepositoryNonAdminUserPermissionAllowed(t *testing.T) {
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "repositories",
-				Action:   "read",
-				Scope:    "*",
+				Action:   "*",
+				Scope:    "argo-project/*",
 			},
-		}, "test", "org-admin")
+		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
 	repoFixture.Given(t, true).

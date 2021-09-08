@@ -410,15 +410,11 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 // ValidateAccess checks whether access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 
-	repo = &appsv1.Repository{
+	repo := &appsv1.Repository{
 		Repo:                       q.Repo,
 		Type:                       q.Type,
 		Name:                       q.Name,
@@ -436,12 +432,10 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Proxy:                      q.Proxy,
 	}
 
-	var repoCreds *appsv1.RepoCreds
-
 	// If repo does not have credentials, check if there are credentials stored
 	// for it and if yes, copy them
 	if !repo.HasCredentials() {
-		repoCreds, err = s.db.GetRepositoryCredentials(ctx, q.Repo)
+		repoCreds, err := s.db.GetRepositoryCredentials(ctx, q.Repo)
 		if err != nil {
 			return nil, err
 		}
@@ -449,7 +443,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	err = s.testRepo(ctx, repo)
+	err := s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
