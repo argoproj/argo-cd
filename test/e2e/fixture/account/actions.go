@@ -23,10 +23,18 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) prepareSetPasswordArgs(account string) []string {
+	a.context.t.Helper()
+	return []string{
+		"account", "update-password", "--account", account, "--current-password", fixture.AdminPassword, "--new-password", fixture.DefaultTestUserPassword, "--plaintext",
+	}
+}
+
 func (a *Actions) Create() *Actions {
 	fixture.SetAccounts(map[string][]string{
-		a.context.name: {"login", "apiKey"},
+		a.context.name: {"login"},
 	})
+	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
 	return a
 }
 

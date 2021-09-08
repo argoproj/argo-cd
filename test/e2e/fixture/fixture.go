@@ -38,11 +38,12 @@ import (
 )
 
 const (
-	defaultApiServer     = "localhost:8080"
-	defaultAdminPassword = "password"
-	defaultAdminUsername = "admin"
-	testingLabel         = "e2e.argoproj.io"
-	ArgoCDNamespace      = "argocd-e2e"
+	defaultApiServer        = "localhost:8080"
+	defaultAdminPassword    = "password"
+	defaultAdminUsername    = "admin"
+	DefaultTestUserPassword = "password"
+	testingLabel            = "e2e.argoproj.io"
+	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -68,9 +69,8 @@ var (
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
-	SessionClient       sessionpkg.SessionServiceClient
 	adminUsername       string
-	adminPassword       string
+	AdminPassword       string
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -153,7 +153,7 @@ func init() {
 
 	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
-	adminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
+	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
@@ -163,7 +163,7 @@ func init() {
 
 	plainText = !tlsTestResult.TLS
 
-	LoginAsAdmin()
+	LoginAs(adminUsername)
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -189,14 +189,12 @@ func init() {
 
 }
 
-func LoginAsAdmin() {
+func loginAs(username, password string) {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
 	defer io.Close(closer)
 
-	SessionClient = client
-
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	CheckError(err)
 	token = sessionResponse.Token
 
@@ -210,19 +208,11 @@ func LoginAsAdmin() {
 }
 
 func LoginAs(username string) {
+	password := DefaultTestUserPassword
 	if username == "admin" {
-		LoginAsAdmin()
-		return
+		password = AdminPassword
 	}
-
-	var err error
-	token, err = RunCli("account", "generate-token", "--account", username)
-	errors.CheckError(err)
-
-	clientOpts := ArgoCDClientset.ClientOptions()
-	clientOpts.AuthToken = token
-	ArgoCDClientset = argocdclient.NewClientOrDie(&clientOpts)
-	_, SessionClient = ArgoCDClientset.NewSessionClientOrDie()
+	loginAs(username, password)
 }
 
 func Name() string {
@@ -511,7 +501,7 @@ func EnsureCleanState(t *testing.T) {
 	})
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	LoginAsAdmin()
+	LoginAs(adminUsername)
 
 	// reset gpg-keys config map
 	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {

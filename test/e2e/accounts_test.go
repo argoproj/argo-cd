@@ -27,7 +27,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		Then().
 		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
-			assert.Equal(t, account.Capabilities, []string{"login", "apiKey"})
+			assert.Equal(t, account.Capabilities, []string{"login"})
 		}).
 		When().
 		Login().
