@@ -65,6 +65,22 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 
 }
 
+const stringLuaScript = `local a = {}
+a.status = "Healthy"
+if string.find("foo", "f") ~= nil then
+	a.message = "match"
+end
+return a
+`
+
+func TestStringLibCall(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, stringLuaScript)
+	assert.Nil(t, err)
+	assert.Equal(t, "match", status.Message)
+}
+
 const osLuaScript = `os.getenv("HOME")`
 
 func TestFailExternalLibCall(t *testing.T) {

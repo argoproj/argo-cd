@@ -68,6 +68,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
+		{lua.StringLibName, lua.OpenString},
 		// load our 'safe' version of the OS library
 		{lua.OsLibName, OpenSafeOs},
 	} {
