@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 func NewClusterCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
@@ -508,6 +509,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 		bearerToken   string
 		generateToken bool
 		outputFormat  string
+		labels        []string
+		annotations   []string
 	)
 	var command = &cobra.Command{
 		Use:   "generate-spec CONTEXT",
@@ -561,7 +564,13 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
 			}
-			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf)
+
+			labelsMap, err := label.Parse(labels)
+			errors.CheckError(err)
+			annotationsMap, err := label.Parse(annotations)
+			errors.CheckError(err)
+
+			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
 			if clusterOpts.InCluster {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
@@ -590,6 +599,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "argocd-manager", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be used", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
+	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
+	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }

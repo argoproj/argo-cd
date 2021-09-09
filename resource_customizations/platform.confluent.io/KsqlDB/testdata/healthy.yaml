@@ -1,0 +1,44 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: KsqlDB
+metadata:
+  generation: 1
+  name: ksqldb
+  namespace: confluent
+spec:
+  dataVolumeCapacity: 10Gi
+  replicas: 1
+status:
+  clusterName: ksqldb
+  clusterNamespace: confluent
+  conditions:
+    - lastProbeTime: "2021-08-11T10:08:31Z"
+      lastTransitionTime: "2021-08-11T10:10:17Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: platform.confluent.io/statefulset-available
+    - lastProbeTime: "2021-08-11T10:08:31Z"
+      lastTransitionTime: "2021-08-11T10:10:17Z"
+      message: Kubernetes resources ready.
+      reason: KubernetesResourcesReady
+      status: "True"
+      type: platform.confluent.io/resources-ready
+    - lastProbeTime: "2021-08-11T10:08:31Z"
+      lastTransitionTime: "2021-08-11T10:08:31Z"
+      message: Cluster is not being garbage collected
+      reason: ClusterNotShrunk
+      status: "False"
+      type: platform.confluent.io/garbage-collecting
+  currentReplicas: 1
+  internalTopicNames:
+    - _confluent-ksql-confluent.ksqldb__command_topic
+    - _confluent-ksql-confluent.ksqldb__configs
+  kafka:
+    bootstrapEndpoint: kafka.confluent.svc.cluster.local:9071
+  operatorVersion: v0.174.13
+  phase: RUNNING
+  readyReplicas: 1
+  replicas: 1
+  restConfig:
+    internalEndpoint: http://ksqldb.confluent.svc.cluster.local:8088
+  serviceId: confluent.ksqldb_
