@@ -28,10 +28,14 @@ func Test_URIToSecretName(t *testing.T) {
 }
 
 func Test_secretToCluster(t *testing.T) {
+	labels := map[string]string{"key1": "val1"}
+	annotations := map[string]string{"key2": "val2"}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: fakeNamespace,
+			Name:        "mycluster",
+			Namespace:   fakeNamespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("test"),
@@ -47,6 +51,8 @@ func Test_secretToCluster(t *testing.T) {
 		Config: v1alpha1.ClusterConfig{
 			Username: "foo",
 		},
+		Labels:      labels,
+		Annotations: annotations,
 	})
 }
 

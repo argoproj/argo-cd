@@ -5166,6 +5166,13 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "clusterResources": {
           "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
           "type": "boolean"
@@ -5178,6 +5185,13 @@
         },
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
+        },
+        "labels": {
+          "type": "object",
+          "title": "Labels for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string",
