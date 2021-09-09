@@ -56,11 +56,11 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
 		})
 }
 
-func TestCreateRepositoryNonAdminUserPermissionAllowed(t *testing.T) {
+func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 	accountFixture.Given(t).
 		Name("test").
 		When().
@@ -70,6 +70,42 @@ func TestCreateRepositoryNonAdminUserPermissionAllowed(t *testing.T) {
 			{
 				Resource: "repositories",
 				Action:   "*",
+				Scope:    "wrong-project/*",
+			},
+		}, "org-admin")
+
+	path := "https://github.com/argoproj/argo-cd.git"
+	repoFixture.Given(t, true).
+		When().
+		Path(path).
+		Project("argo-project").
+		Create().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
+		})
+}
+
+func TestDeleteRepositoryRbacAllowed(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "repositories",
+				Action:   "create",
+				Scope:    "argo-project/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "delete",
+				Scope:    "argo-project/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "get",
 				Scope:    "argo-project/*",
 			},
 		}, "org-admin")
@@ -84,6 +120,55 @@ func TestCreateRepositoryNonAdminUserPermissionAllowed(t *testing.T) {
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
 			assert.Equal(t, r.Project, "argo-project")
+		}).
+		When().
+		Delete().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "Repository 'https://github.com/argoproj/argo-cd.git' removed"))
+		})
+}
+
+func TestDeleteRepositoryRbacDenied(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "repositories",
+				Action:   "create",
+				Scope:    "argo-project/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "delete",
+				Scope:    "argo-pr/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "get",
+				Scope:    "argo-project/*",
+			},
+		}, "org-admin")
+
+	path := "https://github.com/argoproj/argo-cd.git"
+	repoFixture.Given(t, true).
+		When().
+		Path(path).
+		Project("argo-project").
+		Create().
+		Then().
+		And(func(r *Repository, err error) {
+			assert.Equal(t, r.Repo, path)
+			assert.Equal(t, r.Project, "argo-project")
+		}).
+		When().
+		Delete().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, delete"))
 		})
 }
 
