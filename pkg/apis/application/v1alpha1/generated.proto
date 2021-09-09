@@ -409,6 +409,12 @@ message Cluster {
 
   // Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
   optional string project = 11;
+
+  // Labels for cluster secret metadata
+  map<string, string> labels = 12;
+
+  // Annotations for cluster secret metadata
+  map<string, string> annotations = 13;
 }
 
 // ClusterCacheInfo contains information about the cluster cache
