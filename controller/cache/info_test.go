@@ -44,7 +44,7 @@ var (
       - hostname: localhost`)
 
 	testIngress = strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -75,7 +75,7 @@ var (
       - ip: 107.178.210.11`)
 
 	testIngressWildCardPath = strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -106,7 +106,7 @@ var (
       - ip: 107.178.210.11`)
 
 	testIngressWithoutTls = strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -373,7 +373,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 
 func TestGetIngressInfoWithHost(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -409,7 +409,7 @@ func TestGetIngressInfoWithHost(t *testing.T) {
 }
 func TestGetIngressInfoNoHost(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -441,7 +441,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -469,7 +469,7 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 }
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -508,7 +508,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 }
 func TestExternalUrlWithNoSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
