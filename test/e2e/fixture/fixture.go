@@ -38,11 +38,12 @@ import (
 )
 
 const (
-	defaultApiServer     = "localhost:8080"
-	defaultAdminPassword = "password"
-	defaultAdminUsername = "admin"
-	testingLabel         = "e2e.argoproj.io"
-	ArgoCDNamespace      = "argocd-e2e"
+	defaultApiServer        = "localhost:8080"
+	defaultAdminPassword    = "password"
+	defaultAdminUsername    = "admin"
+	DefaultTestUserPassword = "password"
+	testingLabel            = "e2e.argoproj.io"
+	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -69,7 +70,7 @@ var (
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
 	adminUsername       string
-	adminPassword       string
+	AdminPassword       string
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -146,7 +147,7 @@ func init() {
 
 	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
-	adminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
+	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
@@ -154,23 +155,9 @@ func init() {
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
-	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
-	defer io.Close(closer)
-
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
-	CheckError(err)
-
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  sessionResponse.Token,
-		PlainText:  !tlsTestResult.TLS,
-	})
-	CheckError(err)
-
-	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
+
+	LoginAs(adminUsername)
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -194,6 +181,32 @@ func init() {
 		testsRun[scanner.Text()] = true
 	}
 
+}
+
+func loginAs(username, password string) {
+	closer, client, err := ArgoCDClientset.NewSessionClient()
+	CheckError(err)
+	defer io.Close(closer)
+
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	CheckError(err)
+	token = sessionResponse.Token
+
+	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+		Insecure:   true,
+		ServerAddr: apiServerAddress,
+		AuthToken:  token,
+		PlainText:  plainText,
+	})
+	CheckError(err)
+}
+
+func LoginAs(username string) {
+	password := DefaultTestUserPassword
+	if username == "admin" {
+		password = AdminPassword
+	}
+	loginAs(username, password)
 }
 
 func Name() string {
@@ -454,6 +467,9 @@ func EnsureCleanState(t *testing.T) {
 		cm.Data = map[string]string{}
 		return nil
 	})
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	LoginAs(adminUsername)
 
 	// reset gpg-keys config map
 	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
