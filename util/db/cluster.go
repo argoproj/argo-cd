@@ -269,9 +269,13 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	}
 	secret.Data = data
 
+	secret.Labels = c.Labels
+	secret.Annotations = c.Annotations
+
 	if secret.Annotations == nil {
 		secret.Annotations = make(map[string]string)
 	}
+
 	if c.RefreshRequestedAt != nil {
 		secret.Annotations[appv1.AnnotationKeyRefresh] = c.RefreshRequestedAt.Format(time.RFC3339)
 	} else {
@@ -323,6 +327,8 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		RefreshRequestedAt: refreshRequestedAt,
 		Shard:              shard,
 		Project:            string(s.Data["project"]),
+		Labels:             s.GetLabels(),
+		Annotations:        s.GetAnnotations(),
 	}
 	return &cluster, nil
 }
