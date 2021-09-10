@@ -2,12 +2,16 @@ package e2e
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 )
@@ -29,9 +33,6 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 }
 
 func TestClusterAdd(t *testing.T) {
-	SkipIfAlreadyRun(t)
-	defer RecordTestRun(t)
-
 	clusterFixture.
 		Given(t).
 		Project(ProjectName).
@@ -44,6 +45,90 @@ func TestClusterAdd(t *testing.T) {
 		AndCLIOutput(func(output string, err error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
 https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, GetVersions().ServerVersion, ProjectName), output)
+		})
+}
+
+func TestClusterAddPermissionDenied(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{}, "org-admin")
+
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		List().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, create"))
+		})
+}
+
+func TestClusterAddAllowed(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "create",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "clusters",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		List().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
+https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           %s`, GetVersions().ServerVersion, ProjectName), output)
+		})
+}
+
+func TestClusterListDenied(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "create",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		List().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, output, "SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT")
 		})
 }
 
