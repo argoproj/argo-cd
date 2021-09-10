@@ -69,6 +69,7 @@ argocd app [flags]
 * [argocd app actions](argocd_app_actions.md)	 - Manage Resource actions
 * [argocd app create](argocd_app_create.md)	 - Create an application
 * [argocd app delete](argocd_app_delete.md)	 - Delete an application
+* [argocd app delete-resource](argocd_app_delete-resource.md)	 - Delete resource in an application
 * [argocd app diff](argocd_app_diff.md)	 - Perform a diff against the target and live state.
 * [argocd app edit](argocd_app_edit.md)	 - Edit application
 * [argocd app get](argocd_app_get.md)	 - Get application details

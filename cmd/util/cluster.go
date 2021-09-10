@@ -55,7 +55,7 @@ func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
+func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -89,6 +89,8 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
 		},
+		Labels:      labels,
+		Annotations: annotations,
 	}
 
 	// Bearer token will preferentially be used for auth if present,

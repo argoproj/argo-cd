@@ -10,7 +10,7 @@ require (
 	github.com/argoproj/gitops-engine v0.4.1-0.20210901235433-33f542da003c
 	github.com/argoproj/pkg v0.9.1
 	github.com/bombsimon/logrusr v1.0.0
-	github.com/bradleyfalzon/ghinstallation v1.1.1
+	github.com/bradleyfalzon/ghinstallation/v2 v2.0.2
 	github.com/casbin/casbin v1.9.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
@@ -31,7 +31,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
-	github.com/google/go-cmp v0.5.4
+	github.com/google/go-cmp v0.5.6
 	github.com/google/go-jsonnet v0.17.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.1.2

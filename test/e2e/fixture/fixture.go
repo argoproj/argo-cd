@@ -392,7 +392,7 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 		}
 
 		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data[fmt.Sprintf("policy.csv")] = aclstr
+		cm.Data["policy.csv"] = aclstr
 
 		return nil
 	})
