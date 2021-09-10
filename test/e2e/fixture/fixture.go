@@ -79,6 +79,12 @@ var (
 
 type RepoURLType string
 
+type ACL struct {
+	Resource string
+	Action   string
+	Scope    string
+}
+
 const (
 	RepoURLTypeFile                 = "file"
 	RepoURLTypeHTTPS                = "https"
@@ -296,6 +302,11 @@ func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
 }
 
+// Convenience wrapper for updating argocd-cm-rbac
+func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
+}
+
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -368,6 +379,21 @@ func SetAccounts(accounts map[string][]string) {
 		for k, v := range accounts {
 			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
+		return nil
+	})
+}
+
+func SetPermissions(permissions []ACL, username string, roleName string) {
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		var aclstr string
+
+		for _, permission := range permissions {
+			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+		}
+
+		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr
+
 		return nil
 	})
 }
@@ -464,6 +490,12 @@ func EnsureCleanState(t *testing.T) {
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// reset rbac
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
 		return nil
 	})

@@ -38,6 +38,11 @@ func (a *Actions) Create() *Actions {
 	return a
 }
 
+func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
+	fixture.SetPermissions(permissions, a.context.name, roleName)
+	return a
+}
+
 func (a *Actions) Login() *Actions {
 	fixture.LoginAs(a.context.name)
 	return a
