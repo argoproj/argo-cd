@@ -44,7 +44,7 @@ var (
       - hostname: localhost`)
 
 	testIngress = strToUnstructured(`
-  apiVersion: networking.k8s.io/v1
+  apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -75,7 +75,7 @@ var (
       - ip: 107.178.210.11`)
 
 	testIngressWildCardPath = strToUnstructured(`
-  apiVersion: networking.k8s.io/v1
+  apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -106,7 +106,7 @@ var (
       - ip: 107.178.210.11`)
 
 	testIngressWithoutTls = strToUnstructured(`
-  apiVersion: networking.k8s.io/v1
+  apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -373,7 +373,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 
 func TestGetIngressInfoWithHost(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: networking.k8s.io/v1
+  apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -409,7 +409,7 @@ func TestGetIngressInfoWithHost(t *testing.T) {
 }
 func TestGetIngressInfoNoHost(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: networking.k8s.io/v1
+  apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
     name: helm-guestbook
