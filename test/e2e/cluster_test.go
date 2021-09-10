@@ -63,7 +63,6 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Server(KubernetesInternalAPIServerAddr).
 		When().
 		Create().
-		List().
 		Then().
 		AndCLIOutput(func(output string, err error) {
 			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, create"))
