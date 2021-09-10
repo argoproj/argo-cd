@@ -98,8 +98,8 @@ func TestClusterAddAllowed(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           %s`, GetVersions().ServerVersion, ProjectName), output)
+			assert.Equal(t, `SERVER                          NAME                      VERSION  STATUS      MESSAGE  PROJECT
+https://kubernetes.default.svc  test-cluster-add-allowed  1.18+    Successful           argo-project`, output)
 		})
 }
 
