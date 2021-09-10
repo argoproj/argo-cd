@@ -79,7 +79,7 @@ Since Contour Ingress supports only a single protocol per Ingress object, define
 
 Internal HTTP/HTTPS Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-http
@@ -102,7 +102,7 @@ spec:
 
 Internal gRPC Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-grpc
@@ -124,7 +124,7 @@ spec:
 
 External HTTPS SSO Callback Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-external-callback-http
@@ -178,7 +178,7 @@ In order to expose the Argo CD API server with a single ingress rule and hostnam
 must be used to passthrough TLS connections and terminate TLS at the Argo CD API server.
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
@@ -244,7 +244,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
 
 HTTP/HTTPS Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-http-ingress
@@ -269,7 +269,7 @@ spec:
 
 gRPC Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-grpc-ingress
@@ -379,7 +379,7 @@ spec:
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
 
 ```yaml
-  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.18 and older
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     annotations:
