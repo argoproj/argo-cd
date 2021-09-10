@@ -15,29 +15,13 @@ last-updated: 2021-06-07
 
 # Change the way application resources are identified
 
-This is a proposal to introduce using a hash value as application identifier
-in the application instance label. This will allow application names longer
-than 63 characters. As an additional goal, we propose to introduce a GUID as
-installation ID that will allow multiple Argo CD instances manage resources
-on the same cluster, without the need for manual reconfiguration.
+This is a proposal to introduce the tracking method settings that allows using
+an annotation as the application identifier instead of the application instance label.
+This will allow application names longer than 63 characters and solve issues caused by
+copying `app.kubernetes.io/instance` label. As an additional goal, we propose to introduce an
+installation ID that will allow multiple Argo CD instances to manage resources
+on the same cluster.
 
-## Open Questions [optional]
-
-The major open questions are:
-
-* Which hashing algorithm to use? The authors think that `SHA-1` and `FNV-1a`
-  are the best options on the table, with `FNV-1a` being the more performant
-  one and `SHA-1` being the one most resilient against collisions with a
-  compromise for speed. There is a pretty good comparison of non cryptographic
-  hash algorithms on Stack Exchange that suggests that `FNV-1a` might be more
-  than sufficient for our use-cases:
-  https://softwareengineering.stackexchange.com/a/145633
-
-* The proposal defines a stretch goal for allowing multiple Argo CD instances
-  to manage applications on the same cluster, without the need for changing
-  the _application instance label key_ of each installation. This change may
-  sound intrusive, but the authors think the benefits would outweigh the
-  disadvantages. 
 
 ## Summary
 
@@ -46,25 +30,27 @@ label_ to the name of the managing `Application` on all resources that are
 managed (i.e. reconciled from Git). The default label used is the well-known
 label `app.kubernetes.io/instance`.
 
-This proposal suggests to change the _value_ of this label to not use the
-literal application name, but instead use a value from a stable and reasonable
-collision free hash algorithm.
+This proposal suggests to introduce the `trackingMethod` setting that allows
+controlling how applicaton resources are identified and allows switching to
+using the annotation instead of `app.kubernetes.io/instance` label.
 
 ## Motivation
 
-The main motivation behind this change is the Kubernetes restriction for the
-maximum allowed length of label values, which no more than 63 characters.
+The main motivation behind this change is to solve the following known issues:
 
-In large scale installations, in order to build up an easy to understand and
-well-formed naming schemes for applications managed by Argo CD, people often
-hit the 63 character limit and need to define the naming scheme around this
-unnecessary limit.
+* The Kubernetes label value cannot be longer than 63 characters. In large scale
+  installations, in order to build up an easy to understand and
+  well-formed naming schemes for applications managed by Argo CD, people often
+  hit the 63 character limit and need to define the naming scheme around this
+  unnecessary limit.
 
-Furthermore, proposed changes such as described in
-https://github.com/argoproj/argo-cd/pull/6409
-would require the application names to include more implicit information
-(such as the application's source namespace), which will even add more
-characters to the application names.
+* Popular off-the-shelf Helm charts often add the `app.kubernetes.io/instance` label
+  to the generated resource manifests. This label confuses Argo CD and makes it think the
+  resource is managed by the application.
+
+* Kubernetes operators often create additional resources without creating owner reference
+  and copy the `app.kubernetes.io/instance` label from the application resource. This is
+  also confusing Argo CD and makes it think the resource is managed by the application.
 
 An additional motivation - while we're at touching at application instance
 label - is to improve the way how multiple Argo CD instances could manage
@@ -75,8 +61,7 @@ perform instance specific configuration.
 
 * Allow application names of more than 63 characters
 
-* Keep using a label to properly _select_ resources managed by an Application
-  using Kubernetes label selectors
+* Prevent confusion caused by copied/generated `app.kubernetes.io/instance` label
 
 * Keep having a human-readable way to identify resources that belong to a
   given Argo CD application
@@ -91,32 +76,32 @@ perform instance specific configuration.
 
 ## Proposal
 
-We propose to move from a _human-readable_ value to identify the resources of
-an application to a _machine-readable_ value of fixed length. For this purpose
-we propose to use a one-way hashing algorithm. The chosen algorithm should be
-_collision-free_ to a certain extent, but does not require to be _secure_ in a
-cryptographic evaluation.
+We propose introducing a new setting `trackingMethod` that allows to control
+how application resources are identified. The `trackingMethod` setting takes
+one of the following values:
 
-We further propose to add an _annotation_ to the managed resources, which will
-contain the plain text value of the application's name so that humans and other
-consumers of the resources will still be able to identify the application that
-is managing the resource. Annotations in Kubernetes don't suffer from the same
-length restrictions as labels, and can easily store about every possible
-application name that users might come up with.
+* `label` (default) - Argo CD keep using the `app.kubernetes.io/instance` label.
+* `annotation+label` - Argo CD keep adding `app.kubernetes.io/instance` but only
+  for informational purposes: label is not used for tracking, value is truncated if
+  longer than 63 characters. The `app.kubernetes.io/instance` annotation is used
+  to track application resources.
+* `annotation` - Argo CD uses the `app.kubernetes.io/instance` annotation to track
+  application resources.
 
-Furthermore, we may want to consider encoding a unique, persistant identifier
-of the Argo CD installation into the final hash value, e.g.
+The `app.kubernetes.io/instance` attribute values includes the application name,
+resources identifier it is applied to, and optionally the Argo CD installation ID:
 
-```
-value = hashFunc(installationIdentifier + "." + applicationName)
-```
+The application name allows to identify the application that manages the resource. The
+resource identifier prevents confusion if an operation copies the
+`app.kubernetes.io/instance` annotation to another resource. Finally optional
+installation ID allows separate two Argo CD instances that manages resources in the same cluster.
 
-This way, we could support multiple Argo CD instances managing applications on
-the same cluster _without_ the need for those installations to have their
-instance label name changed to a unique value in order to prevent a "split
-brain" scenario where multiple Argo CD instances claim ownership to given
-resources, which could potentially result in severe data loss (unintentinoal
-resource pruning).
+The `trackingMethod` setting should be available at the system level and the application level to
+allow the smooth transition from the old `app.kubernetes.io/instance` label to the new tracking method.
+Using the app leverl settings users will be able to first switch applications one by one to the new tracking method
+and prepare for the migration. Next system level setting can be changed to `annotation` or `annotation+label`
+and not-migrated applications can be configured to use `labels` using application level setting.
+
 
 ### Use cases
 
@@ -148,56 +133,30 @@ one in charge of a given resource.
 
 ### Implementation Details/Notes/Constraints [optional]
 
-#### Use a hash value for the application name
+#### Include resource identifies in the `app.kubernetes.io/instance` annotation
 
-* The application controller needs to be adapted to use the computed hash value
-  for determining whether the inspected resource is being managed by the
-  current application.
-
-* The used hash algorithm is _not required_ to be cryptographically secure, but
-  should be _reasonable resilient_ against collisions. It should also be
-  _reasonable fast_ in computing the hash.
-
-* The _application instance label_ on a managed resource should be set to the
-  hexa-decimal representation of the computed hash value for the application
-  name. What becomes the source for the hash's computation has yet to be
-  decided upon (see above).
-
-* Additionally, a new annotation should be introduced to managed resources.
-  This annotation will hold the _human readable_ representation of the name
-  of the application the resource belongs to. This annotation only serves an
-  informational purpose for humans, or other tools that need to determine
-  the name of the application that manages a given resource. This may seem
-  redundant at first, but we believe is a requirement for many users.
-
-For example, a managed resource could look like the following after this
-change has been implemented using `SHA-1` algorithm when the application's
-name is `some-application` and noted `installationIdentifier` isn't taken
-into account yet):
+The `app.kubernetes.io/instance` annotation might be accidently added or copied
+same as label. To prevent Argo CD confusion the annotation value should include
+the identifier of the resource annotation was applied to. The resource identifier
+includes the group, kind, namespace and name of the resource. It is proposed to use `;`
+to separate identifier from the application name.
 
 ```yaml
-apiVersion: v1
-Kind: Secret
+annotations:
+    app.kubernetes.io/instance: <application-name>;<group>/<kind>/<namespace>/<name>
+```
+
+Example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: some-secret
-  namespace: some-namespace
-  labels:
-    app.kubernetes.io/instance: 3fbe5782d494cc956140bc58386c971bf0e96fad
+  name: my-deployment
+  namespace: default
   annotations:
-    argo-cd.argoproj.io/application-name: some-application
+    app.kubernetes.io/instance: my-application;apps/Deployment/default/my-deployment
 ```
-
-The hash-value in the above `app.kubernetes.io/instance` label is simply the
-hexa-decimal representation of the SHA-1 value for `some-application`:
-
-```shell
-$ echo "some-application" | sha1sum
-3fbe5782d494cc956140bc58386c971bf0e96fad  -
-```
-
-For humans or consumers that need the application name, the application name
-is stored in clear text in an annotation. Suggestion for this annotation name
-would be `argo-cd.argoproj.io/application-name`.
 
 #### Allow multiple Argo CD instances manage applications on same cluster
 
@@ -215,18 +174,12 @@ form of a standard _GUID_.
 This GUID would be generated once by Argo CD upon startup, and is persisted in
 the Argo CD configuration, e.g. by storing it as `installationID` in the
 `argocd-cm` ConfigMap. The GUID of the installation would need to be encoded
-in some way in the resources managed by that Argo CD instance, and we do see
-two main possibilities to do so:
+in some way in the resources managed by that Argo CD instance.
 
-* Encode the GUID in the application name's hash value, e.g. (as noted above)
-  by concatenating the GUID with the application name before hashing it:
-
-  ```yaml
-  value = hashFunction(GUID + "." + applicationName)
-  ```
-
-  So, given a GUID of `61199294-412c-4e78-a237-3ebba6784fcd`, the previous
-  example for `some-application` would become:
+We suggest using a dedicated annotation to store the GUID and modify Argo CD so that it matches _both_, the app
+instance key and the GUID to determine whether a resource is managed by
+this Argo CD instance. Given above mentioned GUID, this may look like the
+following on a resource:
 
   ```yaml
   apiVersion: v1
@@ -234,75 +187,25 @@ two main possibilities to do so:
   metadata:
     name: some-secret
     namespace: some-namespace
-    labels:
-      app.kubernetes.io/instance: 1e2927872cdb73ec3c4010b8afeba2c4be1a92cb
     annotations:
-      argo-cd.argoproj.io/application-name: some-application
-  ```
-
-  To generate the hash manually (e.g. for selection of resources by label),
-  the user would have to take the GUID into account:
-
-  ```shell
-  $ echo "61199294-412c-4e78-a237-3ebba6784fcd.some-application" | sha1sum
-  1e2927872cdb73ec3c4010b8afeba2c4be1a92cb  -
-  ```
-
-* Use a dedicated label to store the GUID instead of encoding it in the
-  application name, and modify Argo CD so that it matches _both_, the app
-  instance key and the GUID to determine whether a resource is managed by
-  this Argo CD instance. Given above mentioned GUID, this may look like the
-  following on a resource:
-
-  ```yaml
-  apiVersion: v1
-  Kind: Secret
-  metadata:
-    name: some-secret
-    namespace: some-namespace
-    labels:
-      app.kubernetes.io/instance: 3fbe5782d494cc956140bc58386c971bf0e96fad
+      app.kubernetes.io/instance: my-application;/Secret/some-namespace/some-secret
       argo-cd.argoproj.io/installation-id: 61199294-412c-4e78-a237-3ebba6784fcd
-    annotations:
-      argo-cd.argoproj.io/application-name: some-application
   ```
 
-Both methods have their advantages and disadvantages. We would prefer to use
-the first approach and encode the GUID into the application name's hash, as
-this would not introduce a new label. However, when manually selecting the
-resources of any given application, the user would have to take this GUID
-into account when constructing the hash to use for selecting resources.
-
-### Detailed examples
+The user should be able to opt-out of this feature by setting the `installationID` to an empty string.
 
 ### Security Considerations
 
 We think this change will not have a direct impact on the security of Argo CD
 or the applications it manages. 
 
-One concern however is that when a user intentionally produces an application
-name whose hash will collide with another, existing application's hash. That
-may lead to the undesired deletion (pruning) of resources that do in fact
-belong to another application outside the adversaries control. However, this
-risk could be properly mitigated by permissions in the `AppProject`, since
-Argo CD will never prune resources that are not allowed for any specific
-Application.
-
 ### Risks and Mitigations
 
-The main risks from the authors' points of view are collisions in the hashes
-of application names. For example, if the strings `some-app` and `other-app`
-produce the same hash, this could result in undesired behavior, especially
-when unintentional. The mitigation for this is to chose a hashing algorithm
-with a high resilience against collisions.
-
-Another risk is that third party tools that need to map a managed resource
-in the cluster back to the managing application rely on the clear text value
-of the application instance label. These tools would have to be adapted to
-read the proposed annotation instead of the application instance label.
-
-We think that this may be a breaking change, however, the advantages outweigh
-the risks.
+The proposal assumes that user can keep adding `app.kubernetes.io/instance` label
+to be able to retrieve resources using `kubectl get -l app.kubernetes.io/instance=<application>` command.
+However, Argo CD is going to truncate the value of the label if it is longer than 63 characters. There is
+a small possibility that there are several applications with the same first 63 characters in the name. This
+should be clearly stated in documentation.
 
 ### Upgrade / Downgrade Strategy
 
@@ -344,13 +247,11 @@ metadata:
   name: some-secret
   namespace: some-namespace
   labels:
-    app.kubernetes.io/instance: 3fbe5782d494cc956140bc58386c971bf0e96fad
+    app.kubernetes.io/instance: some-application
   annotations:
-    argo-cd.argoproj.io/application-name: some-application
+    app.kubernetes.io/instance: my-application;/Secret/some-namespace/some-secret
+    argo-cd.argoproj.io/installation-id: 61199294-412c-4e78-a237-3ebba6784fcd
 ```
-
-This would be very similar to _renaming_ an application, as in the managed
-resources metadata would be modified in the cluster.
 
 On a rollback to a previous Argo CD version, this change would be reverted
 and the resource would look like the first shown example above.
@@ -359,39 +260,14 @@ and the resource would look like the first shown example above.
 
 We do see some drawbacks to this implementation:
 
-* The already mentioned possible backwards incompatibility with existing tools
-  that rely on reading the `app.kubernetes.io/instance` label to map back a
-  resource to its managing application.
-
 * This change would trigger a re-sync of each and every managed resource, which
   may result in unexpected heavy load on Argo CD and the cluster at upgrade
-  time.
-
-* People manually selecting resources from an application must create the
-  value for the label selector instead of just using the application name, e.g.
-  instead of
-
-  ```shell
-  kubectl get secrets -l app.kubernetes.io/instance=some-application --all-namespaces
-  ```
-
-  Something like the following needs to be constructed:
-
-  ```shell
-  kubectl get secrets -l app.kubernetes.io/instance=$(echo "some-application" | sha1sum | awk '{ print $1; }') --all-namespaces
-  ```
-
-* If we chose to also implement the GUID as application identifier, the GUID
-  token becomes a viable part of the _state_ and needs to be backed up as
-  part of any recovery procedures. Without this GUID, resources not anymore
-  existing in Git will not get pruned upon removal, thus becoming stale in
-  the cluster. A resource synced with a given GUID will only be ever removed
-  again if the GUID of the pruning instance is the same as at sync time.
+  time. The workaround is an ability to opt-out of this as a default and enable it
+  on application basis.
 
 ## Alternatives
 
 * Enabling application names longer than 63 characters could also be done
-  by having the _application instance label_ to become an annotation instead.
-  This is a much simpler solution, however, this would disable the possibility
-  to use label selectors for retrieving all resources managed by a given
-  application.
+  by using the hashed value of the application name and additional metadata as a label.
+  The disadvantage of this approach is that hash value is not human friendly. In particular,
+  it is difficult to retrieve application manifests using `kubectl get -l app.kubernetes.io/instance=<application>`.
