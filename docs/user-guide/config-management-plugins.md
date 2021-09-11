@@ -47,3 +47,9 @@ spec:
         - name: REV
           value: test-$ARGOCD_APP_REVISION
 ```
+
+## Example
+
+https://github.com/Jille/argocd-templatize provides a simple example of a tool that just renders a template engine over your YAML files.
+
+Note especially https://github.com/Jille/argocd-templatize/blob/master/kustomization.yaml which formally describes what changes are needed.
