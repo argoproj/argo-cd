@@ -134,6 +134,7 @@ func TestClusterListDenied(t *testing.T) {
 
 func TestClusterGet(t *testing.T) {
 	SkipIfAlreadyRun(t)
+	EnsureCleanState(t)
 	defer RecordTestRun(t)
 	output := FailOnErr(RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
 
