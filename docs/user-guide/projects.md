@@ -211,3 +211,30 @@ kind: ConfigMap
 Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
+
+## Project scoped Repositories and Clusters
+
+Project scoped clusters and repositories that can be managed by a developer who has access to the project. The only difference of project scoped repository/cluster is that it has project field with the project name it belongs to. Both repositories and clusters are stored as Kubernetes Secrets, so a new field could be stored as a Secret data key:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-example-apps
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  project: my-project1                                     # new project field
+  name: argocd-example-apps
+  url: https://github.com/argoproj/argocd-example-apps.git
+  username: ****
+  password: ****
+```
+The project scoped repository/cluster is automatically allowed in the project. This enables developers to allow new cluster/repository without modifying the project.
+The project scoped repository/cluster still can be used in other project but it has to be allowed by admin (as normal repository/cluster).
+If another team wants to add the same repository/cluster into a different project they would have to ask admin.
+
+####UI/CLI Changes
+Both User interface and CLI should get ability to optionally specify project. If project is specified than cluster/repository is considered project scoped:
+
+```argocd repo add --name stable https://charts.helm.sh/stable --type helm --project my-project```
