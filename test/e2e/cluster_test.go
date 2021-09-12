@@ -128,7 +128,7 @@ func TestClusterListDenied(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Equal(t, output, "SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT")
+			assert.Equal(t, output, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT")
 		})
 }
 
