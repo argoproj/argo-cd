@@ -39,7 +39,6 @@ func TestClusterAdd(t *testing.T) {
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
-		IgnoreErrors().
 		Create().
 		List().
 		Then().
@@ -63,6 +62,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
+		IgnoreErrors().
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
