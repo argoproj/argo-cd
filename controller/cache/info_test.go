@@ -441,7 +441,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -469,7 +469,7 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 }
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -508,7 +508,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 }
 func TestExternalUrlWithNoSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
