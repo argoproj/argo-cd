@@ -54,7 +54,9 @@ func (a *Actions) Create(args ...string) *Actions {
 	})
 
 	if err != nil {
-		log.Println(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))
+		if !a.ignoreErrors {
+			log.Fatalf(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))
+		}
 		a.lastError = errors.New(err.Error())
 	}
 

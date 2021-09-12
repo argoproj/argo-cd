@@ -39,6 +39,7 @@ func TestClusterAdd(t *testing.T) {
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
+		IgnoreErrors().
 		Create().
 		List().
 		Then().
