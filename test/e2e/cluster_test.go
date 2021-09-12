@@ -141,7 +141,6 @@ func TestClusterGet(t *testing.T) {
 	assert.Contains(t, output, "name: in-cluster")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
 	assert.Contains(t, output, fmt.Sprintf(`serverVersion: "%v"`, GetVersions().ServerVersion))
-
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)
