@@ -333,14 +333,10 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
 	}
-	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
 	}
 	scopes = oidcutil.GetScopesOrDefault(scopes)
-	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
-		scopes = append(scopes, oidc.ScopeOfflineAccess)
-	}
 	oauth2conf := oauth2.Config{
 		ClientID: clientID,
 		Scopes:   scopes,

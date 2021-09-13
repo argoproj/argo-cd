@@ -396,23 +396,6 @@ func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOpti
 	return c.AuthCodeURL(state, opts...)
 }
 
-// OfflineAccess returns whether or not 'offline_access' is a supported scope
-func OfflineAccess(scopes []string) bool {
-	if len(scopes) == 0 {
-		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
-		// one. If missing, assume that the provider follows the spec and has
-		// an "offline_access" scope.
-		return true
-	}
-	// See if scopes_supported has the "offline_access" scope.
-	for _, scope := range scopes {
-		if scope == gooidc.ScopeOfflineAccess {
-			return true
-		}
-	}
-	return false
-}
-
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
 // Returns either: "authorization_code" or "implicit"
 func InferGrantType(oidcConf *OIDCConfiguration) string {
