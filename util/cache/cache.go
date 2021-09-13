@@ -126,7 +126,6 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			for i := range opts {
 				opts[i](client)
 			}
-
 			return NewCache(NewRedisCache(client, defaultCacheExpiration)), nil
 		}
 		if redisAddress == "" {
@@ -134,7 +133,6 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		}
 
 		client := buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
-
 		for i := range opts {
 			opts[i](client)
 		}
