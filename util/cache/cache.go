@@ -122,7 +122,6 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
 			client := buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
-
 			for i := range opts {
 				opts[i](client)
 			}
