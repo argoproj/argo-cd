@@ -214,7 +214,38 @@ projectName: `proj-global-test` should be replaced with your own global project 
 
 ## Project scoped Repositories and Clusters
 
-Project scoped clusters and repositories that can be managed by a developer who has access to the project. The only difference of project scoped repository/cluster is that it has project field with the project name it belongs to. Both repositories and clusters are stored as Kubernetes Secrets, so a new field could be stored as a Secret data key:
+Normally, an ArgoCD admin creates a project and decides in advance which clusters and Git repositories
+it defines. However, this creates a problem in scenarios where a developer wants to add a repository or cluster
+after the initial creation of the project. This forces the developer to contact their ArgoCD admin again to update the project definition.
+
+It is possible to offer a self-service process for developers so that they can add a repository and/or cluster in a project on their own even after the initial creation of the project.
+
+For this purpose ArgoCD supports project-scoped repositories and clusters.
+
+To begin the process, ArgoCD admins must configure RBAC security to allow this self-service behavior.
+For example, to allow users to add project scoped repositories and admin would have to add
+the following RBAC rules:
+
+```
+p, proj:my-project:admin, repositories, create, my-project/*, allow
+p, proj:my-project:admin, repositories, delete, my-project/*, allow
+p, proj:my-project:admin, repositories, update, my-project/*, allow
+```
+
+This provides extra flexibility so that admins can have stricter rules. e.g.:
+
+```
+p, proj:my-project:admin, repositories, update, my-project/"https://github.my-company.com/*", allow
+```
+
+Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
+they have the correct credentials) can add them in an existing project either from the UI or the CLI.
+Both the User interface and the CLI have the ability to optionally specify a project. If a project is specified then the respective cluster/repository is considered project scoped:
+
+```argocd repo add --name stable https://charts.helm.sh/stable --type helm --project my-project```
+
+For the declarative setup both repositories and clusters are stored as Kubernetes Secrets, and so a new field is used to denote that this resource is project scoped:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -224,17 +255,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  project: my-project1                                     # new project field
+  project: my-project1                                     # Project scoped 
   name: argocd-example-apps
   url: https://github.com/argoproj/argocd-example-apps.git
   username: ****
   password: ****
 ```
-The project scoped repository/cluster is automatically allowed in the project. This enables developers to allow new cluster/repository without modifying the project.
-The project scoped repository/cluster still can be used in other project but it has to be allowed by admin (as normal repository/cluster).
-If another team wants to add the same repository/cluster into a different project they would have to ask admin.
 
-####UI/CLI Changes
-Both User interface and CLI should get ability to optionally specify project. If project is specified than cluster/repository is considered project scoped:
-
-```argocd repo add --name stable https://charts.helm.sh/stable --type helm --project my-project```
+All the examples above talk about Git repositories, but the same principles apply to clusters as well.
