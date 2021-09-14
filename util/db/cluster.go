@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 )
 
 var (
@@ -94,7 +95,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	clusterSecret, err = db.createSecret(ctx, common.LabelValueSecretTypeCluster, clusterSecret)
+	clusterSecret, err = db.createSecret(ctx, clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
@@ -281,6 +282,7 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	} else {
 		delete(secret.Annotations, appv1.AnnotationKeyRefresh)
 	}
+	addSecretMetadata(secret, common.LabelValueSecretTypeCluster)
 	return nil
 }
 
@@ -317,6 +319,19 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 			shard = pointer.Int64Ptr(int64(val))
 		}
 	}
+
+	// copy labels and annotations excluding system ones
+	labels := map[string]string{}
+	if s.Labels != nil {
+		labels = collections.CopyStringMap(s.Labels)
+		delete(labels, common.LabelKeySecretType)
+	}
+	annotations := map[string]string{}
+	if s.Annotations != nil {
+		annotations = collections.CopyStringMap(s.Annotations)
+		delete(annotations, common.AnnotationKeyManagedBy)
+	}
+
 	cluster := appv1.Cluster{
 		ID:                 string(s.UID),
 		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
@@ -327,8 +342,8 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		RefreshRequestedAt: refreshRequestedAt,
 		Shard:              shard,
 		Project:            string(s.Data["project"]),
-		Labels:             s.GetLabels(),
-		Annotations:        s.GetAnnotations(),
+		Labels:             labels,
+		Annotations:        annotations,
 	}
 	return &cluster, nil
 }
