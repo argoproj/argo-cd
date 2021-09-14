@@ -2,6 +2,7 @@ import {DataLoader, Tab, Tabs} from 'argo-ui';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -119,9 +120,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 title: 'More',
                 key: 'extension',
                 content: (
-                    <div>
+                    <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
                         <ExtensionComponent tree={tree} resource={state} />
-                    </div>
+                    </ErrorBoundary>
                 )
             });
         }
