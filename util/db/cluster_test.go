@@ -56,6 +56,28 @@ func Test_secretToCluster(t *testing.T) {
 	})
 }
 
+func TestClusterToSecret(t *testing.T) {
+	cluster := &appv1.Cluster{
+		Server:      "server",
+		Labels:      map[string]string{"test": "label"},
+		Annotations: map[string]string{"test": "annotation"},
+		Name:        "test",
+		Config:      v1alpha1.ClusterConfig{},
+		Project:     "project",
+		Namespaces:  []string{"default"},
+	}
+	s := &v1.Secret{}
+	err := clusterToSecret(cluster, s)
+	assert.NoError(t, err)
+
+	assert.Equal(t, []byte(cluster.Server), s.Data["server"])
+	assert.Equal(t, []byte(cluster.Name), s.Data["name"])
+	assert.Equal(t, []byte(cluster.Project), s.Data["project"])
+	assert.Equal(t, []byte("default"), s.Data["namespaces"])
+	assert.Equal(t, cluster.Annotations, s.Annotations)
+	assert.Equal(t, cluster.Labels, s.Labels)
+}
+
 func Test_secretToCluster_NoConfig(t *testing.T) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -70,8 +92,10 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	cluster, err := secretToCluster(secret)
 	assert.NoError(t, err)
 	assert.Equal(t, *cluster, v1alpha1.Cluster{
-		Name:   "test",
-		Server: "http://mycluster",
+		Name:        "test",
+		Server:      "http://mycluster",
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
 	})
 }
 

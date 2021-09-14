@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	math "math"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 )
 
@@ -1308,11 +1309,11 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 
-	if !reflect.DeepEqual(c.Annotations, other.Annotations) {
+	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
 		return false
 	}
 
-	if !reflect.DeepEqual(c.Labels, other.Labels) {
+	if !collections.StringMapsEqual(c.Labels, other.Labels) {
 		return false
 	}
 
