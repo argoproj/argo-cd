@@ -120,7 +120,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 title: 'More',
                 key: 'extension',
                 content: (
-                    <ErrorBoundary>
+                    <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
                         <ExtensionComponent tree={tree} resource={state} />
                     </ErrorBoundary>
                 )
