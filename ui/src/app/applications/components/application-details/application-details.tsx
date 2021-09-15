@@ -147,6 +147,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
 
+                            const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
+                            const renderCommitMessage = (message: string) =>
+                                message.split(/\s/).map(part =>
+                                    URL_REGEX.test(part) ? (
+                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                                            {part}{' '}
+                                        </a>
+                                    ) : (
+                                        part + ' '
+                                    )
+                                );
+
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -339,7 +351,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>Message:</div>
                                                                     <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                        <div className='application-details__commit-message'>{metadata.message}</div>
+                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
