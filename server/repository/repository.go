@@ -3,6 +3,9 @@ package repository
 import (
 	"fmt"
 	"reflect"
+	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -343,7 +346,8 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
+			difference, _ := argo.GetDifferentPathsBetweenStructs(existing, r)
+			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update; difference in keys \"%s\"", strings.Join(difference[:], ","))
 		}
 	}
 	if err != nil {
