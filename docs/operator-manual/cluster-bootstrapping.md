@@ -78,6 +78,8 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
+> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
+
 You can either sync via the UI, firstly filter by the correct label:
 
 ![Filter Apps](../assets/filter-apps.png)
