@@ -880,3 +880,15 @@ func Test_retrieveScopedRepositoriesWithNotProjectAssigned(t *testing.T) {
 	assert.Len(t, scopedRepos, 0)
 
 }
+
+func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
+
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{
+		Name: "SomeName",
+	}
+
+	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
+	assert.Equal(t, difference, []string{"Name"})
+
+}
