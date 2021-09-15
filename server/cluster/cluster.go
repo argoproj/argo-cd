@@ -3,6 +3,8 @@ package cluster
 import (
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -93,7 +95,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		} else if q.Upsert {
 			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
+			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
 		}
 	}
 	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{

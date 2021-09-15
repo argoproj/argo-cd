@@ -695,6 +695,15 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	return proj
 }
 
+func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string {
+	basicMsg := fmt.Sprintf("existing %s spec is different; use upsert flag to force update", entity)
+	difference, _ := GetDifferentPathsBetweenStructs(a, b)
+	if len(difference) == 0 {
+		return basicMsg
+	}
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+}
+
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	var difference []string
 	changelog, err := diff.Diff(a, b)
