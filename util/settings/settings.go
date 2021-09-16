@@ -521,16 +521,16 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
-func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
+func (mgr *SettingsManager) GetTrackingMethod() string {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return "", err
+		return "label"
 	}
 	trackingMethod := argoCDCM.Data[settingsAppIdTrackingMethodKey]
 	if trackingMethod == "" {
-		return "label", nil
+		return "label"
 	}
-	return trackingMethod, nil
+	return trackingMethod
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
