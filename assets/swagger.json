@@ -2081,6 +2081,37 @@
         }
       }
     },
+    "/api/v1/projects/{name}/detailed": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "GetDetailedProject returns a project that include project, global project and scoped resources by name",
+        "operationId": "ProjectService_GetDetailedProject",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectDetailedProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/events": {
       "get": {
         "tags": [
@@ -2863,6 +2894,12 @@
             "description": "HTTP/HTTPS proxy to access the repository.",
             "name": "proxy",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3605,6 +3642,9 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "passwordPattern": {
+          "type": "string"
+        },
         "plugins": {
           "type": "array",
           "items": {
@@ -3670,6 +3710,32 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "projectDetailedProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "clusters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Cluster"
+          }
+        },
+        "globalProjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        },
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
           }
         }
       }
@@ -5106,6 +5172,13 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "clusterResources": {
           "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
           "type": "boolean"
@@ -5119,6 +5192,13 @@
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
         },
+        "labels": {
+          "type": "object",
+          "title": "Labels for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
           "type": "string",
           "title": "Name of the cluster. If omitted, will use the server address"
@@ -5129,6 +5209,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity"
         },
         "refreshRequestedAt": {
           "$ref": "#/definitions/v1Time"
@@ -5845,6 +5929,10 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
         },
         "proxy": {
           "type": "string",

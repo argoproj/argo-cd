@@ -490,7 +490,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				Repo:      r.Repository,
-				Name:      u.Host,
+				Name:      r.Repository,
 				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
@@ -1231,14 +1231,18 @@ func populateKsonnetAppDetails(res *apiclient.RepoAppDetailsResponse, appPath st
 }
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, q *apiclient.RepoServerAppDetailsQuery) error {
-	var valueFiles []string
+	var selectedValueFiles []string
 
-	valueFiles, err := findHelmValueFilesInPath(appPath)
+	if q.Source.Helm != nil {
+		selectedValueFiles = q.Source.Helm.ValueFiles
+	}
+
+	availableValueFiles, err := findHelmValueFilesInPath(appPath)
 	if err != nil {
 		return err
 	}
 
-	res.Helm = &apiclient.HelmAppSpec{ValueFiles: valueFiles}
+	res.Helm = &apiclient.HelmAppSpec{ValueFiles: availableValueFiles}
 	var version string
 	if q.Source.Helm != nil {
 		if q.Source.Helm.Version != "" {
@@ -1258,7 +1262,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err := loadFileIntoIfExists(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
 		return err
 	}
-	params, err := h.GetParameters(valueFiles)
+	params, err := h.GetParameters(selectedValueFiles)
 	if err != nil {
 		return err
 	}

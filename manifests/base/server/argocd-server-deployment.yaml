@@ -136,6 +136,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.login.attempts.expiration
                 optional: true
+        - name: ARGOCD_SERVER_STATIC_ASSETS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.staticassets
+              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
               configMapKeyRef:

@@ -1,6 +1,15 @@
 # Changelog
 
-## v2.1.0 (Unreleased)
+## v2.1.1 (2021-08-25)
+
+### Bug Fixes
+
+- fix: password reset requirements (#7071)
+- fix: Custom Styles feature is broken (#7067)
+- fix(ui): Add State to props passed to Extensions (#7045)
+- fix: keep uid_entrypoint.sh for backward compatibility (#7047)
+
+## v2.1.0 (2021-08-20)
 
 > [Upgrade instructions](./docs/operator-manual/upgrading/2.0-2.1.md)
 

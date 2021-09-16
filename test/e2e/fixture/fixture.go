@@ -38,11 +38,12 @@ import (
 )
 
 const (
-	defaultApiServer     = "localhost:8080"
-	defaultAdminPassword = "password"
-	defaultAdminUsername = "admin"
-	testingLabel         = "e2e.argoproj.io"
-	ArgoCDNamespace      = "argocd-e2e"
+	defaultApiServer        = "localhost:8080"
+	defaultAdminPassword    = "password"
+	defaultAdminUsername    = "admin"
+	DefaultTestUserPassword = "password"
+	testingLabel            = "e2e.argoproj.io"
+	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -51,6 +52,8 @@ const (
 	submoduleParentDir = "submoduleParent.git"
 
 	GuestbookPath = "guestbook"
+
+	ProjectName = "argo-project"
 )
 
 const (
@@ -67,7 +70,7 @@ var (
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
 	adminUsername       string
-	adminPassword       string
+	AdminPassword       string
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -75,6 +78,12 @@ var (
 )
 
 type RepoURLType string
+
+type ACL struct {
+	Resource string
+	Action   string
+	Scope    string
+}
 
 const (
 	RepoURLTypeFile                 = "file"
@@ -86,6 +95,7 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
@@ -143,7 +153,7 @@ func init() {
 
 	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
-	adminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
+	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
@@ -151,23 +161,9 @@ func init() {
 	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
-	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
-	defer io.Close(closer)
-
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
-	CheckError(err)
-
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  sessionResponse.Token,
-		PlainText:  !tlsTestResult.TLS,
-	})
-	CheckError(err)
-
-	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
+
+	LoginAs(adminUsername)
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -191,6 +187,32 @@ func init() {
 		testsRun[scanner.Text()] = true
 	}
 
+}
+
+func loginAs(username, password string) {
+	closer, client, err := ArgoCDClientset.NewSessionClient()
+	CheckError(err)
+	defer io.Close(closer)
+
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	CheckError(err)
+	token = sessionResponse.Token
+
+	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+		Insecure:   true,
+		ServerAddr: apiServerAddress,
+		AuthToken:  token,
+		PlainText:  plainText,
+	})
+	CheckError(err)
+}
+
+func LoginAs(username string) {
+	password := DefaultTestUserPassword
+	if username == "admin" {
+		password = AdminPassword
+	}
+	loginAs(username, password)
 }
 
 func Name() string {
@@ -246,6 +268,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	// When Helm Repo has sub repos, this is the parent repo URL
+	case RepoURLTypeHelmParent:
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -275,6 +300,11 @@ func CreateSecret(username, password string) string {
 // Convenience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+}
+
+// Convenience wrapper for updating argocd-cm-rbac
+func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
 // Updates a given config map in argocd-e2e namespace
@@ -349,6 +379,21 @@ func SetAccounts(accounts map[string][]string) {
 		for k, v := range accounts {
 			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
+		return nil
+	})
+}
+
+func SetPermissions(permissions []ACL, username string, roleName string) {
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		var aclstr string
+
+		for _, permission := range permissions {
+			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+		}
+
+		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr
+
 		return nil
 	})
 }
@@ -433,6 +478,9 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
@@ -445,6 +493,15 @@ func EnsureCleanState(t *testing.T) {
 		cm.Data = map[string]string{}
 		return nil
 	})
+
+	// reset rbac
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	LoginAs(adminUsername)
 
 	// reset gpg-keys config map
 	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {

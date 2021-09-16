@@ -115,6 +115,7 @@ const config = {
         port: 4000,
         host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
         proxy: {
+            '/extensions': proxyConf,
             '/api': proxyConf,
             '/auth': proxyConf,
             '/swagger-ui': proxyConf,
