@@ -880,3 +880,37 @@ func Test_retrieveScopedRepositoriesWithNotProjectAssigned(t *testing.T) {
 	assert.Len(t, scopedRepos, 0)
 
 }
+
+func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
+
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{
+		Name: "SomeName",
+	}
+
+	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
+	assert.Equal(t, difference, []string{"Name"})
+
+}
+
+func Test_GenerateSpecIsDifferentErrorMessageWithNoDiff(t *testing.T) {
+
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{}
+
+	msg := GenerateSpecIsDifferentErrorMessage("application", r1, r2)
+	assert.Equal(t, msg, "existing application spec is different; use upsert flag to force update")
+
+}
+
+func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
+
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{
+		Name: "test",
+	}
+
+	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
+	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
+
+}
