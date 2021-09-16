@@ -273,6 +273,8 @@ const (
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
+	// settingsAppIdTrackingMethodKey is the key to configure injected app instance label key
+	settingsAppIdTrackingMethodKey = "application.appIdTrackingMethodKey"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
@@ -517,6 +519,18 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil
+}
+
+func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	trackingMethod := argoCDCM.Data[settingsAppIdTrackingMethodKey]
+	if trackingMethod == "" {
+		return "label", nil
+	}
+	return trackingMethod, nil
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {

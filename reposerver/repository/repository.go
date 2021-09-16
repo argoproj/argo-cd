@@ -770,9 +770,16 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppName)
-				if err != nil {
-					return nil, err
+				if q.TrackingMethod == "annotation" {
+					err = argokube.SetAppInstanceAnnotation(target, q.AppLabelKey, q.AppName)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppName)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)

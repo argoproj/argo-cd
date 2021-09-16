@@ -258,6 +258,14 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
+// TODO: Move to kube.go
+func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
+	if annotations := un.GetAnnotations(); annotations != nil {
+		return annotations[key]
+	}
+	return ""
+}
+
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[server]
@@ -285,6 +293,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
+	trackingMethod := "annotation"
+
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
@@ -295,9 +305,17 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
-			appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
-			if isRoot && appName != "" {
-				res.AppName = appName
+
+			if trackingMethod == "annotation" {
+				appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+				if isRoot && appName != "" {
+					res.AppName = appName
+				}
+			} else {
+				appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+				if isRoot && appName != "" {
+					res.AppName = appName
+				}
 			}
 			gvk := un.GroupVersionKind()
 
