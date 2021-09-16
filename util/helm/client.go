@@ -47,7 +47,7 @@ type indexCache interface {
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string) (string, io.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
 	TestHelmOCI() (bool, error)
 }
@@ -117,7 +117,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(c.getCachedChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
@@ -193,7 +193,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 				return "", nil, err
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
 				return "", nil, err
 			}

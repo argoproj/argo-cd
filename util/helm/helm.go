@@ -37,19 +37,20 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string) (Helm, error) {
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, passCredentials bool) (Helm, error) {
 	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
 		return nil, err
 	}
 	cmd.IsLocal = isLocal
 
-	return &helm{repos: repos, cmd: *cmd}, nil
+	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials}, nil
 }
 
 type helm struct {
-	cmd   Cmd
-	repos []HelmRepository
+	cmd             Cmd
+	repos           []HelmRepository
+	passCredentials bool
 }
 
 var _ Helm = &helm{}
@@ -90,7 +91,7 @@ func (h *helm) DependencyBuild() error {
 				}
 			}
 		} else {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 
 			if err != nil {
 				return err

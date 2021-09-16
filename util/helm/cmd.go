@@ -141,7 +141,7 @@ func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", err
@@ -192,6 +192,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		args = append(args, "--key-file", keyFile.Name())
 	}
 
+	if c.helmPassCredentialsSupported && passCredentials {
+		args = append(args, "--pass-credentials")
+	}
+
 	args = append(args, name, url)
 
 	return c.run(args...)
@@ -213,7 +217,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{c.pullCommand, "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -248,6 +252,9 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		}
 		defer io.Close(closer)
 		args = append(args, "--key-file", filePath)
+	}
+	if passCredentials && c.helmPassCredentialsSupported {
+		args = append(args, "--pass-credentials")
 	}
 
 	return c.run(args...)
