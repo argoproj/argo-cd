@@ -29,7 +29,6 @@ func Test_ReconnectCallbackHookNotCalled(t *testing.T) {
 	hook := NewArgoRedisHook(func() {
 		called = true
 	})
-
 	cmd := &redis.StringCmd{}
 	cmd.SetErr(errors.New("Something wrong"))
 
