@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/r3labs/diff"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -691,4 +693,25 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
 
 	return proj
+}
+
+func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string {
+	basicMsg := fmt.Sprintf("existing %s spec is different; use upsert flag to force update", entity)
+	difference, _ := GetDifferentPathsBetweenStructs(a, b)
+	if len(difference) == 0 {
+		return basicMsg
+	}
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+}
+
+func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
+	var difference []string
+	changelog, err := diff.Diff(a, b)
+	if err != nil {
+		return nil, err
+	}
+	for _, changeItem := range changelog {
+		difference = append(difference, changeItem.Path...)
+	}
+	return difference, nil
 }
