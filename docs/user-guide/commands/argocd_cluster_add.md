@@ -9,6 +9,7 @@ argocd cluster add CONTEXT [flags]
 ### Options
 
 ```
+      --annotation stringArray             Set metadata annotations (e.g. --annotation key=value)
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
@@ -20,8 +21,10 @@ argocd cluster add CONTEXT [flags]
   -h, --help                               help for add
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)
       --kubeconfig string                  use a particular kubeconfig file
+      --label stringArray                  Set metadata labels (e.g. --label key=value)
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
+      --project string                     project of the cluster
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")

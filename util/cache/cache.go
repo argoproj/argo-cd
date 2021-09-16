@@ -31,6 +31,43 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
+func buildRedisClient(redisAddress, password string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+	opts := &redis.Options{
+		Addr:       redisAddress,
+		Password:   password,
+		DB:         redisDB,
+		MaxRetries: maxRetries,
+		TLSConfig:  tlsConfig,
+	}
+
+	client := redis.NewClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
+	})))
+
+	return client
+}
+
+func buildFailoverRedisClient(sentinelMaster, password string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+	opts := &redis.FailoverOptions{
+		MasterName:    sentinelMaster,
+		SentinelAddrs: sentinelAddresses,
+		DB:            redisDB,
+		Password:      password,
+		MaxRetries:    maxRetries,
+		TLSConfig:     tlsConfig,
+	}
+
+	client := redis.NewFailoverClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+	})))
+
+	return client
+}
+
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	redisAddress := ""
@@ -84,14 +121,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		password := os.Getenv(envRedisPassword)
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
-			client := redis.NewFailoverClient(&redis.FailoverOptions{
-				MasterName:    sentinelMaster,
-				SentinelAddrs: sentinelAddresses,
-				DB:            redisDB,
-				Password:      password,
-				MaxRetries:    maxRetries,
-				TLSConfig:     tlsConfig,
-			})
+			client := buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 			for i := range opts {
 				opts[i](client)
 			}
@@ -101,13 +131,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := redis.NewClient(&redis.Options{
-			Addr:       redisAddress,
-			Password:   password,
-			DB:         redisDB,
-			MaxRetries: maxRetries,
-			TLSConfig:  tlsConfig,
-		})
+		client := buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
 		for i := range opts {
 			opts[i](client)
 		}

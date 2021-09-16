@@ -99,6 +99,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled: userLoginsDisabled,
 		KustomizeVersions:  kustomizeVersions,
 		UiCssURL:           argoCDSettings.UiCssURL,
+		PasswordPattern:    argoCDSettings.PasswordPattern,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

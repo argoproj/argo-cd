@@ -133,6 +133,43 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
+	testIngressNetworkingV1 = strToUnstructured(`
+  apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      service:
+        name: not-found-service
+        port:
+          number: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                number: 443
+          path: /
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                name: https
+          path: /
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
 	testIstioVirtualService = strToUnstructured(`
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -255,27 +292,35 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 }
 
 func TestGetIngressInfo(t *testing.T) {
-	info := &ResourceInfo{}
-	populateNodeInfo(testIngress, info)
-	assert.Equal(t, 0, len(info.Info))
-	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
-	})
-	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
-		TargetRefs: []v1alpha1.ResourceRef{{
-			Namespace: "default",
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
-		}, {
-			Namespace: "default",
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
-		}},
-		ExternalURLs: []string{"https://helm-guestbook.com/"},
-	}, info.NetworkingInfo)
+	var tests = []struct {
+		Ingress *unstructured.Unstructured
+	}{
+		{testIngress},
+		{testIngressNetworkingV1},
+	}
+	for _, tc := range tests {
+		info := &ResourceInfo{}
+		populateNodeInfo(tc.Ingress, info)
+		assert.Equal(t, 0, len(info.Info))
+		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+		})
+		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+			Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+			TargetRefs: []v1alpha1.ResourceRef{{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "not-found-service",
+			}, {
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			}},
+			ExternalURLs: []string{"https://helm-guestbook.com/"},
+		}, info.NetworkingInfo)
+	}
 }
 
 func TestGetIngressInfoWildCardPath(t *testing.T) {
@@ -396,7 +441,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -424,7 +469,7 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 }
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -463,7 +508,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 }
 func TestExternalUrlWithNoSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
