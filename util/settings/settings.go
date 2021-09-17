@@ -524,12 +524,15 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 func (mgr *SettingsManager) GetTrackingMethod() string {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
+		log.Println("Tracking method: label")
 		return "label"
 	}
 	trackingMethod := argoCDCM.Data[settingsAppIdTrackingMethodKey]
 	if trackingMethod == "" {
+		log.Println("Tracking method: label")
 		return "label"
 	}
+	log.Println("Tracking method: " + trackingMethod)
 	return trackingMethod
 }
 
