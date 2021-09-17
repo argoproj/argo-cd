@@ -92,7 +92,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Name:  cookie.Name,
 			Value: "",
 		}
-
+		argocdCookie.ExpirationTime = time.Now().Add(time.Second * -10)
 		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/"))
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
