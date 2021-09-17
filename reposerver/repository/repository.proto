@@ -81,6 +81,7 @@ message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
     string appName = 5;
     bool noCache = 6;
+    bool noRevisionCache = 7;
 }
 
 // RepoAppDetailsResponse application details
