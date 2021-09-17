@@ -253,6 +253,7 @@ func TestValidateRepo(t *testing.T) {
 		Source:           &app.Spec.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		NoRevisionCache:  true,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	repo.Type = "git"
