@@ -258,7 +258,7 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
-// TODO: Move to kube.go
+// TODO: Remove after https://github.com/argoproj/gitops-engine/pull/330 get merged
 func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
 	if annotations := un.GetAnnotations(); annotations != nil {
 		return annotations[key]
@@ -307,7 +307,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
 			if trackingMethod == "annotation" {
-				appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+				appName := GetAppInstanceAnnotation(un, cacheSettings.appInstanceLabelKey)
 				if isRoot && appName != "" {
 					res.AppName = appName
 				}
