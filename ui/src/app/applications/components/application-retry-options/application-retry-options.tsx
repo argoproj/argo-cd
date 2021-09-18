@@ -25,7 +25,7 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
 const durationRegex = /T?([\d\.]+H)?([\d\.]+M)?([\d\.]+?S)?$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 
-export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi; initValues?: models.RetryStrategy}) => {
+export const ApplicationRetryOptions = ({formApi, initValues, field}: {formApi: FormApi; field?: string; initValues?: models.RetryStrategy}) => {
     const [retry, setRetry] = React.useState(!!initValues);
 
     const toggleRetry = (value: boolean) => {
@@ -52,7 +52,7 @@ export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi
             <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
             <label htmlFor='retry'>Retry</label>
             {retry && (
-                <NestedForm field='retryStrategy'>
+                <NestedForm field={field || 'retryStrategy'}>
                     <Form
                         defaultValues={{...initValues}}
                         validateError={values => {
