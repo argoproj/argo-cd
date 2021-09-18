@@ -222,7 +222,7 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                                                    <ApplicationRetryOptions formApi={api} />
+                                                    <ApplicationRetryOptions formApi={api} field='spec.syncPolicy.retry' />
                                                 </div>
                                             </div>
                                         );
