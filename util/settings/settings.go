@@ -331,6 +331,7 @@ type SettingsManager struct {
 	initContextCancel func()
 	reposCache        []Repository
 	repoCredsCache    []RepositoryCredentials
+	trackingMethod    string
 }
 
 type incompleteSettingsError struct {
@@ -521,19 +522,12 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
-func (mgr *SettingsManager) GetTrackingMethod() string {
+func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Println("Tracking method: label")
-		return "label"
+		return "", err
 	}
-	trackingMethod := argoCDCM.Data[settingsAppIdTrackingMethodKey]
-	if trackingMethod == "" {
-		log.Println("Tracking method: label")
-		return "label"
-	}
-	log.Println("Tracking method: " + trackingMethod)
-	return trackingMethod
+	return argoCDCM.Data[settingsAppIdTrackingMethodKey], nil
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {

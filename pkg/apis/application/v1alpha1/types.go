@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
@@ -72,6 +74,9 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+	// Project is a reference to the project this application belongs to.
+	// The empty string means that application belongs to the 'default' project.
+	TrackingMethod argo.TrackingMethod `json:"trackingMethod" protobuf:"bytes,8,name=project"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

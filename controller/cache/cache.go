@@ -105,7 +105,8 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterFilter func(cluster *appv1.Cluster) bool) LiveStateCache {
+	clusterFilter func(cluster *appv1.Cluster) bool,
+	trackingMethodUtil argo.TrackingMethodUtil) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -116,8 +117,9 @@ func NewLiveStateCache(
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
 		// The default limit of 50 is chosen based on experiments.
-		listSemaphore: semaphore.NewWeighted(50),
-		clusterFilter: clusterFilter,
+		listSemaphore:      semaphore.NewWeighted(50),
+		clusterFilter:      clusterFilter,
+		trackingMethodUtil: trackingMethodUtil,
 	}
 }
 
@@ -127,13 +129,14 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db              db.ArgoDB
-	appInformer     cache.SharedIndexInformer
-	onObjectUpdated ObjectUpdatedHandler
-	kubectl         kube.Kubectl
-	settingsMgr     *settings.SettingsManager
-	metricsServer   *metrics.MetricsServer
-	clusterFilter   func(cluster *appv1.Cluster) bool
+	db                 db.ArgoDB
+	appInformer        cache.SharedIndexInformer
+	onObjectUpdated    ObjectUpdatedHandler
+	kubectl            kube.Kubectl
+	settingsMgr        *settings.SettingsManager
+	metricsServer      *metrics.MetricsServer
+	clusterFilter      func(cluster *appv1.Cluster) bool
+	trackingMethodUtil argo.TrackingMethodUtil
 
 	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
@@ -266,6 +269,17 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string 
 	return ""
 }
 
+func (c *liveStateCache) getAppNameBaseOnTrackingMethod(un *unstructured.Unstructured, key string, trackingMethod argo.TrackingMethod) string {
+	switch trackingMethod {
+	case argo.TrackingMethodLabel:
+		return kube.GetAppInstanceLabel(un, key)
+	case argo.TrackingMethodAnnotation:
+		return GetAppInstanceAnnotation(un, key)
+	default:
+		return kube.GetAppInstanceLabel(un, key)
+	}
+}
+
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[server]
@@ -293,8 +307,6 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	trackingMethod := c.settingsMgr.GetTrackingMethod()
-
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
@@ -306,16 +318,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			if trackingMethod == "annotation" {
-				appName := GetAppInstanceAnnotation(un, cacheSettings.appInstanceLabelKey)
-				if isRoot && appName != "" {
-					res.AppName = appName
-				}
-			} else {
-				appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
-				if isRoot && appName != "" {
-					res.AppName = appName
-				}
+			trackingMethod := c.trackingMethodUtil.Get("", "")
+
+			appName := c.getAppNameBaseOnTrackingMethod(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			if isRoot && appName != "" {
+				res.AppName = appName
 			}
 			gvk := un.GroupVersionKind()
 
