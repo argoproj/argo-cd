@@ -261,25 +261,6 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
-// TODO: Remove after https://github.com/argoproj/gitops-engine/pull/330 get merged
-func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
-	if annotations := un.GetAnnotations(); annotations != nil {
-		return annotations[key]
-	}
-	return ""
-}
-
-func (c *liveStateCache) getAppNameBaseOnTrackingMethod(un *unstructured.Unstructured, key string, trackingMethod argo.TrackingMethod) string {
-	switch trackingMethod {
-	case argo.TrackingMethodLabel:
-		return kube.GetAppInstanceLabel(un, key)
-	case argo.TrackingMethodAnnotation:
-		return GetAppInstanceAnnotation(un, key)
-	default:
-		return kube.GetAppInstanceLabel(un, key)
-	}
-}
-
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[server]
@@ -318,9 +299,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			trackingMethod := c.trackingMethodUtil.Get("", "")
-
-			appName := c.getAppNameBaseOnTrackingMethod(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			appName := c.trackingMethodUtil.GetAppName(un, cacheSettings.appInstanceLabelKey)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

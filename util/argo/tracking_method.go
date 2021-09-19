@@ -1,6 +1,8 @@
 package argo
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -15,7 +17,7 @@ const (
 )
 
 type TrackingMethodUtil interface {
-	Get(appName, namespace string) TrackingMethod
+	GetAppName(un *unstructured.Unstructured, key string) string
 }
 
 type trackingMethodUtil struct {
@@ -32,7 +34,7 @@ func NewTrackingMethodUtil(
 	}
 }
 
-func (tmu *trackingMethodUtil) Get(appName, namespace string) TrackingMethod {
+func (tmu *trackingMethodUtil) get(appName, namespace string) TrackingMethod {
 	//obj, exists, err := tmu.appInformer.GetIndexer().GetByKey(namespace + "/" + appName)
 	//app, ok := obj.(*appv1.Application)
 	//if !exists && err != nil && !ok {
@@ -55,5 +57,24 @@ func (tmu *trackingMethodUtil) Get(appName, namespace string) TrackingMethod {
 		return TrackingMethodAnnotation
 	default:
 		return TrackingMethodAnnotationAndLabel
+	}
+}
+
+// TODO: Remove after https://github.com/argoproj/gitops-engine/pull/330 get merged
+func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
+	if annotations := un.GetAnnotations(); annotations != nil {
+		return annotations[key]
+	}
+	return ""
+}
+
+func (c *trackingMethodUtil) GetAppName(un *unstructured.Unstructured, key string) string {
+	switch c.get("", "") {
+	case TrackingMethodLabel:
+		return kube.GetAppInstanceLabel(un, key)
+	case TrackingMethodAnnotation:
+		return GetAppInstanceAnnotation(un, key)
+	default:
+		return kube.GetAppInstanceLabel(un, key)
 	}
 }

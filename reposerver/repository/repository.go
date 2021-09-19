@@ -770,6 +770,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
+
 				if q.TrackingMethod == "annotation" {
 					err = argokube.SetAppInstanceAnnotation(target, q.AppLabelKey, q.AppName)
 					if err != nil {
