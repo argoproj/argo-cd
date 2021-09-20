@@ -3,64 +3,39 @@ package argo
 import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/tools/cache"
-
-	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 )
 
-type TrackingMethod string
-
 const (
-	TrackingMethodAnnotation         TrackingMethod = "annotation"
-	TrackingMethodLabel              TrackingMethod = "label"
-	TrackingMethodAnnotationAndLabel TrackingMethod = "annotation+label"
+	TrackingMethodAnnotation         v1alpha1.TrackingMethod = "annotation"
+	TrackingMethodLabel              v1alpha1.TrackingMethod = "label"
+	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
 type ResourceTracking interface {
-	GetAppName(un *unstructured.Unstructured, key string) string
-	SetAppInstance(un *unstructured.Unstructured, key, val string) error
+	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
+	SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error
 }
 
 type resourceTracking struct {
-	appInformer cache.SharedIndexInformer
-	settingsMgr *settings.SettingsManager
 }
 
-func NewResourceTracking(
-	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager) ResourceTracking {
-	return &resourceTracking{
-		appInformer: appInformer,
-		settingsMgr: settingsMgr,
-	}
+func NewResourceTracking() ResourceTracking {
+	return &resourceTracking{}
 }
 
-func (rt *resourceTracking) get(appName, namespace string) TrackingMethod {
-	//obj, exists, err := tmu.appInformer.GetIndexer().GetByKey(namespace + "/" + appName)
-	//app, ok := obj.(*appv1.Application)
-	//if !exists && err != nil && !ok {
-	//	return TrackingMethodAnnotationAndLabel
-	//}
-	//
-	//if app.Spec.TrackingMethod != "" {
-	//	return app.Spec.TrackingMethod
-	//}
-
-	tm, err := rt.settingsMgr.GetTrackingMethod()
+func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
+	tm, err := settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return TrackingMethodAnnotationAndLabel
 	}
 
-	switch os := tm; os {
-	case "label":
-		return TrackingMethodLabel
-	case "annotation":
-		return TrackingMethodAnnotation
-	default:
-		return TrackingMethodAnnotationAndLabel
-	}
+	return ToTrackingMethod(tm)
 }
 
 // TODO: Remove after https://github.com/argoproj/gitops-engine/pull/330 get merged
@@ -71,8 +46,8 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string 
 	return ""
 }
 
-func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string) string {
-	switch rt.get("", "") {
+func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
+	switch trackingMethod {
 	case TrackingMethodLabel:
 		return kube.GetAppInstanceLabel(un, key)
 	case TrackingMethodAnnotation:
@@ -82,13 +57,24 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	}
 }
 
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string) error {
-	switch rt.get("", "") {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error {
+	switch trackingMethod {
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)
 	case TrackingMethodAnnotation:
 		return argokube.SetAppInstanceAnnotation(un, key, val)
 	default:
 		return argokube.SetAppInstanceLabel(un, key, val)
+	}
+}
+
+func ToTrackingMethod(trackingMethod string) v1alpha1.TrackingMethod {
+	switch os := trackingMethod; os {
+	case "label":
+		return TrackingMethodLabel
+	case "annotation":
+		return TrackingMethodAnnotation
+	default:
+		return TrackingMethodAnnotationAndLabel
 	}
 }

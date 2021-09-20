@@ -106,7 +106,7 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterFilter func(cluster *appv1.Cluster) bool,
-	trackingMethodUtil argo.TrackingMethodUtil) LiveStateCache {
+	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -117,9 +117,9 @@ func NewLiveStateCache(
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
 		// The default limit of 50 is chosen based on experiments.
-		listSemaphore:      semaphore.NewWeighted(50),
-		clusterFilter:      clusterFilter,
-		trackingMethodUtil: trackingMethodUtil,
+		listSemaphore:    semaphore.NewWeighted(50),
+		clusterFilter:    clusterFilter,
+		resourceTracking: resourceTracking,
 	}
 }
 
@@ -129,14 +129,14 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db                 db.ArgoDB
-	appInformer        cache.SharedIndexInformer
-	onObjectUpdated    ObjectUpdatedHandler
-	kubectl            kube.Kubectl
-	settingsMgr        *settings.SettingsManager
-	metricsServer      *metrics.MetricsServer
-	clusterFilter      func(cluster *appv1.Cluster) bool
-	trackingMethodUtil argo.TrackingMethodUtil
+	db               db.ArgoDB
+	appInformer      cache.SharedIndexInformer
+	onObjectUpdated  ObjectUpdatedHandler
+	kubectl          kube.Kubectl
+	settingsMgr      *settings.SettingsManager
+	metricsServer    *metrics.MetricsServer
+	clusterFilter    func(cluster *appv1.Cluster) bool
+	resourceTracking argo.ResourceTracking
 
 	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
@@ -288,6 +288,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
+	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
+
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
@@ -299,7 +301,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.trackingMethodUtil.GetAppName(un, cacheSettings.appInstanceLabelKey)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

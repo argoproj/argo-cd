@@ -773,7 +773,7 @@ func (s *Service) GenerateManifests(appPath, repoRoot, revision string, q *apicl
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = s.resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName)
+				err = s.resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, argo.ToTrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}
