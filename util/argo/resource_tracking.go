@@ -1,6 +1,9 @@
 package argo
 
 import (
+	"encoding/json"
+	"log"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -47,10 +50,16 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string 
 }
 
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
+	log.Println("Get app name, tracking method: " + trackingMethod)
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		return kube.GetAppInstanceLabel(un, key)
 	case TrackingMethodAnnotation:
+		log.Println("Choose annotation strategy")
+		un2, _ := json.Marshal(un)
+
+		log.Println("resource: " + string(un2))
+
 		return GetAppInstanceAnnotation(un, key)
 	default:
 		return kube.GetAppInstanceLabel(un, key)
@@ -58,6 +67,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 }
 
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error {
+	log.Println("Set app instance, tracking method: " + trackingMethod)
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)

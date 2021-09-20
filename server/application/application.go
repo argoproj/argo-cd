@@ -331,6 +331,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			KubeVersion:       serverVersion,
 			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 			HelmRepoCreds:     helmCreds,
+			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
 		})
 		return err
 	})
@@ -848,7 +849,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return err
 		}

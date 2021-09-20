@@ -278,7 +278,7 @@ func TestValidateRepo(t *testing.T) {
 		return true
 	})).Return(nil, nil)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups}, proj)
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups}, proj, nil)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)

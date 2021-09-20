@@ -307,6 +307,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			}
 			gvk := un.GroupVersionKind()
 
+			fmt.Println("Find app name " + appName)
+
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
 			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind

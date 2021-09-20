@@ -322,7 +322,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	var manifestGenResult *apiclient.ManifestResponse
 	ctx, err := ctxSrc()
 	if err == nil {
-		manifestGenResult, err = s.GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false)
+		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false)
 	}
 	if err != nil {
 
@@ -711,7 +711,7 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func (s *Service) GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -773,7 +773,7 @@ func (s *Service) GenerateManifests(appPath, repoRoot, revision string, q *apicl
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = s.resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, argo.ToTrackingMethod(q.TrackingMethod))
+				err = argo.NewResourceTracking().SetAppInstance(target, q.AppLabelKey, q.AppName, argo.ToTrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}
@@ -1178,7 +1178,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, res)
+		_ = s.cache.SetAppDetails(revision, q.Source, res, argo.TrackingMethodAnnotation)
 		return nil
 	}
 
@@ -1190,7 +1190,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ bool) (bool, error) {
 	return func(revision string, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, res)
+		err := s.cache.GetAppDetails(revision, q.Source, res, argo.TrackingMethodAnnotation)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil
