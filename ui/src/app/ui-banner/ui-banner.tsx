@@ -32,7 +32,7 @@ export const Banner = (props: React.Props<any>) => {
                 return (
                     <React.Fragment>
                         <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
-                            <div style={{marginRight: '15px'}}>
+                            <div className='ui-banner-text'>
                                 {url !== undefined ? (
                                     <a href={url} target='_blank' rel='noopener noreferrer'>
                                         {content}
@@ -41,10 +41,12 @@ export const Banner = (props: React.Props<any>) => {
                                     <React.Fragment>{content}</React.Fragment>
                                 )}
                             </div>
-                            <button className='argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
+                            <button className='ui-banner-button argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
                                 Dismiss for now
                             </button>
-                            <button className='argo-button argo-button--base' onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
+                            <button
+                                className='ui-banner-button argo-button argo-button--base'
+                                onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
                                 Don't show again
                             </button>
                         </div>
