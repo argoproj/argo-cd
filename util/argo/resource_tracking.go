@@ -5,6 +5,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -16,25 +18,26 @@ const (
 	TrackingMethodAnnotationAndLabel TrackingMethod = "annotation+label"
 )
 
-type TrackingMethodUtil interface {
+type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string) string
+	SetAppInstance(un *unstructured.Unstructured, key, val string) error
 }
 
-type trackingMethodUtil struct {
+type resourceTracking struct {
 	appInformer cache.SharedIndexInformer
 	settingsMgr *settings.SettingsManager
 }
 
-func NewTrackingMethodUtil(
+func NewResourceTracking(
 	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager) TrackingMethodUtil {
-	return &trackingMethodUtil{
+	settingsMgr *settings.SettingsManager) ResourceTracking {
+	return &resourceTracking{
 		appInformer: appInformer,
 		settingsMgr: settingsMgr,
 	}
 }
 
-func (tmu *trackingMethodUtil) get(appName, namespace string) TrackingMethod {
+func (rt *resourceTracking) get(appName, namespace string) TrackingMethod {
 	//obj, exists, err := tmu.appInformer.GetIndexer().GetByKey(namespace + "/" + appName)
 	//app, ok := obj.(*appv1.Application)
 	//if !exists && err != nil && !ok {
@@ -45,7 +48,7 @@ func (tmu *trackingMethodUtil) get(appName, namespace string) TrackingMethod {
 	//	return app.Spec.TrackingMethod
 	//}
 
-	tm, err := tmu.settingsMgr.GetTrackingMethod()
+	tm, err := rt.settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return TrackingMethodAnnotationAndLabel
 	}
@@ -68,13 +71,24 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string 
 	return ""
 }
 
-func (c *trackingMethodUtil) GetAppName(un *unstructured.Unstructured, key string) string {
-	switch c.get("", "") {
+func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string) string {
+	switch rt.get("", "") {
 	case TrackingMethodLabel:
 		return kube.GetAppInstanceLabel(un, key)
 	case TrackingMethodAnnotation:
 		return GetAppInstanceAnnotation(un, key)
 	default:
 		return kube.GetAppInstanceLabel(un, key)
+	}
+}
+
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string) error {
+	switch rt.get("", "") {
+	case TrackingMethodLabel:
+		return argokube.SetAppInstanceLabel(un, key, val)
+	case TrackingMethodAnnotation:
+		return argokube.SetAppInstanceAnnotation(un, key, val)
+	default:
+		return argokube.SetAppInstanceLabel(un, key, val)
 	}
 }
