@@ -112,6 +112,7 @@ type ApplicationController struct {
 	metricsServer                 *metrics.MetricsServer
 	kubectlSemaphore              *semaphore.Weighted
 	clusterFilter                 func(cluster *appv1.Cluster) bool
+	projByNameCache               sync.Map
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -151,6 +152,7 @@ func NewApplicationController(
 		settingsMgr:                   settingsMgr,
 		selfHealTimeout:               selfHealTimeout,
 		clusterFilter:                 clusterFilter,
+		projByNameCache:               sync.Map{},
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -163,16 +165,19 @@ func NewApplicationController(
 		AddFunc: func(obj interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
+				ctrl.InvalidateProjectsCache()
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
+				ctrl.InvalidateProjectsCache()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
+				ctrl.InvalidateProjectsCache()
 			}
 		},
 	})
@@ -199,6 +204,13 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func (ctrl *ApplicationController) InvalidateProjectsCache() {
+	ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+		ctrl.projByNameCache.Delete(key)
+		return true
+	})
 }
 
 func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
@@ -230,8 +242,35 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 		gvk.Kind == application.ApplicationKind
 }
 
+func (ctrl *ApplicationController) newAppProjCache(name string) *appProjCache {
+	return &appProjCache{name: name, ctrl: ctrl}
+}
+
+type appProjCache struct {
+	name string
+	ctrl *ApplicationController
+
+	lock    sync.Mutex
+	appProj *appv1.AppProject
+}
+
+func (projCache *appProjCache) GetAppProject(ctx context.Context) (*appv1.AppProject, error) {
+	projCache.lock.Lock()
+	defer projCache.lock.Unlock()
+	if projCache.appProj != nil {
+		return projCache.appProj, nil
+	}
+	proj, err := argo.GetAppProjectByName(projCache.name, applisters.NewAppProjectLister(projCache.ctrl.projInformer.GetIndexer()), projCache.ctrl.namespace, projCache.ctrl.settingsMgr, projCache.ctrl.db, ctx)
+	if err != nil {
+		return nil, err
+	}
+	projCache.appProj = proj
+	return projCache.appProj, nil
+}
+
 func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	return argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, context.TODO())
+	projCache, _ := ctrl.projByNameCache.LoadOrStore(app.Spec.GetProject(), ctrl.newAppProjCache(app.Spec.GetProject()))
+	return projCache.(*appProjCache).GetAppProject(context.TODO())
 }
 
 func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
