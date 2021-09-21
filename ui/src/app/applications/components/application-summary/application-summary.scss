@@ -68,5 +68,10 @@
             padding-left: 0;
             padding-right: 10px;
         }
+
+        .argo-form-row__error-msg {
+            position: static;
+            line-height: 1;
+        }
     }
 }
