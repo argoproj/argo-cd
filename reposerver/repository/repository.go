@@ -715,6 +715,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
+	resourceTracking := argo.NewResourceTracking()
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err
@@ -773,7 +774,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = argo.NewResourceTracking().SetAppInstance(target, q.AppLabelKey, q.AppName, v1alpha1.TrackingMethod(q.TrackingMethod))
+				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}

@@ -159,7 +159,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("version_ms")
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              repo,
 		Repos:             permittedHelmRepos,
@@ -176,7 +175,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
-		TrackingMethod:    string(trackingMethod),
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err

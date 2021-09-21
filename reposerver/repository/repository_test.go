@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,7 +72,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -138,7 +140,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := service.GenerateManifests("./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -927,13 +929,11 @@ func TestRunCustomTool(t *testing.T) {
 }
 
 func TestGenerateFromUTF16(t *testing.T) {
-	service := newService("./testdata")
-
 	q := apiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := service.GenerateManifests("./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

@@ -415,6 +415,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
+				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			})
 			return err
 		}); err != nil {

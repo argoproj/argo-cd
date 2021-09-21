@@ -72,9 +72,6 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
-	// Project is a reference to the project this application belongs to.
-	// The empty string means that application belongs to the 'default' project.
-	TrackingMethod TrackingMethod `json:"trackingMethod" protobuf:"bytes,8,name=project"`
 }
 
 type TrackingMethod string

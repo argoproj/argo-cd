@@ -5038,10 +5038,6 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
-        },
-        "trackingMethod": {
-          "description": "Project is a reference to the project this application belongs to.\nThe empty string means that application belongs to the 'default' project.",
-          "type": "string"
         }
       }
     },

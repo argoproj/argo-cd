@@ -104,19 +104,19 @@ func TestCache_GetAppDetails(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	value := &apiclient.RepoAppDetailsResponse{}
-	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, value)
+	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, value, "")
 	assert.Equal(t, ErrCacheMiss, err)
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
-	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, res)
+	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, res, "")
 	assert.NoError(t, err)
 	//cache miss
-	err = cache.GetAppDetails("other-revision", &ApplicationSource{}, value)
+	err = cache.GetAppDetails("other-revision", &ApplicationSource{}, value, "")
 	assert.Equal(t, ErrCacheMiss, err)
 	//cache miss
-	err = cache.GetAppDetails("my-revision", &ApplicationSource{Path: "other-path"}, value)
+	err = cache.GetAppDetails("my-revision", &ApplicationSource{Path: "other-path"}, value, "")
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, value)
+	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, value, "")
 	assert.NoError(t, err)
 	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
 }
