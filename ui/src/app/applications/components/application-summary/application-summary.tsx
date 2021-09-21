@@ -250,10 +250,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'RETRY OPTIONS',
-            view: (<ApplicationRetryView initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null}/>),
+            view: <ApplicationRetryView initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} />,
             edit: () => (
                 <div>
-                    <ApplicationRetryForm initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field="spec.syncPolicy.retry" />
+                    <ApplicationRetryForm initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field='spec.syncPolicy.retry' />
                 </div>
             )
         },

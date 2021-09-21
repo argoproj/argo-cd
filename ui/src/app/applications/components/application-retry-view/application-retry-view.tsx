@@ -3,11 +3,14 @@ import * as models from '../../../shared/models';
 
 require('./application-retry-view.scss');
 
-
 function buildRetryOptionView(label: string, data: string | number) {
-    const result = data || 'not installed'
+    const result = data || 'not installed';
 
-    return <div className="application-retry-option-view-list__item">{label} - {result}</div>
+    return (
+        <div className='application-retry-option-view-list__item'>
+            {label} - {result}
+        </div>
+    );
 }
 
 const retryOptionsView: Array<(initData: models.RetryStrategy) => React.ReactNode> = [
@@ -17,14 +20,7 @@ const retryOptionsView: Array<(initData: models.RetryStrategy) => React.ReactNod
     initData => buildRetryOptionView('Factor', initData?.backoff.factor)
 ];
 
-
 export const ApplicationRetryView = ({initValues}: {initValues?: models.RetryStrategy}) => {
-    const result  = !initValues ? 'Retry not installed' : retryOptionsView.map((render, i) => (render(initValues)))
-    return (
-            <div className="application-retry-option-view-list">
-                {result}
-            </div>
-    )
-}
-
-
+    const result = !initValues ? 'Retry not installed' : retryOptionsView.map((render, i) => render(initValues));
+    return <div className='application-retry-option-view-list'>{result}</div>;
+};
