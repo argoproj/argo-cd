@@ -325,10 +325,11 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex             *sync.Mutex
-	initContextCancel func()
-	reposCache        []Repository
-	repoCredsCache    []RepositoryCredentials
+	mutex                 *sync.Mutex
+	initContextCancel     func()
+	reposCache            []Repository
+	repoCredsCache        []RepositoryCredentials
+	reposOrClusterChanged func()
 }
 
 type incompleteSettingsError struct {
@@ -355,6 +356,12 @@ type ArgoCDDiffOptions struct {
 
 func (e *incompleteSettingsError) Error() string {
 	return e.message
+}
+
+func (mgr *SettingsManager) onRepoOrClusterChanged() {
+	if mgr.reposOrClusterChanged != nil {
+		go mgr.reposOrClusterChanged()
+	}
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
@@ -958,6 +965,13 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			mgr.invalidateCache()
+			mgr.onRepoOrClusterChanged()
+		},
+		AddFunc: func(obj interface{}) {
+			mgr.onRepoOrClusterChanged()
+		},
+		DeleteFunc: func(obj interface{}) {
+			mgr.onRepoOrClusterChanged()
 		},
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
@@ -1300,14 +1314,25 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 
 }
 
+type SettingsManagerOpts func(mgs *SettingsManager)
+
+func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
+	return func(mgr *SettingsManager) {
+		mgr.reposOrClusterChanged = handler
+	}
+}
+
 // NewSettingsManager generates a new SettingsManager pointer and returns it
-func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
+func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,
 		namespace: namespace,
 		mutex:     &sync.Mutex{},
+	}
+	for i := range opts {
+		opts[i](mgr)
 	}
 
 	return mgr
