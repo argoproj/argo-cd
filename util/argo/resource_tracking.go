@@ -34,7 +34,7 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 		return TrackingMethodAnnotationAndLabel
 	}
 
-	return ToTrackingMethod(tm)
+	return v1alpha1.TrackingMethod(tm)
 }
 
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
@@ -56,16 +56,5 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		return argokube.SetAppInstanceAnnotation(un, key, val)
 	default:
 		return argokube.SetAppInstanceLabel(un, key, val)
-	}
-}
-
-func ToTrackingMethod(trackingMethod string) v1alpha1.TrackingMethod {
-	switch os := trackingMethod; os {
-	case "label":
-		return TrackingMethodLabel
-	case "annotation":
-		return TrackingMethodAnnotation
-	default:
-		return TrackingMethodAnnotationAndLabel
 	}
 }
