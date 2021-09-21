@@ -332,7 +332,6 @@ type SettingsManager struct {
 	reposCache            []Repository
 	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
-	trackingMethod    string
 }
 
 type incompleteSettingsError struct {
