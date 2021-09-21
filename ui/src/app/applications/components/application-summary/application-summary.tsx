@@ -11,7 +11,7 @@ import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
-import { ApplicationRetryOptions } from '../application-retry-options/application-retry-options';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 
 require('./application-summary.scss');
 
@@ -246,14 +246,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
                 </div>
             )
-        }, 
+        },
         {
             title: 'RETRY OPTIONS',
-            view: (
-                <div>
-                 test
-                </div>
-            ),
+            view: <div>test</div>,
             edit: (formApi: FormApi) => (
                 <div>
                     <ApplicationRetryOptions formApi={formApi} initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} />
