@@ -102,9 +102,21 @@ func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string
 	}
 	annotations[key] = val
 	target.SetAnnotations(annotations)
-	if key != common.LabelKeyLegacyApplicationName {
-		// we no longer label the pod template sub resources in v0.11
-		return nil
-	}
 	return nil
+}
+
+// GetAppInstanceAnnotation returns the application instance name from annotation
+func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) string {
+	if annotations := un.GetAnnotations(); annotations != nil {
+		return annotations[key]
+	}
+	return ""
+}
+
+// GetAppInstanceLabel returns the application instance name from labels
+func GetAppInstanceLabel(un *unstructured.Unstructured, key string) string {
+	if labels := un.GetLabels(); labels != nil {
+		return labels[key]
+	}
+	return ""
 }
