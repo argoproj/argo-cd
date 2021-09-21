@@ -110,10 +110,14 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
 
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			var appController *controller.ApplicationController
+
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace, settings.WithRepoOrClusterChangedHandler(func() {
+				appController.InvalidateProjectsCache()
+			}))
 			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter()
-			appController, err := controller.NewApplicationController(
+			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
 				kubeClient,
