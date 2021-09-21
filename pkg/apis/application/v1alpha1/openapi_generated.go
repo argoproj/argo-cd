@@ -1078,8 +1078,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"trackingMethod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Project is a reference to the project this application belongs to. The empty string means that application belongs to the 'default' project.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"source", "destination", "project"},
+				Required: []string{"source", "destination", "project", "trackingMethod"},
 			},
 		},
 		Dependencies: []string{

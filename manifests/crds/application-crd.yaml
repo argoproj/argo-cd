@@ -791,10 +791,16 @@ spec:
                       type: string
                     type: array
                 type: object
+              trackingMethod:
+                description: Project is a reference to the project this application
+                  belongs to. The empty string means that application belongs to the
+                  'default' project.
+                type: string
             required:
             - destination
             - project
             - source
+            - trackingMethod
             type: object
           status:
             description: ApplicationStatus contains status information for the application
