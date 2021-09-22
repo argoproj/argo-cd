@@ -33,7 +33,6 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 	if err != nil {
 		return TrackingMethodAnnotationAndLabel
 	}
-
 	return v1alpha1.TrackingMethod(tm)
 }
 
