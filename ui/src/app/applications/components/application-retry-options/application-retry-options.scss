@@ -1,9 +1,9 @@
 .application-retry-options {
 
-    &__item {
+    .application-retry-options__item {
         margin: 12px 0;
         padding-top: 12px;
         position: relative;
-        padding-left: 0;
+        border: none;
     }
 }
