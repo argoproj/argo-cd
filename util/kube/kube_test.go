@@ -165,8 +165,10 @@ func TestIsValidResourceName(t *testing.T) {
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
 
@@ -185,8 +187,10 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
 
@@ -195,10 +199,11 @@ func TestGetAppInstanceAnnotation(t *testing.T) {
 
 func TestGetAppInstanceLabel(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
 	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
-
 	assert.Equal(t, "my-app", GetAppInstanceLabel(&obj, common.LabelKeyAppInstance))
 }
