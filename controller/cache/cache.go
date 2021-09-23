@@ -261,6 +261,16 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
+// Get application name from label first, if it is exist and same as defined tracking method, this app name is taken
+// In case if application name can't be retrieve or not same as tracking method inside retrieved app, we do same flow but with annotations
+func (c *liveStateCache) retrieveApplicationName(un *unstructured.Unstructured) string {
+	appNameFromLabels := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, c.cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodLabel)
+	if appNameFromLabels != "" {
+		return appNameFromLabels
+	}
+	return c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, c.cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodAnnotation)
+}
+
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[server]
@@ -301,19 +311,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			var appName string
-
-			// Get application name from label first, if it is exist and same as defined tracking method, this app name is taken
-			// In case if application name can't be retrieve or not same as tracking method inside retrieved app, we do same flow but with annotations
-			appNameFromLabels := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodLabel)
-			if appNameFromLabels != "" {
-				appName = appNameFromLabels
-			} else {
-				appNameFromAnnotations := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodAnnotation)
-				if appNameFromAnnotations != "" {
-					appName = appNameFromAnnotations
-				}
-			}
+			appName := c.retrieveApplicationName(un)
 
 			// if application not exist in labels and annotations with related tracking method, application should be retrieved with settings level tracking method
 			if appName == "" {
