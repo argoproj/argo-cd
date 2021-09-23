@@ -303,6 +303,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			var appName string
 
+			// Get application name from label first, if it is exist and same as defined tracking method, this app name is taken
+			// In case if application name can't be retrieve or not same as tracking method inside retrieved app, we do same flow but with annotations
 			appNameFromLabels := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodLabel)
 			if appNameFromLabels != "" {
 				appName = appNameFromLabels
@@ -313,6 +315,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 				}
 			}
 
+			// if application not exist in labels and annotations with related tracking method, application should be retrieved with settings level tracking method
 			if appName == "" {
 				appName = c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
 			}

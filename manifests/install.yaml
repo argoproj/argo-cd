@@ -792,6 +792,10 @@ spec:
                       type: string
                     type: array
                 type: object
+              trackingMethod:
+                description: TrackingMethod is ability configure way how to track
+                  resources on application level
+                type: string
             required:
             - destination
             - project

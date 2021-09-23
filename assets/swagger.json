@@ -5041,6 +5041,10 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
+        },
+        "trackingMethod": {
+          "type": "string",
+          "title": "TrackingMethod is ability configure way how to track resources on application level"
         }
       }
     },

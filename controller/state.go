@@ -175,7 +175,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
-		TrackingMethod:    string(argo.GetTrackingMethodFromApplication(m.settingsMgr, app)),
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr, app)),
 	})
 	if err != nil {
 		return nil, nil, err

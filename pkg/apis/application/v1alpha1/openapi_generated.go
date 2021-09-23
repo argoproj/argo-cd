@@ -1078,6 +1078,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"trackingMethod": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TrackingMethod is ability configure way how to track resources on application level",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"source", "destination", "project"},
 			},
