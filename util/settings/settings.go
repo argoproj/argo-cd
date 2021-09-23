@@ -273,8 +273,8 @@ const (
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
-	// settingsAppIdTrackingMethodKey is the key to configure injected app instance label key
-	settingsAppIdTrackingMethodKey = "application.appIdTrackingMethodKey"
+	// settingsAppIdTrackingMethodKey is the key to configure tracking method for application resources
+	settingsAppIdTrackingMethodKey = "application.appIdTrackingMethod"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
