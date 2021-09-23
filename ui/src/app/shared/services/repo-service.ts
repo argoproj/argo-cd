@@ -52,7 +52,8 @@ export class RepositoriesService {
         sshPrivateKey,
         insecure,
         enableLfs,
-        proxy
+        proxy,
+        project
     }: {
         type: string;
         name: string;
@@ -61,10 +62,11 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
+        project?: string
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy})
+            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, project})
             .then(res => res.body as models.Repository);
     }
 

@@ -1,4 +1,4 @@
-import {DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
@@ -20,6 +20,7 @@ interface NewSSHRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    project?: string;
 }
 
 interface NewHTTPSRepoParams {
@@ -343,38 +344,51 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                         </div>
                     }>
                     <h4>Connect repo using SSH</h4>
-                    <Form
-                        onSubmit={params => this.connectSSHRepo(params as NewSSHRepoParams)}
-                        getApi={api => (this.formApiSSH = api)}
-                        defaultValues={{type: 'git'}}
-                        validateError={(params: NewSSHRepoParams) => ({
-                            url: !params.url && 'Repo URL is required'
-                        })}>
-                        {formApi => (
-                            <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                </div>
-                            </form>
+                    <DataLoader load={() => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())}>
+                        {projects => (
+                            <Form
+                                onSubmit={params => this.connectSSHRepo(params as NewSSHRepoParams)}
+                                getApi={api => (this.formApiSSH = api)}
+                                defaultValues={{type: 'git'}}
+                                validateError={(params: NewSSHRepoParams) => ({
+                                    url: !params.url && 'Repo URL is required'
+                                })}>
+                                {formApi => (
+                                    <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField
+                                                formApi={formApi}
+                                                label='Project'
+                                                field='project'
+                                                component={AutocompleteField}
+                                                componentProps={{items: projects}}
+                                            />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                        </div>
+                                    </form>
+                                )}
+                            </Form>
                         )}
-                    </Form>
+                    </DataLoader>
                 </SlidingPanel>
                 <SlidingPanel
                     isShown={this.showConnectGitHubAppRepo}
