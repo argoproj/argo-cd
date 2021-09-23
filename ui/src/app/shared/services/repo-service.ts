@@ -69,6 +69,7 @@ export class RepositoriesService {
             .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, project})
             .then(res => res.body as models.Repository);
     }
+    
 
     public createGitHubApp({
         type,
