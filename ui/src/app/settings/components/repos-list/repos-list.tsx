@@ -359,13 +359,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                             <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
                                         </div>
                                         <div className='argo-form-row'>
-                                            <FormField
-                                                formApi={formApi}
-                                                label='Project'
-                                                field='project'
-                                                component={AutocompleteField}
-                                                componentProps={{items: projects}}
-                                            />
+                                            <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
                                         </div>
                                         <div className='argo-form-row'>
                                             <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />

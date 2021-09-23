@@ -62,7 +62,7 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
-        project?: string
+        project?: string;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
