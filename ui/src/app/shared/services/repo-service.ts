@@ -70,7 +70,6 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
     
-
     public createGitHubApp({
         type,
         name,
