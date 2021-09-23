@@ -130,6 +130,14 @@ export const Filters = (props: {
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
+            {ResourceFilter({
+                label: 'ORPHANED',
+                radio: true,
+                prefix: '',
+                options: ['SHOW ORPHANED'].map(label => ({
+                    label
+                }))
+            })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {/* {(tree.orphanedNodes || []).length > 0 &&  */}
             {
