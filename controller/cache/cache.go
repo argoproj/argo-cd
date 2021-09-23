@@ -288,7 +288,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
+	trackingMethod := argo.GetTrackingMethodFromSettings(c.settingsMgr)
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
@@ -301,7 +301,22 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			var appName string
+
+			appNameFromLabels := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodLabel)
+			if appNameFromLabels != "" {
+				appName = appNameFromLabels
+			} else {
+				appNameFromAnnotations := c.resourceTracking.GetApplicationNameIfResourceBelongApp(un, cacheSettings.appInstanceLabelKey, c.appInformer, argo.TrackingMethodAnnotation)
+				if appNameFromAnnotations != "" {
+					appName = appNameFromAnnotations
+				}
+			}
+
+			if appName == "" {
+				appName = c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			}
+
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

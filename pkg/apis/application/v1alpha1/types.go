@@ -72,6 +72,7 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+	TrackingMethod       TrackingMethod
 }
 
 type TrackingMethod string
