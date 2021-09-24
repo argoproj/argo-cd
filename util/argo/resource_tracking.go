@@ -44,7 +44,7 @@ func GetTrackingMethodFromSettings(settingsMgr *settings.SettingsManager) v1alph
 func GetTrackingMethodFromApplicationInformer(appInformer cache.SharedIndexInformer, namespace, appName string) (string, error) {
 	obj, exists, err := appInformer.GetIndexer().GetByKey(namespace + "/" + appName)
 	app, ok := obj.(*v1alpha1.Application)
-	if !exists && err != nil && !ok {
+	if !exists || err != nil || !ok {
 		return "", fmt.Errorf("application not found")
 	}
 	return string(app.Spec.TrackingMethod), nil

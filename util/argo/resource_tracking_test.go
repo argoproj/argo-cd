@@ -3,21 +3,22 @@ package argo
 import (
 	"io/ioutil"
 	"testing"
-	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/test"
 
-	"k8s.io/client-go/tools/cache"
-
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/common"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 )
 
 const fakeApp = `
@@ -99,10 +100,18 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 }
 
 func TestGetTrackingMethodFromApplicationInformer(t *testing.T) {
-	appclientset := appsfake.NewSimpleClientset()
-	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
+	app := createTestApp(fakeApp)
+	var objects []runtime.Object
+	objects = append(objects, app)
 
-	appName, err := GetTrackingMethodFromApplicationInformer(appInformer, "", "test")
-	assert.NoError(t, err)
+	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace("default"), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+
+	// populate the app informer with the fake objects
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+
+	_, err := GetTrackingMethodFromApplicationInformer(appInformer, "default", "test-app")
+	assert.Equal(t, err.Error(), "application not found")
 
 }
