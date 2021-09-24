@@ -244,6 +244,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
                                                     <div>
