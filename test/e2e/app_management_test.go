@@ -46,7 +46,7 @@ import (
 const (
 	guestbookPath          = "guestbook"
 	guestbookPathLocal     = "./testdata/guestbook_local"
-	globalWithNoNameSpace  = "global-with-no-namesapce"
+	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
 )
 
