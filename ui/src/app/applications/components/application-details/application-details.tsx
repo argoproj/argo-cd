@@ -23,7 +23,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {nodeKey, urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 
 require('./application-details.scss');
@@ -141,18 +141,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
-                                ? (tree.orphanedNodes || []).map(node => ({
-                                      ...node,
-                                      status: null,
-                                      health: null
-                                  }))
-                                : [];
-                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
-                                const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
-                                resNode.root = resNode;
-                                return this.filterTreeNode(resNode, treeFilter);
-                            });
+                            const statusByKey = new Map<string, models.ResourceStatus>();
+                            application.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+                            const nodeByKey = new Map<string, ResourceTreeNode>();
+                            tree.nodes
+                                .map(node => ({...node, orphaned: false}))
+                                .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                .forEach(node => {
+                                    const status = statusByKey.get(nodeKey(node));
+                                    const resourceNode: ResourceTreeNode = {...node};
+                                    if (status) {
+                                        resourceNode.health = status.health;
+                                        resourceNode.status = status.status;
+                                    }
+                                  //  nodeByKey.set(treeNodeKey(node), resourceNode);
+                                });
+                            const resNodes = Array.from(nodeByKey.values());
 
                             const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
@@ -288,10 +292,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )) || (
                                                     <div>
                                                         <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                            {(filteredRes.length > 0 && (
+                                                            {(resNodes.length > 0 && (
                                                                 <Paginate
                                                                     page={this.state.page}
-                                                                    data={filteredRes}
+                                                                    data={resNodes}
                                                                     onPageChange={page => this.setState({page})}
                                                                     preferencesKey='application-details'>
                                                                     {data => (

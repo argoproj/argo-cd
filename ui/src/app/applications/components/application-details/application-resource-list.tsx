@@ -2,6 +2,7 @@ import {DropDown} from 'argo-ui';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
+import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
@@ -12,7 +13,7 @@ export const ApplicationResourceList = ({
     onNodeClick,
     nodeMenu
 }: {
-    resources: models.ResourceStatus[];
+    resources: ResourceTreeNode[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
 }) => (
