@@ -15,6 +15,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 5px 10px 5px 70px;
 
     a {
         text-decoration: underline;
@@ -27,4 +28,14 @@
             top: $banner-height;
         }
     }
+}
+
+.ui-banner-text {
+    margin-right: 15px;
+    overflow-y: auto;
+    max-height: 50px;
+}
+
+.ui-banner-button {
+    line-height: 1.1;
 }
