@@ -116,11 +116,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             )
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
-                            debugger
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
-                                debugger
                                 this.appContext.apis.navigation.goto('.', {resource: items.join(',')});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };

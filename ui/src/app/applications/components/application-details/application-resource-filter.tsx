@@ -3,7 +3,7 @@ import {Checkbox} from 'argo-ui';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
-import {Filter, FilterCollapse, FiltersGroup} from '../filter/filter';
+import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
@@ -36,20 +36,6 @@ export const Filters = (props: {
 
     const [groupedFilters, setGroupedFilters] = React.useState<{[key: string]: string}>({});
     const [loading, setLoading] = React.useState(true);
-
-    const orphanedCheckbox = (
-        <>
-            <Checkbox
-                checked={!!pref.orphanedResources}
-                id='orphanedFilter'
-                onChange={val => {
-                    ctx.navigation.goto('.', {orphaned: val});
-                    services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
-                }}
-            />{' '}
-            <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
-        </>
-    );
 
     React.useEffect(() => {
         const update: {[key: string]: string} = {};
@@ -130,24 +116,20 @@ export const Filters = (props: {
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
-            {ResourceFilter({
-                label: 'ORPHANED',
-                radio: true,
-                prefix: '',
-                options: ['SHOW ORPHANED'].map(label => ({
-                    label
-                }))
-            })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {/* {(tree.orphanedNodes || []).length > 0 &&  */}
-            {
-            <FilterCollapse
-                label={'ORPHANED'}
-                content={orphanedCheckbox}
-                header={<></>}
-                isClearButtonVisible={true}
-                isCollapseButtonVisible={true}
-            ></FilterCollapse>}
+            {(tree.orphanedNodes || []).length > 0 && 
+                <div className="filter">
+                    <Checkbox
+                        checked={!!pref.orphanedResources}
+                        id='orphanedFilter'
+                        onChange={val => {
+                            ctx.navigation.goto('.', {orphaned: val});
+                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                        }}
+                    />{' '}
+                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                </div>
+            }
         </FiltersGroup>
     );
 };
