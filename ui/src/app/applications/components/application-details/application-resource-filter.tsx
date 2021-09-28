@@ -117,8 +117,8 @@ export const Filters = (props: {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && 
-                <div className="filter">
+            {(tree.orphanedNodes || []).length > 0 && (
+                <div className='filter'>
                     <Checkbox
                         checked={!!pref.orphanedResources}
                         id='orphanedFilter'
@@ -129,7 +129,7 @@ export const Filters = (props: {
                     />{' '}
                     <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
                 </div>
-            }
+            )}
         </FiltersGroup>
     );
 };
