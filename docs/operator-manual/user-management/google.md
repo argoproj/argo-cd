@@ -222,3 +222,7 @@ data:
 5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member  
   ![User info](../../assets/google-groups-membership.png)
 6. Now you can use groups email addresses to give RBAC permissions
+
+### References
+
+- [Dex Google connector docs](https://dexidp.io/docs/connectors/google/)
