@@ -1,12 +1,16 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
@@ -30,4 +34,23 @@ func TestDeployment(t *testing.T) {
     }
 ]`).
 		Sync()
+}
+
+func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
+	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
+
+	Given(t).
+		Path("deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Then().
+		And(func(app *Application) {
+			_, _ = RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+		})
 }
