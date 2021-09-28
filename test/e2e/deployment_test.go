@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -37,8 +39,55 @@ func TestDeployment(t *testing.T) {
 }
 
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
+	ctx := Given(t)
+
 	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
 
+	ctx.
+		Path("deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Then().
+		And(func(app *Application) {
+			out, err := RunCli("app", "manifests", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, out, fmt.Sprintf(`annotations:
+    app.kubernetes.io/instance: %s`, Name()))
+		})
+}
+
+func TestDeploymentWithLabelTrackingMode(t *testing.T) {
+	ctx := Given(t)
+
+	SetTrackingMethod(string(argo.TrackingMethodLabel))
+
+	ctx.
+		Path("deployment").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Then().
+		And(func(app *Application) {
+			out, err := RunCli("app", "manifests", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, out, fmt.Sprintf(`labels:
+    app: nginx
+    app.kubernetes.io/instance: %s`, Name()))
+		})
+}
+
+func TestDeploymentWithoutTrackingMode(t *testing.T) {
 	Given(t).
 		Path("deployment").
 		When().
@@ -51,6 +100,10 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		When().
 		Then().
 		And(func(app *Application) {
-			_, _ = RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			out, err := RunCli("app", "manifests", app.Name)
+			assert.NoError(t, err)
+			assert.Contains(t, out, fmt.Sprintf(`labels:
+    app: nginx
+    app.kubernetes.io/instance: %s`, Name()))
 		})
 }

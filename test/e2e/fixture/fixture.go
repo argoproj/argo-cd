@@ -338,7 +338,7 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data["application.appIdTrackingMethod"] = trackingMethod
+		cm.Data["application.resourceTrackingMethod"] = trackingMethod
 		return nil
 	})
 }
