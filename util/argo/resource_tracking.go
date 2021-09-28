@@ -16,6 +16,7 @@ const (
 	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
+// ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
 	SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error
@@ -28,6 +29,7 @@ func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
 }
 
+// GetTrackingMethod retrieve tracking method from settings
 func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
 	if err != nil {
@@ -36,6 +38,7 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 	return v1alpha1.TrackingMethod(tm)
 }
 
+// GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	switch trackingMethod {
 	case TrackingMethodLabel:
@@ -47,6 +50,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	}
 }
 
+// SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error {
 	switch trackingMethod {
 	case TrackingMethodLabel:
