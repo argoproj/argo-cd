@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -47,7 +49,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/ksonnet"
-	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/text"
@@ -68,6 +69,7 @@ type Service struct {
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
+	resourceTracking          argo.ResourceTracking
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
@@ -83,7 +85,7 @@ type RepoServerInitConstants struct {
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants RepoServerInitConstants) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
@@ -95,6 +97,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClient,
+		resourceTracking:          resourceTracking,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, opts...)
 		},
@@ -712,6 +715,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
+	resourceTracking := argo.NewResourceTracking()
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err
@@ -770,7 +774,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = argokube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppName)
+				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}
@@ -1175,7 +1179,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, res)
+		_ = s.cache.SetAppDetails(revision, q.Source, res, v1alpha1.TrackingMethod(q.TrackingMethod))
 		return nil
 	}
 
@@ -1187,7 +1191,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ bool) (bool, error) {
 	return func(revision string, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, res)
+		err := s.cache.GetAppDetails(revision, q.Source, res, v1alpha1.TrackingMethod(q.TrackingMethod))
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil

@@ -3660,6 +3660,9 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "trackingMethod": {
+          "type": "string"
+        },
         "uiBannerContent": {
           "type": "string"
         },
