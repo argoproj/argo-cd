@@ -774,15 +774,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				gvk := target.GetObjectKind().GroupVersionKind()
-				appInstanceValue := argo.AppInstanceValue{
-					ApplicationName: q.AppName,
-					Group:           gvk.Group,
-					Kind:            gvk.Kind,
-					Namespace:       target.GetNamespace(),
-					Name:            target.GetName(),
-				}
-				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, appInstanceValue, v1alpha1.TrackingMethod(q.TrackingMethod))
+				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}
