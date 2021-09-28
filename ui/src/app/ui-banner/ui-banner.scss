@@ -28,6 +28,18 @@
             top: $banner-height;
         }
     }
+
+    &--wrapper-multiline {
+        .page__top-bar {
+            top: $banner-height;
+        }
+    }
+
+    &--wrapper-singleline {
+        .page__top-bar {
+            top: 28px;
+        }
+    }
 }
 
 .ui-banner-text {

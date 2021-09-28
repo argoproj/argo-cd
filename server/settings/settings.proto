@@ -35,6 +35,7 @@ message Settings {
     string uiBannerURL = 16;
     string passwordPattern = 17;
     string trackingMethod = 18;
+    bool uiBannerPermanent = 19;
 }
 
 message GoogleAnalyticsConfig {

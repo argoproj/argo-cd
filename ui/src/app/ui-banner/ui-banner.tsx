@@ -13,11 +13,12 @@ export const Banner = (props: React.Props<any>) => {
             load={() =>
                 combineLatest([services.authService.settings(), services.viewPreferences.getPreferences()]).pipe(
                     map(items => {
-                        return {content: items[0].uiBannerContent, url: items[0].uiBannerURL, prefs: items[1]};
+                        return {content: items[0].uiBannerContent, url: items[0].uiBannerURL, prefs: items[1], permanent: items[0].uiBannerPermanent};
                     })
                 )
             }>
-            {({content, url, prefs}: {content: string; url: string; prefs: ViewPreferences}) => {
+            {({content, url, prefs, permanent}: {content: string; url: string; prefs: ViewPreferences; permanent: boolean}) => {
+                const heightOfBanner = permanent ? '28px' : '70px';
                 let show = false;
                 if (!content || content === '' || content === null) {
                     if (prefs.hideBannerContent) {
@@ -28,11 +29,12 @@ export const Banner = (props: React.Props<any>) => {
                         show = true;
                     }
                 }
-                show = show && visible;
+                show = permanent || (show && visible);
+                const wrapperClassname = 'ui-banner--wrapper ' + (!permanent ? 'ui-banner--wrapper-multiline' : 'ui-banner--wrapper-singleline');
                 return (
                     <React.Fragment>
-                        <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden'}}>
-                            <div className='ui-banner-text'>
+                        <div className='ui-banner' style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner}}>
+                            <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
                                 {url !== undefined ? (
                                     <a href={url} target='_blank' rel='noopener noreferrer'>
                                         {content}
@@ -41,16 +43,28 @@ export const Banner = (props: React.Props<any>) => {
                                     <React.Fragment>{content}</React.Fragment>
                                 )}
                             </div>
-                            <button className='ui-banner-button argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
-                                Dismiss for now
-                            </button>
-                            <button
-                                className='ui-banner-button argo-button argo-button--base'
-                                onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
-                                Don't show again
-                            </button>
+                            {!permanent ? (
+                                <>
+                                    <button className='ui-banner-button argo-button argo-button--base' style={{marginRight: '5px'}} onClick={() => setVisible(false)}>
+                                        Dismiss for now
+                                    </button>
+                                    <button
+                                        className='ui-banner-button argo-button argo-button--base'
+                                        onClick={() => services.viewPreferences.updatePreferences({...prefs, hideBannerContent: content})}>
+                                        Don't show again
+                                    </button>
+                                </>
+                            ) : (
+                                <></>
+                            )}
                         </div>
-                        {show ? <div className='ui-banner--wrapper'>{props.children}</div> : props.children}
+                        {show ? (
+                            <div className={wrapperClassname} style={{marginTop: heightOfBanner}}>
+                                {props.children}
+                            </div>
+                        ) : (
+                            props.children
+                        )}
                     </React.Fragment>
                 );
             }}
