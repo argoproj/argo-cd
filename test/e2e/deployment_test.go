@@ -42,7 +42,6 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
 	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
-
 	ctx.
 		Path("deployment").
 		When().
