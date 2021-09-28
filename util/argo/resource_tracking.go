@@ -24,7 +24,7 @@ var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, sh
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
-	SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error
+	SetAppInstance(un *unstructured.Unstructured, key string, val AppInstanceValue, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 }
@@ -72,14 +72,14 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 }
 
 // SetAppInstance set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key string, val AppInstanceValue, trackingMethod v1alpha1.TrackingMethod) error {
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		return argokube.SetAppInstanceLabel(un, key, val.ApplicationName)
 	case TrackingMethodAnnotation:
-		return argokube.SetAppInstanceAnnotation(un, key, val)
+		return argokube.SetAppInstanceAnnotation(un, key, rt.BuildAppInstanceValue(val))
 	default:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		return argokube.SetAppInstanceLabel(un, key, val.ApplicationName)
 	}
 }
 

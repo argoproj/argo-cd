@@ -782,8 +782,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 					Namespace:       target.GetNamespace(),
 					Name:            target.GetName(),
 				}
-				value := resourceTracking.BuildAppInstanceValue(appInstanceValue)
-				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, value, v1alpha1.TrackingMethod(q.TrackingMethod))
+				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, appInstanceValue, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
 				}
