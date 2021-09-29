@@ -8,3 +8,7 @@ resources:
 - ../base/application-controller
 - ../base/repo-server
 - ../base/redis
+images:
+- name: quay.io/argoproj/argocd
+  newName: quay.io/argoproj/argocd
+  newTag: latest
