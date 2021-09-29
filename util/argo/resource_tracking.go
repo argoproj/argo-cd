@@ -77,12 +77,16 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)
 	case TrackingMethodAnnotation:
+		ns := un.GetNamespace()
+		if ns == "" {
+			ns = namespace
+		}
 		gvk := un.GetObjectKind().GroupVersionKind()
 		appInstanceValue := AppInstanceValue{
 			ApplicationName: val,
 			Group:           gvk.Group,
 			Kind:            gvk.Kind,
-			Namespace:       namespace,
+			Namespace:       ns,
 			Name:            un.GetName(),
 		}
 		return argokube.SetAppInstanceAnnotation(un, key, rt.BuildAppInstanceValue(appInstanceValue))
