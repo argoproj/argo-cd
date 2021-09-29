@@ -21,7 +21,7 @@ func TestSetAppInstanceLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", TrackingMethodLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
 	assert.Nil(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
@@ -38,7 +38,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", TrackingMethodAnnotation)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
 	assert.Nil(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation)
