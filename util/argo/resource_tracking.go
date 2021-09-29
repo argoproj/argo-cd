@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -30,6 +29,7 @@ type ResourceTracking interface {
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
+	GetApplicationNameIfResourceBelongApp(un *unstructured.Unstructured, key string, appInformer cache.SharedIndexInformer, tm v1alpha1.TrackingMethod) string
 }
 
 //AppInstanceValue store information about resource tracking info
@@ -39,10 +39,6 @@ type AppInstanceValue struct {
 	Kind            string
 	Namespace       string
 	Name            string
-type ResourceTracking interface {
-	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
-	SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error
-	GetApplicationNameIfResourceBelongApp(un *unstructured.Unstructured, key string, appInformer cache.SharedIndexInformer, tm v1alpha1.TrackingMethod) string
 }
 
 type resourceTracking struct {
@@ -52,8 +48,6 @@ func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
 }
 
-// GetTrackingMethod retrieve tracking method from settings
-func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 // GetTrackingMethodFromSettings retrieve tracking method from argo-cm configmap
 func GetTrackingMethodFromSettings(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
@@ -105,7 +99,6 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 			return ""
 		}
 		return value.ApplicationName
-		return argokube.GetAppInstanceAnnotation(un, key)
 	default:
 		return argokube.GetAppInstanceLabel(un, key)
 	}
@@ -113,13 +106,10 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
-// GetAppName set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val string, trackingMethod v1alpha1.TrackingMethod) error {
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)
 	case TrackingMethodAnnotation:
-		return argokube.SetAppInstanceAnnotation(un, key, val)
 		gvk := un.GetObjectKind().GroupVersionKind()
 		appInstanceValue := AppInstanceValue{
 			ApplicationName: val,
