@@ -28,6 +28,7 @@ message ManifestRequest {
     bool verifySignature = 16;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
+    string trackingMethod = 19;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
@@ -82,6 +83,7 @@ message RepoServerAppDetailsQuery {
     string appName = 5;
     bool noCache = 6;
     bool noRevisionCache = 7;
+    string trackingMethod = 8;
 }
 
 // RepoAppDetailsResponse application details

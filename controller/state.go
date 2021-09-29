@@ -148,6 +148,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
 		return nil, nil, err
@@ -174,6 +175,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err

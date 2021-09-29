@@ -79,6 +79,11 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
+	trackingMethod, err := s.mgr.GetTrackingMethod()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -100,6 +105,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		KustomizeVersions:  kustomizeVersions,
 		UiCssURL:           argoCDSettings.UiCssURL,
 		PasswordPattern:    argoCDSettings.PasswordPattern,
+		TrackingMethod:     trackingMethod,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

@@ -74,6 +74,8 @@ type ApplicationSpec struct {
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
+type TrackingMethod string
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
 	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
