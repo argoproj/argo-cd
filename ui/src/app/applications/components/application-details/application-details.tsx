@@ -1,4 +1,4 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -202,20 +202,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-
-                                            {(tree.orphanedNodes || []).length > 0 && (
-                                                <div className='application-details__orphaned-filter'>
-                                                    <ArgoCheckbox
-                                                        checked={!!pref.orphanedResources}
-                                                        id='orphanedFilter'
-                                                        onChange={val => {
-                                                            this.appContext.apis.navigation.goto('.', {orphaned: val});
-                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
-                                                        }}
-                                                    />{' '}
-                                                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
-                                                </div>
-                                            )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <ApplicationResourceTree
