@@ -4,13 +4,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-cd/v2/common"
-)
-
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/test"
@@ -85,7 +78,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", TrackingMethodAnnotation)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
 	assert.Nil(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation)
@@ -127,6 +120,8 @@ func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
 	assert.Error(t, err, WrongResourceTrackingFormat)
+}
+
 func TestGetTrackingMethodFromApplicationInformer(t *testing.T) {
 	app := createTestApp(fakeApp)
 	var objects []runtime.Object
