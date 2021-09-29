@@ -1,9 +1,7 @@
 package argo
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -79,8 +77,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)
 	case TrackingMethodAnnotation:
-		str, _ := json.Marshal(un)
-		log.Println("Set app instance: " + string(str))
 		gvk := un.GetObjectKind().GroupVersionKind()
 		appInstanceValue := AppInstanceValue{
 			ApplicationName: val,
