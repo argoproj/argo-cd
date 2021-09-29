@@ -169,6 +169,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     preventOverflow: {
                                                                                         enabled: true
                                                                                     },
+                                                                                    hide: {
+                                                                                        enabled: false
+                                                                                    },
                                                                                     flip: {
                                                                                         enabled: false
                                                                                     }
