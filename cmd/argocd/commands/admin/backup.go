@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,7 +88,11 @@ func NewExportCommand() *cobra.Command {
 			}
 			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
 			if err != nil && !apierr.IsNotFound(err) {
-				errors.CheckError(err)
+				if apierr.IsForbidden(err) {
+					log.Warn(err)
+				} else {
+					errors.CheckError(err)
+				}
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
@@ -176,6 +180,17 @@ func NewImportCommand() *cobra.Command {
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
+			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
+			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
+			} else {
+				errors.CheckError(err)
+			}
+			if applicationSets != nil {
+				for _, appSet := range applicationSets.Items {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: appSet.GetName()}] = appSet
+				}
+			}
 
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)
@@ -199,22 +214,39 @@ func NewImportCommand() *cobra.Command {
 					dynClient = acdClients.applicationSets
 				}
 				if !exists {
+					isForbidden := false
 					if !dryRun {
 						_, err = dynClient.Create(context.Background(), bakObj, v1.CreateOptions{})
-						errors.CheckError(err)
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+						} else {
+							errors.CheckError(err)
+						}
 					}
-					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					if !isForbidden {
+						fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					}
+
 				} else if specsEqual(*bakObj, liveObj) {
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
 				} else {
+					isForbidden := false
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj)
 						_, err = dynClient.Update(context.Background(), newLive, v1.UpdateOptions{})
-						errors.CheckError(err)
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+						} else {
+							errors.CheckError(err)
+						}
 					}
-					fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					if !isForbidden {
+						fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					}
 				}
 			}
 
@@ -239,16 +271,24 @@ func NewImportCommand() *cobra.Command {
 								}
 							}
 						}
+					case "ApplicationSet":
+						dynClient = acdClients.applicationSets
 					default:
-						logrus.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
+					isForbidden := false
 					if !dryRun {
 						err = dynClient.Delete(context.Background(), key.Name, v1.DeleteOptions{})
-						if err != nil && !apierr.IsNotFound(err) {
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+						} else {
 							errors.CheckError(err)
 						}
 					}
-					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+					if !isForbidden {
+						fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+					}
 				} else {
 					fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 				}
@@ -304,6 +344,8 @@ func updateLive(bak, live *unstructured.Unstructured) *unstructured.Unstructured
 		if _, ok := bak.Object["status"]; ok {
 			newLive.Object["status"] = bak.Object["status"]
 		}
+	case "ApplicationSet":
+		newLive.Object["spec"] = bak.Object["spec"]
 	}
 	return newLive
 }
