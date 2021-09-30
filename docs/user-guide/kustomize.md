@@ -5,8 +5,8 @@ The following configuration options are available for Kustomize:
 * `namePrefix` is a prefix appended to resources for Kustomize apps
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
-* `commonLabels` is a string map of an additional labels
-* `commonAnnotations` is a string map of an additional annotations
+* `commonLabels` is a string map of additional labels
+* `commonAnnotations` is a string map of additional annotations
 
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -58,7 +58,7 @@ data:
     kustomize.path.v3.5.4: /custom-tools/kustomize_3_5_4
 ```
 
-Once a new version is configured you can reference it in Application spec as following:
+Once a new version is configured you can reference it in an Application spec as follows:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -75,7 +75,7 @@ spec:
       version: v3.5.4
 ```
 
-Additionally application kustomize version can be configured using Parameters tab of Application Details page or using following CLI command:
+Additionally, the application kustomize version can be configured using the Parameters tab of the Application Details page, or using the following CLI command:
 
 ```
 argocd app set <appyName> --kustomize-version v3.5.4
