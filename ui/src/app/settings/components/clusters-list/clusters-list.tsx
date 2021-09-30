@@ -33,7 +33,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                     <div
                                                         className='argo-table-list__row'
                                                         key={cluster.server}
-                                                        onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`, {}, {replace: true})}>
+                                                        onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
                                                         <div className='row'>
                                                             <div className='columns small-3'>
                                                                 <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}

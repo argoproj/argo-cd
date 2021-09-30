@@ -42,7 +42,7 @@ export const ApplicationsTable = (props: {
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                             <div
                                 className={`row applications-list__table-row`}
-                                onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e, replace: true})}>
+                                onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                 <div className='columns small-4'>
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-3'>Project:</div>
