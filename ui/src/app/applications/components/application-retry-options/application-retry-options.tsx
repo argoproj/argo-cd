@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
-import { omit } from 'lodash-es'
+import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
@@ -88,8 +88,8 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
             const values = formState.values;
             const errors = formState.errors;
 
-            const newValues = omit(values, field)
-            const newErrors = omit(errors, field)
+            const newValues = omit(values, field);
+            const newErrors = omit(errors, field);
 
             formApi.setFormState({
                 ...formState,
