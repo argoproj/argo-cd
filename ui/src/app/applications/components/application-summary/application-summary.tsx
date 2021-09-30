@@ -28,7 +28,7 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
-export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application) => Promise<any>}) => {
+export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
@@ -307,7 +307,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     updatedApp.spec.syncPolicy = {};
                 }
                 updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
@@ -326,7 +326,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                 updatedApp.spec.syncPolicy.automated = null;
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
