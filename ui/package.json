@@ -9,8 +9,8 @@
     "lint": "tslint -p ./src/app",
     "test": "jest"
   },
+
   "dependencies": {
-    "@reactivex/rxjs": "^6.6.7",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
     "@types/dagre": "^0.7.40",
@@ -62,6 +62,7 @@
     "react-router-dom": "^4.2.2",
     "react-svg-piechart": "^2.1.1",
     "redoc": "^2.0.0-rc.40",
+    "rxjs": "^6.6.6",
     "sass-loader": "^6.0.6",
     "source-map-loader": "^0.2.3",
     "style-loader": "^0.20.1",
@@ -78,8 +79,8 @@
     "webpack-dev-server": "^3.11.0"
   },
   "resolutions": {
-    "@types/react": "16.9.3",
-    "@types/react-dom": "16.9.3",
+    "@types/react": "^16.9.3",
+    "@types/react-dom": "^16.8.2",
     "normalize-url": "4.3.0"
   },
   "devDependencies": {
