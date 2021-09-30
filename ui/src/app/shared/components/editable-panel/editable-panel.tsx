@@ -19,7 +19,7 @@ export interface EditablePanelProps<T> {
     title?: string | React.ReactNode;
     values: T;
     validate?: (values: T) => any;
-    save?: (input: T) => Promise<any>;
+    save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelItem[];
     onModeSwitch?: () => any;
     noReadonlyMode?: boolean;
@@ -108,13 +108,13 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                     getApi={api => (this.formApi = api)}
                                     formDidUpdate={async form => {
                                         if (this.props.noReadonlyMode && this.props.save) {
-                                            await this.props.save(form.values as any);
+                                            await this.props.save(form.values as any, {});
                                         }
                                     }}
                                     onSubmit={async input => {
                                         try {
                                             this.setState({saving: true});
-                                            await this.props.save(input as any);
+                                            await this.props.save(input as any, {});
                                             this.setState({edit: false, saving: false});
                                             this.onModeSwitch();
                                         } catch (e) {

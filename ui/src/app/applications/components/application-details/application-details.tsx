@@ -2,6 +2,7 @@ import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
@@ -273,7 +274,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 tree={tree}
                                                 application={application}
                                                 isAppSelected={isAppSelected}
-                                                updateApp={app => this.updateApp(app)}
+                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
                                             />
@@ -496,12 +497,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         this.appContext.apis.navigation.goto('/applications', {}, {replace: true});
     }
 
-    private async updateApp(app: appModels.Application) {
+    private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
         const latestApp = await services.applications.get(app.metadata.name);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp);
+        const updatedApp = await services.applications.update(latestApp, query);
         this.appChanged.next(updatedApp);
     }
 
