@@ -33,7 +33,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                     <div
                                                         className='argo-table-list__row'
                                                         key={cluster.server}
-                                                        onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
+                                                        onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`, {}, {replace: true})}>
                                                         <div className='row'>
                                                             <div className='columns small-3'>
                                                                 <i className='icon argo-icon-hosts' /> {clusterName(cluster.name)}
@@ -53,7 +53,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                             title: 'Delete',
                                                                             action: () =>
                                                                                 services.clusters.delete(cluster.server).finally(() => {
-                                                                                    ctx.navigation.goto('.', {new: null});
+                                                                                    ctx.navigation.goto('.', {new: null}, {replace: true});
                                                                                     if (clustersLoaderRef.current) {
                                                                                         clustersLoaderRef.current.reload();
                                                                                     }

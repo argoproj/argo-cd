@@ -18,7 +18,7 @@ export class ProjectsList extends React.Component {
                         title='Projects'
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true})}]}
+                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]}
                         }}>
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()}>
@@ -46,7 +46,7 @@ export class ProjectsList extends React.Component {
                                         <EmptyState icon='fa fa-object-group'>
                                             <h4>No projects yet</h4>
                                             <h5>Create new projects to group your applications</h5>
-                                            <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true})}>
+                                            <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true}, {replace: true})}>
                                                 New project
                                             </button>
                                         </EmptyState>
@@ -58,11 +58,11 @@ export class ProjectsList extends React.Component {
                             {params => (
                                 <SlidingPanel
                                     isShown={params.get('add') === 'true'}
-                                    onClose={() => ctx.navigation.goto('.', {add: null})}
+                                    onClose={() => ctx.navigation.goto('.', {add: null}, {replace: true})}
                                     isMiddle={true}
                                     header={
                                         <div>
-                                            <button onClick={() => ctx.navigation.goto('.', {add: null})} className='argo-button argo-button--base-o'>
+                                            <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
                                                 Cancel
                                             </button>{' '}
                                             <button onClick={() => this.formApi.submitForm(null)} className='argo-button argo-button--base'>
@@ -79,7 +79,7 @@ export class ProjectsList extends React.Component {
                                         onSubmit={async (proj: Project) => {
                                             try {
                                                 await services.projects.create(proj);
-                                                ctx.navigation.goto(`./${proj.metadata.name}`, {add: null});
+                                                ctx.navigation.goto(`./${proj.metadata.name}`, {add: null}, {replace: true});
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to create project' e={e} />,

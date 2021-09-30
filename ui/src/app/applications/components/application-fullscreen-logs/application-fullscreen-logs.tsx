@@ -33,7 +33,7 @@ export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: stri
                             podName={podName}
                             fullscreen={true}
                             page={{number: parseInt(page, 10) || 0, untilTimes}}
-                            setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                            setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')}, {replace: true})}
                         />
                     </div>
                 );

@@ -40,7 +40,7 @@ export const ApplicationsTable = (props: {
                             key={app.metadata.name}
                             className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                            <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
+                            <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e, replace: true})}>
                                 <div className='columns small-4'>
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-3'>Project:</div>
