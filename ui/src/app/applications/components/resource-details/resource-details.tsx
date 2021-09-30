@@ -295,7 +295,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 </DataLoader>
             )}
             {isAppSelected && (
-                <Tabs navTransparent={true} tabs={getApplicationTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
+                <Tabs
+                    navTransparent={true}
+                    tabs={getApplicationTabs()}
+                    selectedTabKey={tab}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                />
             )}
         </div>
     );
