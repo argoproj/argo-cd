@@ -123,7 +123,7 @@ export const Filters = (props: {
                         checked={!!pref.orphanedResources}
                         id='orphanedFilter'
                         onChange={val => {
-                            ctx.navigation.goto('.', {orphaned: val});
+                            ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                         }}
                     />{' '}

@@ -268,7 +268,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)})}
+                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> SYNC
@@ -288,14 +288,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     }
                                 ])}
                                 selectedTabKey={props.tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>
                     )}
                 </DataLoader>
             )}
             {isAppSelected && (
-                <Tabs navTransparent={true} tabs={getApplicationTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})} />
+                <Tabs
+                    navTransparent={true}
+                    tabs={getApplicationTabs()}
+                    selectedTabKey={tab}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                />
             )}
         </div>
     );
