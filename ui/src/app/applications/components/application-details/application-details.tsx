@@ -512,10 +512,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private async updateApp(app: appModels.Application) {
         const latestApp = await services.applications.get(app.metadata.name);
+        const latestAppSyncPolicy = latestApp.spec?.syncPolicy;
+
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp);
+
+        const updatedApp = await services.applications.update(latestApp, {
+            validate: JSON.stringify(latestAppSyncPolicy) === JSON.stringify(app.spec?.syncPolicy)
+        });
         this.appChanged.next(updatedApp);
     }
 
