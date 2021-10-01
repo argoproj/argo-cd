@@ -65,9 +65,9 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
                 }}>
                 {nestedFormApi => {
                     return (
-                        <div className='row application-retry-options'>
+                        <div className='row application-retry-options-list'>
                             {retryOptions.map((render, i) => (
-                                <div className='columns small-6 application-retry-options__item' key={i}>
+                                <div className='columns small-6 application-retry-options-list__item' key={i}>
                                     {render(nestedFormApi)}
                                 </div>
                             ))}
@@ -102,7 +102,7 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
     };
 
     return (
-        <div className='application-retry-options-wrap'>
+        <div className='application-retry-options'>
             <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
             <label htmlFor='retry'>Retry</label>
             {retry && <ApplicationRetryForm initValues={initValues} field={field} />}
