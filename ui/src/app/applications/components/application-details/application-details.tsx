@@ -23,6 +23,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
+import {urlPattern} from '../utils';
 
 require('./application-details.scss');
 
@@ -147,10 +148,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
 
-                            const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
                             const renderCommitMessage = (message: string) =>
                                 message.split(/\s/).map(part =>
-                                    URL_REGEX.test(part) ? (
+                                    urlPattern.test(part) ? (
                                         <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
                                             {part}{' '}
                                         </a>
