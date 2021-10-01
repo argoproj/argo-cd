@@ -23,6 +23,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
+import {urlPattern} from '../utils';
 
 require('./application-details.scss');
 
@@ -146,6 +147,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
+
+                            const renderCommitMessage = (message: string) =>
+                                message.split(/\s/).map(part =>
+                                    urlPattern.test(part) ? (
+                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                                            {part}{' '}
+                                        </a>
+                                    ) : (
+                                        part + ' '
+                                    )
+                                );
 
                             return (
                                 <div className='application-details'>
@@ -339,7 +351,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>Message:</div>
                                                                     <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                        <div className='application-details__commit-message'>{metadata.message}</div>
+                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
                                                                     </div>
                                                                 </div>
                                                             </div>

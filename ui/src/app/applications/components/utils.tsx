@@ -915,3 +915,11 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
+
+export const urlPattern = new RegExp(
+    new RegExp(
+        // tslint:disable-next-line:max-line-length
+        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
+        'gi'
+    )
+);
