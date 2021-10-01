@@ -65,7 +65,6 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 		}
 		return value.ApplicationName
 	}
-
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		return argokube.GetAppInstanceLabel(un, key)
