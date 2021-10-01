@@ -289,7 +289,6 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	}
 
 	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
-
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
