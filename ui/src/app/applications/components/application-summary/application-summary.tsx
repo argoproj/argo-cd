@@ -10,19 +10,11 @@ import {services} from '../../../shared/services';
 import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
 import {ApplicationRetryForm} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 
 require('./application-summary.scss');
-
-const urlPattern = new RegExp(
-    new RegExp(
-        // tslint:disable-next-line:max-line-length
-        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
-        'gi'
-    )
-);
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
