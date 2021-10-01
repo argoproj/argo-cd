@@ -142,6 +142,17 @@ data:
 
 ## OpenID Connect plus Google Groups using Dex
 
+---
+!!! warning "Limited group information"
+
+    When using this feature you'll only receive the list of groups the user is a direct member.
+
+    So, lets say you have this hierarchy of groups and subgroups:  
+    `all@example.com --> tech@example.com --> devs@example.com --> you@example.com`  
+    The only group you would receive through Dex would be `devs@example.com`
+
+---
+
 We're going to use Dex's `google` connector to get additional Google Groups information from your users, allowing you to use group membership on your RBAC, i.e., giving `admin` role to the whole `sysadmins@yourcompany.com` group.
 
 This connector uses two different credentials:
