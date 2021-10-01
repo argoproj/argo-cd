@@ -2,6 +2,7 @@ import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
@@ -50,7 +51,7 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
-    appContext.navigation.goto('.', {node, tab});
+    appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
@@ -119,7 +120,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
-                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')});
+                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
                             const clearFilter = () => setFilter([]);
@@ -160,7 +161,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
                                                             title='Tree'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'});
+                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
                                                             }}
                                                         />
@@ -168,7 +169,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
                                                             title='Pods'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
+                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
                                                             }}
                                                         />
@@ -176,7 +177,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
                                                             title='Network'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'});
+                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
                                                             }}
                                                         />
@@ -184,7 +185,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
                                                             title='List'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'});
+                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
                                                             }}
                                                         />
@@ -273,7 +274,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 tree={tree}
                                                 application={application}
                                                 isAppSelected={isAppSelected}
-                                                updateApp={app => this.updateApp(app)}
+                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
                                             />
@@ -493,15 +494,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications');
+        this.appContext.apis.navigation.goto('/applications', {}, {replace: true});
     }
 
-    private async updateApp(app: appModels.Application) {
+    private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
         const latestApp = await services.applications.get(app.metadata.name);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp);
+        const updatedApp = await services.applications.update(latestApp, query);
         this.appChanged.next(updatedApp);
     }
 
@@ -542,15 +543,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', {operation: isVisible});
+        this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
     }
 
     private setConditionsStatusVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', {conditions: isVisible});
+        this.appContext.apis.navigation.goto('.', {conditions: isVisible}, {replace: true});
     }
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
-        this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex});
+        this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
