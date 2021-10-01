@@ -767,7 +767,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
 	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-	timeToWait := float64(duration) * float64((math.Pow(float64(factor), float64(retryCounts))))
+	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
 	if maxDuration > 0 {
 		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
