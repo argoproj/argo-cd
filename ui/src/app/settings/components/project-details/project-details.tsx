@@ -147,8 +147,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                             actionMenu: {
                                 items: [
-                                    {title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
-                                    {title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true})},
+                                    {title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true}, {replace: true})},
+                                    {title: 'Add Sync Window', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newWindow: true}, {replace: true})},
                                     {
                                         title: 'Delete',
                                         iconClassName: 'fa fa-times-circle',
@@ -157,7 +157,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             if (confirmed) {
                                                 try {
                                                     await services.projects.delete(this.props.match.params.name);
-                                                    ctx.navigation.goto('/settings/projects');
+                                                    ctx.navigation.goto('/settings/projects', {replace: true});
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to delete project' e={e} />,
@@ -183,7 +183,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='project-details'>
                                                 <Tabs
                                                     selectedTabKey={params.get('tab') || 'summary'}
-                                                    onTabSelected={tab => ctx.navigation.goto('.', {tab})}
+                                                    onTabSelected={tab => ctx.navigation.goto('.', {tab}, {replace: true})}
                                                     navCenter={true}
                                                     tabs={[
                                                         {
@@ -213,14 +213,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     isShown={params.get('editRole') !== null || params.get('newRole') !== null}
                                                     onClose={() => {
                                                         this.setState({token: ''});
-                                                        ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                        ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                     }}
                                                     header={
                                                         <div>
                                                             <button
                                                                 onClick={() => {
                                                                     this.setState({token: ''});
-                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                                 }}
                                                                 className='argo-button argo-button--base-o'>
                                                                 Cancel
@@ -239,7 +239,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                             try {
                                                                                 this.projectRoleFormApi.setValue('deleteRole', true);
                                                                                 this.projectRoleFormApi.submitForm(null);
-                                                                                ctx.navigation.goto('.', {editRole: null});
+                                                                                ctx.navigation.goto('.', {editRole: null}, {replace: true});
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete project role' e={e} />,
@@ -274,7 +274,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             submit={async (projRoleParams: ProjectRoleParams) => {
                                                                 try {
                                                                     await services.projects.updateRole(projRoleParams);
-                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                                     this.loader.reload();
                                                                 } catch (e) {
                                                                     ctx.notifications.show({
@@ -296,14 +296,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
                                                     onClose={() => {
                                                         this.setState({token: ''});
-                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                     }}
                                                     header={
                                                         <div>
                                                             <button
                                                                 onClick={() => {
                                                                     this.setState({token: ''});
-                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                                 }}
                                                                 className='argo-button argo-button--base-o'>
                                                                 Cancel
@@ -330,7 +330,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                                 this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
                                                                                 this.projectSyncWindowsFormApi.setValue('deleteWindow', true);
                                                                                 this.projectSyncWindowsFormApi.submitForm(null);
-                                                                                ctx.navigation.goto('.', {editWindow: null});
+                                                                                ctx.navigation.goto('.', {editWindow: null}, {replace: true});
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete sync window' e={e} />,
@@ -363,7 +363,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
                                                                 try {
                                                                     await services.projects.updateWindow(projectSyncWindowsParams);
-                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                                     this.loader.reload();
                                                                 } catch (e) {
                                                                     ctx.notifications.show({

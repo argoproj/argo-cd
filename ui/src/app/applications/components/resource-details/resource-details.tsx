@@ -2,6 +2,7 @@ import {DataLoader, Tab, Tabs} from 'argo-ui';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
+import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
@@ -24,7 +25,7 @@ const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
     selectedNode: ResourceNode;
-    updateApp: (app: Application) => Promise<any>;
+    updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
@@ -134,7 +135,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             {
                 title: 'SUMMARY',
                 key: 'summary',
-                content: <ApplicationSummary app={application} updateApp={app => updateApp(app)} />
+                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
                 title: 'PARAMETERS',
@@ -149,7 +150,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 path: application.spec.source.path
                             }))
                         }>
-                        {(details: RepoAppDetails) => <ApplicationParameters save={app => updateApp(app)} application={application} details={details} />}
+                        {(details: RepoAppDetails) => (
+                            <ApplicationParameters
+                                save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                                application={application}
+                                details={details}
+                            />
+                        )}
                     </DataLoader>
                 )
             },
@@ -268,7 +275,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)})}
+                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> SYNC
@@ -288,14 +295,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     }
                                 ])}
                                 selectedTabKey={props.tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>
                     )}
                 </DataLoader>
             )}
             {isAppSelected && (
-                <Tabs navTransparent={true} tabs={getApplicationTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})} />
+                <Tabs
+                    navTransparent={true}
+                    tabs={getApplicationTabs()}
+                    selectedTabKey={tab}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                />
             )}
         </div>
     );
