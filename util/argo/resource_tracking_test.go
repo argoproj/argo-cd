@@ -48,7 +48,6 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
-
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
