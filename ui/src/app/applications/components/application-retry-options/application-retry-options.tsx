@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
+import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
@@ -64,9 +65,9 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
                 }}>
                 {nestedFormApi => {
                     return (
-                        <div className='row application-retry-options'>
+                        <div className='row application-retry-options-list'>
                             {retryOptions.map((render, i) => (
-                                <div className='columns small-6 application-retry-options__item' key={i}>
+                                <div className='columns small-6 application-retry-options-list__item' key={i}>
                                     {render(nestedFormApi)}
                                 </div>
                             ))}
@@ -87,13 +88,13 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
             const values = formState.values;
             const errors = formState.errors;
 
-            const {[field]: delVal, ...newValues} = values;
-            const {[field]: delErr, ...newErrors} = errors;
+            const newValues = omit(values, field);
+            const newErrors = omit(errors, field);
 
             formApi.setFormState({
                 ...formState,
-                values: {...newValues},
-                errors: {...newErrors}
+                values: newValues,
+                errors: newErrors
             });
         }
 
@@ -101,7 +102,7 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
     };
 
     return (
-        <div style={{marginBottom: '1em'}}>
+        <div className='application-retry-options'>
             <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
             <label htmlFor='retry'>Retry</label>
             {retry && <ApplicationRetryForm initValues={initValues} field={field} />}
