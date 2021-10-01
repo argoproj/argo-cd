@@ -76,7 +76,7 @@ func (c *Cmd) Init() (string, error) {
 	return "", nil
 }
 
-func (c *Cmd) Login(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -114,7 +114,7 @@ func (c *Cmd) Login(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 
@@ -260,16 +260,15 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return c.run(args...)
 }
 
-func (c *Cmd) ChartPull(repo string, chart string, version string) (string, error) {
-	return c.run("chart", "pull", fmt.Sprintf("%s/%s:%s", repo, chart, version))
-}
-
-func (c *Cmd) ChartExport(repo string, chartName string, version string, destination string) (string, error) {
-	args := []string{"chart", "export"}
-	chartURL := fmt.Sprintf(repo + "/" + chartName + ":" + version)
-	args = append(args, chartURL, "--destination", destination)
-
-	return c.run(args...)
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string) (string, error) {
+	return c.run(
+		"pull",
+		fmt.Sprintf("oci://%s/%s", repo, chart),
+		"--version",
+		version,
+		"--destination",
+		destination,
+	)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
