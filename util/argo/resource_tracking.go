@@ -94,7 +94,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return argokube.SetAppInstanceAnnotation(un, key, rt.BuildAppInstanceValue(appInstanceValue))
 	}
-
 	switch trackingMethod {
 	case TrackingMethodLabel:
 		return argokube.SetAppInstanceLabel(un, key, val)
