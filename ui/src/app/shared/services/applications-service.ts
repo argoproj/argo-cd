@@ -98,9 +98,10 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
+    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.Application> {
         return requests
             .put(`/applications/${app.metadata.name}`)
+            .query(query)
             .send(app)
             .then(res => this.parseAppFields(res.body));
     }
