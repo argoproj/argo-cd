@@ -1,5 +1,28 @@
 # Helm
 
+## Declarative
+
+You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubeseal
+```
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
