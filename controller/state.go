@@ -98,6 +98,7 @@ type appStateManager struct {
 	cache                *appstatecache.Cache
 	namespace            string
 	statusRefreshTimeout time.Duration
+	resourceTracking     argo.ResourceTracking
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -462,9 +463,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
@@ -683,6 +686,7 @@ func NewAppStateManager(
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
+	resourceTracking argo.ResourceTracking,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:       liveStateCache,
@@ -696,5 +700,6 @@ func NewAppStateManager(
 		projInformer:         projInformer,
 		metricsServer:        metricsServer,
 		statusRefreshTimeout: statusRefreshTimeout,
+		resourceTracking:     resourceTracking,
 	}
 }
