@@ -166,4 +166,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [freee](https://corp.freee.co.jp/en/company/)
 1. [Youverify](https://youverify.co/)
 1. [Keeeb](https://www.keeeb.com/)
-2. [p3r](https://www.p3r.one/)
+1. [p3r](https://www.p3r.one/)
