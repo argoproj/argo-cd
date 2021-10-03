@@ -19,7 +19,7 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
       - uses: actions/checkout@master
         with:
-          ref: $GITHUB_REF # Codefresh change due replacement of `master` branch with `release-*` on trigger
+          ref: ${GITHUB_REF##*/} # Codefresh change due replacement of `master` branch with `release-*` on trigger
           path: src/github.com/argoproj/argo-cd
 
       # get image tag
