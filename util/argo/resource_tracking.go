@@ -20,6 +20,7 @@ const (
 )
 
 var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>;<group>/<kind>/<namespace>/<name>")
+var LabelMaxLength = 63
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
@@ -49,23 +50,28 @@ func NewResourceTracking() ResourceTracking {
 func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
 	if err != nil {
-		return TrackingMethodAnnotationAndLabel
+		return TrackingMethodLabel
 	}
 	return v1alpha1.TrackingMethod(tm)
 }
 
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
-	switch trackingMethod {
-	case TrackingMethodLabel:
-		return argokube.GetAppInstanceLabel(un, key)
-	case TrackingMethodAnnotation:
+	retrieveAppInstanceValue := func() string {
 		appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, key)
 		value, err := rt.ParseAppInstanceValue(appInstanceAnnotation)
 		if err != nil {
 			return ""
 		}
 		return value.ApplicationName
+	}
+	switch trackingMethod {
+	case TrackingMethodLabel:
+		return argokube.GetAppInstanceLabel(un, key)
+	case TrackingMethodAnnotationAndLabel:
+		return retrieveAppInstanceValue()
+	case TrackingMethodAnnotation:
+		return retrieveAppInstanceValue()
 	default:
 		return argokube.GetAppInstanceLabel(un, key)
 	}
@@ -73,10 +79,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
-	switch trackingMethod {
-	case TrackingMethodLabel:
-		return argokube.SetAppInstanceLabel(un, key, val)
-	case TrackingMethodAnnotation:
+	setAppInstanceAnnotation := func() error {
 		ns := un.GetNamespace()
 		if ns == "" {
 			ns = namespace
@@ -90,6 +93,21 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 			Name:            un.GetName(),
 		}
 		return argokube.SetAppInstanceAnnotation(un, key, rt.BuildAppInstanceValue(appInstanceValue))
+	}
+	switch trackingMethod {
+	case TrackingMethodLabel:
+		return argokube.SetAppInstanceLabel(un, key, val)
+	case TrackingMethodAnnotation:
+		return setAppInstanceAnnotation()
+	case TrackingMethodAnnotationAndLabel:
+		err := setAppInstanceAnnotation()
+		if err != nil {
+			return err
+		}
+		if len(val) > LabelMaxLength {
+			val = val[:LabelMaxLength]
+		}
+		return argokube.SetAppInstanceLabel(un, key, val)
 	default:
 		return argokube.SetAppInstanceLabel(un, key, val)
 	}
