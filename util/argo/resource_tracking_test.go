@@ -23,7 +23,6 @@ func TestSetAppInstanceLabel(t *testing.T) {
 
 	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
 	assert.Nil(t, err)
-
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
 	assert.Equal(t, "my-app", app)
 }
