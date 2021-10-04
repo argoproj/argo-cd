@@ -57,7 +57,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 			out, err := RunCli("app", "manifests", app.Name)
 			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
-    app.kubernetes.io/instance: %s;apps/Deployment/%s/nginx-deployment
+    argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
 `, Name(), DeploymentNamespace()))
 		})
 }

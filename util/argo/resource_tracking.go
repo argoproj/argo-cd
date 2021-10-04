@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/common"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -19,7 +21,7 @@ const (
 	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
-var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>;<group>/<kind>/<namespace>/<name>")
+var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
 var LabelMaxLength = 63
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
@@ -58,7 +60,7 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	retrieveAppInstanceValue := func() string {
-		appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, key)
+		appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 		value, err := rt.ParseAppInstanceValue(appInstanceAnnotation)
 		if err != nil {
 			return ""
@@ -92,7 +94,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 			Namespace:       ns,
 			Name:            un.GetName(),
 		}
-		return argokube.SetAppInstanceAnnotation(un, key, rt.BuildAppInstanceValue(appInstanceValue))
+		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
@@ -115,24 +117,28 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 
 //BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
 func (rt *resourceTracking) BuildAppInstanceValue(value AppInstanceValue) string {
-	return fmt.Sprintf("%s;%s/%s/%s/%s", value.ApplicationName, value.Group, value.Kind, value.Namespace, value.Name)
+	return fmt.Sprintf("%s:%s/%s:%s/%s", value.ApplicationName, value.Group, value.Kind, value.Namespace, value.Name)
 }
 
-//ParseAppInstanceValue parse resource tracking id from format <application-name>;<group>/<kind>/<namespace>/<name> to struct
+//ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
 func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceValue, error) {
 	var appInstanceValue AppInstanceValue
-	parts := strings.Split(value, ";")
+	parts := strings.Split(value, ":")
 	appInstanceValue.ApplicationName = parts[0]
-	if len(parts) == 1 {
+	if len(parts) != 3 {
 		return nil, WrongResourceTrackingFormat
 	}
-	newParts := strings.Split(parts[1], "/")
-	if len(newParts) != 4 {
+	groupParts := strings.Split(parts[1], "/")
+	if len(groupParts) != 2 {
 		return nil, WrongResourceTrackingFormat
 	}
-	appInstanceValue.Group = newParts[0]
-	appInstanceValue.Kind = newParts[1]
-	appInstanceValue.Namespace = newParts[2]
-	appInstanceValue.Name = newParts[3]
+	nsParts := strings.Split(parts[2], "/")
+	if len(nsParts) != 2 {
+		return nil, WrongResourceTrackingFormat
+	}
+	appInstanceValue.Group = groupParts[0]
+	appInstanceValue.Kind = groupParts[1]
+	appInstanceValue.Namespace = nsParts[0]
+	appInstanceValue.Name = nsParts[1]
 	return &appInstanceValue, nil
 }
