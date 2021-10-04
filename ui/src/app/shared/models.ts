@@ -442,6 +442,7 @@ export interface AuthSettings {
     uiCssURL: string;
     uiBannerContent: string;
     uiBannerURL: string;
+    uiBannerPermanent: boolean;
 }
 
 export interface UserInfo {
