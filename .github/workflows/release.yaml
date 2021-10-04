@@ -126,16 +126,18 @@ jobs:
 
           # Too short release notes are suspicious. We need at least 100 bytes.
           relNoteLen=$(stat -c '%s' $RELEASE_NOTES)
-          if test $relNoteLen -lt 100; then
-            echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
-            exit 1
-          fi
 
-          # Check for magic string '## Quick Start' in head of release notes
-          if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
-            echo "::error::Release notes seem invalid, quick start section not found."
-            exit 1
-          fi
+          # Codefresh change: disable release notes checks
+          # if test $relNoteLen -lt 100; then
+          #   echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
+          #   exit 1
+          # fi
+
+          # # Check for magic string '## Quick Start' in head of release notes
+          # if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
+          #   echo "::error::Release notes seem invalid, quick start section not found."
+          #   exit 1
+          # fi
 
           # We store path to temporary release notes file for later reading, we
           # need it when creating release.
