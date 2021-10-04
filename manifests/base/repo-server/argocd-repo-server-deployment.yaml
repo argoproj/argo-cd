@@ -21,7 +21,7 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - $(ARGOCD_REDIS_SERVICE):6379
@@ -98,6 +98,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.default.cache.expiration
                   optional: true
+          - name: HELM_CACHE_HOME
+            value: /helm-working-dir
+          - name: HELM_CONFIG_HOME
+            value: /helm-working-dir
+          - name: HELM_DATA_HOME
+            value: /helm-working-dir
         ports:
         - containerPort: 8081
         - containerPort: 8084
@@ -132,10 +138,12 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: tmp
+          mountPath: /tmp
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
-        - mountPath: /tmp
-          name: tmp-dir
       initContainers:
       - command:
         - cp
@@ -161,6 +169,8 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: helm-working-dir
+          emptyDir: {}
         - name: argocd-repo-server-tls
           secret:
             secretName: argocd-repo-server-tls
@@ -177,7 +187,7 @@ spec:
         - emptyDir: {}
           name: plugins
         - emptyDir: {}
-          name: tmp-dir
+          name: tmp
         - name: config-files
           configMap:
             name: argocd-cmp-cm

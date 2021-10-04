@@ -1,9 +1,13 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
+import * as models from '../../../shared/models';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ExtensionComponentProps} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -21,7 +25,7 @@ const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
     selectedNode: ResourceNode;
-    updateApp: (app: Application) => Promise<any>;
+    updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
@@ -38,7 +42,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], tabs: Tab[]) => {
+    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], ExtensionComponent: React.ComponentType<ExtensionComponentProps>, tabs: Tab[]) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -112,6 +116,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 }
             ]);
         }
+        if (ExtensionComponent && state) {
+            tabs.push({
+                title: 'More',
+                key: 'extension',
+                content: (
+                    <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
+                        <ExtensionComponent tree={tree} resource={state} />
+                    </ErrorBoundary>
+                )
+            });
+        }
         return tabs;
     };
 
@@ -120,7 +135,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             {
                 title: 'SUMMARY',
                 key: 'summary',
-                content: <ApplicationSummary app={application} updateApp={app => updateApp(app)} />
+                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
                 title: 'PARAMETERS',
@@ -135,7 +150,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 path: application.spec.source.path
                             }))
                         }>
-                        {(details: RepoAppDetails) => <ApplicationParameters save={app => updateApp(app)} application={application} details={details} />}
+                        {(details: RepoAppDetails) => (
+                            <ApplicationParameters
+                                save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                                application={application}
+                                details={details}
+                            />
+                        )}
                     </DataLoader>
                 )
             },
@@ -182,6 +203,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
         return tabs;
     };
+
+    const [extension, , error] = useData(
+        async () => {
+            if (selectedNode?.kind && selectedNode?.group) {
+                return await services.extensions.loadResourceExtension(selectedNode?.group || '', selectedNode?.kind || '');
+            }
+        },
+        null,
+        null,
+        [selectedNode]
+    );
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -243,7 +275,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)})}
+                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> SYNC
@@ -254,7 +286,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, [
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, [
                                     {
                                         title: 'SUMMARY',
                                         icon: 'fa fa-file-alt',
@@ -263,14 +295,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     }
                                 ])}
                                 selectedTabKey={props.tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>
                     )}
                 </DataLoader>
             )}
             {isAppSelected && (
-                <Tabs navTransparent={true} tabs={getApplicationTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected})} />
+                <Tabs
+                    navTransparent={true}
+                    tabs={getApplicationTabs()}
+                    selectedTabKey={tab}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                />
             )}
         </div>
     );

@@ -30,3 +30,4 @@ ui.argocd.yourorganization.net:443
 your-kubernetes-cluster-addr
 yourorganization.oktapreview.com
 yourorganization.oktapreview.com:443
+example-OIDC-provider.com

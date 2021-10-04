@@ -98,7 +98,7 @@ Use the following steps to reconstruct configured cluster config and connect to 
 
 ```bash
 kubectl exec -it <argocd-pod-name> bash # ssh into any argocd server pod
-argocd-util cluster kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
+argocd admin cluster kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
 KUBECONFIG=/tmp/config kubectl get pods # test connection manually
 ```
 

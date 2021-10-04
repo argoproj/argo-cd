@@ -40,6 +40,10 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
+	return GivenWithSameState(t)
+}
+
+func GivenWithSameState(t *testing.T) *Context {
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
@@ -125,6 +129,11 @@ func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion 
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	repos.AddHTTPSCredentialsUserPass()
+	return c
+}
+
+func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
+	repos.AddHelmHTTPSCredentialsTLSClientCert()
 	return c
 }
 

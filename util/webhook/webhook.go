@@ -52,11 +52,11 @@ type ArgoCDWebhookHandler struct {
 func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
-		log.Warnf("Unable to init the Github webhook")
+		log.Warnf("Unable to init the GitHub webhook")
 	}
 	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
 	if err != nil {
-		log.Warnf("Unable to init the Gitlab webhook")
+		log.Warnf("Unable to init the GitLab webhook")
 	}
 	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
 	if err != nil {
@@ -88,21 +88,21 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 	return &acdWebhook
 }
 
+func parseRevision(ref string) string {
+	refParts := strings.SplitN(ref, "/", 3)
+	return refParts[len(refParts)-1]
+}
+
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
 func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
-	parseRef := func(ref string) string {
-		refParts := strings.SplitN(ref, "/", 3)
-		return refParts[len(refParts)-1]
-	}
-
 	switch payload := payloadIf.(type) {
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
-		revision = parseRef(payload.Ref)
-		change.shaAfter = parseRef(payload.After)
-		change.shaBefore = parseRef(payload.Before)
+		revision = parseRevision(payload.Ref)
+		change.shaAfter = parseRevision(payload.After)
+		change.shaBefore = parseRevision(payload.Before)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -112,9 +112,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = parseRef(payload.Ref)
-		change.shaAfter = parseRef(payload.After)
-		change.shaBefore = parseRef(payload.Before)
+		revision = parseRevision(payload.Ref)
+		change.shaAfter = parseRevision(payload.After)
+		change.shaBefore = parseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -125,9 +125,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = parseRef(payload.Ref)
-		change.shaAfter = parseRef(payload.After)
-		change.shaBefore = parseRef(payload.Before)
+		revision = parseRevision(payload.Ref)
+		change.shaAfter = parseRevision(payload.After)
+		change.shaBefore = parseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -166,7 +166,7 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// TODO: bitbucket includes multiple changes as part of a single event.
 		// We only pick the first but need to consider how to handle multiple
 		for _, change := range payload.Changes {
-			revision = parseRef(change.Reference.ID)
+			revision = parseRevision(change.Reference.ID)
 			break
 		}
 		// Not actually sure how to check if the incoming change affected HEAD just by examining the
@@ -178,9 +178,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 
 	case gogsclient.PushPayload:
 		webURLs = append(webURLs, payload.Repo.HTMLURL)
-		revision = parseRef(payload.Ref)
-		change.shaAfter = parseRef(payload.After)
-		change.shaBefore = parseRef(payload.Before)
+		revision = parseRevision(payload.Ref)
+		change.shaAfter = parseRevision(payload.After)
+		change.shaBefore = parseRevision(payload.Before)
 		touchedHead = bool(payload.Repo.DefaultBranch == revision)
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
@@ -332,7 +332,7 @@ func ensureAbsPath(input string) string {
 }
 
 func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHead bool) bool {
-	targetRev := app.Spec.Source.TargetRevision
+	targetRev := parseRevision(app.Spec.Source.TargetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
@@ -356,7 +356,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
-	//Gogs needs to be checked before Github since it carries both Gogs and (incompatible) Github headers
+	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 	case r.Header.Get("X-GitHub-Event") != "":

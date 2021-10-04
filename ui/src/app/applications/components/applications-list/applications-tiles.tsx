@@ -1,7 +1,7 @@
 import {Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -55,34 +55,46 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding(Key.RIGHT, () => navApp(1));
-    useKeybinding(Key.LEFT, () => navApp(-1));
-    useKeybinding(Key.DOWN, () => navApp(appsPerRow));
-    useKeybinding(Key.UP, () => navApp(-1 * appsPerRow));
+    useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
+    useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
+    useKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1 * appsPerRow)});
 
-    useKeybinding(Key.ENTER, () => {
-        if (selectedApp > -1) {
-            ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
-            return true;
+    useKeybinding({
+        keys: Key.ENTER,
+        action: () => {
+            if (selectedApp > -1) {
+                ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
+                return true;
+            }
+            return false;
         }
-        return false;
     });
 
-    useKeybinding(Key.ESCAPE, () => {
-        if (selectedApp > -1) {
+    useKeybinding({
+        keys: Key.ESCAPE,
+        action: () => {
+            if (selectedApp > -1) {
+                reset();
+                return true;
+            }
+            return false;
+        }
+    });
+
+    useKeybinding({
+        keys: Object.values(NumKey) as NumKey[],
+        action: n => {
             reset();
-            return true;
+            return navApp(NumKeyToNumber(n));
         }
-        return false;
     });
-
-    useKeybinding(Object.values(NumKey) as NumKey[], n => {
-        reset();
-        return navApp(NumKeyToNumber(n));
-    });
-    useKeybinding(Object.values(NumPadKey) as NumPadKey[], n => {
-        reset();
-        return navApp(NumKeyToNumber(n));
+    useKeybinding({
+        keys: Object.values(NumPadKey) as NumPadKey[],
+        action: n => {
+            reset();
+            return navApp(NumKeyToNumber(n));
+        }
     });
 
     return (
@@ -93,9 +105,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                         <div key={app.metadata.name} className='column column-block'>
                             <div
                                 ref={appRef.set ? null : appRef.ref}
-                                className={`argo-table-list__row applications-list__entry applications-list__entry--comparison-${
-                                    app.status.sync.status
-                                } applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                                className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status} ${
+                                    selectedApp === i ? 'applications-tiles__selected' : ''
+                                }`}>
                                 <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                     <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                         <div className='applications-list__external-link'>
@@ -119,6 +131,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             </div>
                                             <div className='columns small-9'>
                                                 <Tooltip
+                                                    zIndex={4}
                                                     content={
                                                         <div>
                                                             {Object.keys(app.metadata.labels || {})
@@ -155,7 +168,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 Repository:
                                             </div>
                                             <div className='columns small-9'>
-                                                <Tooltip content={app.spec.source.repoURL}>
+                                                <Tooltip content={app.spec.source.repoURL} zIndex={4}>
                                                     <span>{app.spec.source.repoURL}</span>
                                                 </Tooltip>
                                             </div>
@@ -217,7 +230,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         refreshApplication(app.metadata.name);
                                                     }}>
                                                     <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                    <span className='show-for-xlarge'>Refresh</span>
+                                                    <span className='show-for-xxlarge'>Refresh</span>
                                                 </a>
                                                 &nbsp;
                                                 <a
@@ -227,7 +240,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         e.stopPropagation();
                                                         deleteApplication(app.metadata.name);
                                                     }}>
-                                                    <i className='fa fa-times-circle' /> Delete
+                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
                                                 </a>
                                             </div>
                                         </div>

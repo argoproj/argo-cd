@@ -76,6 +76,8 @@ message RepoAccessQuery {
 	string githubAppEnterpriseBaseUrl = 15;
 	// HTTP/HTTPS proxy to access the repository
 	string proxy = 16;
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+    string project = 17;
 }
 
 message RepoResponse {}
@@ -117,7 +119,7 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
 	}
 
-	// ListApps returns list of apps in the repe
+	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}

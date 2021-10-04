@@ -2,11 +2,11 @@ FROM redis:6.2.4 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.16.4 as golang
+FROM golang:1.16.5 as golang
 
 FROM registry:2.7.1 as registry
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -74,7 +74,7 @@ COPY --from=node /usr/local/bin/node /usr/local/bin
 COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
 
 # Entrypoint is required for container's user management
-COPY ./test/container/uid_entrypoint.sh /usr/local/bin
+COPY ./test/container/entrypoint.sh /usr/local/bin
 
 ARG UID
 
@@ -104,4 +104,4 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
     mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
 
-ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

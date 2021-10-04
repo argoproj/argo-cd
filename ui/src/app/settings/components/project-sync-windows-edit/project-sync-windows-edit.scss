@@ -16,4 +16,14 @@
     form > .row > .columns {
         padding-left: 0;
     }
+
+    &__options-wrapper {
+        display: block;
+        height: 206px;
+        max-height: 206px;
+    }
+
+    &__text-wrapper {
+        white-space: normal;
+    }
 }

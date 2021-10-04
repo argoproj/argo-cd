@@ -33,7 +33,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 
 	s.repositoryToSecret(repository, repositorySecret)
 
-	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepository, repositorySecret)
+	_, err := s.db.createSecret(ctx, repositorySecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
@@ -149,9 +149,9 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 		},
 	}
 
-	s.repoCredsToSecret(repoCreds, repoCredsSecret)
+	repoCredsToSecret(repoCreds, repoCredsSecret)
 
-	_, err := s.db.createSecret(ctx, common.LabelValueSecretTypeRepoCreds, repoCredsSecret)
+	_, err := s.db.createSecret(ctx, repoCredsSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", repoCreds.URL)
@@ -199,7 +199,7 @@ func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, repoCred
 		return nil, err
 	}
 
-	s.repoCredsToSecret(repoCreds, repoCredsSecret)
+	repoCredsToSecret(repoCreds, repoCredsSecret)
 
 	repoCredsSecret, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repoCredsSecret, metav1.UpdateOptions{})
 	if err != nil {
@@ -275,6 +275,7 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		Proxy:                      string(secret.Data["proxy"]),
+		Project:                    string(secret.Data["project"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
@@ -322,6 +323,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	}
 
 	updateSecretString(secret, "name", repository.Name)
+	updateSecretString(secret, "project", repository.Project)
 	updateSecretString(secret, "url", repository.Repo)
 	updateSecretString(secret, "username", repository.Username)
 	updateSecretString(secret, "password", repository.Password)
@@ -338,6 +340,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secret, "insecure", repository.Insecure)
 	updateSecretBool(secret, "enableLfs", repository.EnableLFS)
 	updateSecretString(secret, "proxy", repository.Proxy)
+	addSecretMetadata(secret, common.LabelValueSecretTypeRepository)
 }
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
@@ -374,7 +377,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	return repository, nil
 }
 
-func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
+func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
 	}
@@ -391,6 +394,7 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretInt(secret, "githubAppID", repoCreds.GithubAppId)
 	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
+	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {

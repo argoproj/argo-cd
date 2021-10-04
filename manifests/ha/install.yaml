@@ -2418,7 +2418,7 @@ spec:
                       description: Name is a name for this role
                       type: string
                     policies:
-                      description: Policies Stores a list of casbin formated strings
+                      description: Policies Stores a list of casbin formatted strings
                         that define access policies for the role in the project
                       items:
                         type: string
@@ -2889,14 +2889,6 @@ metadata:
     app.kubernetes.io/name: argocd-cmd-params-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-cmd-params-cm
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    app.kubernetes.io/name: argocd-cmp-cm
-    app.kubernetes.io/part-of: argocd
-  name: argocd-cmp-cm
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -3670,7 +3662,7 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        image: ghcr.io/dexidp/dex:v2.27.0
+        image: ghcr.io/dexidp/dex:v2.30.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -3739,7 +3731,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.0.22-alpine
+      - image: haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3768,7 +3760,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.0.22-alpine
+        image: haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:
@@ -3826,7 +3818,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - argocd-redis-ha-haproxy:6379
@@ -3903,6 +3895,12 @@ spec:
               key: reposerver.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: HELM_CACHE_HOME
+          value: /helm-working-dir
+        - name: HELM_CONFIG_HOME
+          value: /helm-working-dir
+        - name: HELM_DATA_HOME
+          value: /helm-working-dir
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -3940,21 +3938,10 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
-        - mountPath: /home/argocd/cmp-server/plugins
-          name: plugins
         - mountPath: /tmp
-          name: tmp-dir
-      initContainers:
-      - command:
-        - cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
-        name: copyutil
-        volumeMounts:
-        - mountPath: /var/run/argocd
-          name: var-files
+          name: tmp
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3969,6 +3956,8 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
+      - emptyDir: {}
+        name: helm-working-dir
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -3980,15 +3969,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
-      - emptyDir: {}
-        name: var-files
-      - emptyDir: {}
-        name: plugins
-      - emptyDir: {}
-        name: tmp-dir
-      - configMap:
-          name: argocd-cmp-cm
-        name: config-files
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4025,8 +4005,6 @@ spec:
       containers:
       - command:
         - argocd-server
-        - --staticassets
-        - /shared/app
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -4144,6 +4122,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.login.attempts.expiration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_STATIC_ASSETS
+          valueFrom:
+            configMapKeyRef:
+              key: server.staticassets
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
@@ -4659,6 +4643,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-notifications-controller
     ports:
     - port: 8081
       protocol: TCP
