@@ -37,7 +37,7 @@ jobs:
           docker login ghcr.io --username $USERNAME --password $PASSWORD
           docker push ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
         env:
-          USERNAME: ${{ secrets.USERNAME }}
+          USERNAME: ${{ github.repository_owner }}
           PASSWORD: ${{ secrets.TOKEN }}
 
       # deploy
