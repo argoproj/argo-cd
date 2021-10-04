@@ -171,8 +171,9 @@ func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
+		p := append([]string(nil), prefixes...)
 		for j, v := range i {
-			flatVals(v, output, append(prefixes[0:len(prefixes)-1], fmt.Sprintf("%s[%v]", prefixes[len(prefixes)-1], j))...)
+			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)
 		}
 	default:
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)
