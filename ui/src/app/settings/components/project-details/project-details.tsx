@@ -390,8 +390,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async deleteJWTToken(params: DeleteJWTTokenParams, notifications: NotificationsApi) {
         try {
             await services.projects.deleteJWTToken(params);
-            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
-            this.loader.setData([project, globalProjects]);
+            const info = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData(info);
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
@@ -403,8 +403,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async createJWTToken(params: CreateJWTTokenParams, notifications: NotificationsApi) {
         try {
             const jwtToken = await services.projects.createJWTToken(params);
-            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
-            this.loader.setData([project, globalProjects]);
+            const info = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData(info);
             this.setState({token: jwtToken.token});
         } catch (e) {
             notifications.show({
