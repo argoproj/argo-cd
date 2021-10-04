@@ -1,6 +1,13 @@
 .application-retry-options {
+    margin-bottom: 1em;
+    label {
+        font-size: 15px;
+    }
+}
 
-    .application-retry-options__item {
+.application-retry-options-list {
+
+    .application-retry-options-list__item {
         margin: 12px 0;
         padding-top: 12px;
         position: relative;

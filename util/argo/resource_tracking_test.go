@@ -45,6 +45,22 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
+func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
+	assert.Nil(t, err)
+
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+	assert.Equal(t, "my-app", app)
+}
+
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)

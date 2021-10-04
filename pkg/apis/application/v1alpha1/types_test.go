@@ -2109,12 +2109,14 @@ func TestProjectNormalize(t *testing.T) {
 func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 	retry := RetryStrategy{}
 	now := time.Now()
-	expectedTimes := []time.Time{
-		now.Add(5 * time.Second),
-		now.Add(10 * time.Second),
-		now.Add(20 * time.Second),
-		now.Add(40 * time.Second),
-		now.Add(80 * time.Second),
+	expectedTimes := map[int]time.Time{
+		0:   now.Add(5 * time.Second),
+		1:   now.Add(10 * time.Second),
+		2:   now.Add(20 * time.Second),
+		3:   now.Add(40 * time.Second),
+		4:   now.Add(80 * time.Second),
+		80:  now.Add(DefaultSyncRetryMaxDuration),
+		100: now.Add(DefaultSyncRetryMaxDuration),
 	}
 
 	for i, expected := range expectedTimes {
@@ -2122,6 +2124,7 @@ func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
+
 }
 
 func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
