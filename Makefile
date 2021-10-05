@@ -124,7 +124,7 @@ IMAGE_NAMESPACE?=
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
-DEV_IMAGE?=false
+DEV_IMAGE?=true
 ARGOCD_GPG_ENABLED?=true
 ARGOCD_E2E_APISERVER_PORT?=8080
 

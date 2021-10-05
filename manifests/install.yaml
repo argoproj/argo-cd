@@ -3323,8 +3323,6 @@ spec:
         name: var-files
       - emptyDir: {}
         name: plugins
-      - emptyDir: {}
-        name: tmp
       - configMap:
           name: argocd-cmp-cm
         name: config-files

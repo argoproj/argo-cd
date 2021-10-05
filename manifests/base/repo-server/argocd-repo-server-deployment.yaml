@@ -186,8 +186,6 @@ spec:
           name: var-files
         - emptyDir: {}
           name: plugins
-        - emptyDir: {}
-          name: tmp
         - name: config-files
           configMap:
             name: argocd-cmp-cm

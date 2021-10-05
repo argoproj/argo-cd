@@ -57,7 +57,7 @@ containers:
       subPath: plugin-config.yaml
       name: config-files
     - mountPath: /tmp
-      name: tmp-dir
+      name: tmp
 ``` 
  
  * Make sure that entrypoint is Argo CD lightweight cmp server i.e. argocd-cmp-server
@@ -112,7 +112,7 @@ For example:
 
 ```yaml
 data:
-  kustomization.yaml: |
+  plugin-config.yaml: |
     apiVersion: argoproj.io/v1alpha1
     kind: ConfigManagementPlugin
     metadata:
