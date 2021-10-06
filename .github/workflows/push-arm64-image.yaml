@@ -1,11 +1,9 @@
 name: Push ArgoCD arm64 image
 
 on:
-  workflow_dispatch:
-    inputs:
-      release-tag-name:
-        description: 'The release tag name that triggers this workflow (e.g. release-v2.0.0)'
-        required: true
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   prepare-release:
@@ -30,7 +28,7 @@ jobs:
           set -xue
           # Target version must match major.minor.patch and optional -rcX suffix
           # where X must be a number.
-          TARGET_VERSION=${SOURCE_TAG#*release-v}
+          TARGET_VERSION=${SOURCE_TAG#*v}
           if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
@@ -40,8 +38,8 @@ jobs:
           # Its name is 'release-<major>.<minor>'
           TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
 
-          # The release tag is the source tag, minus the release- prefix
-          RELEASE_TAG="${SOURCE_TAG#*release-}"
+          # The release tag is the source tag
+          RELEASE_TAG="${SOURCE_TAG}"
 
           # Make the variables available in follow-up steps
           echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
