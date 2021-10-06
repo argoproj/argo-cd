@@ -1,6 +1,10 @@
-<head>
-  <meta http-equiv="refresh" content="1; URL=https://argo-cd.readthedocs.io/" />
-</head>
 <body>
   <p>If you are not redirected, <a href="https://argo-cd.readthedocs.io/">click here</a>.</p>
+  <script>
+    var path = window.location.pathname;
+    if (path.startsWith('/argo-cd')) {
+      path = path.substr('/argo-cd'.length);
+    }
+    window.open('https://argo-cd.readthedocs.io/en/stable' + path + window.location.hash);
+  </script>
 </body>
