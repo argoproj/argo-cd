@@ -8,8 +8,8 @@ spec:
     command: [ks, version]
   generate:
     command: [sh, -c, "ks show $ARGOCD_APP_ENV"]
-  find:
-    command: [sh, -c, "ks env list"]
-    glob: "**/main.jsonnet"
+  discover:
+    find:
+      glob: "**/*/main.jsonnet"
   allowConcurrency: false
   lockRepo: false
