@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,7 +72,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -166,6 +168,22 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, cachedFakeResponse, res)
 	assert.True(t, len(res.Manifests) > 1)
+}
+
+func TestGenerateManifests_EmptyCache(t *testing.T) {
+	service := newService("../..")
+
+	src := argoappv1.ApplicationSource{Path: "manifests/base"}
+	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
+	}
+
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	assert.NoError(t, err)
+
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.True(t, len(res.Manifests) > 0)
 }
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)

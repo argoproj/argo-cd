@@ -70,6 +70,9 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+
+	// PasswordPatten is the default password patten
+	PasswordPatten = `^.{8,32}$`
 )
 
 // Dex related constants
@@ -109,6 +112,9 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+
+	// The Argo CD application name is used as the instance name
+	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"

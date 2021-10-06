@@ -77,6 +77,7 @@ argocd account get --account <username>
 
 * Set user password
 ```bash
+# if you are managing users as the admin user, <current-user-password> should be the current admin password.
 argocd account update-password \
   --account <name> \
   --current-password <current-user-password> \
@@ -114,7 +115,8 @@ There are two ways that SSO can be configured:
 
 * [Bundled Dex OIDC provider](#dex) - use this option if your current provider does not support OIDC (e.g. SAML,
   LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub
-  organizations and teams to OIDC groups claims).
+  organizations and teams to OIDC groups claims). Dex also supports OIDC directly and can fetch user
+  information from the identity provider when the groups cannot be included in the IDToken.
 
 * [Existing OIDC provider](#existing-oidc-provider) - use this if you already have an OIDC provider which you are using (e.g.
   [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md),
@@ -195,6 +197,91 @@ NOTES:
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
+
+## OIDC Configuration with DEX
+
+Dex can be used for OIDC authentication instead of ArgoCD directly. This provides a separate set of
+features such as fetching information from the `UserInfo` endpoint and
+[federated tokens](https://dexidp.io/docs/custom-scopes-claims-clients/#cross-client-trust-and-authorized-party)
+
+### Configuration:
+* In the `argocd-cm` ConfigMap add the `OIDC` connector to the `connectors` sub field inside `dex.config`.
+See Dex's [OIDC connect documentation](https://dexidp.io/docs/connectors/oidc/) to see what other
+configuration options might be useful. We're going to be using a minimal configuration here.
+* The issuer URL should be where Dex talks to the OIDC provider. There would normally be a
+`.well-known/openid-configuration` under this URL which has information about what the provider supports.
+e.g. https://accounts.google.com/.well-known/openid-configuration
+
+
+```yaml
+data:
+  url: "https://argocd.example.com"
+  dex.config: |
+    connectors:
+      # OIDC
+      - type: OIDC
+        id: oidc
+        name: OIDC
+        issuer: https://example-OIDC-provider.com
+        clientID: aaaabbbbccccddddeee
+        clientSecret: $dex.oidc.clientSecret
+```
+
+### Requesting additional ID token claims
+
+By default Dex only retrieves the profile and email scopes. In order to retrieve more more claims you
+can add them under the `scopes` entry in the Dex configuration. To enable group claims through Dex,
+`insecureEnableGroups` also needs to enabled. Group information is currently only refreshed at authentication
+time and support to refresh group information more dynamically can be tracked here: [dexidp/dex#1065](https://github.com/dexidp/dex/issues/1065).
+
+```yaml
+data:
+  url: "https://argocd.example.com"
+  dex.config: |
+    connectors:
+      # OIDC
+      - type: OIDC
+        id: oidc
+        name: OIDC
+        issuer: https://example-OIDC-provider.com
+        clientID: aaaabbbbccccddddeee
+        clientSecret: $dex.oidc.clientSecret
+        insecureEnableGroups: true
+        scopes:
+        - profile
+        - email
+        - groups
+```
+
+!!! warning
+    Because group information is only refreshed at authentication time just adding or removing an account from a group will not change a user's membership until they reauthenticate. Depending on your organization's needs this could be a security risk and could be mitigated by changing the authentication token's lifetime.
+
+### Retrieving claims that are not in the token
+
+When an Idp does not or cannot support certain claims in an IDToken they can be retrieved separately using
+the UserInfo endpoint. Dex supports this functionality using the `getUserInfo` endpoint. One of the most
+common claims that is not supported in the IDToken is the `groups` claim and both `getUserInfo` and `insecureEnableGroups`
+must be set to true.
+
+```yaml
+data:
+  url: "https://argocd.example.com"
+  dex.config: |
+    connectors:
+      # OIDC
+      - type: OIDC
+        id: oidc
+        name: OIDC
+        issuer: https://example-OIDC-provider.com
+        clientID: aaaabbbbccccddddeee
+        clientSecret: $dex.oidc.clientSecret
+        insecureEnableGroups: true
+        scopes:
+        - profile
+        - email
+        - groups
+        getUserInfo: true
+```
 
 ## Existing OIDC Provider
 

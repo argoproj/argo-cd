@@ -98,9 +98,10 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
+    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.Application> {
         return requests
             .put(`/applications/${app.metadata.name}`)
+            .query(query)
             .send(app)
             .then(res => this.parseAppFields(res.body));
     }
@@ -165,11 +166,12 @@ export class ApplicationsService {
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
-        syncOptions?: string[]
+        syncOptions?: string[],
+        retryStrategy?: models.RetryStrategy
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null, retryStrategy})
             .then(() => true);
     }
 

@@ -237,4 +237,16 @@ func TestAppRevisionHasChanged(t *testing.T) {
 			TargetRevision: "dev",
 		},
 	}}, "dev", false))
+
+	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/dev",
+		},
+	}}, "master", true))
+
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/dev",
+		},
+	}}, "dev", false))
 }

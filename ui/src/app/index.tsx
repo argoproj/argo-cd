@@ -11,3 +11,5 @@ if (mdl.hot) {
         ReactDOM.render(<UpdatedApp />, document.getElementById('app'));
     });
 }
+
+(window as any).React = React;

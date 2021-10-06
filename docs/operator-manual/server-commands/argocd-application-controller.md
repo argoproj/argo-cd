@@ -36,6 +36,11 @@ argocd-application-controller [flags]
       --operation-processors int              Number of application operation processors (default 10)
       --password string                       Password for basic authentication to the API server
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
+      --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
+      --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
+      --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.
       --repo-server string                    Repo server address. (default "argocd-repo-server:8081")
       --repo-server-plaintext                 Disable TLS on connections to repo server

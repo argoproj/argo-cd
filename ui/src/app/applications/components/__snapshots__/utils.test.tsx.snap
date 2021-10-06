@@ -80,7 +80,7 @@ exports[`HealthStatusIcon.Missing 1`] = `
   qe-id="utils-health-status-title"
   style={
     Object {
-      "color": "#CCD6DD",
+      "color": "#f4c030",
     }
   }
   title="Missing"
@@ -106,7 +106,7 @@ exports[`HealthStatusIcon.Suspended 1`] = `
   qe-id="utils-health-status-title"
   style={
     Object {
-      "color": "#CCD6DD",
+      "color": "#766f94",
     }
   }
   title="Suspended"

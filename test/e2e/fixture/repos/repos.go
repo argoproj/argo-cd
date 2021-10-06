@@ -116,6 +116,25 @@ func AddHTTPSCredentialsTLSClientCert() {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
+// AddHelmHTTPSCredentialsTLSClientCert adds credentials for Helm repos to context
+func AddHelmHTTPSCredentialsTLSClientCert() {
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	errors.CheckError(err)
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	errors.CheckError(err)
+	args := []string{
+		"repocreds",
+		"add",
+		fixture.RepoURL(fixture.RepoURLTypeHelmParent),
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"--tls-client-cert-path", certPath,
+		"--tls-client-cert-key-path", keyPath,
+		"--type", "helm",
+	}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
 func AddHelmoOCICredentialsWithoutUserPass() {
 	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),

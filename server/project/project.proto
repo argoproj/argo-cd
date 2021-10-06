@@ -65,6 +65,13 @@ message GlobalProjectsResponse {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject items = 1;
 }
 
+message DetailedProjectsResponse {
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject globalProjects = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 2;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repositories = 3;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
+}
+
 // ProjectService
 service ProjectService {
 
@@ -92,6 +99,11 @@ service ProjectService {
   // List returns list of projects
   rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProjectList) {
       option (google.api.http).get = "/api/v1/projects";
+  }
+
+  // GetDetailedProject returns a project that include project, global project and scoped resources by name
+  rpc GetDetailedProject(ProjectQuery) returns (DetailedProjectsResponse) {
+      option (google.api.http).get = "/api/v1/projects/{name}/detailed";
   }
 
   // Get returns a project by name

@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '2'
+  creationTimestamp: '2021-06-30T04:40:44Z'
+  generation: 5
+  labels:
+    app.kubernetes.io/instance: rollouts-demo
+  name: rollouts-demo
+  namespace: rollouts-demo
+  resourceVersion: '4838641'
+  uid: bf946046-d90e-49b9-863c-76f82bed3b31
+spec:
+  replicas: 5
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  strategy:
+    canary:
+      canaryService: rollouts-demo-desired
+      stableService: rollouts-demo-stable
+      steps:
+        - setWeight: 21
+        - pause: {}
+        - setWeight: 40
+        - pause:
+            duration: 10
+        - setWeight: 60
+        - pause:
+            duration: 10
+        - setWeight: 80
+        - pause:
+            duration: 10
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+        - image: 'argoproj/rollouts-demo:yellow'
+          imagePullPolicy: Always
+          name: rollouts-demo
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+status:
+  HPAReplicas: 6
+  availableReplicas: 6
+  blueGreen: {}
+  canary: {}
+  conditions:
+    - lastTransitionTime: '2021-06-30T05:01:22Z'
+      lastUpdateTime: '2021-06-30T05:01:22Z'
+      message: RolloutCompleted
+      reason: RolloutCompleted
+      status: 'False'
+      type: Completed
+    - lastTransitionTime: '2021-06-30T05:01:27Z'
+      lastUpdateTime: '2021-06-30T05:01:27Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2021-07-15T21:08:55Z'
+      lastUpdateTime: '2021-07-15T21:08:55Z'
+      message: Rollout is paused
+      reason: RolloutPaused
+      status: Unknown
+      type: Progressing
+    - lastTransitionTime: '2021-07-15T21:08:55Z'
+      lastUpdateTime: '2021-07-15T21:08:55Z'
+      message: Rollout is paused
+      reason: RolloutPaused
+      status: 'True'
+      type: Paused
+  controllerPause: true
+  currentPodHash: 8566c77b97
+  currentStepHash: 7d5979db69
+  currentStepIndex: 1
+  message: CanaryPauseStep
+  observedGeneration: '5'
+  pauseConditions:
+    - reason: CanaryPauseStep
+      startTime: '2021-07-15T21:08:55Z'
+  phase: Paused
+  readyReplicas: 6
+  replicas: 6
+  selector: app=rollouts-demo
+  stableRS: 77f4f8ff97
+  updatedReplicas: 2
