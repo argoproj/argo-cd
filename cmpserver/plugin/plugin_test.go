@@ -49,6 +49,7 @@ func TestGenerateManifest(t *testing.T) {
 
 	q := apiclient.ManifestRequest{}
 	res1, err := service.GenerateManifest(context.Background(), &q)
+	require.NoError(t, err)
 	require.NotNil(t, res1)
 
 	expectedOutput := "{\"apiVersion\":\"v1\",\"data\":{\"foo\":\"bar\"},\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"
