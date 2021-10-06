@@ -5,6 +5,6 @@
     if (path.startsWith('/argo-cd')) {
       path = path.substr('/argo-cd'.length);
     }
-    window.open('https://argo-cd.readthedocs.io/en/stable' + path + window.location.hash);
+    window.location.replace('https://argo-cd.readthedocs.io/en/stable' + path + window.location.hash);
   </script>
 </body>
