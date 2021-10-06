@@ -1,4 +1,4 @@
-name: Push ArgoCD arm64 image
+name: Publish ArgoCD multiarch image
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  prepare-release:
-    name: Perform automatic arm64 release on trigger ${{ github.event.inputs.release-tag-name }}
+  publish-multiarch-image:
+    name: Perform automatic multiarch release on trigger ${{ github.event.inputs.release-tag-name }}
     runs-on: ubuntu-latest
     env:
       # The name of the tag as supplied by the GitHub event
@@ -88,8 +88,17 @@ jobs:
           set -ue
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
           docker push ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-arm64
+          # Create docker multi-arch manifest
+          docker manifest create ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-multiarch \
+            --amend ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG} \
+            --amend ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-arm64
+          docker manifest push ${IMAGE_NAMESPACE}/argocd:${RELEASE_TAG}-multiarch
           # Remove the following when Docker Hub is gone
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
           docker push argoproj/argocd:${RELEASE_TAG}-arm64
+          docker manifest create argoproj/argocd:${RELEASE_TAG}-multiarch \
+            --amend argoproj/argocd:${RELEASE_TAG} \
+            --amend argoproj/argocd:${RELEASE_TAG}-arm64
+          docker manifest push argoproj/argocd:${RELEASE_TAG}-multiarch
         if: ${{ env.DRY_RUN != 'true' }}
 
