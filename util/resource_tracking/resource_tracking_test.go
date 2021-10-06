@@ -1,4 +1,4 @@
-package argo
+package resource_tracking
 
 import (
 	"io/ioutil"
@@ -21,9 +21,9 @@ func TestSetAppInstanceLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
 	assert.Nil(t, err)
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
+	app := GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
 	assert.Equal(t, "my-app", app)
 }
 
@@ -37,10 +37,10 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
+	err = SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
 	assert.Nil(t, err)
 
-	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation)
+	app := GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation)
 	assert.Equal(t, "my-app", app)
 }
 
@@ -53,10 +53,10 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
+	err = SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
 	assert.Nil(t, err)
 
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+	app := GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
 	assert.Equal(t, "my-app", app)
 }
 
@@ -70,13 +70,13 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation)
+	app := GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation)
 	assert.Equal(t, "", app)
 }
 
 func TestParseAppInstanceValue(t *testing.T) {
 	resourceTracking := NewResourceTracking()
-	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>")
+	appInstanceValue, err := ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>")
 	if !assert.NoError(t, err) {
 		t.Fatal()
 	}
@@ -89,18 +89,18 @@ func TestParseAppInstanceValue(t *testing.T) {
 
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
-	_, err := resourceTracking.ParseAppInstanceValue("app")
+	_, err := ParseAppInstanceValue("app")
 	assert.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
-	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
+	_, err := ParseAppInstanceValue("app;group/kind/ns")
 	assert.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 	resourceTracking := NewResourceTracking()
-	_, err := resourceTracking.ParseAppInstanceValue("app:group/kind:test/ns")
+	_, err := ParseAppInstanceValue("app:group/kind:test/ns")
 	assert.NoError(t, err)
 }

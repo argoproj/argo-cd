@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
+
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -331,7 +333,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			KubeVersion:       serverVersion,
 			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 			HelmRepoCreds:     helmCreds,
-			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			TrackingMethod:    string(resource_tracking.GetTrackingMethod(s.settingsMgr)),
 		})
 		return err
 	})
@@ -415,7 +417,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
-				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				TrackingMethod:   string(resource_tracking.GetTrackingMethod(s.settingsMgr)),
 			})
 			return err
 		}); err != nil {

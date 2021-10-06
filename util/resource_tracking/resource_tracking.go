@@ -1,4 +1,4 @@
-package argo
+package resource_tracking
 
 import (
 	"fmt"
@@ -55,6 +55,10 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 		return TrackingMethodLabel
 	}
 	return v1alpha1.TrackingMethod(tm)
+}
+
+func IsOldTrackingMethod(trackingMethod string) bool {
+	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
 // GetAppName retrieve application name base on tracking method

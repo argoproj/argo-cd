@@ -885,7 +885,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					val := argoSettings.ResourceOverrides[k]
 					overrides[k] = *val
 				}
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides, argoSettings.GetTrackingMethod())
 				errors.CheckError(err)
 
 				diffRes, err := diff.Diff(item.target, item.live, diff.WithNormalizer(normalizer))

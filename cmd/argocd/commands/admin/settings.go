@@ -411,7 +411,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 				normalizedRes := res.DeepCopy()
 				logs := collectLogs(func() {
-					errors.CheckError(normalizer.Normalize(normalizedRes))
+					errors.CheckError(normalizer.Normalize(normalizedRes, nil, nil))
 				})
 				if logs != "" {
 					_, _ = fmt.Println(logs)

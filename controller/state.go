@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
+
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -98,7 +100,7 @@ type appStateManager struct {
 	cache                *appstatecache.Cache
 	namespace            string
 	statusRefreshTimeout time.Duration
-	resourceTracking     argo.ResourceTracking
+	resourceTracking     resource_tracking.ResourceTracking
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -176,7 +178,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
-		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
+		TrackingMethod:    string(resource_tracking.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err
@@ -259,7 +261,7 @@ func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string,
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
+	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides, string(resource_tracking.GetTrackingMethod(m.settingsMgr)))
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
@@ -463,7 +465,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 	}
 
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod := resource_tracking.GetTrackingMethod(m.settingsMgr)
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
@@ -686,7 +688,7 @@ func NewAppStateManager(
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
-	resourceTracking argo.ResourceTracking,
+	resourceTracking resource_tracking.ResourceTracking,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:       liveStateCache,

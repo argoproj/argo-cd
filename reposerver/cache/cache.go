@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
@@ -194,7 +194,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, trackingMethod appv1.TrackingMethod) string {
 	if trackingMethod == "" {
-		trackingMethod = argo.TrackingMethodLabel
+		trackingMethod = resource_tracking.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc), trackingMethod)
 }

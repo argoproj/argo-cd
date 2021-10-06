@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -41,7 +41,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
+	SetTrackingMethod(string(resource_tracking.TrackingMethodAnnotation))
 	ctx.
 		Path("deployment").
 		When().
@@ -64,7 +64,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	SetTrackingMethod(string(argo.TrackingMethodLabel))
+	SetTrackingMethod(string(resource_tracking.TrackingMethodLabel))
 	ctx.
 		Path("deployment").
 		When().

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
+
 	"github.com/r3labs/diff"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -245,7 +247,7 @@ func ValidateRepo(
 		KustomizeOptions: kustomizeOptions,
 		// don't use case during application change to make sure to fetch latest git/helm revisions
 		NoRevisionCache: true,
-		TrackingMethod:  string(GetTrackingMethod(settingsMgr)),
+		TrackingMethod:  string(resource_tracking.GetTrackingMethod(settingsMgr)),
 	})
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -499,7 +501,7 @@ func verifyGenerateManifests(
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
 		HelmRepoCreds:     repositoryCredentials,
-		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
+		TrackingMethod:    string(resource_tracking.GetTrackingMethod(settingsMgr)),
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

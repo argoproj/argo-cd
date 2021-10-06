@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -368,7 +368,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking())
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, resource_tracking.NewResourceTracking())
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -410,5 +410,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil, resource_tracking.NewResourceTracking())
 }

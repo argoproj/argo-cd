@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 
 	"github.com/Masterminds/semver"
 	"github.com/TomOnTime/utfutil"
@@ -69,7 +69,7 @@ type Service struct {
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
-	resourceTracking          argo.ResourceTracking
+	resourceTracking          resource_tracking.ResourceTracking
 	newGitClient              func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
@@ -85,7 +85,7 @@ type RepoServerInitConstants struct {
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants RepoServerInitConstants, resourceTracking resource_tracking.ResourceTracking) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
@@ -715,7 +715,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
-	resourceTracking := argo.NewResourceTracking()
+	resourceTracking := resource_tracking.NewResourceTracking()
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err

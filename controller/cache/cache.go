@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
+
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -106,7 +108,7 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterFilter func(cluster *appv1.Cluster) bool,
-	resourceTracking argo.ResourceTracking) LiveStateCache {
+	resourceTracking resource_tracking.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -136,7 +138,7 @@ type liveStateCache struct {
 	settingsMgr      *settings.SettingsManager
 	metricsServer    *metrics.MetricsServer
 	clusterFilter    func(cluster *appv1.Cluster) bool
-	resourceTracking argo.ResourceTracking
+	resourceTracking resource_tracking.ResourceTracking
 
 	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
@@ -288,7 +290,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
+	trackingMethod := resource_tracking.GetTrackingMethod(c.settingsMgr)
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),

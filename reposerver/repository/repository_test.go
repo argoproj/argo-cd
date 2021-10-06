@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +72,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
+	), RepoServerInitConstants{ParallelismLimit: 1}, resource_tracking.NewResourceTracking())
 
 	chart := "my-chart"
 	version := "1.1.0"

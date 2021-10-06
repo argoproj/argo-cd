@@ -145,7 +145,7 @@ func remarshal(fieldVal interface{}, field knownTypeField) (interface{}, error) 
 
 // Normalize re-format custom resource fields using built-in Kubernetes types JSON marshaler.
 // This technique allows avoiding false drift detections in CRDs that import data structures from Kubernetes codebase.
-func (n *knownTypesNormalizer) Normalize(un *unstructured.Unstructured) error {
+func (n *knownTypesNormalizer) Normalize(un, config, live *unstructured.Unstructured) error {
 	if fields, ok := n.typeFields[un.GroupVersionKind().GroupKind()]; ok {
 		for _, field := range fields {
 			err := normalize(un.Object, field, field.fieldPath)
