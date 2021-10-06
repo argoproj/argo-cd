@@ -256,8 +256,18 @@ export interface ApplicationSpec {
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
+    ignoreDifferences?: ResourceIgnoreDifferences[];
     info?: Info[];
     revisionHistoryLimit?: number;
+}
+
+export interface ResourceIgnoreDifferences {
+    group: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    jsonPointers: string[];
+    jqPathExpressions: string[];
 }
 
 /**
