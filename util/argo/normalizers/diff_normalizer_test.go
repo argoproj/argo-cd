@@ -26,7 +26,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -44,7 +44,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 
 	deployment := test.NewDeployment()
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 
 	_, hasSpec, err := unstructured.NestedMap(deployment.Object, "spec")
@@ -67,7 +67,7 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -105,14 +105,14 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 
 	deployment := test.NewDeployment()
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.NoError(t, err)
 
 	crd := unstructured.Unstructured{}
 	err = yaml.Unmarshal([]byte(testCRDYAML), &crd)
 	assert.NoError(t, err)
 
-	err = normalizer.Normalize(&crd)
+	err = normalizer.Normalize(&crd, nil, nil)
 	assert.NoError(t, err)
 }
 
@@ -131,7 +131,7 @@ func TestNormalizeGlobMatch(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -160,7 +160,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 2)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 	actualInitContainers, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
 	assert.Nil(t, err)
@@ -197,7 +197,7 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 	originalDeployment, err := deployment.MarshalJSON()
 	assert.Nil(t, err)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment, nil, nil)
 	assert.Nil(t, err)
 
 	normalizedDeployment, err := deployment.MarshalJSON()

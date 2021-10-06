@@ -82,7 +82,7 @@ func TestNormalize_MapField(t *testing.T) {
 
 	rollout := mustUnmarshalYAML(someCRDYaml)
 
-	err = normalizer.Normalize(rollout)
+	err = normalizer.Normalize(rollout, nil, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -123,7 +123,7 @@ func TestNormalize_FieldInNestedSlice(t *testing.T) {
 		return
 	}
 
-	err = normalizer.Normalize(rollout)
+	err = normalizer.Normalize(rollout, nil, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -175,7 +175,7 @@ spec:
 		return
 	}
 
-	err = normalizer.Normalize(rollout)
+	err = normalizer.Normalize(rollout, nil, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -216,7 +216,7 @@ spec:
 		return
 	}
 
-	err = normalizer.Normalize(rollout)
+	err = normalizer.Normalize(rollout, nil, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -242,7 +242,7 @@ func TestFieldDoesNotExist(t *testing.T) {
 		return
 	}
 
-	err = normalizer.Normalize(rollout)
+	err = normalizer.Normalize(rollout, nil, nil)
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -3,10 +3,10 @@ package normalizers
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/kube"
+
+	"github.com/argoproj/argo-cd/v2/util/resource_tracking"
 )
 
 type resourceIdNormalizer struct {
@@ -34,42 +34,21 @@ func (n *resourceIdNormalizer) Normalize(origin, config, live *unstructured.Unst
 		return nil
 	}
 
-	if n.trackingMethod == string(resource_tracking.TrackingMethodAnnotation) {
-		annotation := kube.GetAppInstanceAnnotation(origin, common.AnnotationKeyAppInstance)
-		_ = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-		if config != nil {
-			_ = kube.SetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance, annotation)
-			_ = kube.SetAppInstanceLabel(config, common.LabelKeyAppInstance, kube.GetAppInstanceLabel(live, common.LabelKeyAppInstance))
+	annotation := kube.GetAppInstanceAnnotation(origin, common.AnnotationKeyAppInstance)
+	err := kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	if err != nil {
+		return err
+	}
+	if config != nil {
+		err = kube.SetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance, annotation)
+		if err != nil {
+			return err
+		}
+		err = kube.SetAppInstanceLabel(config, common.LabelKeyAppInstance, kube.GetAppInstanceLabel(live, common.LabelKeyAppInstance))
+		if err != nil {
+			return err
 		}
 	}
 
-	if n.trackingMethod == string(resource_tracking.TrackingMethodAnnotationAndLabel) {
-		annotation := kube.GetAppInstanceAnnotation(origin, common.AnnotationKeyAppInstance)
-		_ = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-		if config != nil {
-			_ = kube.SetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance, annotation)
-		}
-	}
-
-	//
-	//label := kube.GetAppInstanceLabel(origin, common.LabelKeyAppInstance)
-	//
-	//lannotation := kube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
-	//llabel := kube.GetAppInstanceLabel(live, common.LabelKeyAppInstance)
-	//
-	//if annotation != "" {
-	//}
-	//
-	//if label != "" {
-	//	_ = kube.SetAppInstanceLabel(live, common.LabelKeyAppInstance, label)
-	//}
-	//
-	//if lannotation != "" {
-	//	_ = kube.SetAppInstanceAnnotation(origin, common.AnnotationKeyAppInstance, lannotation)
-	//}
-	//
-	//if llabel != "" {
-	//	_ = kube.SetAppInstanceLabel(origin, common.LabelKeyAppInstance, llabel)
-	//}
 	return nil
 }
