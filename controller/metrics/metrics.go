@@ -124,7 +124,7 @@ var (
 	redisRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
+			Help: "Number of redis requests executed during application reconciliation.",
 		},
 		[]string{"hostname", "initiator", "failed"},
 	)
