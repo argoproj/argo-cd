@@ -503,7 +503,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
 
 	for i := range reconciliation.Target {
-		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], string(trackingMethod))
+		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
 	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {

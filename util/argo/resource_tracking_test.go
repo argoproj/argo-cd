@@ -126,9 +126,13 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 
 	err = resourceTracking.SetAppInstance(obj2, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
 
-	_ = resourceTracking.Normalize(obj2, obj, string(TrackingMethodAnnotation))
+	_ = resourceTracking.Normalize(obj2, obj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	annotation := kube.GetAppInstanceAnnotation(obj2, common.AnnotationKeyAppInstance)
 
 	assert.Equal(t, obj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
+}
+
+func TestIsOldTrackingMethod(t *testing.T) {
+	assert.Equal(t, true, IsOldTrackingMethod(string(TrackingMethodLabel)))
 }

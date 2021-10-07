@@ -32,7 +32,7 @@ type ResourceTracking interface {
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
-	Normalize(config, live *unstructured.Unstructured, trackingMethod string) error
+	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
 }
 
 //AppInstanceValue store information about resource tracking info
@@ -150,7 +150,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
-func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, trackingMethod string) error {
+func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {
 		return nil
 	}
@@ -159,7 +159,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, t
 		return nil
 	}
 
-	label := kube.GetAppInstanceLabel(live, common.LabelKeyAppInstance)
+	label := kube.GetAppInstanceLabel(live, labelKey)
 	if label == "" {
 		return nil
 	}
@@ -169,7 +169,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, t
 		return err
 	}
 
-	err = argokube.SetAppInstanceLabel(config, common.LabelKeyAppInstance, label)
+	err = argokube.SetAppInstanceLabel(config, labelKey, label)
 	if err != nil {
 		return err
 	}
