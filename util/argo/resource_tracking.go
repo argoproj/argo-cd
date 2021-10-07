@@ -163,6 +163,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 	if label == "" {
 		return nil
 	}
+
 	annotation := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
 	err := argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
 	if err != nil {
