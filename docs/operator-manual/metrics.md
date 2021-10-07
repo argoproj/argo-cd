@@ -23,16 +23,18 @@ to deleted resources, you can schedule a metrics reset to clean the
 history with an application controller flag. Example:
 `--metrics-cache-expiration="24h0m0s"`.
 
-### Exposing Application labels as prometheus metrics
+### Exposing Application labels as Prometheus metrics
 
-There are use-cases where ArgoCD Applications contain labels that are desired to be exposed as prometheus metrics.
+There are use-cases where ArgoCD Applications contain labels that are desired to be exposed as Prometheus metrics.
 Some examples are:
 
 * Having the team name as a label to allow routing alerts to specific receivers
 * Creating dashboards broken down by business units
 
-As the Application labels are specific to each company, this feature is disabled by default. To enable it add the
-following flag to the ArgoCD application controller:
+As the Application labels are specific to each company, this feature is disabled by default. To enable it, add the
+`--metrics-application-labels` flag to the ArgoCD application controller.
+
+The example bellow will expose the ArgoCD Application labels `team-name` and `business-unit` to Prometheus:
 
     containers:
     - command:
@@ -42,8 +44,7 @@ following flag to the ArgoCD application controller:
       - --metrics-application-labels
       - business-unit
 
-This will expose a new prometheus metric (`argocd_app_labels`) containing the content of the provided Application labels translated to prometheus labels.
-In the example above the metric would look like:
+In this case, the metric would look like:
 
 ```
 # TYPE argocd_app_labels gauge
