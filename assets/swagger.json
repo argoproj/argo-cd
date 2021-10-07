@@ -753,6 +753,11 @@
             "type": "string",
             "name": "resourceName",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
+            "in": "query"
           }
         ],
         "responses": {
@@ -931,6 +936,11 @@
           {
             "type": "string",
             "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
             "in": "query"
           }
         ],

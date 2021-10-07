@@ -38,6 +38,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const page = props.page;
     const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
+    const [showPreviousLogs, setPreviousLogs] = useState(false);
 
     interface FilterData {
         literal: string;
@@ -136,6 +137,13 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </button>
                         <button
+                            className={`argo-button argo-button--base${showPreviousLogs? '' : '-o'}`}
+                            onClick={() => {
+                                setViewPodNames(!showPreviousLogs)
+                            }}>
+                            PREVIOUS LOGS
+                        </button>
+                        <button
                             className='argo-button argo-button--base'
                             onClick={async () => {
                                 const downloadURL = services.applications.getDownloadLogsURL(
@@ -193,7 +201,8 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     maxLines * (page.number + 1),
                                     prefs.appDetails.followLogs && page.number === 0,
                                     page.untilTimes[page.untilTimes.length - 1],
-                                    filterQuery
+                                    filterQuery,
+                                    showPreviousLogs
                                 )
                                 // show only current page lines
                                 .pipe(
