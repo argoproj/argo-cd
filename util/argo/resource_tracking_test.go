@@ -114,9 +114,10 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
 
-	resourceTracking := NewResourceTracking()
+	rt := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = rt.SetAppInstance(obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
 
 	yamlBytes, err = ioutil.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
@@ -124,12 +125,12 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj2)
 	assert.Nil(t, err)
 
-	err = resourceTracking.SetAppInstance(obj2, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	err = rt.SetAppInstance(obj2, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	assert.Nil(t, err)
 
-	_ = resourceTracking.Normalize(obj2, obj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
+	_ = rt.Normalize(obj2, obj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	annotation := kube.GetAppInstanceAnnotation(obj2, common.AnnotationKeyAppInstance)
-
 	assert.Equal(t, obj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 }
 
