@@ -129,7 +129,6 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	assert.Nil(t, err)
 
 	_ = rt.Normalize(obj2, obj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
-
 	annotation := kube.GetAppInstanceAnnotation(obj2, common.AnnotationKeyAppInstance)
 	assert.Equal(t, obj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 }
