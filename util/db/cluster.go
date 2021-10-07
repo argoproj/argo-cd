@@ -182,7 +182,7 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 		return nil, err
 	}
 	for _, clusterSecret := range clusterSecrets {
-		if cluster, err := secretToCluster(clusterSecret); err == nil && cluster.Server == strings.TrimRight(server, "/") {
+		if cluster, err := secretToCluster(clusterSecret); err == nil && (cluster.Name == server || cluster.Server == strings.TrimRight(server, "/")) {
 			return clusterSecret, nil
 		}
 	}

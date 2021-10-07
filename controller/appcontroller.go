@@ -1580,7 +1580,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 		return false
 	}
 	if ctrl.clusterFilter != nil {
-		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+		cluster, err := argo.GetCluster(ctrl.db, context.Background(), app.Spec.Destination.Server)
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}

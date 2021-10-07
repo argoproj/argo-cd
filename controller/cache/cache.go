@@ -279,7 +279,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return clusterCache, nil
 	}
 
-	cluster, err := c.db.GetCluster(context.Background(), server)
+	cluster, err := argo.GetCluster(c.db, context.Background(), server)
 	if err != nil {
 		return nil, err
 	}
