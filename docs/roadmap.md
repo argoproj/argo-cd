@@ -9,7 +9,9 @@
     - [Input Forms UI Refresh](#input-forms-ui-refresh)
     - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
     - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
+    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
     - [Compact Resources Tree](#compact-resources-tree)
+    - [Multi-tenancy improvements](#multi-tenancy-improvements)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
     - [✅ Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
@@ -56,11 +58,22 @@ The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD
 
 ### Merge Argo CD Notifications into Argo CD
 
-The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) feature is now part of Argo CD: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
+The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
 
-### Compact Resources Tree
+### Merge Argo CD Image Updater into Argo CD
+
+The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+
+### Compact resources tree
 
 An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
+
+### Multi-tenancy improvements
+
+The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
+* [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
+* [AppSource](https://github.com/argoproj-labs/appsource)
+
 
 ### GitOps Engine Enhancements
 
@@ -115,7 +128,7 @@ to improve user experience.
 
 To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
 
-That includes more metrics, out of the box alerts and a cluster management user interface.
+That includes more metrics, out-of-the-box alerts and a cluster management user interface.
 
 
 ### ✅ Argo CD Notifications
