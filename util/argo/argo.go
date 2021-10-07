@@ -357,7 +357,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, spec.Destination.Server)
+		_, err := GetCluster(db, ctx, spec.Destination.Server)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
