@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -144,6 +145,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	if err != nil {
 		return nil, err
 	}
+
+	if len(appLabels) > 0 {
+		normalizedLabels := normalizeLabels("label", appLabels)
+		descAppLabels = prometheus.NewDesc(
+			"argocd_app_labels",
+			"Argo Application labels converted to Prometheus labels",
+			append(descAppDefaultLabels, normalizedLabels...),
+			nil,
+		)
+	}
+
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
@@ -153,16 +165,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
 	healthz.ServeHealthCheck(mux, healthCheck)
-
-	if len(appLabels) > 0 {
-		normalizedLabels := addLabelPrefix("label", appLabels)
-		descAppLabels = prometheus.NewDesc(
-			"argocd_app_labels",
-			"Argo Application labels converted to Prometheus labels",
-			append(descAppDefaultLabels, normalizedLabels...),
-			nil,
-		)
-	}
 
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(k8sRequestCounter)
@@ -192,10 +194,12 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
-func addLabelPrefix(prefix string, appLabels []string) []string {
+func normalizeLabels(prefix string, appLabels []string) []string {
 	results := []string{}
 	for _, label := range appLabels {
-		result := fmt.Sprintf("%s_%s", prefix, label)
+		//prometheus labels don't accept dash in their name
+		curr := strings.ReplaceAll(label, "-", "_")
+		result := fmt.Sprintf("%s_%s", prefix, curr)
 		results = append(results, result)
 	}
 	return results
@@ -371,8 +375,12 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	if len(c.appLabels) > 0 {
-		// TODO Implement the addGauge
-		//addGauge(descAppLabels, 1,
+		labelValues := []string{}
+		for _, desiredLabel := range c.appLabels {
+			value := app.GetLabels()[desiredLabel]
+			labelValues = append(labelValues, value)
+		}
+		addGauge(descAppLabels, 1, labelValues...)
 	}
 
 	// Deprecated controller metrics
