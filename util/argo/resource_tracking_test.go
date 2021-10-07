@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/util/kube"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -103,4 +105,30 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app:group/kind:test/ns")
 	assert.NoError(t, err)
+}
+
+func TestResourceIdNormalizer_Normalize(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj *unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+
+	yamlBytes, err = ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj2 *unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj2)
+	assert.Nil(t, err)
+
+	err = resourceTracking.SetAppInstance(obj2, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+
+	_ = resourceTracking.Normalize(obj2, obj, string(TrackingMethodAnnotation))
+
+	annotation := kube.GetAppInstanceAnnotation(obj2, common.AnnotationKeyAppInstance)
+
+	assert.Equal(t, obj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 }
