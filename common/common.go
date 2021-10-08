@@ -194,8 +194,8 @@ const (
 )
 
 const (
-	DefaultGitRetryMaxDuration time.Duration = 5000000000 // 5s
-	DefaultGitRetryDuration    time.Duration = 250000000  // 0.25s
+	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
+	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
 )
 
