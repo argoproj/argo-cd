@@ -147,6 +147,12 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// Specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
+	// Specifices max duration of git remote operation retry
+	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
+	// Specifies duration of git remote operation retry
+	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
+	// Specifies fator of git remote operation retry
+	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
@@ -185,6 +191,12 @@ const (
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.8.3"
+)
+
+const (
+	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
+	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
+	DefaultGitRetryFactor                    = int64(2)
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
