@@ -365,7 +365,7 @@ p, alice, clusters, get, "https://github.com/*/*.git", allow
 	_ = enf.SetUserPolicy(policy)
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
-	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
 
 }
 
@@ -382,7 +382,7 @@ p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allo
 	_ = enf.SetUserPolicy(policy)
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
-	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/1argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
 
 }
 
