@@ -137,9 +137,10 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
                         </button>
                         <button
-                            className={`argo-button argo-button--base${showPreviousLogs? '' : '-o'}`}
+                            className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
                             onClick={() => {
-                                setPreviousLogs(!showPreviousLogs)
+                                setPreviousLogs(!showPreviousLogs);
+                                loader.reload();
                             }}>
                             PREVIOUS LOGS
                         </button>

@@ -373,7 +373,7 @@ export class ApplicationsService {
         if (filter) {
             search.set('filter', filter);
         }
-        if(previous) {
+        if (previous) {
             search.set('previous', previous.toString());
         }
         return search;
