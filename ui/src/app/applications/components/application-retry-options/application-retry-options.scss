@@ -1,9 +1,16 @@
 .application-retry-options {
+    margin-bottom: 1em;
+    label {
+        font-size: 15px;
+    }
+}
 
-    &__item {
+.application-retry-options-list {
+
+    .application-retry-options-list__item {
         margin: 12px 0;
         padding-top: 12px;
         position: relative;
-        padding-left: 0;
+        border: none;
     }
 }

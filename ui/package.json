@@ -10,7 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@reactivex/rxjs": "^6.6.7",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.3.1",
     "@types/dagre": "^0.7.40",
@@ -41,6 +40,7 @@
     "jest-junit": "^6.4.0",
     "js-yaml": "^3.13.1",
     "json-merge-patch": "^0.2.3",
+    "lodash-es": "^4.17.21",
     "minimatch": "^3.0.4",
     "moment": "^2.24.0",
     "monaco-editor": "^0.15.6",
@@ -62,6 +62,7 @@
     "react-router-dom": "^4.2.2",
     "react-svg-piechart": "^2.1.1",
     "redoc": "^2.0.0-rc.40",
+    "rxjs": "^6.6.6",
     "sass-loader": "^6.0.6",
     "source-map-loader": "^0.2.3",
     "style-loader": "^0.20.1",
@@ -78,8 +79,8 @@
     "webpack-dev-server": "^3.11.0"
   },
   "resolutions": {
-    "@types/react": "16.9.3",
-    "@types/react-dom": "16.9.3",
+    "@types/react": "^16.9.3",
+    "@types/react-dom": "^16.8.2",
     "normalize-url": "4.3.0"
   },
   "devDependencies": {
@@ -87,8 +88,8 @@
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.7.0",
     "@babel/preset-typescript": "^7.7.2",
-    "@beyonk/google-fonts-webpack-plugin": "^1.5.0",
     "@types/jest": "^24.0.13",
+    "@types/lodash-es": "^4.17.5",
     "@types/react-test-renderer": "^16.8.3",
     "add": "^2.0.6",
     "babel-jest": "^24.9.0",

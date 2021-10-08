@@ -131,6 +131,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             </div>
                                             <div className='columns small-9'>
                                                 <Tooltip
+                                                    zIndex={4}
                                                     content={
                                                         <div>
                                                             {Object.keys(app.metadata.labels || {})
@@ -167,7 +168,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 Repository:
                                             </div>
                                             <div className='columns small-9'>
-                                                <Tooltip content={app.spec.source.repoURL}>
+                                                <Tooltip content={app.spec.source.repoURL} zIndex={4}>
                                                     <span>{app.spec.source.repoURL}</span>
                                                 </Tooltip>
                                             </div>

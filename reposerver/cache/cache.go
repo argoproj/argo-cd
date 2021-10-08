@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -190,16 +192,19 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 
-func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {
-	return fmt.Sprintf("appdetails|%s|%d", revision, appSourceKey(appSrc))
+func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, trackingMethod appv1.TrackingMethod) string {
+	if trackingMethod == "" {
+		trackingMethod = argo.TrackingMethodLabel
+	}
+	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc), trackingMethod)
 }
 
-func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
-	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc), res)
+func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res)
 }
 
-func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
-	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc), res, c.repoCacheExpiration, res == nil)
+func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res, c.repoCacheExpiration, res == nil)
 }
 
 func revisionMetadataKey(repoURL, revision string) string {

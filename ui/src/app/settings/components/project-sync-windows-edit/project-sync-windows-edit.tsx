@@ -3,6 +3,7 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {SyncWindow} from '../../../shared/models';
 
+require('./project-sync-windows-edit.scss');
 interface ProjectSyncWindowProps {
     projName: string;
     window: SyncWindow;
@@ -240,7 +241,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
             <React.Fragment>
                 <div className='columns small-2'>
                     <select
-                        className='argo-field'
+                        className='argo-field project-sync-windows-panel__options-wrapper'
                         size={8}
                         name='minute'
                         multiple={true}
@@ -255,7 +256,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             }
                             this.setValues(minuteValues, 0);
                         }}>
-                        <option key='wildcard' value='*'>
+                        <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                             Every Minute
                         </option>
                         {generateRange(60, true).map(m => (
@@ -265,7 +266,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select
-                        className='argo-field'
+                        className='argo-field project-sync-windows-panel__options-wrapper'
                         size={8}
                         name='hours'
                         multiple={true}
@@ -280,7 +281,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             }
                             this.setValues(hourValues, 1);
                         }}>
-                        <option key='wildcard' value='*'>
+                        <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                             Every Hour
                         </option>
                         {generateRange(24, true).map(m => (
@@ -290,7 +291,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select
-                        className='argo-field'
+                        className='argo-field project-sync-windows-panel__options-wrapper'
                         size={8}
                         name='dom'
                         multiple={true}
@@ -305,7 +306,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             }
                             this.setValues(domValues, 2);
                         }}>
-                        <option key='wildcard' value='*'>
+                        <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                             Every Day
                         </option>
                         {generateRange(31, false).map(m => (
@@ -315,7 +316,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select
-                        className='argo-field'
+                        className='argo-field project-sync-windows-panel__options-wrapper'
                         size={8}
                         name='month'
                         multiple={true}
@@ -330,7 +331,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             }
                             this.setValues(monthValues, 3);
                         }}>
-                        <option key='wildcard' value='*'>
+                        <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                             Every Month
                         </option>
                         <option key='1' value='1'>
@@ -373,7 +374,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
                 <div className='columns small-2'>
                     <select
-                        className='argo-field'
+                        className='argo-field project-sync-windows-panel__options-wrapper'
                         size={8}
                         name='dow'
                         multiple={true}
@@ -388,7 +389,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             }
                             this.setValues(dowValues, 4);
                         }}>
-                        <option key='wildcard' value='*'>
+                        <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                             Sunday-Saturday
                         </option>
                         <option key='0' value='0'>

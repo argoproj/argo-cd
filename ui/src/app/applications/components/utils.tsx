@@ -208,7 +208,7 @@ export const ComparisonStatusIcon = ({
 };
 
 export function showDeploy(resource: string, appContext: AppContext) {
-    appContext.apis.navigation.goto('.', {deploy: resource});
+    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -326,7 +326,7 @@ export function renderResourceMenu(
         const items: MenuItem[] = [
             {
                 title: 'Details',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)}, {replace: true})
             },
             ...((isRoot && [
                 {
@@ -345,7 +345,7 @@ export function renderResourceMenu(
         if (findChildPod(resource, tree)) {
             items.push({
                 title: 'Logs',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'})
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
             });
         }
         const resourceActions = services.applications
@@ -915,3 +915,11 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
+
+export const urlPattern = new RegExp(
+    new RegExp(
+        // tslint:disable-next-line:max-line-length
+        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
+        'gi'
+    )
+);

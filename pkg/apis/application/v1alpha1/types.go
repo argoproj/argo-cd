@@ -74,6 +74,8 @@ type ApplicationSpec struct {
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
+type TrackingMethod string
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
 	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
@@ -764,11 +766,12 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
-	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
 	if maxDuration > 0 {
-		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
-	return lastAttempt.Add(timeToWait), nil
+	return lastAttempt.Add(time.Duration(timeToWait)), nil
 }
 
 // Backoff is the backoff strategy to use on subsequent retries for failing syncs

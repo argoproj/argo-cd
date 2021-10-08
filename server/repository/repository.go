@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -343,7 +345,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
+			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
 	if err != nil {
