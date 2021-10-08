@@ -2894,6 +2894,12 @@
             "description": "HTTP/HTTPS proxy to access the repository.",
             "name": "proxy",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3654,8 +3660,14 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "trackingMethod": {
+          "type": "string"
+        },
         "uiBannerContent": {
           "type": "string"
+        },
+        "uiBannerPermanent": {
+          "type": "boolean"
         },
         "uiBannerURL": {
           "type": "string"
@@ -5166,6 +5178,13 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "clusterResources": {
           "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
           "type": "boolean"
@@ -5178,6 +5197,13 @@
         },
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
+        },
+        "labels": {
+          "type": "object",
+          "title": "Labels for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string",

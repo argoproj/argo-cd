@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	math "math"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 )
 
@@ -72,6 +73,8 @@ type ApplicationSpec struct {
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
+
+type TrackingMethod string
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
@@ -763,11 +766,12 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
-	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
 	if maxDuration > 0 {
-		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
-	return lastAttempt.Add(timeToWait), nil
+	return lastAttempt.Add(time.Duration(timeToWait)), nil
 }
 
 // Backoff is the backoff strategy to use on subsequent retries for failing syncs
@@ -1275,6 +1279,10 @@ type Cluster struct {
 	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
 	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
+	// Labels for cluster secret metadata
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
+	// Annotations for cluster secret metadata
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -1303,6 +1311,15 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	if c.ClusterResources != other.ClusterResources {
 		return false
 	}
+
+	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
+		return false
+	}
+
+	if !collections.StringMapsEqual(c.Labels, other.Labels) {
+		return false
+	}
+
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 

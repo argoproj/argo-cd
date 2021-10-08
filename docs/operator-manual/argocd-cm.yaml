@@ -224,6 +224,12 @@ data:
   # Optional link for banner. If set, the entire banner text will become a link.
   # You can have bannercontent without a bannerurl, but not the other way around.
   ui.bannerurl: "https://argoproj.github.io"
+  # Uncomment to make the banner not show the close buttons, thereby making the banner permanent.
+  # Because it is permanent, only one line of text is available to not take up too much real estate in the UI,
+  # so it is recommended that the length of the bannercontent text is kept reasonably short. Note that you can
+  # have either a permanent banner or a regular closeable banner, and NOT both. eg. A user can't dismiss a
+  # notification message (closeable) banner, to then immediately see a permanent banner.
+  # ui.bannerpermanent: "true"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.

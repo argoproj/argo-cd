@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -52,7 +54,10 @@ func (a *Actions) Create(args ...string) *Actions {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to upser cluster %v", err.Error())
+		if !a.ignoreErrors {
+			log.Fatalf(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))
+		}
+		a.lastError = errors.New(err.Error())
 	}
 
 	return a

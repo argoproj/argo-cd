@@ -170,7 +170,7 @@ func (repo *Repository) GetGitCreds() git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Username != "" && repo.Password != "" {
+	if repo.Password != "" {
 		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.SSHPrivateKey != "" {
