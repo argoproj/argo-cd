@@ -139,7 +139,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         <button
                             className={`argo-button argo-button--base${showPreviousLogs? '' : '-o'}`}
                             onClick={() => {
-                                setViewPodNames(!showPreviousLogs)
+                                setPreviousLogs(!showPreviousLogs)
                             }}>
                             PREVIOUS LOGS
                         </button>
