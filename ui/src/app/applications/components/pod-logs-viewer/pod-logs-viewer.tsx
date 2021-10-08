@@ -129,20 +129,20 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                         </button>
                         <button
+                            className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
+                            onClick={() => {
+                                setPreviousLogs(!showPreviousLogs);
+                                loader.reload();
+                            }}>
+                            PREVIOUS LOGS {showPreviousLogs && <i className='fa fa-check' />}
+                        </button>
+                        <button
                             className='argo-button argo-button--base-o'
                             onClick={() => {
                                 const inverted = prefs.appDetails.darkMode;
                                 services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
                             }}>
                             {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
-                        </button>
-                        <button
-                            className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
-                            onClick={() => {
-                                setPreviousLogs(!showPreviousLogs);
-                                loader.reload();
-                            }}>
-                            PREVIOUS LOGS
                         </button>
                         <button
                             className='argo-button argo-button--base'
