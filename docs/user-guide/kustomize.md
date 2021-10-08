@@ -35,8 +35,8 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-    kustomize.buildOptions: --load_restrictor LoadRestrictionsNone
-    kustomize.buildOptions.v3.9.1: --output /tmp
+    kustomize.buildOptions: --load-restrictor LoadRestrictionsNone
+    kustomize.buildOptions.v4.4.0: --output /tmp
 ```
 ## Custom Kustomize versions
 
