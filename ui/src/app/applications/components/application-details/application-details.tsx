@@ -132,6 +132,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = application.status.operationState;
                             const conditions = application.status.conditions || [];
+                            const showTerminateButton = !(operationState.finishedAt && operationState.phase !== 'Running') && operationState.phase !== 'Terminating';
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
@@ -358,6 +359,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         </div>
                                                     )}
                                                 </DataLoader>
+                                            )}
+                                            {showTerminateButton && (
+                                                <button
+                                                    className='argo-button argo-button--base'
+                                                    onClick={async () => {
+                                                        const confirmed = await this.appContext.apis.popup.confirm(
+                                                            'Terminate operation',
+                                                            'Are you sure you want to terminate operation?'
+                                                        );
+                                                        if (confirmed) {
+                                                            try {
+                                                                await services.applications.terminateOperation(application.metadata.name);
+                                                            } catch (e) {
+                                                                this.appContext.apis.notifications.show({
+                                                                    content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                                                    type: NotificationType.Error
+                                                                });
+                                                            }
+                                                        }
+                                                    }}>
+                                                    Terminate
+                                                </button>
                                             )}
                                         </SlidingPanel>
                                     </Page>
