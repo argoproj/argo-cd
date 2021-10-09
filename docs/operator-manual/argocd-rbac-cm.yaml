@@ -31,5 +31,5 @@ data:
   # matchMode configures the matchers function for casbin.
   # There are two options for this, 'glob' for glob matcher or 'regex' for regex matcher. If omitted or mis-configured,
   # will be set to 'glob' as default.
-  matchMode: 'glob'
+  policy.matchMode: 'glob'
 

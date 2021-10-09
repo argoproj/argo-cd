@@ -32,7 +32,7 @@ const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
 	ConfigMapScopesKey        = "scopes"
-	ConfigMapMatchModeKey     = "matchMode"
+	ConfigMapMatchModeKey     = "policy.matchMode"
 	GlobMatchMode             = "glob"
 	RegexMatchMode            = "regex"
 	defaultRBACSyncPeriod     = 10 * time.Minute
