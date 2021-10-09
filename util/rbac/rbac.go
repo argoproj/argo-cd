@@ -14,6 +14,7 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	"github.com/casbin/casbin/util"
 	jwt "github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -31,8 +32,10 @@ const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
 	ConfigMapScopesKey        = "scopes"
-
-	defaultRBACSyncPeriod = 10 * time.Minute
+	ConfigMapMatchModeKey     = "policy.matchMode"
+	GlobMatchMode             = "glob"
+	RegexMatchMode            = "regex"
+	defaultRBACSyncPeriod     = 10 * time.Minute
 )
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -50,6 +53,7 @@ type Enforcer struct {
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
 	defaultRole        string
+	matchMode          string
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
@@ -60,22 +64,8 @@ func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
 	if err != nil {
 		return nil, err
 	}
-	enfs.AddFunction("globMatch", func(args ...interface{}) (interface{}, error) {
-		if len(args) < 2 {
-			return false, nil
-		}
-		val, ok := args[0].(string)
-		if !ok {
-			return false, nil
-		}
-
-		pattern, ok := args[1].(string)
-		if !ok {
-			return false, nil
-		}
-
-		return glob.Match(pattern, val), nil
-	})
+	// Default glob match mode
+	enfs.AddFunction("globOrRegexMatch", globMatchFunc)
 	return enfs, nil
 }
 
@@ -96,6 +86,40 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
 	}
+}
+
+// Glob match func
+func globMatchFunc(args ...interface{}) (interface{}, error) {
+	if len(args) < 2 {
+		return false, nil
+	}
+	val, ok := args[0].(string)
+	if !ok {
+		return false, nil
+	}
+
+	pattern, ok := args[1].(string)
+	if !ok {
+		return false, nil
+	}
+
+	return glob.Match(pattern, val), nil
+}
+
+// SetMatchMode set match mode on runtime, glob match or regex match
+func (e *Enforcer) SetMatchMode(mode string) {
+	if mode == RegexMatchMode {
+		e.matchMode = RegexMatchMode
+	} else {
+		e.matchMode = GlobMatchMode
+	}
+	e.Enforcer.AddFunction("globOrRegexMatch", func(args ...interface{}) (interface{}, error) {
+		if mode == RegexMatchMode {
+			return util.RegexMatchFunc(args...)
+		} else {
+			return globMatchFunc(args...)
+		}
+	})
 }
 
 // SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
@@ -281,6 +305,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""
