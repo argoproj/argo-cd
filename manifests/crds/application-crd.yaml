@@ -177,6 +177,8 @@ spec:
                                   properties:
                                     code:
                                       type: boolean
+                                    file:
+                                      type: boolean
                                     name:
                                       type: string
                                     value:
@@ -198,6 +200,8 @@ spec:
                                     be passed to jsonnet during manifest generation
                                   properties:
                                     code:
+                                      type: boolean
+                                    file:
                                       type: boolean
                                     name:
                                       type: string
@@ -530,6 +534,8 @@ spec:
                               properties:
                                 code:
                                   type: boolean
+                                file:
+                                  type: boolean
                                 name:
                                   type: string
                                 value:
@@ -551,6 +557,8 @@ spec:
                                 passed to jsonnet during manifest generation
                               properties:
                                 code:
+                                  type: boolean
+                                file:
                                   type: boolean
                                 name:
                                   type: string
@@ -893,6 +901,8 @@ spec:
                                     properties:
                                       code:
                                         type: boolean
+                                      file:
+                                        type: boolean
                                       name:
                                         type: string
                                       value:
@@ -915,6 +925,8 @@ spec:
                                       to be passed to jsonnet during manifest generation
                                     properties:
                                       code:
+                                        type: boolean
+                                      file:
                                         type: boolean
                                       name:
                                         type: string
@@ -1269,6 +1281,8 @@ spec:
                                           properties:
                                             code:
                                               type: boolean
+                                            file:
+                                              type: boolean
                                             name:
                                               type: string
                                             value:
@@ -1292,6 +1306,8 @@ spec:
                                             generation
                                           properties:
                                             code:
+                                              type: boolean
+                                            file:
                                               type: boolean
                                             name:
                                               type: string
@@ -1632,6 +1648,8 @@ spec:
                                       properties:
                                         code:
                                           type: boolean
+                                        file:
+                                          type: boolean
                                         name:
                                           type: string
                                         value:
@@ -1654,6 +1672,8 @@ spec:
                                         to be passed to jsonnet during manifest generation
                                       properties:
                                         code:
+                                          type: boolean
+                                        file:
                                           type: boolean
                                         name:
                                           type: string
@@ -1979,6 +1999,8 @@ spec:
                                       properties:
                                         code:
                                           type: boolean
+                                        file:
+                                          type: boolean
                                         name:
                                           type: string
                                         value:
@@ -2001,6 +2023,8 @@ spec:
                                         to be passed to jsonnet during manifest generation
                                       properties:
                                         code:
+                                          type: boolean
+                                        file:
                                           type: boolean
                                         name:
                                           type: string

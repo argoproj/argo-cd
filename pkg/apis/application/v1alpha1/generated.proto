@@ -667,6 +667,8 @@ message JsonnetVar {
   optional string value = 2;
 
   optional bool code = 3;
+
+  optional bool file = 4;
 }
 
 // KnownTypeField contains mapping between CRD field and known Kubernetes type.

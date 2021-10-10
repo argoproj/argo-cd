@@ -1,7 +1,7 @@
 local service = import 'nested/service.libsonnet';
 local params = import 'params.libsonnet';
 
-function(tlaString, tlaCode)
+function(tlaString, tlaStringFile, tlaCode, tlaCodeFile)
   [
     service.new(params),
     {
@@ -22,9 +22,13 @@ function(tlaString, tlaCode)
             labels: {
               app: params.name,
               tlaString: tlaString,
+              tlaStringFile: tlaStringFile,
               tlaCode: tlaCode,
+              tlaCodeFile: tlaCodeFile,
               extVarString: std.extVar('extVarString'),
+              extVarStringFile: std.extVar('extVarStringFile'),
               extVarCode: std.extVar('extVarCode'),
+              extVarCodeFile: std.extVar('extVarCodeFile'),
             },
           },
           spec: {

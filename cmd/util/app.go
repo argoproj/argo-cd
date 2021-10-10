@@ -51,9 +51,13 @@ type AppOptions struct {
 	directoryRecurse                bool
 	configManagementPlugin          string
 	jsonnetTlaStr                   []string
+	jsonnetTlaStrFile               []string
 	jsonnetTlaCode                  []string
+	jsonnetTlaCodeFile              []string
 	jsonnetExtVarStr                []string
+	jsonnetExtVarStrFile            []string
 	jsonnetExtVarCode               []string
+	jsonnetExtVarCodeFile           []string
 	jsonnetLibs                     []string
 	kustomizeImages                 []string
 	kustomizeVersion                string
@@ -101,9 +105,13 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaStrFile, "jsonnet-tla-str-file", []string{}, "Jsonnet top level string arguments file")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
+	command.Flags().StringArrayVar(&opts.jsonnetTlaCodeFile, "jsonnet-tla-code-file", []string{}, "Jsonnet top level code arguments file")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarStr, "jsonnet-ext-var-str", []string{}, "Jsonnet string ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarStrFile, "jsonnet-ext-var-str-file", []string{}, "Jsonnet string ext var file")
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
+	command.Flags().StringArrayVar(&opts.jsonnetExtVarCodeFile, "jsonnet-ext-var-code-file", []string{}, "Jsonnet ext var file")
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
@@ -211,13 +219,21 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "kustomize-force-common-annotation":
 			setKustomizeOpt(&spec.Source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
 		case "jsonnet-tla-str":
-			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
+			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false, false)
+		case "jsonnet-tla-str-file":
+			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStrFile, false, true)
 		case "jsonnet-tla-code":
-			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaCode, true)
+			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaCode, true, false)
+		case "jsonnet-tla-code-file":
+			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaCodeFile, true, true)
 		case "jsonnet-ext-var-str":
-			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStr, false)
+			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStr, false, false)
+		case "jsonnet-ext-var-str-file":
+			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarStrFile, false, true)
 		case "jsonnet-ext-var-code":
-			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true)
+			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCode, true, false)
+		case "jsonnet-ext-var-code-file":
+			setJsonnetOptExtVar(&spec.Source, appOpts.jsonnetExtVarCodeFile, true, true)
 		case "jsonnet-libs":
 			setJsonnetOptLibs(&spec.Source, appOpts.jsonnetLibs)
 		case "plugin-env":
@@ -423,21 +439,21 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 }
 
-func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, code bool) {
+func setJsonnetOpt(src *argoappv1.ApplicationSource, tlaParameters []string, code bool, file bool) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
 	for _, j := range tlaParameters {
-		src.Directory.Jsonnet.TLAs = append(src.Directory.Jsonnet.TLAs, argoappv1.NewJsonnetVar(j, code))
+		src.Directory.Jsonnet.TLAs = append(src.Directory.Jsonnet.TLAs, argoappv1.NewJsonnetVar(j, code, file))
 	}
 }
 
-func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []string, code bool) {
+func setJsonnetOptExtVar(src *argoappv1.ApplicationSource, jsonnetExtVar []string, code bool, file bool) {
 	if src.Directory == nil {
 		src.Directory = &argoappv1.ApplicationSourceDirectory{}
 	}
 	for _, j := range jsonnetExtVar {
-		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code))
+		src.Directory.Jsonnet.ExtVars = append(src.Directory.Jsonnet.ExtVars, argoappv1.NewJsonnetVar(j, code, file))
 	}
 }
 

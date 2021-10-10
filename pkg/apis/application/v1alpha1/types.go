@@ -409,13 +409,14 @@ type JsonnetVar struct {
 	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+	File  bool   `json:"file,omitempty" protobuf:"bytes,4,opt,name=file"`
 }
 
 // NewJsonnetVar parses a Jsonnet variable from a string in the format name=value
-func NewJsonnetVar(s string, code bool) JsonnetVar {
+func NewJsonnetVar(s string, code bool, file bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
-		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
+		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code, File: file}
 	} else {
 		return JsonnetVar{Name: s, Code: code}
 	}

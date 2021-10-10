@@ -5621,6 +5621,9 @@
         "code": {
           "type": "boolean"
         },
+        "file": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         },

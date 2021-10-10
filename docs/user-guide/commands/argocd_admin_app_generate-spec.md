@@ -53,10 +53,14 @@ argocd admin app generate-spec APPNAME [flags]
   -h, --help                                       help for generate-spec
   -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
+      --jsonnet-ext-var-code-file stringArray      Jsonnet ext var file
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
+      --jsonnet-ext-var-str-file stringArray       Jsonnet string ext var file
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)
       --jsonnet-tla-code stringArray               Jsonnet top level code arguments
+      --jsonnet-tla-code-file stringArray          Jsonnet top level code arguments file
       --jsonnet-tla-str stringArray                Jsonnet top level string arguments
+      --jsonnet-tla-str-file stringArray           Jsonnet top level string arguments file
       --kustomize-common-annotation stringArray    Set common labels in Kustomize
       --kustomize-common-label stringArray         Set common labels in Kustomize
       --kustomize-force-common-annotation          Force common annotations in Kustomize

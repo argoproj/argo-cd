@@ -248,9 +248,19 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			Path: "./testdata/jsonnet",
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
-					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
-					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
-					Libs:    []string{"testdata/jsonnet/vendor"},
+					ExtVars: []argoappv1.JsonnetVar{
+						{Name: "extVarString", Value: "extVarString"},
+						{Name: "extVarStringFile", Value: "./ext-var.txt", File: true},
+						{Name: "extVarCode", Value: "\"extVarCode\"", Code: true},
+						{Name: "extVarCodeFile", Value: "./ext-var.libsonnet", Code: true, File: true},
+					},
+					TLAs: []argoappv1.JsonnetVar{
+						{Name: "tlaString", Value: "tlaString"},
+						{Name: "tlaStringFile", Value: "./tla.txt", File: true},
+						{Name: "tlaCode", Value: "\"tlaCode\"", Code: true},
+						{Name: "tlaCodeFile", Value: "./tla.libsonnet", Code: true, File: true},
+					},
+					Libs: []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},

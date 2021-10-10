@@ -1038,6 +1038,10 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 }
 
 func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
+	// Based on https://github.com/google/go-jsonnet/blob/v0.17.0/cmd/jsonnet/cmd.go#L135
+	getVarFile := func(imp string, val string) string {
+		return fmt.Sprintf("%s @'%s'", imp, strings.Replace(val, "'", "''", -1))
+	}
 
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
@@ -1048,16 +1052,32 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	}
 	for _, arg := range sourceJsonnet.TLAs {
 		if arg.Code {
-			vm.TLACode(arg.Name, arg.Value)
+			if arg.File {
+				vm.TLACode(arg.Name, getVarFile("import", arg.Value))
+			} else {
+				vm.TLACode(arg.Name, arg.Value)
+			}
 		} else {
-			vm.TLAVar(arg.Name, arg.Value)
+			if arg.File {
+				vm.TLACode(arg.Name, getVarFile("importstr", arg.Value))
+			} else {
+				vm.TLAVar(arg.Name, arg.Value)
+			}
 		}
 	}
 	for _, extVar := range sourceJsonnet.ExtVars {
 		if extVar.Code {
-			vm.ExtCode(extVar.Name, extVar.Value)
+			if extVar.File {
+				vm.ExtCode(extVar.Name, getVarFile("import", extVar.Value))
+			} else {
+				vm.ExtCode(extVar.Name, extVar.Value)
+			}
 		} else {
-			vm.ExtVar(extVar.Name, extVar.Value)
+			if extVar.File {
+				vm.ExtCode(extVar.Name, getVarFile("importstr", extVar.Value))
+			} else {
+				vm.ExtVar(extVar.Name, extVar.Value)
+			}
 		}
 	}
 

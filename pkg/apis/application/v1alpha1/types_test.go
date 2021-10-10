@@ -1809,10 +1809,12 @@ func newTestApp() *Application {
 }
 
 func TestNewJsonnetVar(t *testing.T) {
-	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false))
-	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false))
-	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true))
-	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true))
+	assert.Equal(t, JsonnetVar{}, NewJsonnetVar("", false, false))
+	assert.Equal(t, JsonnetVar{Name: "a"}, NewJsonnetVar("a=", false, false))
+	assert.Equal(t, JsonnetVar{Name: "a", Code: true}, NewJsonnetVar("a=", true, false))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b", Code: true}, NewJsonnetVar("a=b", true, false))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b.txt", File: true}, NewJsonnetVar("a=b.txt", false, true))
+	assert.Equal(t, JsonnetVar{Name: "a", Value: "b.libsonnet", Code: true, File: true}, NewJsonnetVar("a=b.libsonnet", true, true))
 }
 
 func testCond(t ApplicationConditionType, msg string, lastTransitionTime *metav1.Time) ApplicationCondition {
