@@ -70,8 +70,6 @@ const (
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
-	resourceStatusNotFoundErr = errors.New("resource status not found")
-
 	applicationEventCacheExpiration = time.Minute * 60
 )
 
