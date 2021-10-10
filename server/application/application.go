@@ -13,6 +13,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -964,6 +965,11 @@ func (s *Server) streamApplicationEvents(
 		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 	}
 
+	appTree, err := s.getAppResources(ctx, a)
+	if err != nil {
+		return fmt.Errorf("failed to get application resources tree: %w", err)
+	}
+
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -998,7 +1004,7 @@ func (s *Server) streamApplicationEvents(
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree)
 		if err != nil {
 			logCtx.WithError(err).Errorf("failed to get event payload for resource %s/%s", rs.Namespace, rs.Name)
 			continue
@@ -1021,6 +1027,7 @@ func getResourceEventPayload(
 	actualState *application.ApplicationResourceResponse,
 	desiredState *apiclient.Manifest,
 	manifestsResponse *apiclient.ManifestResponse,
+	apptree *appv1.ApplicationTree,
 ) (*events.Event, error) {
 	errors := []*events.ObjectError{}
 	object := []byte(actualState.Manifest)
@@ -1069,6 +1076,9 @@ func getResourceEventPayload(
 	if rs.Health != nil {
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
+		if rs.Health.Status == health.HealthStatusDegraded {
+			errors = append(errors, parseAggregativeHealthErrors(rs, apptree)...)
+		}
 	}
 
 	payload := events.EventPayload{
@@ -1104,6 +1114,7 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 
 	for _, msg := range strings.Split(sr.Message, ",") {
 		errors = append(errors, &events.ObjectError{
+			Type:     "sync",
 			Level:    "error",
 			Message:  msg,
 			LastSeen: os.StartedAt,
@@ -1111,6 +1122,30 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 	}
 
 	return errors
+}
+
+func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.ApplicationTree) []*events.ObjectError {
+	errs := make([]*events.ObjectError, 0)
+
+	n := apptree.FindNode(rs.Group, rs.Kind, rs.Namespace, rs.Name)
+	if n == nil {
+		return errs
+	}
+
+	childNodes := n.GetAllChildNodes(apptree)
+
+	for _, cn := range childNodes {
+		if cn.Health != nil && cn.Health.Status == health.HealthStatusDegraded {
+			errs = append(errs, &events.ObjectError{
+				Type:     "health",
+				Level:    "error",
+				Message:  cn.Health.Message,
+				LastSeen: *cn.CreatedAt,
+			})
+		}
+	}
+
+	return errs
 }
 
 func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse) (*events.Event, error) {

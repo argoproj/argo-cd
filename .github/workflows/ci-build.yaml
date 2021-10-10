@@ -1,14 +1,15 @@
 name: Integration tests
-on: 
+on:
   push:
     branches:
-      - 'master'
+      # - 'master'
       - 'release-*'
       - '!release-1.4'
       - '!release-1.5'
   pull_request:
     branches:
-      - 'master'
+      # - 'master'
+      - 'release-*' # Codefresh change instead of `master`
 
 env:
   # Golang version to use across CI steps
@@ -341,7 +342,7 @@ jobs:
     strategy:
       matrix:
         k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
-    needs: 
+    needs:
       - build-go
     env:
       GOPATH: /home/runner/go
