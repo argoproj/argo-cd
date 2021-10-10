@@ -138,7 +138,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -152,7 +152,11 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 		Repo:        &argoappv1.Repository{}, ApplicationSource: &src,
 	}
 
-	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
+	cachedFakeResponse := &apiclient.ManifestResponse{
+		Manifests: []*apiclient.Manifest{
+			{CompiledManifest: "fake"},
+		},
+	}
 
 	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	assert.NoError(t, err)
@@ -192,13 +196,21 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 	response, err := service.GenerateManifest(context.Background(), request)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+	expected := &apiclient.ManifestResponse{
+		Manifests: []*apiclient.Manifest{
+			{
+				CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}",
+				Path:             "Chart.yaml",
+				RawManifest:      "",
+				Line:             1,
+			},
+		},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-	}, response)
+	}
+	assert.Equal(t, expected, response)
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
@@ -645,7 +657,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 	replicasVerified := false
 	for _, src := range res.Manifests {
 		obj := unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(src), &obj)
+		err = json.Unmarshal([]byte(src.CompiledManifest), &obj)
 		assert.NoError(t, err)
 
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
@@ -705,7 +717,13 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
-		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Manifests: []*apiclient.Manifest{
+			{
+				CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}",
+				Line:             1,
+				Path:             "Chart.yaml",
+			},
+		},
 		Namespace:  "",
 		Server:     "",
 		Revision:   "1.1.0",
@@ -850,7 +868,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
-	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
+	assert.Contains(t, res1.Manifests[0].CompiledManifest, "prometheus-operator-operator")
 
 	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{},
@@ -858,7 +876,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
-	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
+	assert.Contains(t, res1.Manifests[0].CompiledManifest, "prometheus-operator-operator")
 
 	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{},
@@ -915,7 +933,7 @@ func TestRunCustomTool(t *testing.T) {
 	assert.Equal(t, 1, len(res.Manifests))
 
 	obj := &unstructured.Unstructured{}
-	assert.NoError(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
+	assert.NoError(t, json.Unmarshal([]byte(res.Manifests[0].CompiledManifest), obj))
 
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
@@ -931,7 +949,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -1307,7 +1325,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest), &un)
+				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -1337,7 +1355,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest), &un)
+				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -1367,7 +1385,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
 			for _, manifest := range manifests.Manifests {
 				var un unstructured.Unstructured
-				err := yaml.Unmarshal([]byte(manifest), &un)
+				err := yaml.Unmarshal([]byte(manifest.CompiledManifest), &un)
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -1492,7 +1510,7 @@ func TestFindResources(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+			manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
@@ -1501,8 +1519,8 @@ func TestFindResources(t *testing.T) {
 				return
 			}
 			var names []string
-			for i := range objs {
-				names = append(names, objs[i].GetName())
+			for _, m := range manifests {
+				names = append(names, m.obj.GetName())
 			}
 			assert.ElementsMatch(t, tc.expectedNames, names)
 		})
@@ -1510,30 +1528,30 @@ func TestFindResources(t *testing.T) {
 }
 
 func TestFindManifests_Exclude(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
 	})
 
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+	if !assert.NoError(t, err) || !assert.Len(t, manifests, 1) {
 		return
 	}
 
-	assert.Equal(t, "nginx-deployment", objs[0].GetName())
+	assert.Equal(t, "nginx-deployment", manifests[0].obj.GetName())
 }
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
 	})
 
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
+	if !assert.NoError(t, err) || !assert.Len(t, manifests, 2) {
 		return
 	}
 
 	assert.ElementsMatch(t,
-		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
+		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{manifests[0].obj.GetName(), manifests[1].obj.GetName()})
 }
 
 func TestTestRepoOCI(t *testing.T) {
