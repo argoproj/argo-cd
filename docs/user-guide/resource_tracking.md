@@ -1,6 +1,6 @@
 # Resource Tracking
 
-## No Prune Resources
+## Ability to define tracking method
 
 >v2.2
 
