@@ -22,6 +22,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Beat](https://thebeat.co/en/)
 1. [Beez Innovation Labs](https://www.beezlabs.com/)
 1. [BioBox Analytics](https://biobox.io)
+1. [BigPanda](https://bigpanda.io)
 1. [BMW Group](https://www.bmwgroup.com/)
 1. [Camptocamp](https://camptocamp.com)
 1. [Capital One](https://www.capitalone.com)
