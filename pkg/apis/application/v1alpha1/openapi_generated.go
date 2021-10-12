@@ -4538,6 +4538,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"timeZone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeZone of the sync that will be applied to the schedule",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

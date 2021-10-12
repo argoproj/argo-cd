@@ -768,7 +768,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
         current = 'Inactive';
     } else {
         for (const w of state.windows) {
-            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration) {
+            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration && w.timeZone === window.timeZone) {
                 current = 'Active';
                 break;
             } else {

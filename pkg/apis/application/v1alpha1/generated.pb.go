@@ -8050,6 +8050,11 @@ func (m *SyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.TimeZone)
+	copy(dAtA[i:], m.TimeZone)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TimeZone)))
+	i--
+	dAtA[i] = 0x42
 	i--
 	if m.ManualSync {
 		dAtA[i] = 1
@@ -10056,6 +10061,8 @@ func (m *SyncWindow) Size() (n int) {
 		}
 	}
 	n += 2
+	l = len(m.TimeZone)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -11543,6 +11550,7 @@ func (this *SyncWindow) String() string {
 		`Namespaces:` + fmt.Sprintf("%v", this.Namespaces) + `,`,
 		`Clusters:` + fmt.Sprintf("%v", this.Clusters) + `,`,
 		`ManualSync:` + fmt.Sprintf("%v", this.ManualSync) + `,`,
+		`TimeZone:` + fmt.Sprintf("%v", this.TimeZone) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -28267,6 +28275,38 @@ func (m *SyncWindow) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.ManualSync = bool(v != 0)
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimeZone", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TimeZone = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

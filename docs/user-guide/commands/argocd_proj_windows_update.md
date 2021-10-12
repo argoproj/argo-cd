@@ -19,6 +19,7 @@ argocd proj windows update PROJECT ID [flags]
   -h, --help                   help for update
       --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
       --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
+      --timeZone string        TimeZone of the sync window (default "UTC")
 ```
 
 ### Options inherited from parent commands

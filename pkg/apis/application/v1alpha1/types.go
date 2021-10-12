@@ -1682,6 +1682,8 @@ type SyncWindow struct {
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+	//TimeZone of the sync that will be applied to the schedule
+	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -1706,7 +1708,10 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			nextWindow := schedule.Next(currentTime.Add(-duration))
+			// Change the nextWindow time to match the UTC timeZone
+			// This will allow users to configure the SyncWindow timeZone based on their own timezone
+			timezoneOffsetDuration := w.scheduleOffsetByTimezone()
+			nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 			if nextWindow.Before(currentTime) {
 				active = append(active, w)
 			}
@@ -1738,7 +1743,11 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				nextWindow := schedule.Next(currentTime.Add(-duration))
+				// Change the nextWindow time to match the UTC timeZone
+				// This will allow users to configure the SyncWindow timeZone based on their own timezone
+				timezoneOffsetDuration := w.scheduleOffsetByTimezone()
+				nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
+
 				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
@@ -1751,17 +1760,26 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
+func (w *SyncWindow) scheduleOffsetByTimezone() time.Duration {
+	loc, _ := time.LoadLocation(w.TimeZone)
+	_, tzOffset := time.Now().In(loc).Zone()
+	return time.Duration(tzOffset) * time.Second
+}
+
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 
 	}
+
+	// add TimeZone here
 	window := &SyncWindow{
 		Kind:       knd,
 		Schedule:   sch,
 		Duration:   dur,
 		ManualSync: ms,
+		TimeZone:   timeZone,
 	}
 
 	if len(app) > 0 {
@@ -1935,12 +1953,17 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
 
-	nextWindow := schedule.Next(currentTime.Add(-duration))
+	// Change the nextWindow time to match the UTC timeZone
+	// This will allow users to configure the SyncWindow timeZone based on their own timezone
+	timezoneOffsetDuration := w.scheduleOffsetByTimezone()
+	nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
+
 	return nextWindow.Before(currentTime)
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, t string) error {
+
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -1962,12 +1985,25 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-
+	// add a check for valid timezone passed to the SyncWindow
+	if t == "" {
+		t = "UTC"
+	}
+	w.TimeZone = t
 	return nil
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
+
+	// add a check for valid timezone passed to the SyncWindow
+	if w.TimeZone == "" {
+		w.TimeZone = "UTC"
+	}
+	if _, err := time.LoadLocation(w.TimeZone); err != nil {
+		return fmt.Errorf("timeZone '%s' is invalid", w.TimeZone)
+	}
+
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}

@@ -6648,6 +6648,10 @@
         "schedule": {
           "type": "string",
           "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "timeZone": {
+          "type": "string",
+          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },

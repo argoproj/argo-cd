@@ -696,6 +696,7 @@ export interface SyncWindow {
     namespaces: string[];
     clusters: string[];
     manualSync: boolean;
+    timeZone: string;
 }
 
 export interface Project {
