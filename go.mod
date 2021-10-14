@@ -119,3 +119,5 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.21.0
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.0
 )
+
+replace github.com/argoproj/gitops-engine => github.com/jessesuen/gitops-engine v0.1.3-0.20211014092313-1a36fe6ebb0b
