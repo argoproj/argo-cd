@@ -60,6 +60,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	syncOp = *state.Operation.Sync
+
+	// validates if it should fail the sync if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+		hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = fmt.Sprintf("Shared resouce found: %s", sharedResourceMessage)
+		return
+	}
+
 	if syncOp.Source == nil {
 		// normal sync case (where source is taken from app.spec.source)
 		source = app.Spec.Source
@@ -243,6 +253,18 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
 	}
+}
+
+// hasSharedResourceCondition will check if the Application has any resource that has already
+// been synced by another Application. If the resource is found in another Application it returns
+// true along with a human readable message of which specific resource has this condition.
+func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == v1alpha1.ApplicationConditionSharedResourceWarning {
+			return true, condition.Message
+		}
+	}
+	return false, ""
 }
 
 // delayBetweenSyncWaves is a gitops-engine SyncWaveHook which introduces an artificial delay
