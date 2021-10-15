@@ -375,7 +375,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 <div className='columns small-2'>
                     <select
                         className='argo-field project-sync-windows-panel__options-wrapper'
-                        size={20}
+                        size={8}
                         name='dow'
                         multiple={true}
                         value={this.getValues(4)}

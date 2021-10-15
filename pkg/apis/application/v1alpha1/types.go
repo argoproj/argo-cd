@@ -1708,8 +1708,7 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			// Change the nextWindow time to match the UTC timeZone
-			// This will allow users to configure the SyncWindow timeZone based on their own timezone
+			// Offset the nextWindow time to consider the timezone of the sync window
 			timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 			nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 			if nextWindow.Before(currentTime) {
@@ -1743,8 +1742,7 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				// Change the nextWindow time to match the UTC timeZone
-				// This will allow users to configure the SyncWindow timeZone based on their own timezone
+				// Offset the nextWindow time to consider the timezone of the sync window
 				timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 				nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 
@@ -1773,7 +1771,6 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 
 	}
 
-	// add TimeZone here
 	window := &SyncWindow{
 		Kind:       knd,
 		Schedule:   sch,
@@ -1953,8 +1950,7 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
 
-	// Change the nextWindow time to match the UTC timeZone
-	// This will allow users to configure the SyncWindow timeZone based on their own timezone
+	// Offset the nextWindow time to consider the timezone of the sync window
 	timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 	nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 
@@ -1985,7 +1981,6 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-	// add a check for valid timezone passed to the SyncWindow
 	if t == "" {
 		t = "UTC"
 	}
@@ -1996,7 +1991,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
 
-	// add a check for valid timezone passed to the SyncWindow
+	// Default timezone to UTC if timezone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
 	}
