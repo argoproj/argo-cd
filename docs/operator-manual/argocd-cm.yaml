@@ -230,6 +230,9 @@ data:
   # have either a permanent banner or a regular closeable banner, and NOT both. eg. A user can't dismiss a
   # notification message (closeable) banner, to then immediately see a permanent banner.
   # ui.bannerpermanent: "true"
+  # An option to specify the position of the banner, either the top or bottom of the page. The default is at the top.
+  # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
+  # ui.bannerposition: "bottom"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.

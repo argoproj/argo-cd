@@ -3679,6 +3679,9 @@
         "uiBannerPermanent": {
           "type": "boolean"
         },
+        "uiBannerPosition": {
+          "type": "string"
+        },
         "uiBannerURL": {
           "type": "string"
         },
