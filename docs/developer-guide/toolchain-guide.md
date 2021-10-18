@@ -304,7 +304,7 @@ You need to pull in all required Go dependencies. To do so, run
 
 ### Test your build toolchain
 
-The first thing you can do whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
+The first thing you can do to test whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
 
 * `make codegen-local`
 * `make build-local`
