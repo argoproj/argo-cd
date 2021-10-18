@@ -45,7 +45,7 @@ metadata:
   name: my-deployment
   namespace: default
   annotations:
-    argocd.argoproj.io/tracking-id: 61199294-412c-4e78-a237-3ebba6784fcd
+    argocd.argoproj.io/tracking-id: my-app:apps/Deployment:default/nginx-deployment
 ```
 
 The advantages of using the tracking id annotation is that there are no clashes any
@@ -66,8 +66,3 @@ Possible values are `label`, `annotation+label` and `annotation` as described in
 Note that once you change the value you need to sync your applications again (or wait for the sync mechanism to kick-in) in order to apply your changes.
 
 You can revert to a previous choice, by changing again the configmap.
-
-
-
-
-
