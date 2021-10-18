@@ -5,16 +5,23 @@ Argo CD exposes two sets of Prometheus metrics
 ## Application Metrics
 Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
 
-* `argocd_app_info`: Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in ArgoCD.
-* `argocd_app_sync_total`: Counter for application sync history
-* `argocd_app_k8s_request_total`: Number of kubernetes requests executed during application reconciliation
-* `argocd_kubectl_exec_total`: Number of kubectl executions
-* `argocd_kubectl_exec_pending`: Number of pending kubectl executions
-* `argocd_app_reconcile`: Application reconciliation performance.
-* `argocd_cluster_events_total`: Number of processes k8s resource events.
-* `argocd_redis_request_total`: Number of redis requests executed during application reconciliation
-* `argocd_redis_request_duration`: Redis requests duration.
-* `argocd_app_labels`: Argo Application labels converted to Prometheus labels. Disabled by default. See section bellow about how to enable it.
+| Metric | Type | Description |
+|--------|:----:|-------------|
+| `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in ArgoCD. |
+| `argocd_app_sync_total` | counter | Counter for application sync history |
+| `argocd_app_k8s_request_total` | counter | Number of kubernetes requests executed during application reconciliation |
+| `argocd_kubectl_exec_total` | counter | Number of kubectl executions |
+| `argocd_kubectl_exec_pending` | gauge | Number of pending kubectl executions |
+| `argocd_app_reconcile` | histogram | Application reconciliation performance. |
+| `argocd_cluster_events_total` | counter | Number of processes k8s resource events. |
+| `argocd_redis_request_total` | counter | Number of redis requests executed during application reconciliation |
+| `argocd_redis_request_duration` | histogram | Redis requests duration. |
+| `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section bellow about how to enable it. |
+| `argocd_cluster_info` | gauge | Information about cluster. |
+| `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
+| `argocd_cluster_api_resources` | gauge | Number of monitored kubernetes API resources. |
+| `argocd_cluster_cache_age_seconds` | gauge | Cluster cache age in seconds. |
+| `argocd_cluster_connection_status` | gauge | The k8s cluster current connection status. |
 
 If you use ArgoCD with many application and project creation and deletion,
 the metrics page will keep in cache your application and project's history.
