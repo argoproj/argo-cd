@@ -19,6 +19,7 @@ RUN dpkg-divert --add --rename --divert /opt/google/chrome/google-chrome.real /o
 
 WORKDIR /usr/src/app
 COPY package*.json ./
-RUN npm install
+COPY yarn.lock ./
+RUN yarn install
 COPY . .
 
