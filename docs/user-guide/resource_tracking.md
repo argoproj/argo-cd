@@ -2,7 +2,6 @@
 
 ## Tracking Kubernetes resources by label
 
-
 Argo CD identifies resources it manages by setting the application instance label to the name of the managing Application on all resources that are managed (i.e. reconciled from Git). The default label used is the well-known label `app.kubernetes.io/instance`.
 
 Example:
