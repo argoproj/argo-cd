@@ -1,27 +1,27 @@
 # Metrics
 
-Argo CD exposes two sets of Prometheus metrics
+Argo CD exposes different sets of Prometheus metrics per server.
 
-## Application Metrics
+## Application Controller Metrics
 Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
 
 | Metric | Type | Description |
 |--------|:----:|-------------|
 | `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in ArgoCD. |
-| `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_app_k8s_request_total` | counter | Number of kubernetes requests executed during application reconciliation |
-| `argocd_kubectl_exec_total` | counter | Number of kubectl executions |
-| `argocd_kubectl_exec_pending` | gauge | Number of pending kubectl executions |
-| `argocd_app_reconcile` | histogram | Application reconciliation performance. |
-| `argocd_cluster_events_total` | counter | Number of processes k8s resource events. |
-| `argocd_redis_request_total` | counter | Number of redis requests executed during application reconciliation |
-| `argocd_redis_request_duration` | histogram | Redis requests duration. |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section bellow about how to enable it. |
-| `argocd_cluster_info` | gauge | Information about cluster. |
+| `argocd_app_reconcile` | histogram | Application reconciliation performance. |
+| `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
 | `argocd_cluster_api_resources` | gauge | Number of monitored kubernetes API resources. |
 | `argocd_cluster_cache_age_seconds` | gauge | Cluster cache age in seconds. |
 | `argocd_cluster_connection_status` | gauge | The k8s cluster current connection status. |
+| `argocd_cluster_events_total` | counter | Number of processes k8s resource events. |
+| `argocd_cluster_info` | gauge | Information about cluster. |
+| `argocd_kubectl_exec_pending` | gauge | Number of pending kubectl executions |
+| `argocd_kubectl_exec_total` | counter | Number of kubectl executions |
+| `argocd_redis_request_duration` | histogram | Redis requests duration. |
+| `argocd_redis_request_total` | counter | Number of redis requests executed during application reconciliation |
 
 If you use ArgoCD with many application and project creation and deletion,
 the metrics page will keep in cache your application and project's history.
@@ -63,6 +63,23 @@ argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",n
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
+
+| Metric | Type | Description |
+|--------|:----:|-------------|
+| `argocd_redis_request_duration` | histogram | Redis requests duration. |
+| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application reconciliation. |
+
+## Repo Server Metrics
+Metrics about the Repo Server.
+Scraped at the `argocd-repo-server:8084/metrics` endpoint.
+
+| Metric | Type | Description |
+|--------|:----:|-------------|
+| `argocd_git_request_duration_seconds` | histogram | Git requests duration seconds. |
+| `argocd_git_request_total` | counter | Number of git requests performed by repo server |
+| `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds. |
+| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application reconciliation. |
+| `argocd_repo_pending_request_total` | gauge | Number of pending requests requiring repository lock |
 
 ## Prometheus Operator
 
