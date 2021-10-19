@@ -708,16 +708,14 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	if app.Operation != nil {
 		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
 		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
-		// This code should be deleted when https://github.com/argoproj/argo-cd/pull/6294 is implemented.
+		// We cannot rely on informer since applications might be updated by both application controller and api server.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("Failed to retrieve latest application state: %v", err)
 			return
 		}
 		app = freshApp
-	}
 
-	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
