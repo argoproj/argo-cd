@@ -5376,6 +5376,9 @@
         "init": {
           "$ref": "#/definitions/v1alpha1Command"
         },
+        "lockRepo": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         }
