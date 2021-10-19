@@ -9,6 +9,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adventure](https://jp.adventurekk.com/)
+1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Ambassador Labs](https://www.getambassador.io/)
 1. [Ant Group](https://www.antgroup.com/)
