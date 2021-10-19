@@ -1,11 +1,10 @@
 import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {Checkbox as ReactCheckbox} from 'react-form';
 import Moment from 'react-moment';
 
-import {EmptyState, ErrorNotification} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
+import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
@@ -69,13 +68,13 @@ export class PodView extends React.Component<PodViewProps> {
                                     <div className='pod-view__settings__section'>
                                         <button
                                             className={`argo-button argo-button--base${podPrefs.hideUnschedulable ? '-o' : ''}`}
-                                            // style={{width: '205px'}}
+                                            style={{border: 'none', width: '170px'}}
                                             onClick={() =>
                                                 services.viewPreferences.updatePreferences({
                                                     appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
                                                 })
                                             }>
-                                            <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{marginRight: '5px'}} />
+                                            <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
                                             UNSCHEDULABLE
                                         </button>
                                     </div>
@@ -140,7 +139,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </Moment>
                                                                 </div>
                                                             ) : null}
-                                                            {group.info.map(infoItem => (
+                                                            {group.info?.map(infoItem => (
                                                                 <div key={infoItem.name}>{infoItem.value}</div>
                                                             ))}
                                                         </div>
@@ -168,6 +167,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
+                                                                                        enabled: true
+                                                                                    },
+                                                                                    hide: {
                                                                                         enabled: false
                                                                                     },
                                                                                     flip: {
@@ -197,7 +199,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'});
+                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
                                                                             }
                                                                         },
                                                                         {
@@ -213,7 +215,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                         <div>
                                                                                             <p>Are your sure you want to delete Pod '{pod.name}'?</p>
                                                                                             <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                                                                                                <ReactCheckbox id='force-delete-checkbox' field='force' />
+                                                                                                <CheckboxField id='force-delete-checkbox' field='force' />
                                                                                                 <label htmlFor='force-delete-checkbox'>Force delete</label>
                                                                                             </div>
                                                                                         </div>
@@ -304,10 +306,11 @@ export class PodView extends React.Component<PodViewProps> {
         }
 
         const statusByKey = new Map<string, ResourceStatus>();
-        if (this.props.app) {
-            this.props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
-        }
+        this.props.app.status?.resources?.forEach(res => statusByKey.set(nodeKey(res), res));
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
+            // make sure each node has not null/undefined parentRefs field
+            rnode.parentRefs = rnode.parentRefs || [];
+
             if (sortMode !== 'node') {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 const fullName = nodeKey(rnode);
@@ -341,7 +344,7 @@ export class PodView extends React.Component<PodViewProps> {
             } as Pod;
 
             // Get node name for Pod
-            rnode.info.forEach(i => {
+            rnode.info?.forEach(i => {
                 if (i.name === 'Node') {
                     p.spec.nodeName = i.value;
                 }
@@ -360,7 +363,10 @@ export class PodView extends React.Component<PodViewProps> {
                             kind: 'node',
                             name: 'Unschedulable',
                             pods: [p],
-                            info: [{name: 'Kernel Version', value: 'N/A'}, {name: 'OS/Arch', value: 'N/A'}],
+                            info: [
+                                {name: 'Kernel Version', value: 'N/A'},
+                                {name: 'OS/Arch', value: 'N/A'}
+                            ],
                             hostResourcesInfo: []
                         };
                     }

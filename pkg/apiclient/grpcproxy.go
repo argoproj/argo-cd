@@ -77,18 +77,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	req.Header.Set("content-type", "application/grpc-web+proto")
 
-	client := &http.Client{}
-	if !c.PlainText {
-		tlsConfig, err := c.tlsConfig()
-		if err != nil {
-			return nil, err
-		}
-		client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +114,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				return fmt.Errorf("Unable to get method name from stream context.")
 			}
 			msg := make([]byte, 0)
-			err = stream.RecvMsg(&msg)
+			err := stream.RecvMsg(&msg)
 			if err != nil {
 				return err
 			}
@@ -149,6 +138,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				argoio.Close(resp.Body)
 			}()
 			defer argoio.Close(resp.Body)
+			c.httpClient.CloseIdleConnections()
 
 			for {
 				header := make([]byte, frameHeaderLength)

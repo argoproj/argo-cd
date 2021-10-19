@@ -11,7 +11,9 @@ import (
 )
 
 func Test_newCluster(t *testing.T) {
-	clusterWithData := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	labels := map[string]string{"key1": "val1"}
+	annotations := map[string]string{"key2": "val2"}
+	clusterWithData := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",
@@ -23,13 +25,15 @@ func Test_newCluster(t *testing.T) {
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
-		&v1alpha1.ExecProviderConfig{})
+		&v1alpha1.ExecProviderConfig{}, labels, annotations)
 
 	assert.Equal(t, "test-cert-data", string(clusterWithData.Config.CertData))
 	assert.Equal(t, "test-key-data", string(clusterWithData.Config.KeyData))
 	assert.Equal(t, "", clusterWithData.Config.BearerToken)
+	assert.Equal(t, labels, clusterWithData.Labels)
+	assert.Equal(t, annotations, clusterWithData.Annotations)
 
-	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",
@@ -41,13 +45,15 @@ func Test_newCluster(t *testing.T) {
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
-		&v1alpha1.ExecProviderConfig{})
+		&v1alpha1.ExecProviderConfig{}, labels, nil)
 
 	assert.True(t, strings.Contains(string(clusterWithFiles.Config.CertData), "test-cert-data"))
 	assert.True(t, strings.Contains(string(clusterWithFiles.Config.KeyData), "test-key-data"))
 	assert.Equal(t, "", clusterWithFiles.Config.BearerToken)
+	assert.Equal(t, labels, clusterWithFiles.Labels)
+	assert.Nil(t, clusterWithFiles.Annotations)
 
-	clusterWithBearerToken := NewCluster("test-cluster", []string{"test-namespace"}, &rest.Config{
+	clusterWithBearerToken := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure:   false,
 			ServerName: "test-endpoint.example.com",
@@ -57,7 +63,9 @@ func Test_newCluster(t *testing.T) {
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
-		&v1alpha1.ExecProviderConfig{})
+		&v1alpha1.ExecProviderConfig{}, nil, nil)
 
 	assert.Equal(t, "test-bearer-token", clusterWithBearerToken.Config.BearerToken)
+	assert.Nil(t, clusterWithBearerToken.Labels)
+	assert.Nil(t, clusterWithBearerToken.Annotations)
 }

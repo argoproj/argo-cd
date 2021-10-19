@@ -5,6 +5,7 @@ module.exports = {
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
   globals: {
+    'window': {localStorage: { getItem: () => '{}', setItem: () => null }},
     'ts-jest': {
       isolatedModules: true,
     },
@@ -15,3 +16,20 @@ module.exports = {
     '.+\\.(css|styl|less|sass|scss)$': 'jest-transform-css',
   },
 };
+
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: (key) => store[key],
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    clear: () => {
+      store = {};
+    },
+    removeItem: (key) => {
+      delete store[key];
+    }
+  };
+})();
+global.localStorage = localStorageMock;

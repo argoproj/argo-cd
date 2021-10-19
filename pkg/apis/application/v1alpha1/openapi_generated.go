@@ -955,6 +955,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"forceCommonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"forceCommonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1417,6 +1431,52 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Description: "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+					"clusterResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -2656,7 +2716,7 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 					},
 					"policies": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+							Description: "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2971,6 +3031,20 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"githubAppEnterpriseBaseUrl": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy specifies the HTTP/HTTPS proxy used to access the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
 							Type:        []string{"string"},
 							Format:      "",
 						},

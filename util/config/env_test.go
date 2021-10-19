@@ -81,3 +81,9 @@ func TestFlagWithDoubleQuotes(t *testing.T) {
 
 	assert.Equal(t, "bar baz", GetFlag("foo", ""))
 }
+
+func TestFlagWithEqualSign(t *testing.T) {
+	loadOpts(t, "--foo=bar")
+
+	assert.Equal(t, "bar", GetFlag("foo", ""))
+}

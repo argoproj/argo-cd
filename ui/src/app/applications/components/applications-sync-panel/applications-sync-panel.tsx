@@ -5,6 +5,7 @@ import {CheckboxField, ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
 
@@ -59,7 +60,8 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         syncFlags.DryRun || false,
                                         syncStrategy,
                                         null,
-                                        params.syncOptions
+                                        params.syncOptions,
+                                        params.retryStrategy
                                     )
                                     .catch(e => {
                                         ctx.notifications.show({
@@ -94,6 +96,9 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                             }}
                                         />
                                     </div>
+
+                                    <ApplicationRetryOptions formApi={formApi} />
+
                                     <label>
                                         Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
                                         <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>

@@ -14,7 +14,7 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -82,15 +82,18 @@ type HTTPSCreds struct {
 	clientCertData string
 	// Client certificate key to use
 	clientCertKey string
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
 		insecure,
 		clientCertData,
 		clientCertKey,
+		proxy,
 	}
 }
 
@@ -98,6 +101,11 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 // access specific repository via HTTPS.
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
+	if c.username != "" {
+		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", c.username))
+	} else {
+		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", "x-access-token"))
+	}
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -240,6 +248,7 @@ type GitHubAppCreds struct {
 	clientCertData string
 	clientCertKey  string
 	insecure       bool
+	proxy          string
 }
 
 // NewGitHubAppCreds provide github app credentials
@@ -340,7 +349,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,

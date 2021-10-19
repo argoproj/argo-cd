@@ -753,6 +753,11 @@
             "type": "string",
             "name": "resourceName",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
+            "in": "query"
           }
         ],
         "responses": {
@@ -931,6 +936,11 @@
           {
             "type": "string",
             "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
             "in": "query"
           }
         ],
@@ -2081,6 +2091,37 @@
         }
       }
     },
+    "/api/v1/projects/{name}/detailed": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "GetDetailedProject returns a project that include project, global project and scoped resources by name",
+        "operationId": "ProjectService_GetDetailedProject",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectDetailedProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/events": {
       "get": {
         "tags": [
@@ -2648,7 +2689,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListApps returns list of apps in the repe",
+        "summary": "ListApps returns list of apps in the repo",
         "operationId": "RepositoryService_ListApps",
         "parameters": [
           {
@@ -2856,6 +2897,18 @@
             "type": "string",
             "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
             "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
             "in": "query"
           }
         ],
@@ -3599,6 +3652,9 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "passwordPattern": {
+          "type": "string"
+        },
         "plugins": {
           "type": "array",
           "items": {
@@ -3614,8 +3670,14 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "trackingMethod": {
+          "type": "string"
+        },
         "uiBannerContent": {
           "type": "string"
+        },
+        "uiBannerPermanent": {
+          "type": "boolean"
         },
         "uiBannerURL": {
           "type": "string"
@@ -3664,6 +3726,32 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "projectDetailedProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "clusters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Cluster"
+          }
+        },
+        "globalProjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        },
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
           }
         }
       }
@@ -4887,6 +4975,14 @@
             "type": "string"
           }
         },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
@@ -5092,6 +5188,17 @@
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterResources": {
+          "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+          "type": "boolean"
+        },
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
@@ -5100,6 +5207,13 @@
         },
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
+        },
+        "labels": {
+          "type": "object",
+          "title": "Labels for cluster secret metadata",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string",
@@ -5111,6 +5225,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity"
         },
         "refreshRequestedAt": {
           "$ref": "#/definitions/v1Time"
@@ -5700,7 +5818,7 @@
         },
         "policies": {
           "type": "array",
-          "title": "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
+          "title": "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
           "items": {
             "type": "string"
           }
@@ -5830,6 +5948,14 @@
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
         },
         "repo": {
           "type": "string",

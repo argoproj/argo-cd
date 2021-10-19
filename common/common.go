@@ -70,6 +70,9 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+
+	// PasswordPatten is the default password patten
+	PasswordPatten = `^.{8,32}$`
 )
 
 // Dex related constants
@@ -99,12 +102,19 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
-	// LegacyLabelApplicationName is the legacy label (v0.10 and below) and is superceded by 'app.kubernetes.io/instance'
+	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
-	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster')
+	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
+	// LabelValueSecretTypeRepository indicates a secret type of repository
+	LabelValueSecretTypeRepository = "repository"
+	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
+	LabelValueSecretTypeRepoCreds = "repo-creds"
+
+	// The Argo CD application name is used as the instance name
+	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
@@ -137,6 +147,12 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// Specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
+	// Specifices max duration of git remote operation retry
+	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
+	// Specifies duration of git remote operation retry
+	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
+	// Specifies fator of git remote operation retry
+	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
@@ -175,6 +191,12 @@ const (
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.8.3"
+)
+
+const (
+	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
+	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
+	DefaultGitRetryFactor                    = int64(2)
 )
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value

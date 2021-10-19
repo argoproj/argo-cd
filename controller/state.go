@@ -33,7 +33,6 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
-	argohealth "github.com/argoproj/argo-cd/v2/util/health"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/stats"
@@ -57,20 +56,6 @@ type managedResource struct {
 	Name            string
 	Hook            bool
 	ResourceVersion string
-}
-
-func GetLiveObjsForApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus) ([]*appv1.ResourceStatus, []*unstructured.Unstructured) {
-	liveObjs := make([]*unstructured.Unstructured, 0)
-	resStatuses := make([]*appv1.ResourceStatus, 0)
-	for i, resource := range resources {
-		if resource.Target != nil && hookutil.Skip(resource.Target) {
-			continue
-		}
-
-		liveObjs = append(liveObjs, resource.Live)
-		resStatuses = append(resStatuses, &statuses[i])
-	}
-	return resStatuses, liveObjs
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -113,6 +98,7 @@ type appStateManager struct {
 	cache                *appstatecache.Cache
 	namespace            string
 	statusRefreshTimeout time.Duration
+	resourceTracking     argo.ResourceTracking
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -163,6 +149,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
 		return nil, nil, err
@@ -189,6 +176,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err
@@ -470,14 +458,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(liveObjByKey, k)
 		}
 	}
 
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
@@ -511,6 +501,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+
+	for i := range reconciliation.Target {
+		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
+	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
@@ -621,11 +615,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	resSumForAppHealth, liveObjsForAppHealth := GetLiveObjsForApplicationHealth(managedResources, resourceSummaries)
-	healthStatus, err := argohealth.SetApplicationHealth(resSumForAppHealth, liveObjsForAppHealth, resourceOverrides, func(obj *unstructured.Unstructured) bool {
-		return !isSelfReferencedApp(app, kubeutil.GetObjectRef(obj))
-	})
-
+	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -700,6 +690,7 @@ func NewAppStateManager(
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
+	resourceTracking argo.ResourceTracking,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:       liveStateCache,
@@ -713,5 +704,6 @@ func NewAppStateManager(
 		projInformer:         projInformer,
 		metricsServer:        metricsServer,
 		statusRefreshTimeout: statusRefreshTimeout,
+		resourceTracking:     resourceTracking,
 	}
 }

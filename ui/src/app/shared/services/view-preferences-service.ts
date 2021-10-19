@@ -13,11 +13,16 @@ export interface AppDetailsPreferences {
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    hideFilters: boolean;
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+}
+
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -53,6 +58,8 @@ export class AppsListPreferences {
     public namespacesFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
 }
 
 export interface ViewPreferences {
@@ -71,7 +78,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
+        hideFilters: false,
+        resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
@@ -91,7 +99,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        healthFilter: new Array<string>(),
+        hideFilters: false,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
     hideBannerContent: ''

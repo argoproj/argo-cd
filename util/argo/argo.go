@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/r3labs/diff"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -180,6 +182,7 @@ func ValidateRepo(
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
+	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -240,6 +243,9 @@ func ValidateRepo(
 		Source:           &spec.Source,
 		Repos:            permittedHelmRepos,
 		KustomizeOptions: kustomizeOptions,
+		// don't use case during application change to make sure to fetch latest git/helm revisions
+		NoRevisionCache: true,
+		TrackingMethod:  string(GetTrackingMethod(settingsMgr)),
 	})
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -269,7 +275,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), permittedHelmCredentials)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), permittedHelmCredentials, settingsMgr)...)
 
 	return conditions, nil
 }
@@ -289,9 +295,15 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 	}
 }
 
-// ValidateDestination checks:
-// if we used destination name we infer the server url
-// if we used both name and server then we return an invalid spec error
+// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
+//
+// If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
+// ValidationDestination will look up the cluster by name (to get the server URL), and
+// set the corresponding Server field value.
+//
+// It also checks:
+// - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
@@ -373,13 +385,78 @@ func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
 	return apiVersions
 }
 
-// GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
-	projOrig, err := projLister.AppProjects(ns).Get(spec.GetProject())
+func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Repository {
+	var repositories []*argoappv1.Repository
+	allRepos, err := db.ListRepositories(ctx)
+	if err != nil {
+		return repositories
+	}
+	for _, repo := range allRepos {
+		if repo.Project == name {
+			repositories = append(repositories, repo)
+		}
+	}
+	return repositories
+}
+
+func retrieveScopedClusters(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Cluster {
+	var clusters []*argoappv1.Cluster
+	allClusters, err := db.ListClusters(ctx)
+	if err != nil {
+		return clusters
+	}
+	for i, cluster := range allClusters.Items {
+		if cluster.Project == name {
+			clusters = append(clusters, &allClusters.Items[i])
+		}
+	}
+	return clusters
+}
+
+//GetAppProject returns a project from an application
+func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return project, retrieveScopedRepositories(name, db, ctx), retrieveScopedClusters(name, db, ctx), nil
+
+}
+
+// GetAppProjectByName returns a project from an application based on name
+func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, err
 	}
-	return GetAppVirtualProject(projOrig, projLister, settingsManager)
+	project := projOrig.DeepCopy()
+	repos := retrieveScopedRepositories(name, db, ctx)
+	for _, repo := range repos {
+		project.Spec.SourceRepos = append(project.Spec.SourceRepos, repo.Repo)
+	}
+	clusters := retrieveScopedClusters(name, db, ctx)
+	for _, cluster := range clusters {
+		if len(cluster.Namespaces) == 0 {
+			project.Spec.Destinations = append(project.Spec.Destinations, argoappv1.ApplicationDestination{Server: cluster.Server, Namespace: "*"})
+		} else {
+			for _, ns := range cluster.Namespaces {
+				project.Spec.Destinations = append(project.Spec.Destinations, argoappv1.ApplicationDestination{Server: cluster.Server, Namespace: ns})
+			}
+		}
+	}
+	return GetAppVirtualProject(project, projLister, settingsManager)
+}
+
+// GetAppProject returns a project from an application
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -394,6 +471,7 @@ func verifyGenerateManifests(
 	kubeVersion string,
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
+	settingsMgr *settings.SettingsManager,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
@@ -406,9 +484,10 @@ func verifyGenerateManifests(
 
 	req := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{
-			Repo: spec.Source.RepoURL,
-			Type: repoRes.Type,
-			Name: repoRes.Name,
+			Repo:  spec.Source.RepoURL,
+			Type:  repoRes.Type,
+			Name:  repoRes.Name,
+			Proxy: repoRes.Proxy,
 		},
 		Repos:             helmRepos,
 		Revision:          spec.Source.TargetRevision,
@@ -420,6 +499,7 @@ func verifyGenerateManifests(
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
 		HelmRepoCreds:     repositoryCredentials,
+		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)
@@ -579,7 +659,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 			}
 		}
 		if !matchMe {
-			break
+			continue
 		}
 		//If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
@@ -619,4 +699,25 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
 
 	return proj
+}
+
+func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string {
+	basicMsg := fmt.Sprintf("existing %s spec is different; use upsert flag to force update", entity)
+	difference, _ := GetDifferentPathsBetweenStructs(a, b)
+	if len(difference) == 0 {
+		return basicMsg
+	}
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+}
+
+func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
+	var difference []string
+	changelog, err := diff.Diff(a, b)
+	if err != nil {
+		return nil, err
+	}
+	for _, changeItem := range changelog {
+		difference = append(difference, changeItem.Path...)
+	}
+	return difference, nil
 }

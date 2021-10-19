@@ -2,7 +2,6 @@ PACKAGE=github.com/argoproj/argo-cd/v2/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
-UTIL_CLI_NAME=argocd-util
 BIN_NAME=argocd
 
 HOST_OS:=$(shell go env GOOS)
@@ -159,7 +158,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli image argocd-util
+all: cli image
 
 # We have some legacy requirements for being checked out within $GOPATH.
 # The ensure-gopath target can be used as dependency to ensure we are running
@@ -212,10 +211,6 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
-.PHONY: cli-argocd
-cli-argocd:
-	go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
-
 .PHONY: release-cli
 release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
@@ -223,16 +218,6 @@ release-cli: clean-debug image
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd-darwin-amd64 ${DIST_DIR}/argocd-darwin-amd64
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd-windows-amd64.exe ${DIST_DIR}/argocd-windows-amd64.exe
 	docker rm tmp-argocd-linux
-
-.PHONY: argocd-util
-argocd-util: clean-debug
-	# Build argocd-util as a statically linked binary, so it could run within the alpine-based dex container (argoproj/argo-cd#844)
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${UTIL_CLI_NAME} ./cmd
-
-# .PHONY: dev-tools-image
-# dev-tools-image:
-# 	docker build -t $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) . -f hack/Dockerfile.dev-tools
-# 	docker tag $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE) $(DEV_TOOLS_PREFIX)$(DEV_TOOLS_IMAGE):$(DEV_TOOLS_VERSION)
 
 .PHONY: test-tools-image
 test-tools-image:
@@ -273,6 +258,8 @@ IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image:
 	docker build -t argocd-base --target argocd-base .
 	docker build -t argocd-ui --target argocd-ui .
+	find ./ui/dist -type f -not -name gitkeep -delete
+	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
@@ -280,9 +267,6 @@ image:
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
-	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-util
-	ln -sfn ${DIST_DIR}/argocd-darwin-amd64 ${DIST_DIR}/argocd-util-darwin-amd64
-	ln -sfn ${DIST_DIR}/argocd-windows-amd64.exe ${DIST_DIR}/argocd-util-windows-amd64.exe
 	cp Dockerfile.dev dist
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
@@ -430,7 +414,7 @@ start-e2e-local:
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
-	ARGOCD_GPG_ENABLED=true \
+	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -463,9 +447,15 @@ start-local: mod-vendor-local dep-ui-local
 	mkdir -p /tmp/argocd-local/gpg/source
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
-	ARGOCD_GPG_ENABLED=true \
+	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_TEST=false \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
+
+# Run goreman start with exclude option , provide exclude env variable with list of services
+.PHONY: run
+run:
+	bash ./hack/goreman-start.sh
+
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit

@@ -13,9 +13,11 @@ export interface PaginateProps<T> {
     data: T[];
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
+    header?: React.ReactNode;
+    showHeader?: boolean;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
@@ -28,34 +30,37 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
 
                 function paginator() {
                     return (
-                        <React.Fragment>
-                            {pageCount > 1 && (
-                                <ReactPaginate
-                                    containerClassName='paginate__paginator'
-                                    forcePage={page}
-                                    pageCount={pageCount}
-                                    pageRangeDisplayed={5}
-                                    marginPagesDisplayed={2}
-                                    onPageChange={item => onPageChange(item.selected)}
-                                />
-                            )}
-                            <div className='paginate__size-menu'>
-                                <DropDownMenu
-                                    anchor={() => (
-                                        <a>
-                                            Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
-                                        </a>
-                                    )}
-                                    items={[5, 10, 15, 20, -1].map(count => ({
-                                        title: count === -1 ? 'all' : count.toString(),
-                                        action: () => {
-                                            pref.pageSizes[preferencesKey] = count;
-                                            services.viewPreferences.updatePreferences(pref);
-                                        }
-                                    }))}
-                                />
+                        <div style={{marginBottom: '0.5em'}}>
+                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
+                                {pageCount > 1 && (
+                                    <ReactPaginate
+                                        containerClassName='paginate__paginator'
+                                        forcePage={page}
+                                        pageCount={pageCount}
+                                        pageRangeDisplayed={5}
+                                        marginPagesDisplayed={2}
+                                        onPageChange={item => onPageChange(item.selected)}
+                                    />
+                                )}
+                                <div className='paginate__size-menu'>
+                                    <DropDownMenu
+                                        anchor={() => (
+                                            <a>
+                                                Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
+                                            </a>
+                                        )}
+                                        items={[5, 10, 15, 20, -1].map(count => ({
+                                            title: count === -1 ? 'all' : count.toString(),
+                                            action: () => {
+                                                pref.pageSizes[preferencesKey] = count;
+                                                services.viewPreferences.updatePreferences(pref);
+                                            }
+                                        }))}
+                                    />
+                                </div>
                             </div>
-                        </React.Fragment>
+                            {showHeader && header}
+                        </div>
                     );
                 }
 

@@ -66,7 +66,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
 func TestCreateRepoCredentials(t *testing.T) {
@@ -87,7 +87,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",

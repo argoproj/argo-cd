@@ -350,6 +350,21 @@ func TestHelmWithDependencies(t *testing.T) {
 	testHelmWithDependencies(t, "helm-with-dependencies", false)
 }
 
+func TestHelmWithMultipleDependencies(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+
+	Given(t).Path("helm-with-multiple-dependencies").
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30).
+		HelmHTTPSCredentialsUserPassAdded().
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelm2WithDependencies(t *testing.T) {
 	SkipOnEnv(t, "HELM", "HELM2")
 	testHelmWithDependencies(t, "helm2-with-dependencies", false)

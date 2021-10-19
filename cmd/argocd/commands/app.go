@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
@@ -92,6 +91,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
+	command.AddCommand(NewApplicationDeleteResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
@@ -101,11 +101,12 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts cmdutil.AppOptions
-		fileURL string
-		appName string
-		upsert  bool
-		labels  []string
+		appOpts     cmdutil.AppOptions
+		fileURL     string
+		appName     string
+		upsert      bool
+		labels      []string
+		annotations []string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -132,7 +133,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, args, appOpts, c.Flags())
+			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			if app.Name == "" {
@@ -156,6 +157,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -673,9 +675,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 				for _, env := range pluginEnvs {
 					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
-					errors.CheckError(err)
+					if err == nil {
+						updated = true
+					}
 				}
-				updated = true
 			}
 
 			if !updated {
@@ -729,8 +732,8 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
-	configManagementPlugins []*argoappv1.ConfigManagementPlugin) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, localRepoRoot, appLabelKey, kubeVersion, kustomizeOptions, configManagementPlugins)
+	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(app, local, localRepoRoot, appLabelKey, kubeVersion, kustomizeOptions, configManagementPlugins, trackingMethod)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -742,7 +745,7 @@ func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelK
 }
 
 func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
-	configManagementPlugins []*argoappv1.ConfigManagementPlugin) []string {
+	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
 
 	res, err := repository.GenerateManifests(local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
@@ -753,6 +756,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
+		TrackingMethod:    trackingMethod,
 	}, true)
 	errors.CheckError(err)
 
@@ -838,7 +842,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				defer argoio.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-				localObjs := groupObjsByKey(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins), liveObjs, app.Spec.Destination.Namespace)
+				localObjs := groupObjsByKey(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 				items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
 			} else if revision != "" {
 				var unstructureds []*unstructured.Unstructured
@@ -920,6 +924,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName string) []objKeyLiveTarget {
+	resourceTracking := argo.NewResourceTracking()
 	for _, res := range resources.Items {
 		var live = &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
@@ -933,7 +938,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
-				err = argokube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
+				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, "", argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
 				errors.CheckError(err)
 			}
 
@@ -1373,7 +1378,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					argoio.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins)
+					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
 				}
 
 				syncReq := applicationpkg.ApplicationSyncRequest{
@@ -1811,6 +1816,23 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
+func findRevisionHistory(application *argoappv1.Application, historyId int64) (*argoappv1.RevisionHistory, error) {
+	// in case if history id not passed and need fetch previous history revision
+	if historyId == -1 {
+		l := len(application.Status.History)
+		if l < 2 {
+			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.ObjectMeta.Name)
+		}
+		return &application.Status.History[l-2], nil
+	}
+	for _, di := range application.Status.History {
+		if di.ID == historyId {
+			return &di, nil
+		}
+	}
+	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId)
+}
+
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1818,36 +1840,33 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout uint
 	)
 	var command = &cobra.Command{
-		Use:   "rollback APPNAME ID",
-		Short: "Rollback application to a previous deployed version by History ID",
+		Use:   "rollback APPNAME [ID]",
+		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			appName := args[0]
-			depID, err := strconv.Atoi(args[1])
-			errors.CheckError(err)
+			var err error
+			depID := -1
+			if len(args) > 1 {
+				depID, err = strconv.Atoi(args[1])
+				errors.CheckError(err)
+			}
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			var depInfo *argoappv1.RevisionHistory
-			for _, di := range app.Status.History {
-				if di.ID == int64(depID) {
-					depInfo = &di
-					break
-				}
-			}
-			if depInfo == nil {
-				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
-			}
+
+			depInfo, err := findRevisionHistory(app, int64(depID))
+			errors.CheckError(err)
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
-				ID:    int64(depID),
+				ID:    depInfo.ID,
 				Prune: prune,
 			})
 			errors.CheckError(err)
@@ -2180,6 +2199,62 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
+		}
+	}
+
+	return command
+}
+
+func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var resourceName string
+	var namespace string
+	var kind string
+	var group string
+	var force bool
+	var orphan bool
+	var all bool
+	command := &cobra.Command{
+		Use:   "delete-resource APPNAME",
+		Short: "Delete resource in an application",
+	}
+
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
+	command.Flags().StringVar(&kind, "kind", "", "Kind")
+	err := command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group")
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	command.Flags().BoolVar(&force, "force", false, "Indicates whether to orphan the dependents of the deleted resource")
+	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Run = func(c *cobra.Command, args []string) {
+		if len(args) != 1 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+		appName := args[0]
+
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer argoio.Close(conn)
+		ctx := context.Background()
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+		errors.CheckError(err)
+		objectsToDelete := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		for i := range objectsToDelete {
+			obj := objectsToDelete[i]
+			gvk := obj.GroupVersionKind()
+			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
+				Name:         &appName,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Version:      gvk.Version,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Force:        &force,
+				Orphan:       &orphan,
+			})
+			errors.CheckError(err)
+			log.Infof("Resource '%s' deleted", obj.GetName())
 		}
 	}
 

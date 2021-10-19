@@ -21,7 +21,7 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         command:
-        - uid_entrypoint.sh
+        - entrypoint.sh
         - argocd-repo-server
         - --redis
         - $(ARGOCD_REDIS_SERVICE):6379
@@ -32,6 +32,78 @@ spec:
                 name: argocd-cm
                 key: timeout.reconciliation
                 optional: true
+          - name: ARGOCD_REPO_SERVER_LOGFORMAT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.log.format
+                optional: true
+          - name: ARGOCD_REPO_SERVER_LOGLEVEL
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.log.level
+                optional: true
+          - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.parallelism.limit
+                optional: true
+          - name: ARGOCD_REPO_SERVER_DISABLE_TLS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.disable.tls
+                optional: true
+          - name: ARGOCD_TLS_MIN_VERSION
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.minversion
+                  optional: true
+          - name: ARGOCD_TLS_MAX_VERSION
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.maxversion
+                  optional: true
+          - name: ARGOCD_TLS_CIPHERS
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.ciphers
+                  optional: true
+          - name: ARGOCD_REPO_CACHE_EXPIRATION
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.repo.cache.expiration
+                  optional: true
+          - name: REDIS_SERVER
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.server
+                  optional: true
+          - name: REDISDB
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.db
+                  optional: true
+          - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.default.cache.expiration
+                  optional: true
+          - name: HELM_CACHE_HOME
+            value: /helm-working-dir
+          - name: HELM_CONFIG_HOME
+            value: /helm-working-dir
+          - name: HELM_DATA_HOME
+            value: /helm-working-dir
         ports:
         - containerPort: 8081
         - containerPort: 8084
@@ -68,6 +140,8 @@ spec:
           mountPath: /app/config/reposerver/tls
         - name: tmp
           mountPath: /tmp
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -81,6 +155,8 @@ spec:
         - name: gpg-keyring
           emptyDir: {}
         - name: tmp
+          emptyDir: {}
+        - name: helm-working-dir
           emptyDir: {}
         - name: argocd-repo-server-tls
           secret:

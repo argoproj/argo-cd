@@ -36,10 +36,13 @@
 
 /* Version Warning */
 div[data-md-component=announce] {
-  background-color: rgba(255,145,0,.1);
+  background-color: rgb(248, 243, 236);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 div[data-md-component=announce]>div#announce-msg{
-  color: var(--md-admonition-fg-color);
+  color: var(--md-code-hl-number-color);
   font-size: .8rem;
   text-align: center;
   margin: 15px;

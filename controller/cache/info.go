@@ -1,8 +1,11 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -86,16 +89,36 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
+func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
+	switch gvk.Group {
+	case "extensions":
+		return fmt.Sprintf("%s", backend["serviceName"]), nil
+	case "networking.k8s.io":
+		switch gvk.Version {
+		case "v1beta1":
+			return fmt.Sprintf("%s", backend["serviceName"]), nil
+		case "v1":
+			if service, ok, err := unstructured.NestedMap(backend, "service"); ok && err == nil {
+				return fmt.Sprintf("%s", service["name"]), nil
+			}
+		}
+	}
+	return "", errors.New("unable to resolve string")
+}
+
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	gvk := un.GroupVersionKind()
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
-		targetsMap[v1alpha1.ResourceRef{
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Namespace: un.GetNamespace(),
-			Name:      fmt.Sprintf("%s", backend["serviceName"]),
-		}] = true
+		if serviceName, err := getServiceName(backend, gvk); err == nil {
+			targetsMap[v1alpha1.ResourceRef{
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Namespace: un.GetNamespace(),
+				Name:      serviceName,
+			}] = true
+		}
 	}
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
@@ -123,13 +146,15 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					continue
 				}
 
-				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
-					targetsMap[v1alpha1.ResourceRef{
-						Group:     "",
-						Kind:      kube.ServiceKind,
-						Namespace: un.GetNamespace(),
-						Name:      serviceName,
-					}] = true
+				if backend, ok, err := unstructured.NestedMap(path, "backend"); ok && err == nil {
+					if serviceName, err := getServiceName(backend, gvk); err == nil {
+						targetsMap[v1alpha1.ResourceRef{
+							Group:     "",
+							Kind:      kube.ServiceKind,
+							Namespace: un.GetNamespace(),
+							Name:      serviceName,
+						}] = true
+					}
 				}
 
 				if host == nil || host == "" {
@@ -146,6 +171,17 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 						tlshost := tlsline["host"]
 						if tlshost == host {
 							stringPort = "https"
+							continue
+						}
+						if hosts := tlsline["hosts"]; hosts != nil {
+							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							if ok {
+								for j := range tlshosts {
+									if tlshosts[j] == host {
+										stringPort = "https"
+									}
+								}
+							}
 						}
 					}
 				}

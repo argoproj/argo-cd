@@ -37,8 +37,8 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string) (Helm, error) {
-	cmd, err := NewCmd(workDir, version)
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string) (Helm, error) {
+	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +171,9 @@ func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
+		p := append([]string(nil), prefixes...)
 		for j, v := range i {
-			flatVals(v, output, append(prefixes[0:len(prefixes)-1], fmt.Sprintf("%s[%v]", prefixes[len(prefixes)-1], j))...)
+			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)
 		}
 	default:
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)
