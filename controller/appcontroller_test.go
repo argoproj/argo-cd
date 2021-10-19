@@ -1084,12 +1084,10 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, patchedApp, nil
+		return true, nil, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1111,12 +1109,10 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		fakeAppCs.Lock()
 		defer fakeAppCs.Unlock()
 		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patchedApp := &v1alpha1.Application{}
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 			}
-			return true, patchedApp, nil
+			return true, nil, nil
 		})
 	}()
 
@@ -1139,12 +1135,10 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, patchedApp, nil
+		return true, nil, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1184,12 +1178,10 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, patchedApp, nil
+		return true, nil, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
@@ -1219,12 +1211,10 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchedApp := &v1alpha1.Application{}
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patchedApp))
 		}
-		return true, patchedApp, nil
+		return true, nil, nil
 	})
 
 	ctrl.processRequestedAppOperation(app)
