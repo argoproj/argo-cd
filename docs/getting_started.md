@@ -73,12 +73,8 @@ in your Argo CD installation namespace. You can simply retrieve this password
 using `kubectl`:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
-
-For better readability, e.g. if you want to copy & paste the generated password,
-you can simply append `&& echo` to above command, which will add a newline to
-the output.
 
 !!! warning
     You should delete the `argocd-initial-admin-secret` from the Argo CD
