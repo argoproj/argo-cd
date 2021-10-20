@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,20 +46,18 @@ const (
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
-	result := ""
-	lastIndex := 0
-
-	for _, v := range re.FindAllSubmatchIndex([]byte(str), -1) {
-		groups := []string{}
-		for i := 0; i < len(v); i += 2 {
-			groups = append(groups, str[v[i]:v[i+1]])
-		}
-
-		result += str[lastIndex:v[0]] + groups[0] + repl
-		lastIndex = v[1]
+	matchIndeces := re.FindStringSubmatchIndex(str)
+	if len(matchIndeces) == 0 {
+		return str
 	}
 
-	return result + str[lastIndex:]
+	var sb strings.Builder
+	sb.WriteString(str[0:matchIndeces[0]])               // before matching occurs
+	sb.WriteString(str[matchIndeces[0]:matchIndeces[1]]) // matched pattern
+	sb.WriteString(repl)                                 // replacement
+	sb.WriteString(str[matchIndeces[2]:])                // after matching occurs
+
+	return sb.String()
 }
 
 //ServeHTTP returns badge with health and sync status for application

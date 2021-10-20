@@ -88,7 +88,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil, err
 	}
 
-	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
+	if !validPasswordRegexp.MatchString(q.NewPassword) {
 		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
 		return nil, err
 	}
