@@ -715,7 +715,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			return
 		}
 		app = freshApp
+	}
 
+	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
