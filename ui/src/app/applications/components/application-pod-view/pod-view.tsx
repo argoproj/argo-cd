@@ -169,6 +169,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     preventOverflow: {
                                                                                         enabled: true
                                                                                     },
+                                                                                    hide: {
+                                                                                        enabled: false
+                                                                                    },
                                                                                     flip: {
                                                                                         enabled: false
                                                                                     }
@@ -196,7 +199,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'});
+                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
                                                                             }
                                                                         },
                                                                         {

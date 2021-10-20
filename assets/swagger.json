@@ -753,6 +753,11 @@
             "type": "string",
             "name": "resourceName",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
+            "in": "query"
           }
         ],
         "responses": {
@@ -931,6 +936,11 @@
           {
             "type": "string",
             "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
             "in": "query"
           }
         ],
@@ -3660,8 +3670,14 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "trackingMethod": {
+          "type": "string"
+        },
         "uiBannerContent": {
           "type": "string"
+        },
+        "uiBannerPermanent": {
+          "type": "boolean"
         },
         "uiBannerURL": {
           "type": "string"
@@ -5359,6 +5375,9 @@
         },
         "init": {
           "$ref": "#/definitions/v1alpha1Command"
+        },
+        "lockRepo": {
+          "type": "boolean"
         },
         "name": {
           "type": "string"

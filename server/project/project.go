@@ -211,7 +211,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
-				return nil, status.Errorf(codes.InvalidArgument, "existing project spec is different, use upsert flag to force update")
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
 			}
 			return existing, nil
 		}

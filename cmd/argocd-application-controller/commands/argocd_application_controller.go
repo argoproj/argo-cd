@@ -49,6 +49,7 @@ func NewCommand() *cobra.Command {
 		glogLevel                int
 		metricsPort              int
 		metricsCacheExpiration   time.Duration
+		metricsAplicationLabels  []string
 		kubectlParallelismLimit  int64
 		cacheSrc                 func() (*appstatecache.Cache, error)
 		redisClient              *redis.Client
@@ -110,10 +111,14 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
 
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			var appController *controller.ApplicationController
+
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace, settings.WithRepoOrClusterChangedHandler(func() {
+				appController.InvalidateProjectsCache()
+			}))
 			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter()
-			appController, err := controller.NewApplicationController(
+			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
 				kubeClient,
@@ -125,6 +130,7 @@ func NewCommand() *cobra.Command {
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
 				metricsCacheExpiration,
+				metricsAplicationLabels,
 				kubectlParallelismLimit,
 				clusterFilter)
 			errors.CheckError(err)
@@ -158,6 +164,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", 20, "Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
+	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

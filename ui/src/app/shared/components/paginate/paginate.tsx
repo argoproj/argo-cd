@@ -14,9 +14,10 @@ export interface PaginateProps<T> {
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
     header?: React.ReactNode;
+    showHeader?: boolean;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
@@ -30,7 +31,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                 function paginator() {
                     return (
                         <div style={{marginBottom: '0.5em'}}>
-                            <div style={{display: 'flex', alignItems: 'start', marginBottom: '0.5em'}}>
+                            <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em', paddingLeft: '1em'}}>
                                 {pageCount > 1 && (
                                     <ReactPaginate
                                         containerClassName='paginate__paginator'
@@ -58,7 +59,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     />
                                 </div>
                             </div>
-                            {header}
+                            {showHeader && header}
                         </div>
                     );
                 }

@@ -2650,11 +2650,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app: redis-ha
-    chart: redis-ha-4.12.15
-    component: argocd-redis-ha-haproxy
-    heritage: Helm
-    release: argocd
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -2810,11 +2808,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app: redis-ha
-    chart: redis-ha-4.12.15
-    component: argocd-redis-ha-haproxy
-    heritage: Helm
-    release: argocd
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-haproxy
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -3369,10 +3365,9 @@ data:
 kind: ConfigMap
 metadata:
   labels:
-    app: argocd-redis-ha
-    chart: redis-ha-4.12.15
-    heritage: Helm
-    release: argocd
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-health-configmap
 ---
 apiVersion: v1
