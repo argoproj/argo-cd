@@ -115,7 +115,20 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
 		isPermitted: true,
-	}}
+	},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "", Namespace: "*", Name: "test",
+			}},
+			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+			isPermitted: true,
+		}, {
+			projDest: []ApplicationDestination{{
+				Server: "", Namespace: "*", Name: "test2",
+			}},
+			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+			isPermitted: false,
+		}}
 
 	for _, data := range testData {
 		proj := AppProject{

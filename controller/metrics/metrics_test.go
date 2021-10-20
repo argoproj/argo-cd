@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -161,20 +162,55 @@ func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{})
 }
 
+type fakeClusterInfo struct {
+	clustersInfo []gitopsCache.ClusterInfo
+}
+
+func (f *fakeClusterInfo) GetClustersInfo() []gitopsCache.ClusterInfo {
+	return f.clustersInfo
+}
+
+type TestMetricServerConfig struct {
+	FakeAppYAMLs     []string
+	ExpectedResponse string
+	AppLabels        []string
+	ClustersInfo     []gitopsCache.ClusterInfo
+}
+
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string) {
 	t.Helper()
-	cancel, appLister := newFakeLister(fakeAppYAMLs...)
+	cfg := TestMetricServerConfig{
+		FakeAppYAMLs:     fakeAppYAMLs,
+		ExpectedResponse: expectedResponse,
+		AppLabels:        appLabels,
+		ClustersInfo:     []gitopsCache.ClusterInfo{},
+	}
+	runTest(t, cfg)
+}
+
+func runTest(t *testing.T, cfg TestMetricServerConfig) {
+	t.Helper()
+	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, appLabels)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels)
 	assert.NoError(t, err)
+
+	if len(cfg.ClustersInfo) > 0 {
+		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
+		collector := &clusterCollector{
+			infoSource: ci,
+			info:       ci.GetClustersInfo(),
+		}
+		metricsServ.registry.MustRegister(collector)
+	}
+
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedResponse, body)
+	assertMetricsPrinted(t, cfg.ExpectedResponse, body)
 }
 
 type testCombination struct {
@@ -310,6 +346,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 
 // assertMetricsPrinted asserts every line in the expected lines appears in the body
 func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
+	t.Helper()
 	for _, line := range strings.Split(expectedLines, "\n") {
 		if line == "" {
 			continue
