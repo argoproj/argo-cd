@@ -492,8 +492,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	for _, r := range d.Dependencies {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
-				Repo: r.Repository,
-				Name: r.Repository,
+				Repo:      r.Repository,
+				Name:      r.Repository,
+				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
 		}
