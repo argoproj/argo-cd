@@ -597,11 +597,11 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
 
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
+    if (application.metadata.deletionTimestamp && !application.operation) {
+        return 'Delete';
+    }
     if (operation && operation.sync) {
         return 'Sync';
-    }
-    if (application.metadata.deletionTimestamp) {
-        return 'Delete';
     }
     return 'Unknown';
 }

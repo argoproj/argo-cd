@@ -336,3 +336,66 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
 }
+
+func TestDefaultGlobMatchMode(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
+
+}
+
+func TestGlobMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = GlobMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
+
+}
+
+func TestRegexMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
+
+}
+
+func TestGlobMatchFunc(t *testing.T) {
+	ok, _ := globMatchFunc("arg1")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc(time.Now(), "arg2")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg1", time.Now())
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg/123", "arg/*")
+	assert.True(t, ok.(bool))
+}

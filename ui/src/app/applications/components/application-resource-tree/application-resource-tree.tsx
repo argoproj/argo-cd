@@ -201,7 +201,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
 }
 
 export const describeNode = (node: ResourceTreeNode) => {
-    const lines = [`Kind: ${node.kind}`, `Namespace: ${node.namespace}`, `Name: ${node.name}`];
+    const lines = [`Kind: ${node.kind}`, `Namespace: ${node.namespace || '(global)'}`, `Name: ${node.name}`];
     if (node.images) {
         lines.push('Images:');
         node.images.forEach(i => lines.push(`- ${i}`));

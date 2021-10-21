@@ -500,6 +500,7 @@ func verifyGenerateManifests(
 		ApiVersions:       apiVersions,
 		HelmRepoCreds:     repositoryCredentials,
 		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
+		NoRevisionCache:   true,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

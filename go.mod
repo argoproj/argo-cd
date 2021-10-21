@@ -24,12 +24,12 @@ require (
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/runtime v0.19.4
 	github.com/go-openapi/spec v0.19.5
-	github.com/go-redis/cache/v8 v8.2.1
-	github.com/go-redis/redis/v8 v8.3.2
+	github.com/go-redis/cache/v8 v8.4.2
+	github.com/go-redis/redis/v8 v8.11.3
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.2
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-jsonnet v0.17.0
@@ -54,14 +54,13 @@ require (
 	github.com/r3labs/diff v1.1.0
 	github.com/robfig/cron v1.1.0
 	github.com/rs/cors v1.6.0 // indirect
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/undefinedlabs/go-mpatch v1.0.6
-	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
