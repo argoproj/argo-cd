@@ -429,6 +429,7 @@ func verifyGenerateManifests(
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
 		HelmRepoCreds:     repositoryCredentials,
+		NoRevisionCache:   true,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)
