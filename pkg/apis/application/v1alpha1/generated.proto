@@ -509,6 +509,8 @@ message ConfigManagementPlugin {
   optional Command init = 2;
 
   optional Command generate = 3;
+
+  optional bool lockRepo = 4;
 }
 
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories

@@ -650,12 +650,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
-                                        <div className='columns small-8'>Namespace</div>
+                                        <div className='columns small-3'>Name</div>
+                                        <div className='columns small-5'>Namespace</div>
                                     </div>
                                     {proj.spec.destinations.map((dest, i) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>{dest.server}</div>
-                                            <div className='columns small-8'>{dest.namespace}</div>
+                                            <div className='columns small-3'>{dest.name}</div>
+                                            <div className='columns small-5'>{dest.namespace}</div>
                                         </div>
                                     ))}
                                 </React.Fragment>
@@ -670,7 +672,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
-                                        <div className='columns small-8'>Namespace</div>
+                                        <div className='columns small-3'>Name</div>
+                                        <div className='columns small-5'>Namespace</div>
                                     </div>
                                     {(formApi.values.spec.destinations || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
@@ -682,7 +685,15 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                 />
                                             </div>
-                                            <div className='columns small-8'>
+                                            <div className='columns small-3'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.destinations[${i}].name`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                                />
+                                            </div>
+                                            <div className='columns small-5'>
                                                 <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
                                             </div>
                                             <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
@@ -695,7 +706,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 'spec.destinations',
                                                 (formApi.values.spec.destinations || []).concat({
                                                     server: '*',
-                                                    namespace: '*'
+                                                    namespace: '*',
+                                                    name: '*'
                                                 })
                                             )
                                         }>

@@ -50,7 +50,7 @@ If you've never configured this, you'll be redirected straight to this if you tr
 
 ### Configure Argo to use OpenID Connect
 
-Edit `argo-cm` and add the following dex.config to the data section, replacing `clientID` and `clientSecret` with the values you saved before:
+Edit `argo-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before:
 
 ```yaml
 data:
@@ -142,9 +142,21 @@ data:
 
 ## OpenID Connect plus Google Groups using Dex
 
+---
+!!! warning "Limited group information"
+
+    When using this feature you'll only receive the list of groups the user is a direct member.
+
+    So, lets say you have this hierarchy of groups and subgroups:  
+    `all@example.com --> tech@example.com --> devs@example.com --> you@example.com`  
+    The only group you would receive through Dex would be `devs@example.com`
+
+---
+
 We're going to use Dex's `google` connector to get additional Google Groups information from your users, allowing you to use group membership on your RBAC, i.e., giving `admin` role to the whole `sysadmins@yourcompany.com` group.
 
 This connector uses two different credentials:
+
 - An oidc client ID and secret  
   Same as when you're configuring an [OpenID connection](#openid-connect-using-dex), this authenticates your users
 - A Google service account  
@@ -158,65 +170,60 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 
 ### Set up Directory API access 
 
-1. Follow [Google instructions to create a service account with Domain-Wide Delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)  
-   - When assigning API scopes to the service account assign **only** the `https://www.googleapis.com/auth/admin.directory.group.readonly` scope and nothing else. If you assign any other scopes, you won't be able to fetch information from the API
-   - Create the credentials in JSON format and store them in a safe place, we'll need them later
+1. Follow [Google instructions to create a service account with Domain-Wide Delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)
+    - When assigning API scopes to the service account assign **only** the `https://www.googleapis.com/auth/admin.directory.group.readonly` scope and nothing else. If you assign any other scopes, you won't be able to fetch information from the API
+    - Create the credentials in JSON format and store them in a safe place, we'll need them later  
 2. Enable the [Admin SDK](https://console.developers.google.com/apis/library/admin.googleapis.com/)
 
 ### Configure Dex
 
-1. Create a secret with the contents of the previous json file encoded in base64, like this
+1. Create a secret with the contents of the previous json file encoded in base64, like this:
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-google-groups-json
-  namespace: argocd
-data:
-  googleAuth.json: JSON_FILE_BASE64_ENCODED
-```
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: argocd-google-groups-json
+          namespace: argocd
+        data:
+          googleAuth.json: JSON_FILE_BASE64_ENCODED
 
 2. Edit your `argocd-dex-server` deployment to mount that secret as a file  
-   - Add a volume mount in `/spec/template/spec/containers/0/volumeMounts/` like this:  
-     ```yaml
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
-        - mountPath: /tmp
-          name: dexconfig
-        - mountPath: /tmp/oidc
-          name: google-json
-          readOnly: true
-     ```
-     Be aware of editing the running container and not the init container!
-   - Add a volume in `/spec/template/spec/volumes/` like this:  
-     ```yaml
-      volumes:
-      - emptyDir: {}
-        name: static-files
-      - emptyDir: {}
-        name: dexconfig
-      - name: google-json
-        secret:
-          defaultMode: 420
-          secretName: argocd-google-groups-json
-     ```
+    - Add a volume mount in `/spec/template/spec/containers/0/volumeMounts/` like this. Be aware of editing the running container and not the init container!
 
-3. Edit `argo-cm` and add the following dex.config to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:  
-   ```yaml
-   dex.config: |
-     connectors:
-     - config:
-         redirectURI: https://argocd.example.com/api/dex/callback
-         clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
-         clientSecret: XXXXXXXXXXXXX
-         serviceAccountFilePath: /tmp/oidc/googleAuth.json
-         adminEmail: admin-email@example.com
-       type: google
-       id: google
-       name: Google
-   ```
+            volumeMounts:
+            - mountPath: /shared
+              name: static-files
+            - mountPath: /tmp
+              name: dexconfig
+            - mountPath: /tmp/oidc
+              name: google-json
+              readOnly: true
+
+    - Add a volume in `/spec/template/spec/volumes/` like this:
+
+            volumes:
+            - emptyDir: {}
+              name: static-files
+            - emptyDir: {}
+              name: dexconfig
+            - name: google-json
+              secret:
+                defaultMode: 420
+                secretName: argocd-google-groups-json
+
+3. Edit `argo-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:
+
+        dex.config: |
+          connectors:
+          - config:
+              redirectURI: https://argocd.example.com/api/dex/callback
+              clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
+              clientSecret: XXXXXXXXXXXXX
+              serviceAccountFilePath: /tmp/oidc/googleAuth.json
+              adminEmail: admin-email@example.com
+            type: google
+            id: google
+            name: Google
 
 4. Restart your `argocd-dex-server` deployment to be sure it's using the latest configuration
 5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member  
