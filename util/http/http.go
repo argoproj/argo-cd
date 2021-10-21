@@ -5,16 +5,30 @@ import (
 	"math"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/common"
 
 	log "github.com/sirupsen/logrus"
 )
 
 // max number of chunks a cookie can be broken into. To be compatible with
 // widest range of browsers, we shouldn't create more than 30 cookies per domain
-const maxCookieNumber = 5
+const defaultMaxCookieNumber = 5
 const maxCookieLength = 4093
+
+func maxCookieNumber() int {
+	if cookieNumber := os.Getenv(common.EnvMaxCookieNumber); cookieNumber != "" {
+		number, err := strconv.Atoi(cookieNumber)
+		if err != nil {
+			return defaultMaxCookieNumber
+		}
+		return number
+	}
+	return defaultMaxCookieNumber
+}
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
@@ -23,8 +37,8 @@ func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 	// cookie: name=value; attributes and key: key-(i) e.g. argocd.token-1
 	maxValueLength := maxCookieValueLength(key, attributes)
 	numberOfCookies := int(math.Ceil(float64(len(value)) / float64(maxValueLength)))
-	if numberOfCookies > maxCookieNumber {
-		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxCookieNumber)
+	if numberOfCookies > maxCookieNumber() {
+		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxCookieNumber())
 	}
 
 	return splitCookie(key, value, attributes), nil
