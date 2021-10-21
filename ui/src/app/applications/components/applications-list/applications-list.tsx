@@ -403,7 +403,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 {
                                                                     title: 'Refresh Apps',
                                                                     iconClassName: 'fa fa-redo',
-                                                                    action: () => ctx.navigation.goto('.', {freshApps: true}, {replace: true})
+                                                                    action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
                                                                 }
                                                             ]
                                                         }
@@ -494,11 +494,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             apps={filteredApps}
                                                                         />
                                                                         <ApplicationsRefreshPanel
-                                                                key='refreshPanel'
-                                                                show={refreshAppsInput}
-                                                                hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
-                                                                apps={filteredApps}
-                                                            />
+                                                                            key='refreshPanel'
+                                                                            show={refreshAppsInput}
+                                                                            hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
+                                                                            apps={filteredApps}
+                                                                        />
                                                                     </>
                                                                 );
                                                             }}
