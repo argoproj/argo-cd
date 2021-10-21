@@ -30,7 +30,7 @@ func TestCookieMaxLength(t *testing.T) {
 
 	// keys will be of format foo, foo-1, foo-2 ..
 	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxCookieLength-5)*maxCookieNumber()))
-	assert.EqualError(t, err, "invalid cookie value, at 20440 long it is longer than the max length of 20435")
+	assert.EqualError(t, err, "invalid cookie value, at 20440 long it is longer than the max length of 20435, increase number of cookies inside cm")
 	assert.Equal(t, 0, len(cookies))
 }
 

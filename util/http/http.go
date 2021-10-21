@@ -38,7 +38,7 @@ func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 	maxValueLength := maxCookieValueLength(key, attributes)
 	numberOfCookies := int(math.Ceil(float64(len(value)) / float64(maxValueLength)))
 	if numberOfCookies > maxCookieNumber() {
-		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxCookieNumber())
+		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d, increase number of cookies inside cm", len(value), maxValueLength*maxCookieNumber())
 	}
 
 	return splitCookie(key, value, attributes), nil
