@@ -401,7 +401,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                 },
                                                                 {
-                                                                    title: 'Fresh Apps',
+                                                                    title: 'Refresh Apps',
                                                                     iconClassName: 'fa fa-redo',
                                                                     action: () => ctx.navigation.goto('.', {freshApps: true}, {replace: true})
                                                                 }
