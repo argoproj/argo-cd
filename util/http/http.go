@@ -5,9 +5,10 @@ import (
 	"math"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	"strconv"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/common"
 
@@ -16,19 +17,9 @@ import (
 
 // max number of chunks a cookie can be broken into. To be compatible with
 // widest range of browsers, we shouldn't create more than 30 cookies per domain
-const defaultMaxCookieNumber = 5
 const maxCookieLength = 4093
 
-func maxCookieNumber() int {
-	if cookieNumber := os.Getenv(common.EnvMaxCookieNumber); cookieNumber != "" {
-		number, err := strconv.Atoi(cookieNumber)
-		if err != nil {
-			return defaultMaxCookieNumber
-		}
-		return number
-	}
-	return defaultMaxCookieNumber
-}
+var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 10, 0, 30)
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
@@ -37,8 +28,8 @@ func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 	// cookie: name=value; attributes and key: key-(i) e.g. argocd.token-1
 	maxValueLength := maxCookieValueLength(key, attributes)
 	numberOfCookies := int(math.Ceil(float64(len(value)) / float64(maxValueLength)))
-	if numberOfCookies > maxCookieNumber() {
-		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d, increase number of cookies inside cm", len(value), maxValueLength*maxCookieNumber())
+	if numberOfCookies > maxCookieNumber {
+		return nil, fmt.Errorf("the authentication token is %d characters long and requires %d cookies but the max number of cookies is %d. Contact your Argo CD administrator to increase the max number of cookies", len(value), numberOfCookies, maxCookieNumber)
 	}
 
 	return splitCookie(key, value, attributes), nil

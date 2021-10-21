@@ -2,26 +2,11 @@ package http
 
 import (
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/stretchr/testify/assert"
 )
-
-func Test_maxCookieNumber(t *testing.T) {
-	_ = os.Setenv(common.EnvMaxCookieNumber, "15")
-	number := maxCookieNumber()
-	assert.Equal(t, number, 15)
-}
-
-func Test_maxCookieNumberDefault(t *testing.T) {
-	_ = os.Setenv(common.EnvMaxCookieNumber, "some-text")
-	number := maxCookieNumber()
-	assert.Equal(t, number, defaultMaxCookieNumber)
-}
 
 func TestCookieMaxLength(t *testing.T) {
 	cookies, err := MakeCookieMetadata("foo", "bar")
@@ -29,8 +14,8 @@ func TestCookieMaxLength(t *testing.T) {
 	assert.Equal(t, "foo=bar", cookies[0])
 
 	// keys will be of format foo, foo-1, foo-2 ..
-	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxCookieLength-5)*maxCookieNumber()))
-	assert.EqualError(t, err, "invalid cookie value, at 20440 long it is longer than the max length of 20435, increase number of cookies inside cm")
+	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxCookieLength-5)*maxCookieNumber))
+	assert.EqualError(t, err, "the authentication token is 40880 characters long and requires 11 cookies but the max number of cookies is 10. Contact your Argo CD administrator to increase the max number of cookies")
 	assert.Equal(t, 0, len(cookies))
 }
 
