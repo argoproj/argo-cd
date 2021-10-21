@@ -1266,3 +1266,40 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	opts := sc.getDeleteOptions()
 	assert.Equal(t, v1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
+
+func TestSetOperationFailed(t *testing.T) {
+	sc := syncContext{}
+	sc.log = klogr.New().WithValues("application", "fake-app")
+
+	tasks := make([]*syncTask, 0)
+	tasks = append(tasks, &syncTask{message: "namespace not found"})
+
+	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+
+	assert.Equal(t, sc.message, "one or more objects failed to apply, reason: namespace not found")
+
+}
+
+func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
+	sc := syncContext{}
+	sc.log = klogr.New().WithValues("application", "fake-app")
+
+	tasks := make([]*syncTask, 0)
+	tasks = append(tasks, &syncTask{message: "namespace not found"})
+	tasks = append(tasks, &syncTask{message: "namespace not found"})
+
+	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+
+	assert.Equal(t, sc.message, "one or more objects failed to apply, reason: namespace not found")
+
+}
+
+func TestSetOperationFailedNoTasks(t *testing.T) {
+	sc := syncContext{}
+	sc.log = klogr.New().WithValues("application", "fake-app")
+
+	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
+
+	assert.Equal(t, sc.message, "one or more objects failed to apply")
+
+}
