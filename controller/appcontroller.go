@@ -128,6 +128,7 @@ func NewApplicationController(
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
+	metricsApplicationLabels []string,
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
@@ -185,7 +186,7 @@ func NewApplicationController(
 	var err error
 	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, func(r *http.Request) error {
 		return nil
-	})
+	}, metricsApplicationLabels)
 	if err != nil {
 		return nil, err
 	}
@@ -705,6 +706,18 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	app := origApp.DeepCopy()
 
 	if app.Operation != nil {
+		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
+		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
+		// We cannot rely on informer since applications might be updated by both application controller and api server.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Failed to retrieve latest application state: %v", err)
+			return
+		}
+		app = freshApp
+	}
+
+	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
@@ -828,7 +841,7 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	}
 	// Don't delete live resources which are not permitted in the app project
 	for k, v := range objsMap {
-		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(objsMap, k)
 		}
 	}
@@ -1124,7 +1137,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1153,10 +1166,6 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
-		}
-		// write back to informer in order to avoid stale cache
-		if err := ctrl.appInformer.GetStore().Update(patchedApp); err != nil {
-			log.Warnf("Fails to update informer: %v", err)
 		}
 		return nil
 	})

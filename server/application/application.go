@@ -1224,6 +1224,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceSeconds: sinceSeconds,
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
+			Previous:     q.Previous,
 		}).Stream(ws.Context())
 		podName := pod.Name
 		logStream := make(chan logEntry)
