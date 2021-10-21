@@ -282,7 +282,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
-    const freshAppsInput = tryJsonParse(query.get('freshApps'));
+    const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
@@ -494,11 +494,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             apps={filteredApps}
                                                                         />
                                                                         <ApplicationsRefreshPanel
-                                                                            key='freshPanel'
-                                                                            show={freshAppsInput}
-                                                                            hide={() => ctx.navigation.goto('.', {freshApps: null}, {replace: true})}
-                                                                            apps={filteredApps}
-                                                                        />
+                                                                key='refreshPanel'
+                                                                show={refreshAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
+                                                                apps={filteredApps}
+                                                            />
                                                                     </>
                                                                 );
                                                             }}
