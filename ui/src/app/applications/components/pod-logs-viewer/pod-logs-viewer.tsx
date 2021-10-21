@@ -4,7 +4,7 @@ import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
-
+import Ansi from 'ansi-to-react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -38,6 +38,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const page = props.page;
     const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
+    const [showPreviousLogs, setPreviousLogs] = useState(false);
 
     interface FilterData {
         literal: string;
@@ -128,6 +129,14 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                         </button>
                         <button
+                            className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
+                            onClick={() => {
+                                setPreviousLogs(!showPreviousLogs);
+                                loader.reload();
+                            }}>
+                            PREVIOUS LOGS {showPreviousLogs && <i className='fa fa-check' />}
+                        </button>
+                        <button
                             className='argo-button argo-button--base-o'
                             onClick={() => {
                                 const inverted = prefs.appDetails.darkMode;
@@ -193,7 +202,8 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     maxLines * (page.number + 1),
                                     prefs.appDetails.followLogs && page.number === 0,
                                     page.untilTimes[page.untilTimes.length - 1],
-                                    filterQuery
+                                    filterQuery,
+                                    showPreviousLogs
                                 )
                                 // show only current page lines
                                 .pipe(
@@ -337,7 +347,9 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                         </div>
                                                     )}
                                                     <div className='pod-logs-viewer__line__number'>{lineNum}</div>
-                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>{l}</div>
+                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
+                                                        <Ansi>{l}</Ansi>
+                                                    </div>
                                                 </div>
                                             );
                                         })}

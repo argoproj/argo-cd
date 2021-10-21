@@ -458,7 +458,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(liveObjByKey, k)
 		}
 	}
@@ -501,6 +501,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+
+	for i := range reconciliation.Target {
+		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
+	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
