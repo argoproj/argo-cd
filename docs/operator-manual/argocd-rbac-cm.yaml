@@ -28,3 +28,8 @@ data:
   # If omitted, defaults to: '[groups]'. The scope value can be a string, or a list of strings.
   scopes: '[cognito:groups, email]'
 
+  # matchMode configures the matchers function for casbin.
+  # There are two options for this, 'glob' for glob matcher or 'regex' for regex matcher. If omitted or mis-configured,
+  # will be set to 'glob' as default.
+  policy.matchMode: 'glob'
+

@@ -21,6 +21,10 @@ export interface PodViewPreferences {
     hideUnschedulable: boolean;
 }
 
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
+}
+
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
 
 export class AppsListPreferences {
@@ -55,6 +59,7 @@ export class AppsListPreferences {
     public clustersFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
 }
 
 export interface ViewPreferences {
@@ -95,7 +100,10 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
-        hideFilters: false
+        hideFilters: false,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
     hideBannerContent: ''

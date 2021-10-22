@@ -312,12 +312,12 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
 	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
 		return false
 	}
 	if un.GetNamespace() != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace(), Name: name})
 	}
 	return true
 }
@@ -354,7 +354,9 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
-		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name)
+		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server)
+		if (dstServerMatched || dstNameMatched) && globMatch(item.Namespace, dst.Namespace) {
 			return true
 		}
 	}
