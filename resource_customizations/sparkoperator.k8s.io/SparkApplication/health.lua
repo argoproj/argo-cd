@@ -4,7 +4,7 @@ if obj.status ~= nil then
     if obj.status.applicationState.state == "" then
       health_status.status = "Progressing"
       health_status.message = "SparkApplication was added, enqueuing it for submission"
-      return health_k9sstatus
+      return health_status
     end
     if obj.status.applicationState.state == "RUNNING" then
       if obj.status.executorState ~= nil then

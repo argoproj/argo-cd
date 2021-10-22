@@ -3479,6 +3479,12 @@ spec:
               key: server.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_MAX_COOKIE_NUMBER
+          valueFrom:
+            configMapKeyRef:
+              key: server.http.cookie.maxnumber
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:

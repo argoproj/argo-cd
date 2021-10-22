@@ -5,12 +5,16 @@
     - [Config Management Tools Integrations (proposal)](#config-management-tools-integrations-proposal)
     - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
     - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
-    - [Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
   - [v2.3 and beyond](#v23-and-beyond)
-    - [Application Details Page Usability](#application-details-page-usability)
-    - [Cluster Management User Interface](#cluster-management-user-interface)
+    - [Input Forms UI Refresh](#input-forms-ui-refresh)
+    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
+    - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
+    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
+    - [Compact Resources Tree](#compact-resources-tree)
+    - [Multi-tenancy improvements](#multi-tenancy-improvements)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
+    - [✅ Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
     - [✅ Core Functionality Bug Fixes](#-core-functionality-bug-fixes)
     - [✅ Performance](#-performance)
     - [✅ ApplicationSet](#-applicationset)
@@ -19,7 +23,6 @@
     - [✅ Argo CD Notifications](#-argo-cd-notifications)
     - [✅ Automated Registry Monitoring](#-automated-registry-monitoring)
     - [✅ Projects Enhancements](#-projects-enhancements)
-
 
 ## v2.2
 
@@ -44,17 +47,33 @@ Instead of asking an administrator to change Argo CD settings end users can perf
 
 ## v2.3 and beyond
 
-### Application Details Page Usability
+### Input Forms UI Refresh
 
-Application details page has accumulated multiple usability and feature requests such as 
-[Node view](https://github.com/argoproj/argo-cd/issues/1483),
-Network view ([1](https://github.com/argoproj/argo-cd/issues/2892), [2](https://github.com/argoproj/argo-cd/issues/2338))
- [etc](https://github.com/argoproj/argo-cd/issues/2199).
+Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
 
-### Cluster Management User Interface
+### Merge ApplicationSet controller into Argo CD
 
-Argo CD has information about whole clusters, not just applications in it.
-We need to provide a user interface for cluster administrators that visualize cluster level resources.
+The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
+The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+
+### Merge Argo CD Notifications into Argo CD
+
+The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
+
+### Merge Argo CD Image Updater into Argo CD
+
+The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+
+### Compact resources tree
+
+An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
+
+### Multi-tenancy improvements
+
+The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
+* [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
+* [AppSource](https://github.com/argoproj-labs/appsource)
+
 
 ### GitOps Engine Enhancements
 
@@ -109,7 +128,7 @@ to improve user experience.
 
 To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
 
-That includes more metrics, out of the box alerts and a cluster management user interface.
+That includes more metrics, out-of-the-box alerts and a cluster management user interface.
 
 
 ### ✅ Argo CD Notifications

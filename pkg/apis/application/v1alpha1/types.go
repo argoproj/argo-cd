@@ -2014,6 +2014,7 @@ type ConfigManagementPlugin struct {
 	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
 	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
+	LockRepo bool     `json:"lockRepo,omitempty" protobuf:"bytes,4,name=lockRepo"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests

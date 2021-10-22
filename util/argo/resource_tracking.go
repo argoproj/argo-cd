@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	"github.com/argoproj/argo-cd/v2/common"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,6 +32,7 @@ type ResourceTracking interface {
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
+	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
 }
 
 //AppInstanceValue store information about resource tracking info
@@ -55,6 +58,10 @@ func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingM
 		return TrackingMethodLabel
 	}
 	return v1alpha1.TrackingMethod(tm)
+}
+
+func IsOldTrackingMethod(trackingMethod string) bool {
+	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
 // GetAppName retrieve application name base on tracking method
@@ -141,4 +148,32 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	appInstanceValue.Namespace = nsParts[0]
 	appInstanceValue.Name = nsParts[1]
 	return &appInstanceValue, nil
+}
+
+func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
+	if IsOldTrackingMethod(trackingMethod) {
+		return nil
+	}
+
+	if live == nil || config == nil {
+		return nil
+	}
+
+	label := kube.GetAppInstanceLabel(live, labelKey)
+	if label == "" {
+		return nil
+	}
+
+	annotation := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	err := argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	if err != nil {
+		return err
+	}
+
+	err = argokube.SetAppInstanceLabel(config, labelKey, label)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

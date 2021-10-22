@@ -83,21 +83,26 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	}
 
 	clust, err := s.db.CreateCluster(ctx, c)
-	if status.Convert(err).Code() == codes.AlreadyExists {
-		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
-		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
-		}
+	if err != nil {
+		if status.Convert(err).Code() == codes.AlreadyExists {
+			// act idempotent if existing spec matches new spec
+			existing, getErr := s.db.GetCluster(ctx, c.Server)
+			if getErr != nil {
+				return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
+			}
 
-		if existing.Equals(c) {
-			clust = existing
-		} else if q.Upsert {
-			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+			if existing.Equals(c) {
+				clust = existing
+			} else if q.Upsert {
+				return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+			} else {
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+			}
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+			return nil, err
 		}
 	}
+
 	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
