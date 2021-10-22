@@ -14,6 +14,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -1387,7 +1389,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					syncOptions := applicationpkg.SyncOptions{}
 					items := make([]string, 0)
 					if replace {
-						items = append(items, "Replace=true")
+						items = append(items, common.SyncOptionReplace)
 					}
 
 					if len(items) == 0 {
