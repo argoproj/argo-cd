@@ -31,8 +31,7 @@ type Kubectl interface {
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error)
-	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
-	GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error)
+	GetAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
 	SetOnKubectlRun(onKubectlRun OnKubectlRunFunc)
@@ -52,13 +51,19 @@ type APIResourceInfo struct {
 
 type filterFunc func(apiResource *metav1.APIResource) bool
 
-func (k *KubectlCmd) filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	serverResources, err := disco.ServerPreferredResources()
+	var serverResources []*metav1.APIResourceList
+	if preferred {
+		serverResources, err = disco.ServerPreferredResources()
+	} else {
+		_, serverResources, err = disco.ServerGroupsAndResources()
+	}
+
 	if err != nil {
 		if len(serverResources) == 0 {
 			return nil, err
@@ -114,22 +119,10 @@ func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, 
 	return openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
 }
 
-func (k *KubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	serverGroupList, err := disco.ServerGroups()
-	if err != nil {
-		return nil, err
-	}
-	return serverGroupList.Groups, nil
-}
-
-func (k *KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
 	span := k.Tracer.StartSpan("GetAPIResources")
 	defer span.Finish()
-	apiResIfs, err := k.filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
+	apiResIfs, err := k.filterAPIResources(config, preferred, resourceFilter, func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
 	})
 	if err != nil {

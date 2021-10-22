@@ -620,14 +620,52 @@ func TestGetDuplicatedChildren(t *testing.T) {
 
 func TestGetClusterInfo(t *testing.T) {
 	cluster := newCluster(t)
-	cluster.apiGroups = []metav1.APIGroup{{Name: "test"}}
+	cluster.apiResources = []kube.APIResourceInfo{{GroupKind: schema.GroupKind{Group: "test", Kind: "test kind"}}}
 	cluster.serverVersion = "v1.16"
 	info := cluster.GetClusterInfo()
 	assert.Equal(t, ClusterInfo{
-		Server:     cluster.config.Host,
-		APIGroups:  cluster.apiGroups,
-		K8SVersion: cluster.serverVersion,
+		Server:       cluster.config.Host,
+		APIResources: cluster.apiResources,
+		K8SVersion:   cluster.serverVersion,
 	}, info)
+}
+
+func TestDeleteAPIResource(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.apiResources = []kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
+		GroupVersionResource: schema.GroupVersionResource{Version: "v1"},
+	}}
+
+	cluster.deleteAPIResource(kube.APIResourceInfo{GroupKind: schema.GroupKind{Group: "wrong group", Kind: "wrong kind"}})
+	assert.Len(t, cluster.apiResources, 1)
+	cluster.deleteAPIResource(kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
+		GroupVersionResource: schema.GroupVersionResource{Version: "wrong version"},
+	})
+	assert.Len(t, cluster.apiResources, 1)
+
+	cluster.deleteAPIResource(kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
+		GroupVersionResource: schema.GroupVersionResource{Version: "v1"},
+	})
+	assert.Empty(t, cluster.apiResources)
+}
+
+func TestAppendAPIResource(t *testing.T) {
+	cluster := newCluster(t)
+
+	resourceInfo := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
+		GroupVersionResource: schema.GroupVersionResource{Version: "v1"},
+	}
+
+	cluster.appendAPIResource(resourceInfo)
+	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
+
+	// make sure same group, kind version is not added twice
+	cluster.appendAPIResource(resourceInfo)
+	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
 }
 
 func ExampleNewClusterCache_resourceUpdatedEvents() {

@@ -28,7 +28,6 @@ type MockKubectlCmd struct {
 	Events        chan watch.Event
 	Version       string
 	DynamicClient dynamic.Interface
-	APIGroups     []metav1.APIGroup
 
 	lastCommandPerResource map[kube.ResourceKey]string
 	lastValidate           bool
@@ -70,7 +69,7 @@ func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interfac
 	return k.DynamicClient, nil
 }
 
-func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
 	return k.APIResources, nil
 }
 
@@ -134,10 +133,6 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return k.Version, nil
-}
-
-func (k *MockKubectlCmd) GetAPIGroups(config *rest.Config) ([]metav1.APIGroup, error) {
-	return k.APIGroups, nil
 }
 
 func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error) {

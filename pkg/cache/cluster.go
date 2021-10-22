@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/semaphore"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -66,8 +67,8 @@ type ClusterInfo struct {
 	LastCacheSyncTime *time.Time
 	// SyncError holds most recent cache synchronization error
 	SyncError error
-	// APIGroups holds list of API groups supported by the cluster
-	APIGroups []metav1.APIGroup
+	// APIResources holds list of API resources supported by the cluster
+	APIResources []kube.APIResourceInfo
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -85,8 +86,8 @@ type ClusterCache interface {
 	EnsureSynced() error
 	// GetServerVersion returns observed cluster version
 	GetServerVersion() string
-	// GetAPIGroups returns information about observed API groups
-	GetAPIGroups() []metav1.APIGroup
+	// GetAPIResources returns information about observed API resources
+	GetAPIResources() []kube.APIResourceInfo
 	// GetOpenAPISchema returns open API schema of supported API resources
 	GetOpenAPISchema() openapi.Resources
 	// Invalidate cache and executes callback that optionally might update cache settings
@@ -150,7 +151,7 @@ type clusterCache struct {
 
 	apisMeta      map[schema.GroupKind]*apiMeta
 	serverVersion string
-	apiGroups     []metav1.APIGroup
+	apiResources  []kube.APIResourceInfo
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
 
@@ -244,12 +245,12 @@ func (c *clusterCache) GetServerVersion() string {
 	return c.serverVersion
 }
 
-// GetAPIGroups returns information about observed API groups
-func (c *clusterCache) GetAPIGroups() []metav1.APIGroup {
+// GetAPIResources returns information about observed API resources
+func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	return c.apiGroups
+	return c.apiResources
 }
 
 // GetOpenAPISchema returns open API schema of supported API resources
@@ -257,24 +258,24 @@ func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
 	return c.openAPISchema
 }
 
-func (c *clusterCache) appendAPIGroups(apiGroup metav1.APIGroup) {
+func (c *clusterCache) appendAPIResource(info kube.APIResourceInfo) {
 	exists := false
-	for i := range c.apiGroups {
-		if c.apiGroups[i].Name == apiGroup.Name {
+	for i := range c.apiResources {
+		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
 			exists = true
 			break
 		}
 	}
 	if !exists {
-		c.apiGroups = append(c.apiGroups, apiGroup)
+		c.apiResources = append(c.apiResources, info)
 	}
 }
 
-func (c *clusterCache) DeleteAPIGroup(apiGroup metav1.APIGroup) {
-	for i := range c.apiGroups {
-		if c.apiGroups[i].Name == apiGroup.Name {
-			c.apiGroups[i] = c.apiGroups[len(c.apiGroups)-1]
-			c.apiGroups = c.apiGroups[:len(c.apiGroups)-1]
+func (c *clusterCache) deleteAPIResource(info kube.APIResourceInfo) {
+	for i := range c.apiResources {
+		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
+			c.apiResources[i] = c.apiResources[len(c.apiResources)-1]
+			c.apiResources = c.apiResources[:len(c.apiResources)-1]
 			break
 		}
 	}
@@ -404,7 +405,7 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterCache) startMissingWatches() error {
-	apis, err := c.kubectl.GetAPIResources(c.config, c.settings.ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
 		return err
 	}
@@ -542,37 +543,40 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 				c.processEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
-					var apiGroup metav1.APIGroup
-					name, nameOK, nameErr := unstructured.NestedString(obj.Object, "metadata", "name")
-					group, groupOk, groupErr := unstructured.NestedString(obj.Object, "spec", "group")
-					version, versionOK, versionErr := unstructured.NestedString(obj.Object, "spec", "version")
-					if nameOK && nameErr == nil {
-						apiGroup.Name = name
-						var groupVersions []metav1.GroupVersionForDiscovery
-						if groupOk && groupErr == nil && versionOK && versionErr == nil {
-							groupVersion := metav1.GroupVersionForDiscovery{
-								GroupVersion: group + "/" + version,
-								Version:      version,
-							}
-							groupVersions = append(groupVersions, groupVersion)
-						}
-						apiGroup.Versions = groupVersions
+					var resources []kube.APIResourceInfo
+					crd := v1.CustomResourceDefinition{}
+					err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd)
+					if err != nil {
+						c.log.Error(err, "Failed to extract CRD resources")
+					}
+					for _, v := range crd.Spec.Versions {
+						resources = append(resources, kube.APIResourceInfo{
+							GroupKind: schema.GroupKind{
+								Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind},
+							GroupVersionResource: schema.GroupVersionResource{
+								Group: crd.Spec.Group, Version: v.Name, Resource: crd.Spec.Names.Plural},
+							Meta: metav1.APIResource{
+								Group:        crd.Spec.Group,
+								SingularName: crd.Spec.Names.Singular,
+								Namespaced:   crd.Spec.Scope == v1.NamespaceScoped,
+								Name:         crd.Spec.Names.Plural,
+								Kind:         crd.Spec.Names.Singular,
+								Version:      v.Name,
+								ShortNames:   crd.Spec.Names.ShortNames,
+							},
+						})
 					}
 
 					if event.Type == watch.Deleted {
-						kind, kindOk, kindErr := unstructured.NestedString(obj.Object, "spec", "names", "kind")
-						if groupOk && groupErr == nil && kindOk && kindErr == nil {
-							gk := schema.GroupKind{Group: group, Kind: kind}
-							c.stopWatching(gk, ns)
-						}
-						// remove CRD's groupkind from c.apigroups
-						if nameOK && nameErr == nil {
-							c.DeleteAPIGroup(apiGroup)
+						for i := range resources {
+							c.deleteAPIResource(resources[i])
 						}
 					} else {
 						// add new CRD's groupkind to c.apigroups
-						if event.Type == watch.Added && nameOK && nameErr == nil {
-							c.appendAPIGroups(apiGroup)
+						if event.Type == watch.Added {
+							for i := range resources {
+								c.appendAPIResource(resources[i])
+							}
 						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
@@ -633,11 +637,11 @@ func (c *clusterCache) sync() error {
 		return err
 	}
 	c.serverVersion = version
-	groups, err := c.kubectl.GetAPIGroups(config)
+	apiResources, err := c.kubectl.GetAPIResources(config, false, NewNoopSettings())
 	if err != nil {
 		return err
 	}
-	c.apiGroups = groups
+	c.apiResources = apiResources
 
 	openAPISchema, err := c.kubectl.LoadOpenAPISchema(config)
 	if err != nil {
@@ -645,7 +649,7 @@ func (c *clusterCache) sync() error {
 	}
 	c.openAPISchema = openAPISchema
 
-	apis, err := c.kubectl.GetAPIResources(c.config, c.settings.ResourcesFilter)
+	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 
 	if err != nil {
 		return err
@@ -970,7 +974,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		Server:            c.config.Host,
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
-		APIGroups:         c.apiGroups,
+		APIResources:      c.apiResources,
 	}
 }
 

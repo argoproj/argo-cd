@@ -12,6 +12,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
+// NewNoopSettings returns cache settings that has not health customizations and don't filter any resources
+func NewNoopSettings() *noopSettings {
+	return &noopSettings{}
+}
+
 type noopSettings struct {
 }
 
