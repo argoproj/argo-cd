@@ -149,7 +149,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
-			expectedApiVersion := GetApiVersions()
+			expectedApiVersion := GetApiResources()
 			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
 			sort.Strings(expectedApiVersionSlice)
 
