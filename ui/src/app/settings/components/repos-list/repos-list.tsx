@@ -569,6 +569,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                         <div className='argo-form-row'>
                                             <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
                                         </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                        </div>
                                     </form>
                                 )}
                             </Form>

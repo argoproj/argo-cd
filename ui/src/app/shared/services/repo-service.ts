@@ -126,12 +126,14 @@ export class RepositoriesService {
         name,
         url,
         gcpServiceAccountKey,
+        proxy,
         project
     }: {
         type: string;
         name: string;
         url: string;
         gcpServiceAccountKey: string;
+        proxy: string;
         project?: string;
     }): Promise<models.Repository> {
         return requests
@@ -141,6 +143,7 @@ export class RepositoriesService {
                 name,
                 repo: url,
                 gcpServiceAccountKey,
+                proxy,
                 project
             })
             .then(res => res.body as models.Repository);
