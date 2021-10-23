@@ -33,6 +33,8 @@ type ArgoDB interface {
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, server string) error
+	// ListClusterSecrets lists all cluster secrets.
+	ListClusterSecrets(ctx context.Context) ([]*v1.Secret, error)
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)

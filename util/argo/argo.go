@@ -610,14 +610,14 @@ func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository
 }
 
 func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
-	clusterList, err := db.ListClusters(ctx)
+	secrets, err := db.ListClusterSecrets(ctx)
 	if err != nil {
 		return "", err
 	}
 	var servers []string
-	for _, c := range clusterList.Items {
-		if c.Name == clusterName {
-			servers = append(servers, c.Server)
+	for _, s := range secrets {
+		if string(s.Data["name"]) == clusterName {
+			servers = append(servers, string(s.Data["server"]))
 		}
 	}
 	if len(servers) > 1 {

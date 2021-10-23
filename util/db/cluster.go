@@ -189,6 +189,11 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 }
 
+// ListClusterSecrets lists all cluster secrets.
+func (db *db) ListClusterSecrets(_ context.Context) ([]*apiv1.Secret, error) {
+	return db.listSecretsByType(common.LabelValueSecretTypeCluster)
+}
+
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, error) {
 	clusterSecret, err := db.getClusterSecret(server)

@@ -665,11 +665,11 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
-			Items: []argoappv1.Cluster{
-				{
-					Name:   "minikube",
-					Server: "https://127.0.0.1:6443",
+		db.On("ListClusterSecrets", context.Background()).Return([]*corev1.Secret{
+			{
+				Data: map[string][]byte{
+					"name":   []byte("minikube"),
+					"server": []byte("https://127.0.0.1:6443"),
 				},
 			},
 		}, nil)
@@ -698,7 +698,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(nil, fmt.Errorf("an error occurred"))
+		db.On("ListClusterSecrets", context.Background()).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
 		assert.Equal(t, "unable to find destination server: an error occurred", err.Error())
@@ -711,11 +711,11 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
-			Items: []argoappv1.Cluster{
-				{
-					Name:   "dind",
-					Server: "https://127.0.0.1:6443",
+		db.On("ListClusterSecrets", context.Background()).Return([]*corev1.Secret{
+			{
+				Data: map[string][]byte{
+					"name":   []byte("dind"),
+					"server": []byte("https://127.0.0.1:6443"),
 				},
 			},
 		}, nil)
@@ -731,15 +731,17 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
-			Items: []argoappv1.Cluster{
-				{
-					Name:   "dind",
-					Server: "https://127.0.0.1:2443",
+		db.On("ListClusterSecrets", context.Background()).Return([]*corev1.Secret{
+			{
+				Data: map[string][]byte{
+					"name":   []byte("dind"),
+					"server": []byte("https://127.0.0.1:2443"),
 				},
-				{
-					Name:   "dind",
-					Server: "https://127.0.0.1:8443",
+			},
+			{
+				Data: map[string][]byte{
+					"name":   []byte("dind"),
+					"server": []byte("https://127.0.0.1:8443"),
 				},
 			},
 		}, nil)
