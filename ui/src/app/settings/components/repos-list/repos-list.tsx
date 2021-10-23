@@ -53,6 +53,14 @@ interface NewGitHubAppRepoParams {
     project?: string;
 }
 
+interface NewGoogleCloudSourceRepoParams {
+    type: string;
+    name: string;
+    url: string;
+    gcpServiceAccountKey: string;
+    project?: string;
+}
+
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
@@ -76,6 +84,11 @@ interface NewGitHubAppRepoCredsParams {
     tlsClientCertKey: string;
 }
 
+interface NewGoogleCloudSourceRepoCredsParams {
+    url: string;
+    gcpServiceAccountKey: string;
+}
+
 export class ReposList extends React.Component<RouteComponentProps<any>, {connecting: boolean}> {
     public static contextTypes = {
         router: PropTypes.object,
@@ -86,6 +99,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
     private formApiSSH: FormApi;
     private formApiHTTPS: FormApi;
     private formApiGitHubApp: FormApi;
+    private formApiGoogleCloudSource: FormApi;
     private credsTemplate: boolean;
     private repoLoader: DataLoader;
     private credsLoader: DataLoader;
@@ -117,6 +131,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 iconClassName: 'fa fa-plus',
                                 title: 'Connect Repo using GitHub App',
                                 action: () => (this.showConnectGitHubAppRepo = true)
+                            },
+                            {
+                                iconClassName: 'fa fa-plus',
+                                title: 'Connect Repo using Google Cloud Source',
+                                action: () => (this.showConnectGoogleCloudSourceRepo = true)
                             },
                             {
                                 iconClassName: 'fa fa-redo',
@@ -193,6 +212,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                         </button>
                                         <button className='argo-button argo-button--base' onClick={() => (this.showConnectGitHubAppRepo = true)}>
                                             Connect Repo using GitHub App
+                                        </button>{' '}
+                                        <button className='argo-button argo-button--base' onClick={() => (this.showConnectGoogleCloudSourceRepo = true)}>
+                                            Connect Repo using Google Cloud Source
                                         </button>{' '}
                                     </EmptyState>
                                 )
@@ -498,6 +520,61 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                         )}
                     </DataLoader>
                 </SlidingPanel>
+                <SlidingPanel
+                    isShown={this.showConnectGoogleCloudSourceRepo}
+                    onClose={() => (this.showConnectGoogleCloudSourceRepo = false)}
+                    header={
+                        <div>
+                            <button
+                                className='argo-button argo-button--base'
+                                onClick={() => {
+                                    this.credsTemplate = false;
+                                    this.formApiGoogleCloudSource.submitForm(null);
+                                }}>
+                                <Spinner show={this.state.connecting} style={{marginRight: '5px'}} />
+                                Connect
+                            </button>{' '}
+                            <button
+                                className='argo-button argo-button--base'
+                                onClick={() => {
+                                    this.credsTemplate = true;
+                                    this.formApiGoogleCloudSource.submitForm(null);
+                                }}>
+                                Save as credentials template
+                            </button>{' '}
+                            <button onClick={() => (this.showConnectGoogleCloudSourceRepo = false)} className='argo-button argo-button--base-o'>
+                                Cancel
+                            </button>
+                        </div>
+                    }>
+                    <h4>Connect repo using Google Cloud Source</h4>
+                    <DataLoader load={() => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())}>
+                        {projects => (
+                            <Form
+                                onSubmit={params => this.connectGoogleCloudSourceRepo(params as NewGoogleCloudSourceRepoParams)}
+                                getApi={api => (this.formApiGoogleCloudSource = api)}
+                                defaultValues={{type: 'git'}}
+                                validateError={(params: NewGoogleCloudSourceRepoParams) => ({
+                                    url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
+                                    gcpServiceAccountKey: !params.gcpServiceAccountKey && 'GCP service account key is required',
+                                })}>
+                                {formApi => (
+                                    <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                        </div>
+                                    </form>
+                                )}
+                            </Form>
+                        )}
+                    </DataLoader>
+                </SlidingPanel>
             </Page>
         );
     }
@@ -541,10 +618,16 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
         this.formApiHTTPS.resetAll();
     }
 
-    // Empty all fields in SSH repository form
+    // Empty all fields in GitHub app repository form
     private clearConnectGitHubAppForm() {
         this.credsTemplate = false;
         this.formApiGitHubApp.resetAll();
+    }
+
+    // Empty all fields in Google Cloud Source repository form
+    private clearConnectGoogleCloudSourceForm() {
+        this.credsTemplate = false;
+        this.formApiGoogleCloudSource.resetAll();
     }
 
     // Connect a new repository or create a repository credentials for SSH repositories
@@ -624,6 +707,30 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
         }
     }
 
+    // Connect a new repository or create a repository credentials for GitHub App repositories
+    private async connectGoogleCloudSourceRepo(params: NewGoogleCloudSourceRepoParams) {
+        if (this.credsTemplate) {
+            this.createGoogleCloudSourceCreds({
+                url: params.url,
+                gcpServiceAccountKey: params.gcpServiceAccountKey
+            });
+        } else {
+            this.setState({connecting: true});
+            try {
+                await services.repos.createGoogleCloudSource(params);
+                this.repoLoader.reload();
+                this.showConnectGoogleCloudSourceRepo = false;
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                this.setState({connecting: false});
+            }
+        }
+    }
+
     private async createHTTPSCreds(params: NewHTTPSRepoCredsParams) {
         try {
             await services.repocreds.createHTTPS(params);
@@ -658,6 +765,19 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to create GitHub App credentials' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
+    private async createGoogleCloudSourceCreds(params: NewGoogleCloudSourceRepoCredsParams) {
+        try {
+            await services.repocreds.createGoogleCloudSource(params);
+            this.credsLoader.reload();
+            this.showConnectGoogleCloudSourceRepo = false;
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
                 type: NotificationType.Error
             });
         }
@@ -709,6 +829,16 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
     private set showConnectGitHubAppRepo(val: boolean) {
         this.clearConnectGitHubAppForm();
         this.appContext.router.history.push(`${this.props.match.url}?addGitHubAppRepo=${val}`);
+    }
+
+    // Whether to show the Google Cloud Source repository connection dialogue on the page
+    private get showConnectGoogleCloudSourceRepo() {
+        return new URLSearchParams(this.props.location.search).get('addGoogleCloudSourceRepo') === 'true';
+    }
+
+    private set showConnectGoogleCloudSourceRepo(val: boolean) {
+        this.clearConnectGoogleCloudSourceForm();
+        this.appContext.router.history.push(`${this.props.match.url}?addGoogleCloudSourceRepo=${val}`);
     }
 
     private get appContext(): AppContext {

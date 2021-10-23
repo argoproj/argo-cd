@@ -284,6 +284,18 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
+	case GoogleCloudCreds:
+		username, err := creds.getUsername()
+		if err != nil {
+			return nil, err
+		}
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, err
+		}
+
+		auth := githttp.BasicAuth{Username: username, Password: token}
+		return &auth, nil
 	}
 	return nil, nil
 }

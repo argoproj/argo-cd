@@ -121,6 +121,31 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
+    public createGoogleCloudSource({
+        type,
+        name,
+        url,
+        gcpServiceAccountKey,
+        project
+    }: {
+        type: string;
+        name: string;
+        url: string;
+        gcpServiceAccountKey: string;
+        project?: string;
+    }): Promise<models.Repository> {
+        return requests
+            .post('/repositories')
+            .send({
+                type,
+                name,
+                repo: url,
+                gcpServiceAccountKey,
+                project
+            })
+            .then(res => res.body as models.Repository);
+    }
+
     public delete(url: string): Promise<models.Repository> {
         return requests
             .delete(`/repositories/${encodeURIComponent(url)}`)

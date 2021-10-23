@@ -2952,6 +2952,12 @@
             "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google Cloud Platform service account key.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5924,6 +5930,10 @@
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
@@ -6001,6 +6011,10 @@
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
         },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",

@@ -3,7 +3,10 @@ package git
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"io"
 	"io/ioutil"
 	"os"
@@ -22,9 +25,11 @@ import (
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 )
 
-// In memory cache for storing github APP api token credentials
 var (
+	// In memory cache for storing github APP api token credentials
 	githubAppTokenCache *gocache.Cache
+	// In memory cache for storing oauth2.TokenSource used to generate Google Cloud OAuth tokens
+	googleCloudTokenSource *gocache.Cache
 )
 
 func init() {
@@ -36,6 +41,8 @@ func init() {
 	}
 
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
+	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
+	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 }
 
 type Creds interface {
@@ -377,4 +384,90 @@ func (g GitHubAppCreds) GetClientCertData() string {
 
 func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
+}
+
+// GoogleCloudCreds to authenticate to Google Cloud Source repositories
+type GoogleCloudCreds struct {
+	credentialsJSON string
+}
+
+func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
+	return GoogleCloudCreds{jsonData}
+}
+
+func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
+	username, err := c.getUsername()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	token, err := c.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+
+	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", username), fmt.Sprintf("GIT_PASSWORD=%s", token)}
+
+	return NopCloser{}, env, nil
+}
+
+func (c GoogleCloudCreds) getUsername() (string, error) {
+	type googleCredentialsFile struct {
+		Type string `json:"type"`
+
+		// Service Account fields
+		ClientEmail  string `json:"client_email"`
+		PrivateKeyID string `json:"private_key_id"`
+		PrivateKey   string `json:"private_key"`
+		AuthURL      string `json:"auth_uri"`
+		TokenURL     string `json:"token_uri"`
+		ProjectID    string `json:"project_id"`
+	}
+
+	var f googleCredentialsFile
+	if err := json.Unmarshal([]byte(c.credentialsJSON), &f); err != nil {
+		return "", err
+	}
+	return f.ClientEmail, nil
+}
+
+func (c GoogleCloudCreds) getAccessToken() (string, error) {
+	// Timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Compute hash of creds for lookup in cache
+	h := sha256.New()
+	_, err := h.Write([]byte(c.credentialsJSON))
+	if err != nil {
+		return "", err
+	}
+	key := fmt.Sprintf("%x", h.Sum(nil))
+
+	t, found := googleCloudTokenSource.Get(key)
+	if found {
+		ts := t.(*oauth2.TokenSource)
+		token, err := (*ts).Token()
+		if err != nil {
+			return "", err
+		}
+		return token.AccessToken, nil
+	}
+
+	creds, err := google.CredentialsFromJSON(ctx, []byte(c.credentialsJSON), "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		return "", err
+	}
+
+	ts := creds.TokenSource
+
+	// Add TokenSource to cache
+	// As TokenSource handles refreshing tokens once they expire itself, TokenSource itself can be reused. Hence, no expiration.
+	googleCloudTokenSource.Set(key, &ts, gocache.NoExpiration)
+
+	token, err := ts.Token()
+	if err != nil {
+		return "", err
+	}
+
+	return token.AccessToken, nil
 }

@@ -269,6 +269,8 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -297,6 +299,8 @@ type RepositoryCredentials struct {
 	EnableOCI bool `json:"enableOCI,omitempty"`
 	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 }
 
 const (

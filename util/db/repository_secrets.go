@@ -305,6 +305,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		Proxy:                      string(secret.Data["proxy"]),
 		Project:                    string(secret.Data["project"]),
+		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
@@ -369,6 +370,7 @@ func repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
 	updateSecretBool(secret, "insecure", repository.Insecure)
 	updateSecretBool(secret, "enableLfs", repository.EnableLFS)
 	updateSecretString(secret, "proxy", repository.Proxy)
+	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepository)
 }
 
@@ -383,6 +385,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		Type:                       string(secret.Data["type"]),
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -423,6 +426,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretInt(secret, "githubAppID", repoCreds.GithubAppId)
 	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
+	updateSecretString(secret, "gcpServiceAccountKey", repoCreds.GCPServiceAccountKey)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 

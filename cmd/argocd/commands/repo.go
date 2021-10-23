@@ -71,6 +71,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Git repository on GitHub Enterprise via GitHub App
   argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
+
+  # Add a private Git repository on Google Cloud Sources via GCP service account credentials
+  argocd repo add https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
 `
 
 	var command = &cobra.Command{
@@ -130,6 +133,17 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					repoOpts.Repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
 					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					errors.CheckError(err)
+				}
+			}
+
+			if repoOpts.GCPServiceAccountKeyPath != "" {
+				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
+					gcpServiceAccountKey, err := ioutil.ReadFile(repoOpts.GCPServiceAccountKeyPath)
+					errors.CheckError(err)
+					repoOpts.Repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
+				} else {
+					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}

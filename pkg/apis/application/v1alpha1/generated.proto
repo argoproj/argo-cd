@@ -842,6 +842,9 @@ message RepoCreds {
 
   // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
   optional string type = 12;
+
+  // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+  optional string gcpServiceAccountKey = 13;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -913,6 +916,9 @@ message Repository {
 
   // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
   optional string project = 20;
+
+  // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+  optional string gcpServiceAccountKey = 21;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
