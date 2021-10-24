@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -16,12 +17,13 @@ import (
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{})
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	input := &appsv1.Repository{
 		Name:                  "ArgoCD",
@@ -86,12 +88,13 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
 	assert.NoError(t, err)
@@ -141,12 +144,13 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	repositories, err := testee.ListRepositories(context.TODO(), nil)
 	assert.NoError(t, err)
@@ -219,12 +223,13 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	managedRepository.Username = "newUsername"
 	updateRepository, err := testee.UpdateRepository(context.TODO(), managedRepository)
@@ -290,12 +295,13 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
 	assert.NoError(t, err)
@@ -313,12 +319,13 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{})
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	input := &appsv1.RepoCreds{
 		URL:       "git@github.com:argoproj",
@@ -377,12 +384,13 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
 	assert.NoError(t, err)
@@ -428,12 +436,13 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	repoCreds, err := testee.ListRepoCreds(context.TODO())
 	assert.NoError(t, err)
@@ -489,12 +498,13 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	managedCreds.Username = "newUsername"
 	updateRepoCreds, err := testee.UpdateRepoCreds(context.TODO(), managedCreds)
@@ -558,12 +568,13 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	err := testee.DeleteRepoCreds(context.TODO(), "git@github.com:argoproj")
 	assert.NoError(t, err)
@@ -612,12 +623,13 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		},
 	}
 
+	cache, _ := lru.New(100)
 	clientset := getClientset(map[string]string{}, repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
+	}, cache: cache}
 
 	repoCreds, err := testee.GetAllHelmRepoCreds(context.TODO())
 	assert.NoError(t, err)

@@ -3,6 +3,7 @@ package db
 import (
 	"strings"
 
+	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -19,7 +20,8 @@ import (
 var _ repositoryBackend = &secretsRepositoryBackend{}
 
 type secretsRepositoryBackend struct {
-	db *db
+	db    *db
+	cache *lru.Cache
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
@@ -418,7 +420,7 @@ func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.S
 		return nil, err
 	}
 
-	index := s.getRepositoryCredentialIndex(secrets, repoURL)
+	index := s.getRepositoryCredentialIndex(s.cache, secrets, repoURL)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", repoURL)
 	}
@@ -426,14 +428,31 @@ func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.S
 	return secrets[index], nil
 }
 
-func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials []*corev1.Secret, repoURL string) int {
+func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(cache *lru.Cache, repoCredentials []*corev1.Secret, repoURL string) int {
 	var max, idx = 0, -1
-	repoURL = git.NormalizeGitURL(repoURL)
+	var (
+		normalizedRepoURL string
+		url               string
+	)
+	res, exists := cache.Get(repoURL)
+	if !exists {
+		normalizedRepoURL = git.NormalizeGitURL(repoURL)
+		cache.Add(repoURL, normalizedRepoURL)
+	} else {
+		normalizedRepoURL = res.(string)
+	}
 	for i, cred := range repoCredentials {
-		credUrl := git.NormalizeGitURL(string(cred.Data["url"]))
-		if strings.HasPrefix(repoURL, credUrl) {
-			if len(credUrl) > max {
-				max = len(credUrl)
+		credURL := string(cred.Data["url"])
+		res, exists := cache.Get(credURL)
+		if !exists {
+			url = git.NormalizeGitURL(credURL)
+			cache.Add(credURL, url)
+		} else {
+			url = res.(string)
+		}
+		if strings.HasPrefix(normalizedRepoURL, url) {
+			if len(url) > max {
+				max = len(url)
 				idx = i
 			}
 		}

@@ -51,11 +51,7 @@ var (
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{})
 	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
-	testee := &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settingsManager,
-	}
+	testee := NewDB(testNamespace, settingsManager, clientset)
 
 	input := &appsv1.Repository{
 		Name:     "TestRepo",
@@ -87,11 +83,7 @@ func TestDb_CreateRepository(t *testing.T) {
 func TestDb_GetRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
 	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
-	testee := &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settingsManager,
-	}
+	testee := NewDB(testNamespace, settingsManager, clientset)
 
 	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
 	assert.NoError(t, err)
@@ -112,11 +104,7 @@ func TestDb_GetRepository(t *testing.T) {
 func TestDb_ListRepositories(t *testing.T) {
 	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
 	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
-	testee := &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settingsManager,
-	}
+	testee := NewDB(testNamespace, settingsManager, clientset)
 
 	repositories, err := testee.ListRepositories(context.TODO())
 	assert.NoError(t, err)
@@ -141,11 +129,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 
 	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
 	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
-	testee := &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settingsManager,
-	}
+	testee := NewDB(testNamespace, settingsManager, clientset)
 
 	// Verify that legacy repository can still be updated
 	settingRepository.Username = "OtherUpdatedUsername"
@@ -183,11 +167,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 func TestDb_DeleteRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{"repositories": repoArgoProj}, newManagedSecret(), repoArgoCD)
 	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
-	testee := &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settingsManager,
-	}
+	testee := NewDB(testNamespace, settingsManager, clientset)
 
 	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
 	assert.NoError(t, err)

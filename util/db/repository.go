@@ -302,11 +302,11 @@ func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Rep
 }
 
 func (db *db) repoBackend() repositoryBackend {
-	return &secretsRepositoryBackend{db: db}
+	return &secretsRepositoryBackend{db: db, cache: db.reposCache}
 }
 
 func (db *db) legacyRepoBackend() repositoryBackend {
-	return &legacyRepositoryBackend{db: db}
+	return &legacyRepositoryBackend{db: db, cache: db.reposCache}
 }
 
 func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Repository) error {
