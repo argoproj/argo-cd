@@ -21,6 +21,7 @@ argocd cluster rotate-auth https://12.34.567.89
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

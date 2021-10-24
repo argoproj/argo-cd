@@ -74,5 +74,6 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
 	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", 0, "Maximum number of retries to establish http connection to Argo CD server")
 	command.PersistentFlags().BoolVar(&clientOpts.Core, "core", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
+	command.PersistentFlags().StringVar(&clientOpts.Context, "argocd-context", "", "The name of the Argo-CD server context to use")
 	return command
 }
