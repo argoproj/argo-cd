@@ -431,10 +431,6 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 }
 
 func (c GoogleCloudCreds) getAccessToken() (string, error) {
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := h.Write([]byte(c.credentialsJSON))
@@ -453,7 +449,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 		return token.AccessToken, nil
 	}
 
-	creds, err := google.CredentialsFromJSON(ctx, []byte(c.credentialsJSON), "https://www.googleapis.com/auth/cloud-platform")
+	creds, err := google.CredentialsFromJSON(context.Background(), []byte(c.credentialsJSON), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		return "", err
 	}
