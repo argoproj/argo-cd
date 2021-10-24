@@ -147,7 +147,6 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		Proxy:                      repo.Proxy,
 		Project:                    repo.Project,
-		GCPServiceAccountKey:       repo.GCPServiceAccountKey,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
