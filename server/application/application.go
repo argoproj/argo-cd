@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -313,7 +314,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return err
 		}
 
-		apiGroups, err := s.kubectl.GetAPIGroups(config)
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
 		if err != nil {
 			return err
 		}
@@ -329,7 +330,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Plugins:           plugins,
 			KustomizeOptions:  kustomizeOptions,
 			KubeVersion:       serverVersion,
-			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:     helmCreds,
 			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
 		})
