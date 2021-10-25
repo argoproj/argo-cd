@@ -58,10 +58,10 @@ export class RepoCredsService {
             .then(res => res.body as models.RepoCreds);
     }
 
-    public createGoogleCloudSource({url, gcpServiceAccountKey, proxy}: {url: string; gcpServiceAccountKey: string; proxy: string}): Promise<models.RepoCreds> {
+    public createGoogleCloudSource({url, gcpServiceAccountKey}: {url: string; gcpServiceAccountKey: string;}): Promise<models.RepoCreds> {
         return requests
             .post('/repocreds')
-            .send({url, gcpServiceAccountKey, proxy})
+            .send({url, gcpServiceAccountKey})
             .then(res => res.body as models.RepoCreds);
     }
 

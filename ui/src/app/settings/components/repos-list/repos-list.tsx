@@ -58,6 +58,7 @@ interface NewGoogleCloudSourceRepoParams {
     name: string;
     url: string;
     gcpServiceAccountKey: string;
+    proxy: string;
     project?: string;
 }
 
