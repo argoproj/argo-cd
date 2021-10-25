@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/r3labs/diff"
-
+	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/r3labs/diff"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -270,12 +271,12 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	apiGroups, err := kubectl.GetAPIGroups(config)
+	apiGroups, err := kubectl.GetAPIResources(config, false, cache.NewNoopSettings())
 	if err != nil {
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIGroupsToVersions(apiGroups), permittedHelmCredentials, settingsMgr)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
 
 	return conditions, nil
 }
@@ -374,15 +375,25 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	return conditions, nil
 }
 
-// APIGroupsToVersions converts list of API Groups into versions string list
-func APIGroupsToVersions(apiGroups []metav1.APIGroup) []string {
-	var apiVersions []string
-	for _, g := range apiGroups {
-		for _, v := range g.Versions {
-			apiVersions = append(apiVersions, v.GroupVersion)
+// APIResourcesToStrings converts list of API Resources list into string list
+func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) []string {
+	resMap := map[string]bool{}
+	for _, r := range resources {
+		groupVersion := r.GroupVersionResource.GroupVersion().String()
+		resMap[groupVersion] = true
+		if includeKinds {
+			resMap[groupVersion+"/"+r.GroupKind.Kind] = true
 		}
+
 	}
-	return apiVersions
+	var res []string
+	for k := range resMap {
+		res = append(res, k)
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i] < res[j]
+	})
+	return res
 }
 
 func retrieveScopedRepositories(name string, db db.ArgoDB, ctx context.Context) []*argoappv1.Repository {

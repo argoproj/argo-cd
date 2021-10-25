@@ -50,7 +50,7 @@ func init() {
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
+	GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
@@ -424,12 +424,12 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	})
 }
 
-func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
 		return "", nil, err
 	}
-	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIGroups(), nil
+	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
 func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
