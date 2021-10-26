@@ -111,6 +111,11 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	exists, err := s.db.RepositoryExists(ctx, q.Repo)
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+	}
+
 	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err

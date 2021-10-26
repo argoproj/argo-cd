@@ -41,6 +41,8 @@ type ArgoDB interface {
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
+	// RepositoryExists returns whether a repository is configured for the given URL
+	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config
