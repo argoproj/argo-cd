@@ -56,7 +56,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                         </div>
                         <ProjectSyncWindowScheduleEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                         <div className='argo-form-row'>
-                            <FormField formApi={api} label='TimeZone' componentProps={{options: generateTimezones()}} field='window.timeZone' component={FormSelect} />
+                            <FormField formApi={api} label='Time Zone' componentProps={{options: generateTimezones()}} field='window.timeZone' component={FormSelect} />
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Duration (e.g. "30m" or "1h")' field='window.duration' component={Text} />

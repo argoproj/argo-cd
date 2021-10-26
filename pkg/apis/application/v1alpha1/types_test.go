@@ -1226,7 +1226,7 @@ func TestSyncWindows_Active(t *testing.T) {
 				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
 				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
 			},
-			currentTime:    timeWithHour(11, time.UTC),
+			currentTime:    timeWithHour(15, time.UTC),
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
@@ -1248,6 +1248,16 @@ func TestSyncWindows_Active(t *testing.T) {
 			},
 			currentTime:    timeWithHour(21, time.UTC),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(3, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 
@@ -1383,7 +1393,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
 				syncWindow("allow", "* 5 * * *", "2h", "America/New_York"),
 			},
-			currentTime:    timeWithHour(6, time.UTC), // 6AM UTC is 2AM EDT
+			currentTime:    timeWithHour(11, time.UTC), // 6AM UTC is 2AM EDT
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
@@ -1393,7 +1403,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
 				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
 			},
-			currentTime:    timeWithHour(11, time.UTC),
+			currentTime:    timeWithHour(15, time.UTC),
 			matchingIndex:  1,
 			expectedLength: 1,
 		},
@@ -1414,6 +1424,16 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 			},
 			currentTime:    timeWithHour(12, time.UTC),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(7, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 

@@ -19,6 +19,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -1711,7 +1712,7 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 			// Offset the nextWindow time to consider the timezone of the sync window
 			timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 			nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
-			if nextWindow.Before(currentTime) {
+			if nextWindow.Before(currentTime.Add(timezoneOffsetDuration)) {
 				active = append(active, w)
 			}
 		}
@@ -1746,7 +1747,7 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 				timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 				nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timezoneOffsetDuration)) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -1759,7 +1760,11 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 }
 
 func (w *SyncWindow) scheduleOffsetByTimezone() time.Duration {
-	loc, _ := time.LoadLocation(w.TimeZone)
+	loc, err := time.LoadLocation(w.TimeZone)
+	if err != nil {
+		log.Warnf("Invalid timezone %s specified. Using UTC as default time zone", w.TimeZone)
+		loc = time.Now().UTC().Location()
+	}
 	_, tzOffset := time.Now().In(loc).Zone()
 	return time.Duration(tzOffset) * time.Second
 }
@@ -1954,11 +1959,11 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	timezoneOffsetDuration := w.scheduleOffsetByTimezone()
 	nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime)
+	return nextWindow.Before(currentTime.Add(timezoneOffsetDuration))
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, t string) error {
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
 
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
@@ -1981,10 +1986,10 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-	if t == "" {
-		t = "UTC"
+	if tz == "" {
+		tz = "UTC"
 	}
-	w.TimeZone = t
+	w.TimeZone = tz
 	return nil
 }
 
