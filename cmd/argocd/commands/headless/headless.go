@@ -58,6 +58,9 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 		cmd.Flags().AddFlag(flag)
 	})
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if noNeedToAccessServer(cmd) {
+			return nil
+		}
 		startInProcessAPI := clientOpts.Core
 		if !startInProcessAPI {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
@@ -148,4 +151,15 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 		cancel()
 	}
 	return cmd
+}
+
+// noNeedToAccessServer to check if the command needs to access server
+func noNeedToAccessServer(cmd *cobra.Command) bool {
+	if cmd.Use == "version" {
+		flag := cmd.Flag("client")
+		if flag != nil && flag.Value.String() == "true" {
+			return true
+		}
+	}
+	return false
 }
