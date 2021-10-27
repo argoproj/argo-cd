@@ -388,11 +388,16 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 
 // GoogleCloudCreds to authenticate to Google Cloud Source repositories
 type GoogleCloudCreds struct {
-	credentialsJSON string
+	creds *google.Credentials
 }
 
 func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
-	return GoogleCloudCreds{jsonData}
+	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		// Invalid JSON
+		panic(err)
+	}
+	return GoogleCloudCreds{creds}
 }
 
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
@@ -424,7 +429,7 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 	}
 
 	var f googleCredentialsFile
-	if err := json.Unmarshal([]byte(c.credentialsJSON), &f); err != nil {
+	if err := json.Unmarshal(c.creds.JSON, &f); err != nil {
 		return "", err
 	}
 	return f.ClientEmail, nil
@@ -433,7 +438,7 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := h.Write([]byte(c.credentialsJSON))
+	_, err := h.Write(c.creds.JSON)
 	if err != nil {
 		return "", err
 	}
@@ -449,12 +454,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 		return token.AccessToken, nil
 	}
 
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(c.credentialsJSON), "https://www.googleapis.com/auth/cloud-platform")
-	if err != nil {
-		return "", err
-	}
-
-	ts := creds.TokenSource
+	ts := c.creds.TokenSource
 
 	// Add TokenSource to cache
 	// As TokenSource handles refreshing tokens once they expire itself, TokenSource itself can be reused. Hence, no expiration.
