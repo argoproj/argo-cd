@@ -160,7 +160,7 @@ Private repositories hosted on Google Cloud Source can be accessed using Google 
 !!!note
     Ensure your application has at least `Source Repository Reader` permissions for the Google Cloud project. This is the minimum requirement.
 
-You can configure access to your Git repository hosted on Google Cloud Source using the by either using the CLI or the UI.
+You can configure access to your Git repository hosted on Google Cloud Source using the CLI or the UI.
 
 Using the CLI:
 
