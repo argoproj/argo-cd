@@ -122,6 +122,9 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 
 	// getRepo does not return an error for unconfigured repositories, so we are checking here
 	exists, err := s.db.RepositoryExists(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
 	if !exists {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
