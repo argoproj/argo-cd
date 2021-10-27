@@ -1,10 +1,13 @@
 package git
 
 import (
+	"runtime/debug"
+	"testing"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"testing"
 )
 
 const gcpServiceAccountKeyJSON = `{
@@ -52,7 +55,11 @@ func TestGoogleCloudCreds_Environ(t *testing.T) {
 }
 
 func shouldPanic(t *testing.T, f func()) {
-	defer func() { recover() }()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+	}()
 	f()
 	t.Errorf("should have panicked")
 }

@@ -557,7 +557,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 defaultValues={{type: 'git'}}
                                 validateError={(params: NewGoogleCloudSourceRepoParams) => ({
                                     url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
-                                    gcpServiceAccountKey: !params.gcpServiceAccountKey && 'GCP service account key is required',
+                                    gcpServiceAccountKey: !params.gcpServiceAccountKey && 'GCP service account key is required'
                                 })}>
                                 {formApi => (
                                     <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
