@@ -506,13 +506,13 @@ execProviderConfig:
     installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     caData: string
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     certData: string
     # Server should be accessed without verifying the TLS certificate
     insecure: boolean
-    # PEM-encoded bytes (typically read from a client certificate key file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate key file).
     keyData: string
     # ServerName is passed to the server for SNI and is used in the client to check server
     # certificates against. If ServerName is empty, the hostname used to contact the
