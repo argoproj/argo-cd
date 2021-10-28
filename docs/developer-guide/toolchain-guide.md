@@ -269,7 +269,7 @@ and others. Although you can make changes to these files and run them locally, i
 
 6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
 
-7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd` folder and run `yarn add https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
 
 8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
 
