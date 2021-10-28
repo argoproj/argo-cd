@@ -273,6 +273,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.replace {
+		args = append(args, "--replace")
+	}
+
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
