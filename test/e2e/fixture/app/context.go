@@ -36,6 +36,7 @@ type Context struct {
 	revision               string
 	force                  bool
 	directoryRecurse       bool
+	replace                bool
 }
 
 func Given(t *testing.T) *Context {
@@ -154,6 +155,11 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	fixture.SetProjectSpec(c.project, spec)
+	return c
+}
+
+func (c *Context) Replace() *Context {
+	c.replace = true
 	return c
 }
 
