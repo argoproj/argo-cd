@@ -1685,6 +1685,27 @@ func TestSyncOptionReplace(t *testing.T) {
 		})
 }
 
+func TestSyncOptionReplaceFromCLI(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		Replace().
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+		})
+}
+
 func TestDiscoverNewCommit(t *testing.T) {
 	var sha string
 	Given(t).

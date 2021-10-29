@@ -177,6 +177,7 @@ message ApplicationPodLogsQuery {
 	optional string kind = 11;
 	optional string group = 12;
 	optional string resourceName = 13 ;
+	optional bool previous = 14 [(gogoproto.nullable) = false];
 }
 
 message LogEntry {
