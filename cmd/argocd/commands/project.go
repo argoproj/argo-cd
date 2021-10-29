@@ -219,8 +219,17 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 
 // NewProjectAddDestinationCommand returns a new instance of an `argocd proj add-destination` command
 func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var nameInsteadServer bool
+
+	buildApplicationDestination := func(destination string, namespace string, nameInsteadServer bool) v1alpha1.ApplicationDestination {
+		if nameInsteadServer {
+			return v1alpha1.ApplicationDestination{Name: destination, Namespace: namespace}
+		}
+		return v1alpha1.ApplicationDestination{Server: destination, Namespace: namespace}
+	}
+
 	var command = &cobra.Command{
-		Use:   "add-destination PROJECT SERVER NAMESPACE",
+		Use:   "add-destination PROJECT SERVER/NAME NAMESPACE",
 		Short: "Add project destination",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
@@ -228,8 +237,8 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 				os.Exit(1)
 			}
 			projName := args[0]
-			server := args[1]
 			namespace := args[2]
+			destination := buildApplicationDestination(args[1], namespace, nameInsteadServer)
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
@@ -237,15 +246,18 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			errors.CheckError(err)
 
 			for _, dest := range proj.Spec.Destinations {
-				if dest.Namespace == namespace && dest.Server == server {
+				dstServerExist := destination.Server != "" && dest.Server == destination.Server
+				dstNameExist := destination.Name != "" && dest.Name == destination.Name
+				if dest.Namespace == namespace && (dstServerExist || dstNameExist) {
 					log.Fatal("Specified destination is already defined in project")
 				}
 			}
-			proj.Spec.Destinations = append(proj.Spec.Destinations, v1alpha1.ApplicationDestination{Server: server, Namespace: namespace})
+			proj.Spec.Destinations = append(proj.Spec.Destinations, destination)
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().BoolVar(&nameInsteadServer, "name", false, "Use name as destination instead server")
 	return command
 }
 

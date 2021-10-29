@@ -7,8 +7,8 @@
 package v1alpha1
 
 import (
-	spec "github.com/go-openapi/spec"
 	common "k8s.io/kube-openapi/pkg/common"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
@@ -1433,6 +1433,52 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "int64",
 						},
 					},
+					"clusterResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
@@ -1755,6 +1801,12 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"),
+						},
+					},
+					"lockRepo": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},
@@ -2986,6 +3038,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"proxy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Proxy specifies the HTTP/HTTPS proxy used to access the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
 							Type:        []string{"string"},
 							Format:      "",
 						},

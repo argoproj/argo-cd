@@ -1,12 +1,14 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
-import {Key, KeybindingContext, useNav} from 'react-keyhooks';
+import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
+import {ApplicationsLabels} from './applications-labels';
+import {ApplicationsSource} from './applications-source';
 require('./applications-table.scss');
 
 export const ApplicationsTable = (props: {
@@ -19,11 +21,14 @@ export const ApplicationsTable = (props: {
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding(Key.DOWN, () => navApp(1));
-    useKeybinding(Key.UP, () => navApp(-1));
-    useKeybinding(Key.ESCAPE, () => {
-        reset();
-        return selectedApp > -1 ? true : false;
+    useKeybinding({keys: Key.DOWN, action: () => navApp(1)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1)});
+    useKeybinding({
+        keys: Key.ESCAPE,
+        action: () => {
+            reset();
+            return selectedApp > -1 ? true : false;
+        }
     });
 
     return (
@@ -34,8 +39,7 @@ export const ApplicationsTable = (props: {
                         <div
                             key={app.metadata.name}
                             className={`argo-table-list__row
-                applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
-                applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                             <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
                                 <div className='columns small-4'>
                                     <div className='row'>
@@ -52,13 +56,12 @@ export const ApplicationsTable = (props: {
                                 <div className='columns small-6'>
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-2'>Source:</div>
-                                        <div className='columns small-12 xxlarge-10' style={{position: 'relative'}}>
-                                            {app.spec.source.repoURL}/{app.spec.source.path || app.spec.source.chart}
-                                            <div className='applications-table__meta'>
-                                                <span>{app.spec.source.targetRevision || 'HEAD'}</span>
-                                                {Object.keys(app.metadata.labels || {}).map(label => (
-                                                    <span key={label}>{`${label}=${app.metadata.labels[label]}`}</span>
-                                                ))}
+                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
+                                            <div className='applications-table-source__link'>
+                                                <ApplicationsSource source={app.spec.source} />
+                                            </div>
+                                            <div className='applications-table-source__labels'>
+                                                <ApplicationsLabels app={app} />
                                             </div>
                                         </div>
                                     </div>

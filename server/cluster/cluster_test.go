@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -44,6 +46,21 @@ func newNoopEnforcer() *rbac.Enforcer {
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	var updated *v1alpha1.Cluster
+
+	clusters := []v1alpha1.Cluster{
+		{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1",
+			Namespaces: []string{"default", "kube-system"},
+		},
+	}
+
+	clusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items:    clusters,
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&clusterList, nil)
 	db.On("UpdateCluster", mock.Anything, mock.MatchedBy(func(c *v1alpha1.Cluster) bool {
 		updated = c
 		return true

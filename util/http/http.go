@@ -8,13 +8,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/util/env"
+
+	"github.com/argoproj/argo-cd/v2/common"
+
 	log "github.com/sirupsen/logrus"
 )
 
+const maxCookieLength = 4093
+
 // max number of chunks a cookie can be broken into. To be compatible with
 // widest range of browsers, we shouldn't create more than 30 cookies per domain
-const maxCookieNumber = 5
-const maxCookieLength = 4093
+var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 10, 0, 30)
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
@@ -24,7 +29,7 @@ func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
 	maxValueLength := maxCookieValueLength(key, attributes)
 	numberOfCookies := int(math.Ceil(float64(len(value)) / float64(maxValueLength)))
 	if numberOfCookies > maxCookieNumber {
-		return nil, fmt.Errorf("invalid cookie value, at %d long it is longer than the max length of %d", len(value), maxValueLength*maxCookieNumber)
+		return nil, fmt.Errorf("the authentication token is %d characters long and requires %d cookies but the max number of cookies is %d. Contact your Argo CD administrator to increase the max number of cookies", len(value), numberOfCookies, maxCookieNumber)
 	}
 
 	return splitCookie(key, value, attributes), nil
@@ -135,4 +140,23 @@ func (d DebugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	log.Printf("%s", respDump)
 	return resp, nil
+}
+
+// TransportWithHeader is a HTTP Client Transport with default headers.
+type TransportWithHeader struct {
+	RoundTripper http.RoundTripper
+	Header       http.Header
+}
+
+func (rt *TransportWithHeader) RoundTrip(r *http.Request) (*http.Response, error) {
+	if rt.Header != nil {
+		headers := rt.Header.Clone()
+		for k, vs := range r.Header {
+			for _, v := range vs {
+				headers.Add(k, v)
+			}
+		}
+		r.Header = headers
+	}
+	return rt.RoundTripper.RoundTrip(r)
 }

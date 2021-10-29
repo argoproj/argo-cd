@@ -10,6 +10,19 @@ Log in to Argo CD
 argocd login SERVER [flags]
 ```
 
+### Examples
+
+```
+# Login to Argo CD using a username and password
+argocd login cd.argoproj.io
+
+# Login to Argo CD using SSO
+argocd login cd.argoproj.io --sso
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+```
+
 ### Options
 
 ```
@@ -28,6 +41,7 @@ argocd login SERVER [flags]
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

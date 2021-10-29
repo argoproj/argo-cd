@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: ControlCenter provisioning
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: ControlCenter running
+    inputPath: testdata/healthy.yaml

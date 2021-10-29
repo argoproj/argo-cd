@@ -72,7 +72,7 @@ It is proposed that a git repository be used to contain the javascript code, as 
 
 In the most simplest form, an Argo CD extension could simply be a pointer to a git repository at a revision:
 
-```yaml=
+```yaml
 kind: ArgoCDExtension
 metadata:
   name: argo-rollouts

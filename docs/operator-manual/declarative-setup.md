@@ -171,6 +171,9 @@ Repository details are stored in secrets. To configure a repo, create a secret w
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 
+!!!warning
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+    
 Example for HTTPS:
 
 ```yaml
@@ -182,6 +185,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
@@ -198,6 +202,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
@@ -215,6 +220,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   repo: https://github.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
@@ -231,6 +237,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   repo: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
@@ -257,6 +264,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
 ---
 apiVersion: v1
@@ -267,6 +275,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/other-private-repo
 ---
 apiVersion: v1
@@ -277,6 +286,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
+  type: git
   url: https://github.com/argoproj
   password: my-password
   username: my-username
@@ -416,6 +426,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
   password: my-password
@@ -495,13 +506,13 @@ execProviderConfig:
     installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     caData: string
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     certData: string
     # Server should be accessed without verifying the TLS certificate
     insecure: boolean
-    # PEM-encoded bytes (typically read from a client certificate key file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate key file).
     keyData: string
     # ServerName is passed to the server for SNI and is used in the client to check server
     # certificates against. If ServerName is empty, the hostname used to contact the

@@ -1,22 +1,4 @@
-@import 'node_modules/argo-ui/src/styles/config';
-
 .applications-table {
-    &__meta {
-        position: absolute;
-        right: 5px;
-        top: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 40%;
-        span {
-            background-color: $argo-color-gray-4;
-            border-radius: 5px;
-            padding: 0 2px;
-            margin-right: 2px;
-        }
-    }
-
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
@@ -30,6 +12,20 @@
                 top: 50%;
                 transform: translateY(-50%);
             }
+        }
+    }
+
+    .applications-table-source {
+        display: flex;
+        justify-content: space-between;
+
+        .applications-table-source__link {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .applications-table-source__labels {
+            max-width: 40%;
         }
     }
 }

@@ -151,9 +151,6 @@ func init() {
 	knownTypes["core/v1/EphemeralContainerCommon"] = func() interface{} {
 		return &corev1.EphemeralContainerCommon{}
 	}
-	knownTypes["core/v1/EphemeralContainers"] = func() interface{} {
-		return &corev1.EphemeralContainers{}
-	}
 	knownTypes["core/v1/EphemeralVolumeSource"] = func() interface{} {
 		return &corev1.EphemeralVolumeSource{}
 	}

@@ -21,7 +21,7 @@ The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
 
-The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
+The app will be out of sync if ArgoCD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
 
 ## Disable Kubectl Validation
 
@@ -114,7 +114,7 @@ metadata:
 
 ## Replace Resource Instead Of Applying Changes
 
-By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
+By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
 `kubectl apply` is not suitable. For example, resource spec might be too big and won't fit into
 `kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
 might use `Replace=true` sync option:
@@ -125,4 +125,23 @@ syncOptions:
 - Replace=true
 ```
 
-If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
+If the `Replace=true` sync option is set the ArgoCD will use `kubectl replace` or `kubectl create` command to apply changes.
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+```
+
+## Fail the sync if a shared resource is found
+
+By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources
+defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will
+fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
+
+```yaml
+syncOptions:
+- FailOnSharedResource=true
+```
+

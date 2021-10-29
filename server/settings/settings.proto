@@ -33,6 +33,10 @@ message Settings {
     string uiCssURL = 14;
     string uiBannerContent = 15;
     string uiBannerURL = 16;
+    string passwordPattern = 17;
+    string trackingMethod = 18;
+    bool uiBannerPermanent = 19;
+    string uiBannerPosition = 20;
 }
 
 message GoogleAnalyticsConfig {

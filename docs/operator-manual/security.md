@@ -11,7 +11,8 @@ Authentication to Argo CD API server is performed exclusively using [JSON Web To
 in one of the following ways:
 
 1. For the local `admin` user, a username/password is exchanged for a JWT using the `/api/v1/session`
-   endpoint. This token is signed & issued by the Argo CD API server itself, and has no expiration.
+   endpoint. This token is signed & issued by the Argo CD API server itself and it expires after 24 hours 
+   (this token used not to expire, see [CVE-2021-26921](https://github.com/argoproj/argo-cd/security/advisories/GHSA-9h6w-j7w4-jr52)).
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
    The password is stored as a bcrypt hash in the [`argocd-secret`](https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml) Secret.
 
@@ -37,6 +38,7 @@ permits access to the API request.
 All network communication is performed over TLS including service-to-service communication between
 the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
+Communication with Redis is performed over plain HTTP by default. TLS can be setup with command line arguments.
 
 ## Sensitive Information
 
@@ -153,3 +155,12 @@ Payloads from webhook events are considered untrusted. Argo CD only examines the
 the involved applications of the webhook event (e.g. which repo was modified), then refreshes
 the related application for reconciliation. This refresh is the same refresh which occurs regularly
 at three minute intervals, just fast-tracked by the webhook event.
+
+## Logging
+
+Argo CD logs payloads of most API requests except request that are considered sensitive, such as
+`/cluster.ClusterService/Create`, `/session.SessionService/Create` etc. The full list of method
+can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba8dddce8cd897ba23320e3715690f465b4a95/server/server.go#L516).
+
+Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
+to configure IP addresses logging in the proxy server that sits in front of the API server.

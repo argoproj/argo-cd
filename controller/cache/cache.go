@@ -50,7 +50,7 @@ func init() {
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
+	GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
@@ -105,7 +105,8 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterFilter func(cluster *appv1.Cluster) bool) LiveStateCache {
+	clusterFilter func(cluster *appv1.Cluster) bool,
+	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:     appInformer,
@@ -116,8 +117,9 @@ func NewLiveStateCache(
 		settingsMgr:     settingsMgr,
 		metricsServer:   metricsServer,
 		// The default limit of 50 is chosen based on experiments.
-		listSemaphore: semaphore.NewWeighted(50),
-		clusterFilter: clusterFilter,
+		listSemaphore:    semaphore.NewWeighted(50),
+		clusterFilter:    clusterFilter,
+		resourceTracking: resourceTracking,
 	}
 }
 
@@ -127,13 +129,14 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db              db.ArgoDB
-	appInformer     cache.SharedIndexInformer
-	onObjectUpdated ObjectUpdatedHandler
-	kubectl         kube.Kubectl
-	settingsMgr     *settings.SettingsManager
-	metricsServer   *metrics.MetricsServer
-	clusterFilter   func(cluster *appv1.Cluster) bool
+	db               db.ArgoDB
+	appInformer      cache.SharedIndexInformer
+	onObjectUpdated  ObjectUpdatedHandler
+	kubectl          kube.Kubectl
+	settingsMgr      *settings.SettingsManager
+	metricsServer    *metrics.MetricsServer
+	clusterFilter    func(cluster *appv1.Cluster) bool
+	resourceTracking argo.ResourceTracking
 
 	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
@@ -285,16 +288,19 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
+	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
 		clustercache.SetListSemaphore(c.listSemaphore),
 		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
+		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
-			appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
@@ -418,12 +424,12 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	})
 }
 
-func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
 		return "", nil, err
 	}
-	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIGroups(), nil
+	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
 func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
@@ -543,6 +549,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
+		}
+		if !reflect.DeepEqual(oldCluster.ClusterResources, newCluster.ClusterResources) {
+			updateSettings = append(updateSettings, clustercache.SetClusterResources(newCluster.ClusterResources))
 		}
 		forceInvalidate := false
 		if newCluster.RefreshRequestedAt != nil &&

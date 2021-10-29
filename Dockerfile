@@ -47,7 +47,6 @@ RUN groupadd -g 999 argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
-    chmod g=u /etc/passwd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
@@ -62,9 +61,9 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-# script to add current (possibly arbitrary) user to /etc/passwd at runtime
-# (if it's not already there, to be openshift friendly)
-COPY uid_entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+# keep uid_entrypoint.sh for backward compatibility
+RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
@@ -113,6 +112,7 @@ RUN go mod download
 
 # Perform the build
 COPY . .
+COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 RUN make argocd-all
 
 ARG BUILD_ALL_CLIS=true
@@ -126,10 +126,8 @@ RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
 ####################################################################################################
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
-COPY --from=argocd-ui ./src/dist/app /shared/app
 
 USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller

@@ -208,7 +208,7 @@ export const ComparisonStatusIcon = ({
 };
 
 export function showDeploy(resource: string, appContext: AppContext) {
-    appContext.apis.navigation.goto('.', {deploy: resource});
+    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -324,6 +324,10 @@ export function renderResourceMenu(
     } else {
         const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
         const items: MenuItem[] = [
+            {
+                title: 'Details',
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)}, {replace: true})
+            },
             ...((isRoot && [
                 {
                     title: 'Sync',
@@ -341,7 +345,7 @@ export function renderResourceMenu(
         if (findChildPod(resource, tree)) {
             items.push({
                 title: 'Logs',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'})
+                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
             });
         }
         const resourceActions = services.applications
@@ -593,11 +597,11 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
 
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
+    if (application.metadata.deletionTimestamp && !application.operation) {
+        return 'Delete';
+    }
     if (operation && operation.sync) {
         return 'Sync';
-    }
-    if (application.metadata.deletionTimestamp) {
-        return 'Delete';
     }
     return 'Unknown';
 }
@@ -860,7 +864,11 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
         };
         const start = () => {
             ensureUnsubscribed();
-            subscription = src().subscribe((item: T) => observer.next(item), err => observer.error(err), () => observer.complete());
+            subscription = src().subscribe(
+                (item: T) => observer.next(item),
+                err => observer.error(err),
+                () => observer.complete()
+            );
         };
 
         if (!document.hidden) {
@@ -907,3 +915,11 @@ export const BASE_COLORS = [
     '#4B0082', // purple
     '#964B00' // brown
 ];
+
+export const urlPattern = new RegExp(
+    new RegExp(
+        // tslint:disable-next-line:max-line-length
+        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
+        'gi'
+    )
+);

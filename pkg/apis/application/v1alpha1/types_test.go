@@ -115,7 +115,20 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
 		isPermitted: true,
-	}}
+	},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "", Namespace: "*", Name: "test",
+			}},
+			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+			isPermitted: true,
+		}, {
+			projDest: []ApplicationDestination{{
+				Server: "", Namespace: "*", Name: "test2",
+			}},
+			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+			isPermitted: false,
+		}}
 
 	for _, data := range testData {
 		proj := AppProject{
@@ -2109,12 +2122,14 @@ func TestProjectNormalize(t *testing.T) {
 func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 	retry := RetryStrategy{}
 	now := time.Now()
-	expectedTimes := []time.Time{
-		now.Add(5 * time.Second),
-		now.Add(10 * time.Second),
-		now.Add(20 * time.Second),
-		now.Add(40 * time.Second),
-		now.Add(80 * time.Second),
+	expectedTimes := map[int]time.Time{
+		0:   now.Add(5 * time.Second),
+		1:   now.Add(10 * time.Second),
+		2:   now.Add(20 * time.Second),
+		3:   now.Add(40 * time.Second),
+		4:   now.Add(80 * time.Second),
+		80:  now.Add(DefaultSyncRetryMaxDuration),
+		100: now.Add(DefaultSyncRetryMaxDuration),
 	}
 
 	for i, expected := range expectedTimes {
@@ -2122,6 +2137,7 @@ func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
+
 }
 
 func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
@@ -2227,4 +2243,15 @@ func TestRemoveEnvEntry(t *testing.T) {
 		err := plugins.RemoveEnvEntry("key")
 		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
+}
+
+func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
+	settings := OrphanedResourcesMonitorSettings{}
+	assert.False(t, settings.IsWarn())
+
+	settings.Warn = pointer.BoolPtr(false)
+	assert.False(t, settings.IsWarn())
+
+	settings.Warn = pointer.BoolPtr(true)
+	assert.True(t, settings.IsWarn())
 }

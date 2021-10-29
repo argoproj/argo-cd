@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: a-42
+  namespace: argocd
+spec:
+  roles:
+    - groups:
+        - fb435377-d6a7-4b27-958a-e5b81328d82a
+      name: a-1
+      policies:
+        - p, proj:a-42:a-42, applications, get, a-42/*, allow
+status:
+  jwtTokensByRole:
+    a-1: {}

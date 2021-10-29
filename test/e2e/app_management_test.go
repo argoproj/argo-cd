@@ -35,6 +35,8 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -44,7 +46,7 @@ import (
 const (
 	guestbookPath          = "guestbook"
 	guestbookPathLocal     = "./testdata/guestbook_local"
-	globalWithNoNameSpace  = "global-with-no-namesapce"
+	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
 )
 
@@ -139,6 +141,26 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, "annotation", app.Annotations["test"])
 			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
 		})
+}
+
+func TestDeleteAppResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// app should be listed
+			if _, err := RunCli("app", "delete-resource", Name(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
+				assert.NoError(t, err)
+			}
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
@@ -857,6 +879,70 @@ func TestPermissions(t *testing.T) {
 	}
 	assert.True(t, destinationErrorExist)
 	assert.True(t, sourceErrorExist)
+}
+
+func TestPermissionWithScopedRepo(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+}
+
+func TestPermissionDeniedWithScopedRepo(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		Create().
+		Then().
+		Expect(Error("", "is not permitted in project"))
+
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
@@ -1583,6 +1669,27 @@ func TestSyncOptionReplace(t *testing.T) {
 		Path("config-map").
 		When().
 		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+		})
+}
+
+func TestSyncOptionReplaceFromCLI(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		Replace().
+		When().
 		Create().
 		Sync().
 		Then().

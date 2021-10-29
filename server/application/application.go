@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -212,7 +213,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
-		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
+		return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("application", existing.Spec, a.Spec))
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 		return nil, err
@@ -249,7 +250,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -313,7 +314,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return err
 		}
 
-		apiGroups, err := s.kubectl.GetAPIGroups(config)
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
 		if err != nil {
 			return err
 		}
@@ -329,8 +330,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Plugins:           plugins,
 			KustomizeOptions:  kustomizeOptions,
 			KubeVersion:       serverVersion,
-			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:     helmCreds,
+			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
 		})
 		return err
 	})
@@ -414,6 +416,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
+				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			})
 			return err
 		}); err != nil {
@@ -800,7 +803,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
-	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
@@ -843,17 +846,17 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+		return status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
 	}
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return err
 		}
 		if len(conditions) > 0 {
-			return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 		}
 	}
 
@@ -862,7 +865,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 	}
 
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
@@ -1095,7 +1098,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	// We need to get some information with the project associated to the app,
 	// so we'll know whether GPG signatures are enforced.
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1222,6 +1225,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceSeconds: sinceSeconds,
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
+			Previous:     q.Previous,
 		}).Stream(ws.Context())
 		podName := pod.Name
 		logStream := make(chan logEntry)
@@ -1350,7 +1354,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1793,7 +1797,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}

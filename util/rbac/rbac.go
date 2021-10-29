@@ -14,6 +14,7 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	"github.com/casbin/casbin/util"
 	jwt "github.com/dgrijalva/jwt-go/v4"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -31,8 +32,11 @@ const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
 	ConfigMapScopesKey        = "scopes"
+	ConfigMapMatchModeKey     = "policy.matchMode"
+	GlobMatchMode             = "glob"
+	RegexMatchMode            = "regex"
 
-	defaultRBACSyncPeriod = 10 * time.Minute
+	defaultRBACSyncPeriod     = 10 * time.Minute
 )
 
 type WrapperEnforcer interface {
@@ -57,35 +61,19 @@ type Enforcer struct {
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
 	defaultRole        string
+	matchMode          string
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
-func newEnforcerSafe(params ...interface{}) (e WrapperEnforcer, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
-			e = nil
-		}
-	}()
-	enfs := casbin.NewCachedEnforcer(params...)
-	enfs.AddFunction("globMatch", func(args ...interface{}) (interface{}, error) {
-		if len(args) < 2 {
-			return false, nil
-		}
-		val, ok := args[0].(string)
-		if !ok {
-			return false, nil
-		}
-
-		pattern, ok := args[1].(string)
-		if !ok {
-			return false, nil
-		}
-
-		return glob.Match(pattern, val), nil
-	})
+func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
+	enfs, err := casbin.NewEnforcerSafe(params...)
+	if err != nil {
+		return nil, err
+	}
+	// Default glob match mode
+	enfs.AddFunction("globOrRegexMatch", globMatchFunc)
 	return enfs, nil
 }
 
@@ -128,6 +116,40 @@ func (e *Enforcer) LoadPolicy() error {
 		invalidator.InvalidateCache()
 	}
 	return err
+}
+
+// Glob match func
+func globMatchFunc(args ...interface{}) (interface{}, error) {
+	if len(args) < 2 {
+		return false, nil
+	}
+	val, ok := args[0].(string)
+	if !ok {
+		return false, nil
+	}
+
+	pattern, ok := args[1].(string)
+	if !ok {
+		return false, nil
+	}
+
+	return glob.Match(pattern, val), nil
+}
+
+// SetMatchMode set match mode on runtime, glob match or regex match
+func (e *Enforcer) SetMatchMode(mode string) {
+	if mode == RegexMatchMode {
+		e.matchMode = RegexMatchMode
+	} else {
+		e.matchMode = GlobMatchMode
+	}
+	e.Enforcer.AddFunction("globOrRegexMatch", func(args ...interface{}) (interface{}, error) {
+		if mode == RegexMatchMode {
+			return util.RegexMatchFunc(args...)
+		} else {
+			return globMatchFunc(args...)
+		}
+	})
 }
 
 // SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
@@ -182,6 +204,15 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
 func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) bool {
+	enf := e.CreateEnforcerWithRuntimePolicy(policy)
+	return e.EnforceWithCustomEnforcer(enf, rvals...)
+}
+
+// CreateEnforcerWithRuntimePolicy creates an enforcer with a policy defined at run-time which augments the built-in and
+// user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
+// to override the run-time policy. Runs normal enforcement if run-time policy is empty.
+func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) *casbin.Enforcer {
+	var enf *casbin.Enforcer
 	var enf WrapperEnforcer
 	var err error
 	if policy == "" {
@@ -193,6 +224,11 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 			enf = e.wrapperEnforcer
 		}
 	}
+	return enf
+}
+
+// EnforceWithCustomEnforcer wraps enforce with an custom enforcer
+func (e *Enforcer) EnforceWithCustomEnforcer(enf *casbin.Enforcer, rvals ...interface{}) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 

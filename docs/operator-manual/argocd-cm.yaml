@@ -18,6 +18,9 @@ data:
   # Specifies token expiration duration
   users.session.duration: "24h"
 
+  # Specifies regex expression for password
+  passwordPattern: "^.{8,32}$"
+
   # Enables google analytics tracking is specified
   ga.trackingid: "UA-12345-1"
   # Unless set to 'false' then user ids are hashed before sending to google analytics
@@ -221,6 +224,15 @@ data:
   # Optional link for banner. If set, the entire banner text will become a link.
   # You can have bannercontent without a bannerurl, but not the other way around.
   ui.bannerurl: "https://argoproj.github.io"
+  # Uncomment to make the banner not show the close buttons, thereby making the banner permanent.
+  # Because it is permanent, only one line of text is available to not take up too much real estate in the UI,
+  # so it is recommended that the length of the bannercontent text is kept reasonably short. Note that you can
+  # have either a permanent banner or a regular closeable banner, and NOT both. eg. A user can't dismiss a
+  # notification message (closeable) banner, to then immediately see a permanent banner.
+  # ui.bannerpermanent: "true"
+  # An option to specify the position of the banner, either the top or bottom of the page. The default is at the top.
+  # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
+  # ui.bannerposition: "bottom"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.

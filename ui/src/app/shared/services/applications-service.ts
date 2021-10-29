@@ -98,9 +98,10 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
+    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.Application> {
         return requests
             .put(`/applications/${app.metadata.name}`)
+            .query(query)
             .send(app)
             .then(res => this.parseAppFields(res.body));
     }
@@ -165,11 +166,12 @@ export class ApplicationsService {
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
-        syncOptions?: string[]
+        syncOptions?: string[],
+        retryStrategy?: models.RetryStrategy
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null, retryStrategy})
             .then(() => true);
     }
 
@@ -195,9 +197,10 @@ export class ApplicationsService {
         tail?: number,
         follow?: boolean,
         untilTime?: string,
-        filter?: string
+        filter?: string,
+        previous?: boolean
     ): Observable<models.LogEntry> {
-        const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter);
+        const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter, previous);
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
         return new Observable(observer => {
@@ -342,7 +345,8 @@ export class ApplicationsService {
         tail?: number,
         follow?: boolean,
         untilTime?: string,
-        filter?: string
+        filter?: string,
+        previous?: boolean
     ): URLSearchParams {
         if (follow === undefined || follow === null) {
             follow = true;
@@ -368,6 +372,9 @@ export class ApplicationsService {
         }
         if (filter) {
             search.set('filter', filter);
+        }
+        if (previous) {
+            search.set('previous', previous.toString());
         }
         return search;
     }
