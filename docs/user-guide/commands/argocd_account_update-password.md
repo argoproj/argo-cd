@@ -1,16 +1,36 @@
 ## argocd account update-password
 
-Update password
+Update an account's password
+
+### Synopsis
+
+
+This command can be used to update the password of the currently logged on
+user, or an arbitrary local user account when the currently logged on user
+has appropriate RBAC permissions to change other accounts.
+
 
 ```
 argocd account update-password [flags]
+```
+
+### Examples
+
+```
+
+	# Update the current user's password
+	argocd account update-password
+
+	# Update the password for user foobar
+	argocd account update-password --account foobar
+
 ```
 
 ### Options
 
 ```
       --account string            an account name that should be updated. Defaults to current user account
-      --current-password string   current password you wish to change
+      --current-password string   password of the currently logged on user
   -h, --help                      help for update-password
       --new-password string       new password you want to update to
 ```
