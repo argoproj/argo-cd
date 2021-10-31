@@ -36,13 +36,11 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 		"http": "0.0.0.0:5558",
 	}
 
-	oauth2Cfg, ok := dexCfg["oauth2"].(map[string]interface{})
-	if ok {
-		_ , ok := oauth2Cfg["skipApprovalScreen"].(bool)
-		if !ok {
+	if oauth2Cfg, found := dexCfg["oauth2"].(map[string]interface{}); found {
+		if _, found := oauth2Cfg["skipApprovalScreen"].(bool); !found {
 			oauth2Cfg["skipApprovalScreen"] = true
 		}
-	}else {
+	} else {
 		dexCfg["oauth2"] = map[string]interface{}{
 			"skipApprovalScreen": true,
 		}
