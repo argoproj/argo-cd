@@ -36,7 +36,7 @@ const (
 	GlobMatchMode             = "glob"
 	RegexMatchMode            = "regex"
 
-	defaultRBACSyncPeriod     = 10 * time.Minute
+	defaultRBACSyncPeriod = 10 * time.Minute
 )
 
 type WrapperEnforcer interface {
@@ -44,6 +44,8 @@ type WrapperEnforcer interface {
 	Enforce(rvals ...interface{}) bool
 	LoadPolicy() error
 	EnableEnforce(bool)
+	AddFunction(name string, function func(args ...interface{}) (interface{}, error))
+	GetGroupingPolicy() [][]string
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -67,8 +69,14 @@ type Enforcer struct {
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
-func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
-	enfs, err := casbin.NewEnforcerSafe(params...)
+func newEnforcerSafe(params ...interface{}) (e WrapperEnforcer, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+			e = nil
+		}
+	}()
+	enfs := casbin.NewCachedEnforcer(params...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +151,7 @@ func (e *Enforcer) SetMatchMode(mode string) {
 	} else {
 		e.matchMode = GlobMatchMode
 	}
-	e.Enforcer.AddFunction("globOrRegexMatch", func(args ...interface{}) (interface{}, error) {
+	e.wrapperEnforcer.AddFunction("globOrRegexMatch", func(args ...interface{}) (interface{}, error) {
 		if mode == RegexMatchMode {
 			return util.RegexMatchFunc(args...)
 		} else {
@@ -211,8 +219,7 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 // CreateEnforcerWithRuntimePolicy creates an enforcer with a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) *casbin.Enforcer {
-	var enf *casbin.Enforcer
+func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) WrapperEnforcer {
 	var enf WrapperEnforcer
 	var err error
 	if policy == "" {
@@ -228,7 +235,7 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) *casbin.Enforc
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
-func (e *Enforcer) EnforceWithCustomEnforcer(enf *casbin.Enforcer, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceWithCustomEnforcer(enf WrapperEnforcer, rvals ...interface{}) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
