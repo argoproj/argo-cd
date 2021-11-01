@@ -69,6 +69,7 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	KubeConfig          *rest.Config
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
@@ -153,6 +154,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)

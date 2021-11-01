@@ -244,7 +244,11 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
+		helmPassCredentials := false
+		if source.Helm != nil {
+			helmPassCredentials = source.Helm.PassCredentials
+		}
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials)
 		if err != nil {
 			return err
 		}
@@ -494,8 +498,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	for _, r := range d.Dependencies {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
-				Repo: r.Repository,
-				Name: r.Repository,
+				Repo:      r.Repository,
+				Name:      r.Repository,
+				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
 		}
@@ -567,6 +572,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	appHelm := q.ApplicationSource.Helm
 	var version string
+	var passCredentials bool
 	if appHelm != nil {
 		if appHelm.Version != "" {
 			version = appHelm.Version
@@ -628,6 +634,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, p := range appHelm.FileParameters {
 			templateOpts.SetFile[p.Name] = p.Path
 		}
+		passCredentials = appHelm.PassCredentials
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName
@@ -667,7 +674,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		proxy = q.Repo.Proxy
 	}
 
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err
 	}
@@ -1315,12 +1322,14 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 
 	res.Helm = &apiclient.HelmAppSpec{ValueFiles: availableValueFiles}
 	var version string
+	var passCredentials bool
 	if q.Source.Helm != nil {
 		if q.Source.Helm.Version != "" {
 			version = q.Source.Helm.Version
 		}
+		passCredentials = q.Source.Helm.PassCredentials
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy, passCredentials)
 	if err != nil {
 		return err
 	}

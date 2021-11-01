@@ -22,7 +22,7 @@
     "@types/react-autocomplete": "^1.8.4",
     "@types/react-dom": "^16.9.14",
     "@types/react-form": "^2.16.0",
-    "@types/react-helmet": "^5.0.7",
+    "@types/react-helmet": "^5.0.17",
     "@types/react-paginate": "^6.2.0",
     "@types/react-router": "^4.0.27",
     "@types/react-router-dom": "^4.2.3",
