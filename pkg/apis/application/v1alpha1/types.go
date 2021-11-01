@@ -1709,10 +1709,11 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			// Offset the nextWindow time to consider the timezone of the sync window
-			timezoneOffsetDuration := w.scheduleOffsetByTimezone()
-			nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
-			if nextWindow.Before(currentTime.Add(timezoneOffsetDuration)) {
+
+			// Offset the nextWindow time to consider the timeZone of the sync window
+			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 				active = append(active, w)
 			}
 		}
@@ -1743,11 +1744,11 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				// Offset the nextWindow time to consider the timezone of the sync window
-				timezoneOffsetDuration := w.scheduleOffsetByTimezone()
-				nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
+				// Offset the nextWindow time to consider the timeZone of the sync window
+				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timezoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -1759,10 +1760,10 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
-func (w *SyncWindow) scheduleOffsetByTimezone() time.Duration {
+func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 	loc, err := time.LoadLocation(w.TimeZone)
 	if err != nil {
-		log.Warnf("Invalid timezone %s specified. Using UTC as default time zone", w.TimeZone)
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
 		loc = time.Now().UTC().Location()
 	}
 	_, tzOffset := time.Now().In(loc).Zone()
@@ -1955,11 +1956,11 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
 
-	// Offset the nextWindow time to consider the timezone of the sync window
-	timezoneOffsetDuration := w.scheduleOffsetByTimezone()
-	nextWindow := schedule.Next(currentTime.Add(timezoneOffsetDuration - duration))
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime.Add(timezoneOffsetDuration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
 }
 
 // Update updates a sync window's settings with the given parameter
@@ -1996,7 +1997,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
 
-	// Default timezone to UTC if timezone is not specified
+	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
 	}

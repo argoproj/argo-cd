@@ -1128,14 +1128,14 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timezone string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
-			TimeZone:     timezone,
+			TimeZone:     timeZone,
 		}
 	}
 
@@ -1286,14 +1286,14 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timezone string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
-			TimeZone:     timezone,
+			TimeZone:     timeZone,
 		}
 	}
 
