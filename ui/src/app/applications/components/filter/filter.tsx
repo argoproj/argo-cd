@@ -10,7 +10,7 @@ interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
-    abbreviations?: {[key: string]: string};
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;

@@ -1,10 +1,11 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui';
-import {ApplicationTree, HealthStatusCode, ResourceKindShortnames, SyncStatusCode} from '../../../shared/models';
+import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {resources} from '../resources';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
@@ -61,7 +62,7 @@ export const Filters = (props: {
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: {[key: string]: string}; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: Map<string, string>; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
@@ -107,7 +108,7 @@ export const Filters = (props: {
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), abbreviations: ResourceKindShortnames, field: true})}
+            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), abbreviations: resources, field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',

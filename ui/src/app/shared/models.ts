@@ -837,37 +837,6 @@ export const ResourceKinds = [
     'Volume'
 ];
 
-export const ResourceKindShortnames: {[key: string]: string} = {
-    ComponentStatus: 'cs',
-    ConfigMap: 'cm',
-    Endpoints: 'ep',
-    Event: 'ev',
-    LimitRange: 'limits',
-    Namespace: 'ns',
-    Node: 'no',
-    PersistentVolumeClaim: 'pvc',
-    PersistentVolume: 'pv',
-    Pod: 'po',
-    ReplicationController: 'rc',
-    ResourceQuota: 'quota',
-    ServiceAccount: 'sa',
-    Service: 'svc',
-    CustomResourceDefinition: 'crds',
-    DaemonSet: 'ds',
-    Deployment: 'deploy',
-    ReplicaSet: 'rs',
-    StatefulSet: 'sts',
-    HorizontalPodAutoscaler: 'hpa',
-    CronJob: 'cj',
-    CertificateSigningRequest: 'csr',
-    Ingress: 'ing',
-    NetworkPolicy: 'netpol',
-    PodDisruptionBudget: 'pdb',
-    PodSecurityPolicy: 'psp',
-    PriorityClass: 'pc',
-    StorageClass: 'sc'
-};
-
 export const Groups = [
     'admissionregistration.k8s.io',
     'apiextensions.k8s.io',
