@@ -343,6 +343,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""
