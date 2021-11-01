@@ -200,6 +200,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if a.context.helmPassCredentials {
+		args = append(args, "--helm-pass-credentials")
+	}
 	return args
 }
 

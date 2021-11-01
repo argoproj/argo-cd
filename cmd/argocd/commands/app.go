@@ -668,6 +668,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
+				if app.Spec.Source.Helm.PassCredentials {
+					app.Spec.Source.Helm.PassCredentials = false
+					updated = true
+				}
 			}
 
 			if app.Spec.Source.Plugin != nil {
