@@ -2349,9 +2349,10 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion: "client.authentication.k8s.io/v1alpha1",
-					Command:    "aws",
-					Args:       args,
+					APIVersion:      "client.authentication.k8s.io/v1alpha1",
+					Command:         "aws",
+					Args:            args,
+					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
 		} else if c.Config.ExecProviderConfig != nil {
@@ -2368,11 +2369,12 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion:  c.Config.ExecProviderConfig.APIVersion,
-					Command:     c.Config.ExecProviderConfig.Command,
-					Args:        c.Config.ExecProviderConfig.Args,
-					Env:         env,
-					InstallHint: c.Config.ExecProviderConfig.InstallHint,
+					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
+					Command:         c.Config.ExecProviderConfig.Command,
+					Args:            c.Config.ExecProviderConfig.Args,
+					Env:             env,
+					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
+					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
 		} else {
