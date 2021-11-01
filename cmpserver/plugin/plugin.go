@@ -24,8 +24,7 @@ type Service struct {
 }
 
 type CMPServerInitConstants struct {
-	ConfigFilePath string
-	PluginConfig   PluginConfig
+	PluginConfig PluginConfig
 }
 
 // NewService returns a new instance of the ConfigManagementPluginService

@@ -17,8 +17,7 @@ func newService(configFilePath string) (*Service, error) {
 	}
 
 	initConstants := CMPServerInitConstants{
-		ConfigFilePath: configFilePath,
-		PluginConfig:   *config,
+		PluginConfig: *config,
 	}
 
 	service := &Service{

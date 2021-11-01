@@ -36,8 +36,7 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			server, err := cmpserver.NewServer(plugin.CMPServerInitConstants{
-				ConfigFilePath: configFilePath,
-				PluginConfig:   *config,
+				PluginConfig: *config,
 			})
 			errors.CheckError(err)
 
