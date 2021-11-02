@@ -787,6 +787,81 @@ func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
 	assert.Equal(t, map[string]interface{}{"key2": replacement2, "key3": replacement1}, secretData(live))
 }
 
+func getTargetSecretJsonBytes() []byte {
+	return []byte(`
+{
+    "apiVersion": "v1",
+    "kind": "Secret",
+    "type": "kubernetes.io/service-account-token",
+    "metadata": {
+        "annotations": {
+            "kubernetes.io/service-account.name": "default"
+        },
+        "labels": {
+            "app.kubernetes.io/instance": "empty-secret"
+        },
+        "name": "an-empty-secret",
+        "namespace": "default"
+    },
+	"data": {}
+}`)
+}
+
+func getLiveSecretJsonBytes() []byte {
+	return []byte(`
+{
+    "kind": "Secret",
+    "apiVersion": "v1",
+    "type": "kubernetes.io/service-account-token",
+    "metadata": {
+        "annotations": {
+            "kubernetes.io/service-account.name": "default",
+            "kubernetes.io/service-account.uid": "78688180-d432-4ee8-939d-382b015a6b13"
+        },
+        "creationTimestamp": "2021-10-27T19:09:22Z",
+        "labels": {
+            "app.kubernetes.io/instance": "empty-secret"
+        },
+        "name": "an-empty-secret",
+        "namespace": "default",
+        "resourceVersion": "2329692",
+        "uid": "2e98590d-a699-4281-89d5-aa94dfc1d7d7"
+    },
+    "data": {
+        "namespace": "ZGVmYXVsdA==",
+        "token": "ZGVmYXVsdAcb=="
+    }
+}`)
+}
+
+func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructured {
+	t.Helper()
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal(jsonBytes, &jsonMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &unstructured.Unstructured{
+		Object: jsonMap,
+	}
+}
+
+func TestHideSecretDataHandleEmptySecret(t *testing.T) {
+	// given
+	targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
+	liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+
+	// when
+	target, live, err := HideSecretData(targetSecret, liveSecret)
+
+	// then
+	assert.NoError(t, err)
+	assert.NotNil(t, target)
+	assert.NotNil(t, live)
+	assert.Equal(t, nil, target.Object["data"])
+	assert.Equal(t, map[string]interface{}{"namespace": "++++++++", "token": "++++++++"}, secretData(live))
+}
+
 func TestHideSecretDataLastAppliedConfig(t *testing.T) {
 	lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
 	targetSecret := createSecret(map[string]string{"key1": "test2"})

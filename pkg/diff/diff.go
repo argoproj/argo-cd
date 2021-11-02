@@ -614,10 +614,18 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
 			var data map[string]interface{}
 			if obj != nil {
+				// handles an edge case when secret data has nil value
+				// https://github.com/argoproj/argo-cd/issues/5584
+				dataValue, ok := obj.Object["data"]
+				if ok {
+					if dataValue == nil {
+						continue
+					}
+				}
 				var err error
 				data, _, err = unstructured.NestedMap(obj.Object, "data")
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
 				}
 			}
 			if data == nil {
@@ -637,7 +645,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 			data[k] = replacement
 			err := unstructured.SetNestedField(obj.Object, data, "data")
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
 			}
 		}
 	}
@@ -648,7 +656,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 		lastAppliedData, err := json.Marshal(orig)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error marshaling json: %s", err)
 		}
 		annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
 		live.SetAnnotations(annotations)
