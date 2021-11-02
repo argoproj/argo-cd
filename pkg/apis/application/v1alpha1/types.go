@@ -1684,7 +1684,7 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 }
 
-// HasWindows returns true if any window is defined
+// HasWindows returns true if SyncWindows has one or more SyncWindow
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
@@ -1718,7 +1718,9 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
-// TODO: document this method
+// InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
+// for the current time. If the current time is in an inactive allow window, syncs will
+// be denied.
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return s.inactiveAllows(time.Now())
 }
@@ -1842,50 +1844,55 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		return true
 	}
 
-	var allowActive, denyActive, manualEnabled bool
 	active := w.Active()
-	denyActive, manualEnabled = active.hasDeny()
-	allowActive = active.hasAllow()
+	hasActiveDeny, manualEnabled := active.hasDeny()
 
-	if !denyActive {
-		if !allowActive {
-			if isManual && w.InactiveAllows().manualEnabled() {
-				return true
-			}
-		} else {
-			return true
-		}
-	} else {
+	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true
+		} else {
+			return false
 		}
 	}
 
-	return false
+	inactiveAllows := w.InactiveAllows()
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
 
+// hasDeny will iterate over the SyncWindows and return if a deny window is found and if
+// manual sync is enabled. It returns true in the first return boolean value if it finds
+// any deny window. Will return true in the second return boolean value if all deny windows
+// have manual sync enabled. If one deny window has manual sync disabled it returns false in
+// the second return value.
 func (w *SyncWindows) hasDeny() (bool, bool) {
 	if !w.HasWindows() {
 		return false, false
 	}
-	var denyActive, manualEnabled bool
+	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyActive {
+			if !denyFound {
 				manualEnabled = a.ManualSync
 			} else {
 				if manualEnabled {
-					if !a.ManualSync {
-						manualEnabled = a.ManualSync
-					}
+					manualEnabled = a.ManualSync
 				}
 			}
-			denyActive = true
+			denyFound = true
 		}
 	}
-	return denyActive, manualEnabled
+	return denyFound, manualEnabled
 }
 
+// hasAllow will iterate over the SyncWindows and returns true if it find any allow window.
 func (w *SyncWindows) hasAllow() bool {
 	if !w.HasWindows() {
 		return false
@@ -1898,16 +1905,19 @@ func (w *SyncWindows) hasAllow() bool {
 	return false
 }
 
+// manualEnabled will iterate over the SyncWindows and return true if all windows have
+// ManualSync set to true. Returns false if it finds at least one entry with ManualSync
+// set to false
 func (w *SyncWindows) manualEnabled() bool {
 	if !w.HasWindows() {
 		return false
 	}
 	for _, s := range *w {
-		if s.ManualSync {
-			return true
+		if !s.ManualSync {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // Active returns true if the sync window is currently active
