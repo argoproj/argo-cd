@@ -135,24 +135,27 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
-			if app.Name == "" {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
+			for _, app := range apps {
+				if app.Name == "" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+
+				conn, appIf := argocdClient.NewApplicationClientOrDie()
+				defer argoio.Close(conn)
+				appCreateRequest := applicationpkg.ApplicationCreateRequest{
+					Application: *app,
+					Upsert:      &upsert,
+					Validate:    &appOpts.Validate,
+				}
+				created, err := appIf.Create(context.Background(), &appCreateRequest)
+				errors.CheckError(err)
+				fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 			}
 
-			conn, appIf := argocdClient.NewApplicationClientOrDie()
-			defer argoio.Close(conn)
-			appCreateRequest := applicationpkg.ApplicationCreateRequest{
-				Application: *app,
-				Upsert:      &upsert,
-				Validate:    &appOpts.Validate,
-			}
-			created, err := appIf.Create(context.Background(), &appCreateRequest)
-			errors.CheckError(err)
-			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")

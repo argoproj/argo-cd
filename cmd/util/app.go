@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -535,44 +537,65 @@ func readAppFromStdin(app *argoappv1.Application) error {
 	return nil
 }
 
-func readAppFromURI(fileURL string, app *argoappv1.Application) error {
+func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
+
 	parsedURL, err := url.ParseRequestURI(fileURL)
+	var data []byte
 	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		err = config.UnmarshalLocalFile(fileURL, &app)
+		data, _ = ioutil.ReadFile(fileURL)
 	} else {
-		err = config.UnmarshalRemoteFile(fileURL, &app)
+		data, _ = config.ReadRemoteFile(fileURL)
 	}
+
+	yamls, _ := kube.SplitYAMLToString(data)
+
+	for _, yml := range yamls {
+		var app argoappv1.Application
+		err = config.Unmarshal([]byte(yml), &app)
+		*apps = append(*apps, &app)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 
-func ConstructApp(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
-	var app argoappv1.Application
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
 	if fileURL == "-" {
+		var app *argoappv1.Application
 		// read stdin
-		err := readAppFromStdin(&app)
+		err := readAppFromStdin(app)
 		if err != nil {
 			return nil, err
 		}
+		return append(apps, app), nil
 	} else if fileURL != "" {
+
 		// read uri
-		err := readAppFromURI(fileURL, &app)
+		err := readAppsFromURI(fileURL, &apps)
 		if err != nil {
 			return nil, err
 		}
-		if len(args) == 1 && args[0] != app.Name {
-			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+		for _, app := range apps {
+			if len(args) == 1 && args[0] != app.Name {
+				return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+			}
+			if appName != "" && appName != app.Name {
+				app.Name = appName
+			}
+			if app.Name == "" {
+				return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			}
+			SetAppSpecOptions(flags, &app.Spec, &appOpts)
+			SetParameterOverrides(app, appOpts.Parameters)
+			mergeLabels(app, labels)
+			setAnnotations(app, annotations)
 		}
-		if appName != "" && appName != app.Name {
-			app.Name = appName
-		}
-		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
-		}
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
+		return apps, nil
 	} else {
+		var app *argoappv1.Application
 		// read arguments
 		if len(args) == 1 {
 			if appName != "" && appName != args[0] {
@@ -580,7 +603,7 @@ func ConstructApp(fileURL, appName string, labels, annotations, args []string, a
 			}
 			appName = args[0]
 		}
-		app = argoappv1.Application{
+		app = &argoappv1.Application{
 			TypeMeta: v1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: application.Group + "/v1alpha1",
@@ -590,11 +613,12 @@ func ConstructApp(fileURL, appName string, labels, annotations, args []string, a
 			},
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
+		SetParameterOverrides(app, appOpts.Parameters)
+		mergeLabels(app, labels)
+		setAnnotations(app, annotations)
+		return append(apps, app), nil
 	}
-	return &app, nil
+	return apps, nil
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {

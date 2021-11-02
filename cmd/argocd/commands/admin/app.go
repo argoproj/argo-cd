@@ -90,19 +90,22 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
-			if app.Name == "" {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
+			for _, app := range apps {
+				if app.Name == "" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+
+				out, closer, err := getOutWriter(inline, fileURL)
+				errors.CheckError(err)
+				defer io.Close(closer)
+
+				errors.CheckError(PrintResources(outputFormat, out, app))
 			}
 
-			out, closer, err := getOutWriter(inline, fileURL)
-			errors.CheckError(err)
-			defer io.Close(closer)
-
-			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
