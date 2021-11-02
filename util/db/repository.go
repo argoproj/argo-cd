@@ -84,6 +84,17 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	return repository, err
 }
 
+func (db *db) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	if exists || err != nil {
+		return exists, err
+	}
+
+	legacyBackend := db.legacyRepoBackend()
+	return legacyBackend.RepositoryExists(ctx, repoURL)
+}
+
 func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)

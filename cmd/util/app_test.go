@@ -45,6 +45,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{version: "v3"})
 		assert.Equal(t, "v3", src.Helm.Version)
 	})
+	t.Run("HelmPassCredentials", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{passCredentials: true})
+		assert.Equal(t, true, src.Helm.PassCredentials)
+	})
 }
 
 func Test_setKustomizeOpt(t *testing.T) {

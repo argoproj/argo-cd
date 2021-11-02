@@ -242,7 +242,11 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision)
+		helmPassCredentials := false
+		if source.Helm != nil {
+			helmPassCredentials = source.Helm.PassCredentials
+		}
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials)
 		if err != nil {
 			return err
 		}
@@ -492,8 +496,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	for _, r := range d.Dependencies {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
-				Repo: r.Repository,
-				Name: r.Repository,
+				Repo:      r.Repository,
+				Name:      r.Repository,
+				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
 		}
@@ -565,6 +570,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	appHelm := q.ApplicationSource.Helm
 	var version string
+	var passCredentials bool
 	if appHelm != nil {
 		if appHelm.Version != "" {
 			version = appHelm.Version
@@ -626,6 +632,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, p := range appHelm.FileParameters {
 			templateOpts.SetFile[p.Name] = p.Path
 		}
+		passCredentials = appHelm.PassCredentials
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName
@@ -665,7 +672,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		proxy = q.Repo.Proxy
 	}
 
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err
 	}
@@ -739,7 +746,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, env, q, q.Repo.GetGitCreds())
+		targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -1097,17 +1104,25 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
-	concurrencyAllowed := isConcurrencyAllowed(appPath)
-	if !concurrencyAllowed {
-		manifestGenerateLock.Lock(appPath)
-		defer manifestGenerateLock.Unlock(appPath)
-	}
-
+func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
 		return nil, fmt.Errorf("config management plugin with name '%s' is not supported", q.ApplicationSource.Plugin.Name)
 	}
+
+	// Plugins can request to lock the complete repository when they need to
+	// use git client operations.
+	if plugin.LockRepo {
+		manifestGenerateLock.Lock(repoRoot)
+		defer manifestGenerateLock.Unlock(repoRoot)
+	} else {
+		concurrencyAllowed := isConcurrencyAllowed(appPath)
+		if !concurrencyAllowed {
+			manifestGenerateLock.Lock(appPath)
+			defer manifestGenerateLock.Unlock(appPath)
+		}
+	}
+
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
@@ -1247,12 +1262,14 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 
 	res.Helm = &apiclient.HelmAppSpec{ValueFiles: availableValueFiles}
 	var version string
+	var passCredentials bool
 	if q.Source.Helm != nil {
 		if q.Source.Helm.Version != "" {
 			version = q.Source.Helm.Version
 		}
+		passCredentials = q.Source.Helm.PassCredentials
 	}
-	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy)
+	h, err := helm.NewHelmApp(appPath, getHelmRepos(q.Repos), false, version, q.Repo.Proxy, passCredentials)
 	if err != nil {
 		return err
 	}

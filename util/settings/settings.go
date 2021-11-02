@@ -84,6 +84,8 @@ type ArgoCDSettings struct {
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
 	// Make Banner permanent and not closeable
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
+	// Position of UI Banner
+	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 }
@@ -305,6 +307,8 @@ const (
 	settingUiBannerURLKey = "ui.bannerurl"
 	// settingUiBannerPermanentKey designates the key for whether the banner is permanent and not closeable
 	settingUiBannerPermanentKey = "ui.bannerpermanent"
+	// settingUiBannerPositionKey designates the key for the position of the banner
+	settingUiBannerPositionKey = "ui.bannerposition"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -1067,6 +1071,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
+	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}

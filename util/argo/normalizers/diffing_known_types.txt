@@ -47,7 +47,6 @@ core/v1/EnvVar
 core/v1/EnvVarSource
 core/v1/EphemeralContainer
 core/v1/EphemeralContainerCommon
-core/v1/EphemeralContainers
 core/v1/EphemeralVolumeSource
 core/v1/Event
 core/v1/EventList

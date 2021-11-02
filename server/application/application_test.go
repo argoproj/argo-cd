@@ -748,10 +748,10 @@ func TestGetCachedAppState(t *testing.T) {
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
 			})
+			fakeClientSet.Unlock()
 			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 				return true, watcher, nil
 			})
-			fakeClientSet.Unlock()
 		}
 
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {

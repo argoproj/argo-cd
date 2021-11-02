@@ -181,6 +181,8 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
+	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
+	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 )
 
 const (

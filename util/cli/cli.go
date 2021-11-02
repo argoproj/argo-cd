@@ -129,15 +129,15 @@ func AskToProceed(message string) bool {
 }
 
 // ReadAndConfirmPassword is a helper to read and confirm a password from stdin
-func ReadAndConfirmPassword() (string, error) {
+func ReadAndConfirmPassword(username string) (string, error) {
 	for {
-		fmt.Print("*** Enter new password: ")
+		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Print("\n")
-		fmt.Print("*** Confirm new password: ")
+		fmt.Printf("*** Confirm new password for user %s: ", username)
 		confirmPassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err

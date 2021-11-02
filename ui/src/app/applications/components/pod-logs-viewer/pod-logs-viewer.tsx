@@ -4,7 +4,7 @@ import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
-
+import Ansi from 'ansi-to-react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -347,7 +347,9 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                         </div>
                                                     )}
                                                     <div className='pod-logs-viewer__line__number'>{lineNum}</div>
-                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>{l}</div>
+                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
+                                                        <Ansi>{l}</Ansi>
+                                                    </div>
                                                 </div>
                                             );
                                         })}

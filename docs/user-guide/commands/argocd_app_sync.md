@@ -38,6 +38,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --prune                                 Allow deleting unexpected resources
+      --replace                               Use a kubectl create/replace instead apply
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
       --retry-backoff-duration duration       Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int              Factor multiplies the base duration after each failed retry (default 2)

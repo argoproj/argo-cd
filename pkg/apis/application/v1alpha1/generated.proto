@@ -207,6 +207,9 @@ message ApplicationSourceHelm {
 
   // Version is the Helm version to use for templating (either "2" or "3")
   optional string version = 6;
+
+  // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
+  optional bool passCredentials = 7;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -509,6 +512,8 @@ message ConfigManagementPlugin {
   optional Command init = 2;
 
   optional Command generate = 3;
+
+  optional bool lockRepo = 4;
 }
 
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
