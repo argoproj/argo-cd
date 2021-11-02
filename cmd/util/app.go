@@ -539,15 +539,20 @@ func readAppFromStdin(app *argoappv1.Application) error {
 
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 
-	parsedURL, err := url.ParseRequestURI(fileURL)
-	var data []byte
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		data, _ = ioutil.ReadFile(fileURL)
-	} else {
-		data, _ = config.ReadRemoteFile(fileURL)
+	readFilePayload := func() ([]byte, error) {
+		parsedURL, err := url.ParseRequestURI(fileURL)
+		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			return ioutil.ReadFile(fileURL)
+		}
+		return config.ReadRemoteFile(fileURL)
 	}
 
-	yamls, _ := kube.SplitYAMLToString(data)
+	yml, err := readFilePayload()
+	if err != nil {
+		return err
+	}
+
+	yamls, _ := kube.SplitYAMLToString(yml)
 
 	for _, yml := range yamls {
 		var app argoappv1.Application
@@ -618,7 +623,6 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 		setAnnotations(app, annotations)
 		return append(apps, app), nil
 	}
-	return apps, nil
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {
