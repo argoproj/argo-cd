@@ -566,63 +566,77 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	return err
 }
 
-func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
-	apps := make([]*argoappv1.Application, 0)
-	if fileURL == "-" {
-		var app *argoappv1.Application
-		// read stdin
-		err := readAppFromStdin(app)
-		if err != nil {
-			return nil, err
-		}
-		return append(apps, app), nil
-	} else if fileURL != "" {
+func constructAppsFromStdin() ([]*argoappv1.Application, error) {
+	var app *argoappv1.Application
+	// read stdin
+	err := readAppFromStdin(app)
+	if err != nil {
+		return nil, err
+	}
+	return []*argoappv1.Application{
+		app,
+	}, nil
+}
 
-		// read uri
-		err := readAppsFromURI(fileURL, &apps)
-		if err != nil {
-			return nil, err
+func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	var app *argoappv1.Application
+	// read arguments
+	if len(args) == 1 {
+		if appName != "" && appName != args[0] {
+			return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
 		}
-		for _, app := range apps {
-			if len(args) == 1 && args[0] != app.Name {
-				return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
-			}
-			if appName != "" && appName != app.Name {
-				app.Name = appName
-			}
-			if app.Name == "" {
-				return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
-			}
-			SetAppSpecOptions(flags, &app.Spec, &appOpts)
-			SetParameterOverrides(app, appOpts.Parameters)
-			mergeLabels(app, labels)
-			setAnnotations(app, annotations)
+		appName = args[0]
+	}
+	app = &argoappv1.Application{
+		TypeMeta: v1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: application.Group + "/v1alpha1",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name: appName,
+		},
+	}
+	SetAppSpecOptions(flags, &app.Spec, &appOpts)
+	SetParameterOverrides(app, appOpts.Parameters)
+	mergeLabels(app, labels)
+	setAnnotations(app, annotations)
+	return []*argoappv1.Application{
+		app,
+	}, nil
+}
+
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read uri
+	err := readAppsFromURI(fileURL, &apps)
+	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
+		if len(args) == 1 && args[0] != app.Name {
+			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 		}
-		return apps, nil
-	} else {
-		var app *argoappv1.Application
-		// read arguments
-		if len(args) == 1 {
-			if appName != "" && appName != args[0] {
-				return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
-			}
-			appName = args[0]
+		if appName != "" && appName != app.Name {
+			app.Name = appName
 		}
-		app = &argoappv1.Application{
-			TypeMeta: v1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: application.Group + "/v1alpha1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: appName,
-			},
+		if app.Name == "" {
+			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
-		return append(apps, app), nil
 	}
+	return apps, nil
+}
+
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	if fileURL == "-" {
+		return constructAppsFromStdin()
+	} else if fileURL != "" {
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+	}
+	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {
