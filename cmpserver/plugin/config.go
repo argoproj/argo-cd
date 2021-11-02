@@ -2,10 +2,8 @@ package plugin
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -45,22 +43,12 @@ type Command struct {
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
-	cnfFiles, err := os.ReadDir(filePath)
-	if err != nil {
-		return nil, err
-	}
+	path := fmt.Sprintf("%s/%s", strings.TrimRight(filePath, "/"), common.PluginConfigFileName)
 
 	var config PluginConfig
-	for _, file := range cnfFiles {
-		if !file.IsDir() {
-			path := fmt.Sprintf("%s/%s", strings.TrimRight(filePath, "/"), file.Name())
-			err = configUtil.UnmarshalLocalFile(path, &config)
-			if err == nil {
-				break
-			} else {
-				log.Errorf("failed to unmarshal plugin config file, %v", err)
-			}
-		}
+	err := configUtil.UnmarshalLocalFile(path, &config)
+	if err != nil {
+		return nil, err
 	}
 
 	if err = ValidatePluginConfig(config); err != nil {

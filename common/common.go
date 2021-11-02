@@ -58,6 +58,8 @@ const (
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
 	// Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	PluginConfigFileName = "plugin.yaml"
 )
 
 // Argo CD application related constants
