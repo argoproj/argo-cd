@@ -146,6 +146,7 @@ func isHealthy(condition *hpaCondition) bool {
 		{Type: "ScalingLimited", Reason: "DesiredWithinRange"},
 		{Type: "ScalingLimited", Reason: "TooFewReplicas"},
 		{Type: "ScalingLimited", Reason: "TooManyReplicas"},
+		{Type: "ScalingLimited", Reason: "ScaleDownLimit"},
 		{Type: "ScalingActive", Reason: "ScalingDisabled"},
 	}
 	for _, healthy_state := range healthy_states {
