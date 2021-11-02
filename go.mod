@@ -23,7 +23,6 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/runtime v0.19.4
-	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-redis/cache/v8 v8.4.2
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/gobwas/glob v0.2.3
@@ -86,6 +85,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine v0.4.1-0.20211022223249-27374da031e7 => /Users/pashavictorovich/Documents/work/golang/src/github.com/argoproj/gitops-engine
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
