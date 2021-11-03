@@ -1,10 +1,10 @@
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import { COLORS } from '../../../shared/components';
+import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { HealthStatusCode, SyncStatusCode } from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
+import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -19,7 +19,7 @@ syncColors.set('Unknown', COLORS.sync.unknown);
 syncColors.set('Synced', COLORS.sync.synced);
 syncColors.set('OutOfSync', COLORS.sync.out_of_sync);
 
-export const ApplicationsSummary = ({ applications }: { applications: models.Application[] }) => {
+export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
@@ -51,12 +51,12 @@ export const ApplicationsSummary = ({ applications }: { applications: models.App
     const charts = [
         {
             title: 'Sync',
-            data: Array.from(sync.keys()).map(key => ({ title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode) })),
+            data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
             legend: syncColors as Map<string, string>
         },
         {
             title: 'Health',
-            data: Array.from(health.keys()).map(key => ({ title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode) })),
+            data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
             legend: healthColors as Map<string, string>
         }
     ];
@@ -69,7 +69,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.App
                         {attributes.map(attr => (
                             <div className='row white-box__details-row' key={attr.title}>
                                 <div className='columns small-8'>{attr.title}</div>
-                                <div style={{ textAlign: 'right' }} className='columns small-4'>
+                                <div style={{textAlign: 'right'}} className='columns small-4'>
                                     {attr.value}
                                 </div>
                             </div>
@@ -80,7 +80,7 @@ export const ApplicationsSummary = ({ applications }: { applications: models.App
                     <div className='row chart-group'>
                         {charts.map(chart => {
                             const getLegendValue = (key: string) => {
-                                const index = chart.data.findIndex((data: { title: string }) => data.title === key);
+                                const index = chart.data.findIndex((data: {title: string}) => data.title === key);
                                 return index > -1 ? chart.data[index].value : 0;
                             };
                             return (
@@ -88,14 +88,14 @@ export const ApplicationsSummary = ({ applications }: { applications: models.App
                                     <div className='columns large-6 small-12'>
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
-                                                <h4 style={{ textAlign: 'center' }}>{chart.title}</h4>
+                                                <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
                                                 <PieChart data={chart.data} />
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
-                                                        <li style={{ listStyle: 'none', whiteSpace: 'nowrap' }} key={key}>
-                                                            {chart.title === 'Health' && <HealthStatusIcon state={{ status: key as HealthStatusCode, message: '' }} noSpin={true} />}
+                                                        <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
+                                                            {chart.title === 'Health' && <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />}
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
                                                             {` ${key} (${getLegendValue(key)})`}
                                                         </li>
