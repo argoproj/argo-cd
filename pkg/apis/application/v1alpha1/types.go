@@ -2002,7 +2002,8 @@ func (w *SyncWindow) Validate() error {
 		w.TimeZone = "UTC"
 	}
 	if _, err := time.LoadLocation(w.TimeZone); err != nil {
-		return fmt.Errorf("timeZone '%s' is invalid", w.TimeZone)
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
+		w.TimeZone = "UTC"
 	}
 
 	if w.Kind != "allow" && w.Kind != "deny" {
