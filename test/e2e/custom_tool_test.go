@@ -219,7 +219,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 		}).
 		Path(pluginName).
 		When().
-		Create("--config-management-plugin", pluginName, "--plugin-env", "FOO=bar").
+		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -229,7 +229,6 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 
 //Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
-	pluginName := "cmp-find-glob"
 	Given(t).
 		And(func() {
 			go startCMPServer("./testdata/cmp-find-glob")
@@ -238,7 +237,7 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		}).
 		Path("guestbook").
 		When().
-		Create("--config-management-plugin", pluginName).
+		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -257,7 +256,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 		}).
 		Path(pluginName).
 		When().
-		Create("--config-management-plugin", pluginName, "--plugin-env", "FOO=bar").
+		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -270,11 +269,6 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
 			assert.NoError(t, err)
 			assert.Equal(t, "baz", output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
-			assert.NoError(t, err)
-			assert.Equal(t, "bar", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")

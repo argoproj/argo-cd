@@ -213,6 +213,7 @@ const (
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
+	ApplicationSourceTypeCMP       ApplicationSourceType = "CMP"
 )
 
 // RefreshType specifies how to refresh the sources of a given application

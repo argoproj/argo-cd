@@ -749,19 +749,16 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
-		// if a plugin is not supported by standard config management plugin version,
-		// check if it is supported by sidecar config management plugin version
+	case v1alpha1.ApplicationSourceTypeCMP:
 		var cmpManifests []string
 		var cmpErr error
-		if err != nil && strings.HasPrefix(err.Error(), pluginNotSupported) {
-			if cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds()); cmpErr == nil {
-				return &apiclient.ManifestResponse{
-					Manifests:  cmpManifests,
-					SourceType: string(appSourceType),
-				}, nil
-			}
-		}
-		if cmpErr != nil {
+		cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+		if cmpErr == nil {
+			return &apiclient.ManifestResponse{
+				Manifests:  cmpManifests,
+				SourceType: string(appSourceType),
+			}, nil
+		} else {
 			err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -1180,16 +1177,18 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		parsedEnv[i] = parsedVar
 	}
 
-	pluginEnv := q.ApplicationSource.Plugin.Env
-	for i, j := range pluginEnv {
-		pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+	if q.ApplicationSource.Plugin != nil {
+		pluginEnv := q.ApplicationSource.Plugin.Env
+		for i, j := range pluginEnv {
+			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+		}
+		env = append(env, pluginEnv.Environ()...)
 	}
-	env = append(env, pluginEnv.Environ()...)
 	return env, nil
 }
 func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := detectConfigManagementPlugin(q.ApplicationSource.Plugin.Name, appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(appPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1622,62 +1621,4 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		}
 	}
 	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
-}
-
-// 1. list all plugins in /plugins folder
-// 2. foreach plugin setup connection with respective cmp-server
-// 3. check isSupported(path)?
-// 4.a if no then close connection
-// 4.b if yes then return conn for detected plugin
-func detectConfigManagementPlugin(pluginName, appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
-	var conn io.Closer
-	var cmpClient pluginclient.ConfigManagementPluginServiceClient
-
-	pluginSockFilePath := common.GetPluginSockFilePath()
-	log.Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
-
-	files, err := os.ReadDir(pluginSockFilePath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var connFound bool
-	for _, file := range files {
-		if file.Type() == os.ModeSocket {
-			if pluginName != "" {
-				pattern := "^" + pluginName + "(-.*)?.sock"
-				if !regexp.MustCompile(pattern).MatchString(file.Name()) {
-					continue
-				}
-			}
-
-			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
-			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
-
-			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
-			if err != nil {
-				log.Errorf("error dialing to cmp-server for plugin %s, %v", file.Name(), err)
-				continue
-			}
-
-			resp, err := cmpClient.MatchRepository(context.Background(), &pluginclient.RepositoryRequest{Path: appPath})
-			if err != nil {
-				log.Errorf("repository %s is not the match because %v", appPath, err)
-				continue
-			}
-
-			if !resp.IsSupported {
-				log.Debugf("Reponse from socket file %s is not supported", file.Name())
-				io.Close(conn)
-			} else {
-				connFound = true
-				break
-			}
-		}
-	}
-
-	if !connFound {
-		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", appPath)
-	}
-	return conn, cmpClient, err
 }
