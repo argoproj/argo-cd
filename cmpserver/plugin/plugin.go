@@ -71,10 +71,6 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		defer manifestGenerateLock.Unlock(q.AppPath)
 	}
 
-	if err := ValidatePluginConfig(config); err != nil {
-		return &apiclient.ManifestResponse{}, fmt.Errorf("cmp server should have valid plugin config file, instead %v", err)
-	}
-
 	env := append(os.Environ(), environ(q.Env)...)
 	if len(config.Spec.Init.Command) > 0 {
 		_, err := runCommand(config.Spec.Init, q.AppPath, env)

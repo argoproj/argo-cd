@@ -205,7 +205,7 @@ func startCMPServer(configFile string) {
 		err := os.Mkdir(pluginSockFilePath, 0700)
 		CheckError(err)
 	}
-	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-file-path", configFile))
+	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
 }
 
 //Discover by fileName
