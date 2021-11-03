@@ -178,3 +178,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [p3r](https://www.p3r.one/)
 1. [Faro](https://www.faro.com/)
 1. [Rise](https://www.risecard.eu/)
+1. [Ten Square Games](https://tensquaregames.com/)
