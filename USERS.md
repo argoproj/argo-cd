@@ -148,6 +148,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [VSHN - The DevOps Company](https://vshn.ch/)
 1. [Walkbase](https://www.walkbase.com/)
+1. [Wehkamp](https://www.wehkamp.nl/)
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Webstores](https://www.webstores.nl)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli

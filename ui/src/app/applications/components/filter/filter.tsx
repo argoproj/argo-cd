@@ -10,6 +10,7 @@ interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;
@@ -138,6 +139,7 @@ export const Filter = (props: FilterProps) => {
                             <Autocomplete
                                 placeholder={props.label}
                                 items={labels}
+                                abbreviations={props.abbreviations}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
