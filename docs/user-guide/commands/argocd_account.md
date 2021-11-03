@@ -59,5 +59,5 @@ argocd account [flags]
 * [argocd account get](argocd_account_get.md)	 - Get account details
 * [argocd account get-user-info](argocd_account_get-user-info.md)	 - Get user info
 * [argocd account list](argocd_account_list.md)	 - List accounts
-* [argocd account update-password](argocd_account_update-password.md)	 - Update password
+* [argocd account update-password](argocd_account_update-password.md)	 - Update an account's password
 

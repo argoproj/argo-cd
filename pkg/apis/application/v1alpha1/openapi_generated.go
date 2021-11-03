@@ -778,6 +778,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"passCredentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PassCredentials pass credentials to all domains (Helm's --pass-credentials)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
