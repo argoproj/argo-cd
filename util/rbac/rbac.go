@@ -115,7 +115,7 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 	if policy != "" {
 		if enforcer, err = newEnforcerSafe(e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
 			// fallback to default policy if project policy is invalid
-			log.Errorf("Failed to load project '%s' policy")
+			log.Errorf("Failed to load project '%s' policy", project)
 			enforcer, err = newEnforcerSafe(e.model, e.adapter)
 		}
 	} else {
