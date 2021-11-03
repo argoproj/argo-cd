@@ -64,6 +64,7 @@ type AppStateManager interface {
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
+// comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         *v1alpha1.HealthStatus
