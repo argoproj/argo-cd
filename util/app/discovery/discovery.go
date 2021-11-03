@@ -20,9 +20,10 @@ func Discover(root string) (map[string]string, error) {
 
 	// Check if it is CMP
 	conn, _, err := DetectConfigManagementPlugin(root)
-	io.Close(conn)
 	if err == nil {
 		// Found CMP
+		io.Close(conn)
+
 		apps["."] = "CMP"
 		return apps, nil
 	}
