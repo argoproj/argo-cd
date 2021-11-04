@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
@@ -24,7 +26,7 @@ func Discover(root string) (map[string]string, error) {
 		// Found CMP
 		io.Close(conn)
 
-		apps["."] = "CMP"
+		apps["."] = string(v1alpha1.ApplicationSourceTypePlugin)
 		return apps, nil
 	}
 
@@ -41,13 +43,13 @@ func Discover(root string) (map[string]string, error) {
 		}
 		base := filepath.Base(path)
 		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") {
-			apps[filepath.Dir(dir)] = "Ksonnet"
+			apps[filepath.Dir(dir)] = string(v1alpha1.ApplicationSourceTypeKsonnet)
 		}
 		if strings.HasSuffix(base, "Chart.yaml") {
-			apps[dir] = "Helm"
+			apps[dir] = string(v1alpha1.ApplicationSourceTypeHelm)
 		}
 		if kustomize.IsKustomization(base) {
-			apps[dir] = "Kustomize"
+			apps[dir] = string(v1alpha1.ApplicationSourceTypeKustomize)
 		}
 		return nil
 	})
