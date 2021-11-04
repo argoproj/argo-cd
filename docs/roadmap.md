@@ -11,6 +11,12 @@
     - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
     - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
     - [Compact Resources Tree](#compact-resources-tree)
+    - [Web Shell](#web-shell)
+    - [Helm values from external repo](#helm-values-from-external-repo)
+    - [Config Management Tools Integrations UI/CLI](#config-management-tools-integrations-uicli)
+    - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
+    - [Dependencies between applications](#dependencies-between-applications)
+    - [Maintain difference in cluster and git values for specific fields](#maintain-difference-in-cluster-and-git-values-for-specific-fields)
     - [Multi-tenancy improvements](#multi-tenancy-improvements)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
@@ -67,6 +73,32 @@ The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-update
 ### Compact resources tree
 
 An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
+
+### Web Shell
+
+Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.com/argoproj/argo-cd/issues/4351)
+
+### Helm values from external repo
+
+The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
+
+### Config Management Tools Integrations UI/CLI
+
+The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/pull/5927). The Argo CD UI/CLI
+should provide first class experience for configured third-party config management tools: [#5734](https://github.com/argoproj/argo-cd/issues/5734).
+
+### Allow specifying parent/child relationships in config
+
+The feature [#5082](https://github.com/argoproj/argo-cd/issues/5082) allows configuring parent/child relationships between resources. This allows to correctly
+visualize custom resources that don't have owner references.
+
+### Dependencies between applications
+
+The feature allows specifying dependencies between applications that allow orchestrating synchronization of multiple applications. [#3517](https://github.com/argoproj/argo-cd/issues/3517)
+
+### Maintain difference in cluster and git values for specific fields
+
+The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
 
 ### Multi-tenancy improvements
 
