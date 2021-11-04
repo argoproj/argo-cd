@@ -1195,6 +1195,9 @@ func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alph
 	defer io.Close(conn)
 
 	config, err := cmpClient.GetPluginConfig(context.Background(), &pluginclient.ConfigRequest{})
+	if err != nil {
+		return nil, err
+	}
 	if config.LockRepo {
 		manifestGenerateLock.Lock(repoPath)
 		defer manifestGenerateLock.Unlock(repoPath)
