@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -41,8 +42,8 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 				return nil, status.Errorf(codes.Internal, err.Error())
 			}
 			if !hasLabel {
-				msg := "secret %q doesn't have the proper %q label: please fix the secret or delete it"
-				return nil, status.Errorf(codes.InvalidArgument, msg, secName, common.LabelKeySecretType)
+				msg := fmt.Sprintf("secret %q doesn't have the proper %q label: please fix the secret or delete it", secName, common.LabelKeySecretType)
+				return nil, status.Errorf(codes.InvalidArgument, msg)
 			}
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
 		}
