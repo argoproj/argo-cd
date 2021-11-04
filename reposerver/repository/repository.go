@@ -748,18 +748,20 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
-	case v1alpha1.ApplicationSourceTypeCMP:
-		var cmpManifests []string
-		var cmpErr error
-		cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
-		if cmpErr == nil {
-			return &apiclient.ManifestResponse{
-				Manifests:  cmpManifests,
-				SourceType: string(appSourceType),
-			}, nil
+		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
 		} else {
-			err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
+			var cmpManifests []string
+			var cmpErr error
+			cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+			if cmpErr == nil {
+				return &apiclient.ManifestResponse{
+					Manifests:  cmpManifests,
+					SourceType: string(appSourceType),
+				}, nil
+			} else {
+				err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
+			}
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
