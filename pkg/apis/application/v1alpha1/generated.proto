@@ -1332,6 +1332,9 @@ message SyncWindow {
 
   // ManualSync enables manual syncs when they would otherwise be blocked
   optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

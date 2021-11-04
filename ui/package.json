@@ -69,6 +69,7 @@
     "style-loader": "^0.20.1",
     "superagent": "^3.8.2",
     "superagent-promise": "^1.1.0",
+    "timezones-list": "3.0.1",
     "ts-loader": "^6.0.4",
     "ts-node": "^4.1.0",
     "tslint": "^6.1.3",
