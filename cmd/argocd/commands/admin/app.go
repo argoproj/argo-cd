@@ -92,20 +92,20 @@ func NewGenAppSpecCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
-
-			for _, app := range apps {
-				if app.Name == "" {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-
-				out, closer, err := getOutWriter(inline, fileURL)
-				errors.CheckError(err)
-				defer io.Close(closer)
-
-				errors.CheckError(PrintResources(outputFormat, out, app))
+			if len(apps) > 1 {
+				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+			}
+			app := apps[0]
+			if app.Name == "" {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
 
+			out, closer, err := getOutWriter(inline, fileURL)
+			errors.CheckError(err)
+			defer io.Close(closer)
+
+			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
