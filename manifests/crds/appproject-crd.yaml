@@ -267,6 +267,10 @@ spec:
                       description: Schedule is the time the window will begin, specified
                         in cron format
                       type: string
+                    timeZone:
+                      description: TimeZone of the sync that will be applied to the
+                        schedule
+                      type: string
                   type: object
                 type: array
             type: object

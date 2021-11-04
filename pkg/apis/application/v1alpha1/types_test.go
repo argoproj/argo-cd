@@ -1128,13 +1128,14 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
+			TimeZone:     timeZone,
 		}
 	}
 
@@ -1155,8 +1156,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchFirst",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11, time.UTC),
 			matchingIndex:  0,
@@ -1165,8 +1166,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchSecond",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(15, time.UTC),
 			matchingIndex:  1,
@@ -1175,8 +1176,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchBoth",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "3h"),
-				syncWindow("allow", "* 11 * * *", "3h"),
+				syncWindow("allow", "* 10 * * *", "3h", ""),
+				syncWindow("allow", "* 11 * * *", "3h", ""),
 			},
 			currentTime:    timeWithHour(12, time.UTC),
 			expectedLength: 2,
@@ -1184,8 +1185,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchNone",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17, time.UTC),
 			expectedLength: 0,
@@ -1193,8 +1194,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchFirst-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11-4, utcM4Zone), // 11AM UTC is 7AM EDT
 			matchingIndex:  0,
@@ -1203,8 +1204,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchSecond-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(15-4, utcM4Zone),
 			matchingIndex:  1,
@@ -1213,11 +1214,50 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchNone-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17-4, utcM4Zone),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(15, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(19, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchNone-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(21, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(3, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 
@@ -1246,13 +1286,14 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
+			TimeZone:     timeZone,
 		}
 	}
 
@@ -1273,8 +1314,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchFirst",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 5 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 5 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(6, time.UTC),
 			matchingIndex:  0,
@@ -1283,8 +1324,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchSecond",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11, time.UTC),
 			matchingIndex:  1,
@@ -1293,8 +1334,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchBoth",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17, time.UTC),
 			expectedLength: 2,
@@ -1302,8 +1343,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchNone",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "4h"),
-				syncWindow("allow", "* 11 * * *", "4h"),
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
 			},
 			currentTime:    timeWithHour(12, time.UTC),
 			expectedLength: 0,
@@ -1311,8 +1352,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchFirst-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 5 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 5 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(6-4, utcM4Zone), // 6AM UTC is 2AM EDT
 			matchingIndex:  0,
@@ -1321,8 +1362,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchSecond-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11-4, utcM4Zone),
 			matchingIndex:  1,
@@ -1331,20 +1372,68 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchBoth-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17-4, utcM4Zone),
 			expectedLength: 2,
 		},
 		{
-			name: "MatchNone",
+			name: "MatchNone-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "4h"),
-				syncWindow("allow", "* 11 * * *", "4h"),
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
 			},
 			currentTime:    timeWithHour(12-4, utcM4Zone),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 5 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(11, time.UTC), // 6AM UTC is 2AM EDT
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(15, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchBoth-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(6, time.UTC),
+			expectedLength: 2,
+		},
+		{
+			name: "MatchNone-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(7, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 
@@ -1378,23 +1467,24 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		n    []string
 		c    []string
 		m    bool
+		t    string
 		want string
 	}{
-		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError"},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError"},
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", ""},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
@@ -1901,31 +1991,31 @@ func TestSyncWindow_Active(t *testing.T) {
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{})
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{})
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"})
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{})
+		err := e.Update("", "", []string{}, []string{}, []string{}, "")
 		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
-		err := e.Update("", "10h", []string{}, []string{}, []string{})
+		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
-		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{})
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
 	})
