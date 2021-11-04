@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 )
 
 // Service implements ConfigManagementPluginService interface
@@ -84,12 +83,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		return &apiclient.ManifestResponse{}, err
 	}
 
-	targetObjs, err := kube.SplitYAML([]byte(out))
+	manifests, err := kube.SplitYAMLToString([]byte(out))
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
 
-	manifests, err := kubeutil.FromUnstructured(targetObjs)
 	return &apiclient.ManifestResponse{
 		Manifests: manifests,
 	}, err

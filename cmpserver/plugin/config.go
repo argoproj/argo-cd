@@ -15,31 +15,31 @@ const (
 )
 
 type PluginConfig struct {
-	metav1.TypeMeta `yaml:",inline"`
-	Metadata        metav1.ObjectMeta `yaml:"metadata"`
-	Spec            PluginConfigSpec  `yaml:"spec"`
+	metav1.TypeMeta `json:",inline"`
+	Metadata        metav1.ObjectMeta `json:"metadata"`
+	Spec            PluginConfigSpec  `json:"spec"`
 }
 
 type PluginConfigSpec struct {
-	Version          string   `yaml:"version"`
-	Init             Command  `yaml:"init,omitempty"`
-	Generate         Command  `yaml:"generate"`
-	Discover         Discover `yaml:"discover"`
-	AllowConcurrency bool     `yaml:"allowConcurrency"`
-	LockRepo         bool     `yaml:"lockRepo"`
+	Version          string   `json:"version"`
+	Init             Command  `json:"init,omitempty"`
+	Generate         Command  `json:"generate"`
+	Discover         Discover `json:"discover"`
+	AllowConcurrency bool     `json:"allowConcurrency"`
+	LockRepo         bool     `json:"lockRepo"`
 }
 
 //Discover holds find and fileName
 type Discover struct {
-	Find     Command `yaml:"find"`
-	FileName string  `yaml:"fileName"`
+	Find     Command `json:"find"`
+	FileName string  `json:"fileName"`
 }
 
 // Command holds binary path and arguments list
 type Command struct {
-	Command []string `yaml:"command,omitempty"`
-	Args    []string `yaml:"args,omitempty"`
-	Glob    string   `yaml:"glob"`
+	Command []string `json:"command,omitempty"`
+	Args    []string `json:"args,omitempty"`
+	Glob    string   `json:"glob"`
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
