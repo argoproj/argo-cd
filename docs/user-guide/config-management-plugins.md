@@ -134,15 +134,6 @@ data:
       lockRepo: false
 ```
 
-### Create application
-
-Create an application and specify required config management plugin name. By default, Argo CD searches for registered plugins in `argocd-cm` for
-manifests generation. If plugin is not found in `argocd-cm` configmap then Argo CD will look for registered sidecars in argocd-repo-server.
-
-```bash
-argocd app create <appName> --config-management-plugin <pluginName> --plugin-env key1=value1
-```
-
 ## Environment
 
 Commands have access to
