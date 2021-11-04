@@ -323,46 +323,146 @@ func (m *RepositoryResponse) GetIsSupported() bool {
 	return false
 }
 
+type ConfigRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ConfigRequest) Reset()         { *m = ConfigRequest{} }
+func (m *ConfigRequest) String() string { return proto.CompactTextString(m) }
+func (*ConfigRequest) ProtoMessage()    {}
+func (*ConfigRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b21875a7079a06ed, []int{5}
+}
+func (m *ConfigRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ConfigRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConfigRequest.Merge(m, src)
+}
+func (m *ConfigRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ConfigRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ConfigRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ConfigRequest proto.InternalMessageInfo
+
+type ConfigResponse struct {
+	AllowConcurrency     bool     `protobuf:"varint,1,opt,name=allowConcurrency,proto3" json:"allowConcurrency,omitempty"`
+	LockRepo             bool     `protobuf:"varint,2,opt,name=lockRepo,proto3" json:"lockRepo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ConfigResponse) Reset()         { *m = ConfigResponse{} }
+func (m *ConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*ConfigResponse) ProtoMessage()    {}
+func (*ConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b21875a7079a06ed, []int{6}
+}
+func (m *ConfigResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ConfigResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConfigResponse.Merge(m, src)
+}
+func (m *ConfigResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ConfigResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ConfigResponse proto.InternalMessageInfo
+
+func (m *ConfigResponse) GetAllowConcurrency() bool {
+	if m != nil {
+		return m.AllowConcurrency
+	}
+	return false
+}
+
+func (m *ConfigResponse) GetLockRepo() bool {
+	if m != nil {
+		return m.LockRepo
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "plugin.ManifestRequest")
 	proto.RegisterType((*EnvEntry)(nil), "plugin.EnvEntry")
 	proto.RegisterType((*ManifestResponse)(nil), "plugin.ManifestResponse")
 	proto.RegisterType((*RepositoryRequest)(nil), "plugin.RepositoryRequest")
 	proto.RegisterType((*RepositoryResponse)(nil), "plugin.RepositoryResponse")
+	proto.RegisterType((*ConfigRequest)(nil), "plugin.ConfigRequest")
+	proto.RegisterType((*ConfigResponse)(nil), "plugin.ConfigResponse")
 }
 
 func init() { proto.RegisterFile("cmpserver/plugin/plugin.proto", fileDescriptor_b21875a7079a06ed) }
 
 var fileDescriptor_b21875a7079a06ed = []byte{
-	// 436 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0xd1, 0x6e, 0xd3, 0x30,
-	0x14, 0xc5, 0x6b, 0x37, 0xda, 0xbb, 0x07, 0x8a, 0x85, 0x44, 0x88, 0x58, 0x15, 0xe5, 0xa9, 0x2f,
-	0x34, 0xa2, 0x20, 0xc4, 0x23, 0x62, 0x9a, 0x26, 0x81, 0x86, 0xaa, 0x8c, 0x27, 0xde, 0x3c, 0xf7,
-	0x2e, 0x35, 0x34, 0xb6, 0xb1, 0x9d, 0x48, 0xfd, 0x1a, 0x7e, 0x82, 0x8f, 0xe0, 0x91, 0x4f, 0x40,
-	0xfd, 0x12, 0x94, 0xc4, 0x5e, 0x2a, 0x8a, 0xf6, 0x94, 0x7b, 0xce, 0x71, 0xae, 0xcf, 0xb9, 0xbe,
-	0x70, 0xc6, 0x4b, 0x6d, 0xd1, 0xd4, 0x68, 0x32, 0xbd, 0xa9, 0x0a, 0x21, 0xfd, 0x67, 0xae, 0x8d,
-	0x72, 0x8a, 0x9e, 0x74, 0x28, 0x4e, 0xbf, 0xbd, 0xb5, 0x73, 0xa1, 0x32, 0xa6, 0x45, 0xc6, 0x95,
-	0xc1, 0xac, 0x7e, 0x99, 0x15, 0x28, 0xd1, 0x30, 0x87, 0xab, 0xee, 0x6c, 0xfa, 0x83, 0xc0, 0xa3,
-	0x2b, 0x26, 0xc5, 0x2d, 0x5a, 0x97, 0xe3, 0xf7, 0x0a, 0xad, 0xa3, 0x11, 0x3c, 0x64, 0x5a, 0x7f,
-	0x62, 0x25, 0x46, 0x24, 0x21, 0xb3, 0x71, 0x1e, 0xa0, 0x57, 0x96, 0xcc, 0xad, 0xa3, 0xa3, 0x3b,
-	0xa5, 0x81, 0x34, 0x86, 0x91, 0x41, 0xad, 0x5a, 0x69, 0xd0, 0x4a, 0x77, 0xb8, 0xf9, 0x4b, 0xaa,
-	0x73, 0xc6, 0xd7, 0x18, 0x0d, 0x13, 0x32, 0x1b, 0xe5, 0x01, 0xd2, 0x14, 0x06, 0x28, 0xeb, 0xe8,
-	0x38, 0x19, 0xcc, 0x4e, 0x17, 0x93, 0xb9, 0x4f, 0x71, 0x21, 0xeb, 0x0b, 0xe9, 0xcc, 0x36, 0x6f,
-	0xc4, 0xf4, 0x35, 0x8c, 0x02, 0x41, 0x29, 0x0c, 0x65, 0x6f, 0xab, 0xad, 0xe9, 0x13, 0x38, 0xae,
-	0xd9, 0xa6, 0x42, 0xef, 0xa8, 0x03, 0xe9, 0x12, 0x26, 0x7d, 0x2c, 0xab, 0x95, 0xb4, 0x48, 0x9f,
-	0xc3, 0xb8, 0xf4, 0x9c, 0x8d, 0x48, 0x32, 0x98, 0x8d, 0xf3, 0x9e, 0xa0, 0x53, 0x00, 0xab, 0x2a,
-	0xc3, 0xf1, 0xf3, 0x56, 0x87, 0x66, 0x7b, 0x4c, 0xfa, 0x11, 0x1e, 0xe7, 0xa8, 0x95, 0x15, 0x4e,
-	0x99, 0x6d, 0x18, 0x15, 0x85, 0xa1, 0x6e, 0x22, 0x7b, 0x43, 0x4d, 0x1d, 0x42, 0x1d, 0xdd, 0x17,
-	0xea, 0x0d, 0xd0, 0xfd, 0x66, 0xde, 0x60, 0x02, 0xa7, 0xc2, 0x5e, 0x57, 0x5a, 0x2b, 0xe3, 0x70,
-	0xd5, 0x36, 0x1d, 0xe5, 0xfb, 0xd4, 0xe2, 0x27, 0x81, 0xb3, 0x73, 0x25, 0x6f, 0x45, 0x71, 0xc5,
-	0x24, 0x2b, 0xb0, 0x44, 0xe9, 0x96, 0xed, 0x05, 0xd7, 0x68, 0x6a, 0xc1, 0x91, 0x5e, 0xc2, 0xe4,
-	0xd2, 0xbf, 0x71, 0x18, 0x00, 0x7d, 0x1a, 0x4c, 0xfc, 0xf3, 0xd2, 0x71, 0x74, 0x28, 0x74, 0x56,
-	0xd2, 0x07, 0xf4, 0x43, 0xb3, 0x18, 0x8e, 0xaf, 0x7b, 0x9f, 0xf4, 0x59, 0x38, 0x7e, 0x30, 0x88,
-	0x38, 0xfe, 0x9f, 0x14, 0x7a, 0xbd, 0x7f, 0xf7, 0x6b, 0x37, 0x25, 0xbf, 0x77, 0x53, 0xf2, 0x67,
-	0x37, 0x25, 0x5f, 0x16, 0x85, 0x70, 0xeb, 0xea, 0x66, 0xce, 0x55, 0x99, 0x31, 0x53, 0x28, 0x6d,
-	0xd4, 0xd7, 0xb6, 0x78, 0xc1, 0x57, 0x59, 0xbd, 0xc8, 0xfa, 0xed, 0x66, 0x5a, 0xf0, 0x8d, 0x40,
-	0xe9, 0x6e, 0x4e, 0xda, 0x75, 0x7d, 0xf5, 0x37, 0x00, 0x00, 0xff, 0xff, 0x46, 0xbe, 0x36, 0x70,
-	0xfb, 0x02, 0x00, 0x00,
+	// 501 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x53, 0xdd, 0x6e, 0xd3, 0x30,
+	0x18, 0x25, 0x6b, 0x37, 0xda, 0x6f, 0x82, 0x16, 0x8b, 0x9f, 0x10, 0xb1, 0xaa, 0xca, 0x55, 0x85,
+	0x44, 0x23, 0x0a, 0x42, 0x5c, 0xa2, 0x55, 0x53, 0x25, 0xd0, 0x50, 0x95, 0x71, 0x81, 0xb8, 0xf3,
+	0xdc, 0x6f, 0xa9, 0x59, 0x6a, 0x1b, 0xc7, 0x09, 0xea, 0xd3, 0xf0, 0x3a, 0x5c, 0xf2, 0x08, 0xa8,
+	0x4f, 0xc1, 0x25, 0x4a, 0x62, 0x37, 0x65, 0x45, 0xbb, 0x8a, 0xcf, 0x39, 0xf6, 0xd1, 0x39, 0x5f,
+	0x6c, 0x38, 0x61, 0x2b, 0x95, 0xa1, 0x2e, 0x50, 0x47, 0x2a, 0xcd, 0x13, 0x2e, 0xec, 0x67, 0xac,
+	0xb4, 0x34, 0x92, 0x1c, 0xd5, 0x28, 0x08, 0xaf, 0xdf, 0x66, 0x63, 0x2e, 0x23, 0xaa, 0x78, 0xc4,
+	0xa4, 0xc6, 0xa8, 0x78, 0x19, 0x25, 0x28, 0x50, 0x53, 0x83, 0x8b, 0x7a, 0x6f, 0xf8, 0xc3, 0x83,
+	0xde, 0x39, 0x15, 0xfc, 0x0a, 0x33, 0x13, 0xe3, 0xb7, 0x1c, 0x33, 0x43, 0x7c, 0xb8, 0x4b, 0x95,
+	0xfa, 0x48, 0x57, 0xe8, 0x7b, 0x43, 0x6f, 0xd4, 0x8d, 0x1d, 0xb4, 0xca, 0x9c, 0x9a, 0xa5, 0x7f,
+	0xb0, 0x55, 0x4a, 0x48, 0x02, 0xe8, 0x68, 0x54, 0xb2, 0x92, 0x5a, 0x95, 0xb4, 0xc5, 0xe5, 0x29,
+	0x21, 0xa7, 0x94, 0x2d, 0xd1, 0x6f, 0x0f, 0xbd, 0x51, 0x27, 0x76, 0x90, 0x84, 0xd0, 0x42, 0x51,
+	0xf8, 0x87, 0xc3, 0xd6, 0xe8, 0x78, 0xd2, 0x1f, 0xdb, 0x16, 0x67, 0xa2, 0x38, 0x13, 0x46, 0xaf,
+	0xe3, 0x52, 0x0c, 0x5f, 0x43, 0xc7, 0x11, 0x84, 0x40, 0x5b, 0x34, 0xb1, 0xaa, 0x35, 0x79, 0x08,
+	0x87, 0x05, 0x4d, 0x73, 0xb4, 0x89, 0x6a, 0x10, 0xce, 0xa1, 0xdf, 0xd4, 0xca, 0x94, 0x14, 0x19,
+	0x92, 0x67, 0xd0, 0x5d, 0x59, 0x2e, 0xf3, 0xbd, 0x61, 0x6b, 0xd4, 0x8d, 0x1b, 0x82, 0x0c, 0x00,
+	0x32, 0x99, 0x6b, 0x86, 0x9f, 0xd6, 0xca, 0x99, 0xed, 0x30, 0xe1, 0x07, 0x78, 0x10, 0xa3, 0x92,
+	0x19, 0x37, 0x52, 0xaf, 0xdd, 0xa8, 0x08, 0xb4, 0x55, 0x59, 0xd9, 0x06, 0x2a, 0xd7, 0xae, 0xd4,
+	0xc1, 0x6d, 0xa5, 0xde, 0x00, 0xd9, 0x35, 0xb3, 0x01, 0x87, 0x70, 0xcc, 0xb3, 0x8b, 0x5c, 0x29,
+	0xa9, 0x0d, 0x2e, 0x2a, 0xd3, 0x4e, 0xbc, 0x4b, 0x85, 0x3d, 0xb8, 0x37, 0x95, 0xe2, 0x8a, 0x27,
+	0x36, 0x40, 0xf8, 0x19, 0xee, 0x3b, 0xc2, 0x9a, 0x3c, 0x87, 0x3e, 0x4d, 0x53, 0xf9, 0x7d, 0x2a,
+	0x05, 0xcb, 0xb5, 0x46, 0xc1, 0xd6, 0xd6, 0x69, 0x8f, 0x2f, 0xff, 0x5a, 0x2a, 0xd9, 0x75, 0x19,
+	0xa5, 0x6a, 0xdc, 0x89, 0xb7, 0x78, 0xf2, 0xc7, 0x83, 0x93, 0xda, 0xfa, 0x9c, 0x0a, 0x9a, 0xe0,
+	0x0a, 0x85, 0x99, 0x57, 0x5d, 0x2e, 0x50, 0x17, 0x9c, 0x21, 0x99, 0x41, 0x7f, 0x66, 0xaf, 0x93,
+	0x9b, 0x35, 0x79, 0xe2, 0xfa, 0xde, 0xb8, 0x54, 0x81, 0xbf, 0x2f, 0xd4, 0x81, 0xc3, 0x3b, 0xe4,
+	0x7d, 0x79, 0x07, 0x0d, 0x5b, 0x36, 0x23, 0x21, 0x4f, 0xdd, 0xf6, 0xbd, 0x99, 0x07, 0xc1, 0xff,
+	0xa4, 0xad, 0xd7, 0x29, 0xf4, 0x66, 0x68, 0x83, 0xd6, 0xf1, 0xc9, 0x23, 0x77, 0xe0, 0x9f, 0xd1,
+	0x05, 0x8f, 0x6f, 0xd2, 0xce, 0xe3, 0xf4, 0xdd, 0xcf, 0xcd, 0xc0, 0xfb, 0xb5, 0x19, 0x78, 0xbf,
+	0x37, 0x03, 0xef, 0xcb, 0x24, 0xe1, 0x66, 0x99, 0x5f, 0x8e, 0x99, 0x5c, 0x45, 0x54, 0x27, 0x52,
+	0x69, 0xf9, 0xb5, 0x5a, 0xbc, 0x60, 0x8b, 0xa8, 0x98, 0x44, 0xcd, 0x63, 0xa4, 0x8a, 0xb3, 0x94,
+	0xa3, 0x30, 0x97, 0x47, 0xd5, 0xeb, 0x7a, 0xf5, 0x37, 0x00, 0x00, 0xff, 0xff, 0x6e, 0xfe, 0x31,
+	0x8a, 0xaa, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -381,6 +481,8 @@ type ConfigManagementPluginServiceClient interface {
 	GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error)
 	// MatchRepository returns whether or not the given path is supported by the plugin
 	MatchRepository(ctx context.Context, in *RepositoryRequest, opts ...grpc.CallOption) (*RepositoryResponse, error)
+	// Get configuration of the plugin
+	GetPluginConfig(ctx context.Context, in *ConfigRequest, opts ...grpc.CallOption) (*ConfigResponse, error)
 }
 
 type configManagementPluginServiceClient struct {
@@ -409,12 +511,23 @@ func (c *configManagementPluginServiceClient) MatchRepository(ctx context.Contex
 	return out, nil
 }
 
+func (c *configManagementPluginServiceClient) GetPluginConfig(ctx context.Context, in *ConfigRequest, opts ...grpc.CallOption) (*ConfigResponse, error) {
+	out := new(ConfigResponse)
+	err := c.cc.Invoke(ctx, "/plugin.ConfigManagementPluginService/GetPluginConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigManagementPluginServiceServer is the server API for ConfigManagementPluginService service.
 type ConfigManagementPluginServiceServer interface {
 	// GenerateManifest generates manifest for application in specified repo name and revision
 	GenerateManifest(context.Context, *ManifestRequest) (*ManifestResponse, error)
 	// MatchRepository returns whether or not the given path is supported by the plugin
 	MatchRepository(context.Context, *RepositoryRequest) (*RepositoryResponse, error)
+	// Get configuration of the plugin
+	GetPluginConfig(context.Context, *ConfigRequest) (*ConfigResponse, error)
 }
 
 // UnimplementedConfigManagementPluginServiceServer can be embedded to have forward compatible implementations.
@@ -426,6 +539,9 @@ func (*UnimplementedConfigManagementPluginServiceServer) GenerateManifest(ctx co
 }
 func (*UnimplementedConfigManagementPluginServiceServer) MatchRepository(ctx context.Context, req *RepositoryRequest) (*RepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MatchRepository not implemented")
+}
+func (*UnimplementedConfigManagementPluginServiceServer) GetPluginConfig(ctx context.Context, req *ConfigRequest) (*ConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPluginConfig not implemented")
 }
 
 func RegisterConfigManagementPluginServiceServer(s *grpc.Server, srv ConfigManagementPluginServiceServer) {
@@ -468,6 +584,24 @@ func _ConfigManagementPluginService_MatchRepository_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigManagementPluginService_GetPluginConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigManagementPluginServiceServer).GetPluginConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/plugin.ConfigManagementPluginService/GetPluginConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigManagementPluginServiceServer).GetPluginConfig(ctx, req.(*ConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _ConfigManagementPluginService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "plugin.ConfigManagementPluginService",
 	HandlerType: (*ConfigManagementPluginServiceServer)(nil),
@@ -479,6 +613,10 @@ var _ConfigManagementPluginService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MatchRepository",
 			Handler:    _ConfigManagementPluginService_MatchRepository_Handler,
+		},
+		{
+			MethodName: "GetPluginConfig",
+			Handler:    _ConfigManagementPluginService_GetPluginConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -726,6 +864,80 @@ func (m *RepositoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ConfigRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ConfigRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ConfigRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ConfigResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ConfigResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ConfigResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.LockRepo {
+		i--
+		if m.LockRepo {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.AllowConcurrency {
+		i--
+		if m.AllowConcurrency {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintPlugin(dAtA []byte, offset int, v uint64) int {
 	offset -= sovPlugin(v)
 	base := offset
@@ -841,6 +1053,36 @@ func (m *RepositoryResponse) Size() (n int) {
 	var l int
 	_ = l
 	if m.IsSupported {
+		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ConfigRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ConfigResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.AllowConcurrency {
+		n += 2
+	}
+	if m.LockRepo {
 		n += 2
 	}
 	if m.XXX_unrecognized != nil {
@@ -1452,6 +1694,148 @@ func (m *RepositoryResponse) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.IsSupported = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPlugin(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ConfigRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPlugin
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ConfigRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ConfigRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPlugin(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ConfigResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPlugin
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ConfigResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ConfigResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AllowConcurrency", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.AllowConcurrency = bool(v != 0)
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LockRepo", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.LockRepo = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipPlugin(dAtA[iNdEx:])

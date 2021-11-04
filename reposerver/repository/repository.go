@@ -1194,6 +1194,15 @@ func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alph
 	}
 	defer io.Close(conn)
 
+	config, err := cmpClient.GetPluginConfig(context.Background(), &pluginclient.ConfigRequest{})
+	if config.LockRepo {
+		manifestGenerateLock.Lock(repoPath)
+		defer manifestGenerateLock.Unlock(repoPath)
+	} else if !config.AllowConcurrency {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
 	env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {

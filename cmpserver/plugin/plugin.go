@@ -60,16 +60,6 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	config := s.initConstants.PluginConfig
 
-	// Plugins can request to lock the complete repository when they need to
-	// use git client operations.
-	if config.Spec.LockRepo {
-		manifestGenerateLock.Lock(q.RepoPath)
-		defer manifestGenerateLock.Unlock(q.RepoPath)
-	} else if !config.Spec.AllowConcurrency {
-		manifestGenerateLock.Lock(q.AppPath)
-		defer manifestGenerateLock.Unlock(q.AppPath)
-	}
-
 	env := append(os.Environ(), environ(q.Env)...)
 	if len(config.Spec.Init.Command) > 0 {
 		_, err := runCommand(config.Spec.Init, q.AppPath, env)
@@ -137,5 +127,14 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 	}
 	return &apiclient.RepositoryResponse{
 		IsSupported: isSupported,
+	}, nil
+}
+
+// GetPluginConfig returns plugin config
+func (s *Service) GetPluginConfig(ctx context.Context, q *apiclient.ConfigRequest) (*apiclient.ConfigResponse, error) {
+	config := s.initConstants.PluginConfig
+	return &apiclient.ConfigResponse{
+		AllowConcurrency: config.Spec.AllowConcurrency,
+		LockRepo:         config.Spec.LockRepo,
 	}, nil
 }

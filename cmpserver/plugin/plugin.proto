@@ -37,6 +37,14 @@ message RepositoryResponse {
     bool isSupported = 1;
 }
 
+message ConfigRequest {
+}
+
+message ConfigResponse {
+    bool allowConcurrency = 1;
+    bool lockRepo = 2;
+}
+
 // ConfigManagementPlugin Service
 service ConfigManagementPluginService {
     // GenerateManifest generates manifest for application in specified repo name and revision
@@ -45,5 +53,9 @@ service ConfigManagementPluginService {
 
     // MatchRepository returns whether or not the given path is supported by the plugin
     rpc MatchRepository(RepositoryRequest) returns (RepositoryResponse) {
+    }
+
+    // Get configuration of the plugin
+    rpc GetPluginConfig(ConfigRequest) returns (ConfigResponse) {
     }
 }
