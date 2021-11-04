@@ -1,18 +1,18 @@
 name: Integration tests
-on: 
+on:
   push:
     branches:
-      - 'master'
-      - 'release-*'
-      - '!release-1.4'
-      - '!release-1.5'
+      - "master"
+      - "release-*"
+      - "!release-1.4"
+      - "!release-1.5"
   pull_request:
     branches:
-      - 'master'
+      - "master"
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: "1.16.5"
 
 jobs:
   build-docker:
@@ -247,26 +247,26 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
-          node-version: '12.18.4'
+          node-version: "12.18.4"
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@v1
         with:
           path: ui/node_modules
-          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
       - name: Install node dependencies
         run: |
-          cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
+          cd ui && pnpm install --frozen-lockfile --no-optional
       - name: Build UI code
         run: |
-          yarn test
-          yarn build
+          pnpm test
+          pnpm build
         env:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
         working-directory: ui/
       - name: Run ESLint
-        run: yarn lint
+        run: pnpm lint
         working-directory: ui/
 
   analyze:
@@ -287,7 +287,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ui/node_modules
-          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
       - name: Remove other node_modules directory
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
@@ -315,24 +315,24 @@ jobs:
           SCANNER_PATH: /tmp/cache/scanner
           OS: linux
         run: |
-            # We do not use the provided action, because it does contain an old
-            # version of the scanner, and also takes time to build.
-            set -e
-            mkdir -p ${SCANNER_PATH}
-            export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-            if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-              unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-            fi
+          # We do not use the provided action, because it does contain an old
+          # version of the scanner, and also takes time to build.
+          set -e
+          mkdir -p ${SCANNER_PATH}
+          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
+          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
+            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
+            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
+          fi
 
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
 
-            # Explicitly set NODE_MODULES
-            export NODE_MODULES=${PWD}/ui/node_modules
-            export NODE_PATH=${PWD}/ui/node_modules
+          # Explicitly set NODE_MODULES
+          export NODE_MODULES=${PWD}/ui/node_modules
+          export NODE_PATH=${PWD}/ui/node_modules
 
-            ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
         if: env.sonar_secret != ''
 
   test-e2e:
@@ -341,7 +341,7 @@ jobs:
     strategy:
       matrix:
         k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
-    needs: 
+    needs:
       - build-go
     env:
       GOPATH: /home/runner/go

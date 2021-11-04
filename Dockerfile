@@ -88,15 +88,15 @@ WORKDIR /home/argocd
 FROM docker.io/library/node:12.18.4 as argocd-ui
 
 WORKDIR /src
-ADD ["ui/package.json", "ui/yarn.lock", "./"]
+ADD ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN yarn install
+RUN pnpm install
 
 ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
+RUN NODE_ENV='production' NODE_ONLINE_ENV='online' pnpm build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
