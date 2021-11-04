@@ -58,7 +58,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                                 );
                                                                                 if (confirmed) {
                                                                                     try {
-                                                                                        services.clusters.delete(cluster.server).finally(() => {
+                                                                                        await services.clusters.delete(cluster.server).finally(() => {
                                                                                             ctx.navigation.goto('.', {new: null}, {replace: true});
                                                                                             if (clustersLoaderRef.current) {
                                                                                                 clustersLoaderRef.current.reload();
