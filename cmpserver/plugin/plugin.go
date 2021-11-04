@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/sync"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 
@@ -32,8 +31,6 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 		initConstants: initConstants,
 	}
 }
-
-var manifestGenerateLock = sync.NewKeyLock()
 
 func runCommand(command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
