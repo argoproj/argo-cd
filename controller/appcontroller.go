@@ -316,17 +316,21 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
 	managedResources, err := ctrl.managedResources(comparisonResult)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting managed resources: %s", err)
 	}
 	tree, err := ctrl.getResourceTree(a, managedResources)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting resource tree: %s", err)
 	}
 	err = ctrl.cache.SetAppResourcesTree(a.Name, tree)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error setting app resource tree: %s", err)
 	}
-	return tree, ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+	err = ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+	if err != nil {
+		return nil, fmt.Errorf("error setting app managed resources: %s", err)
+	}
+	return tree, nil
 }
 
 // returns true of given resources exist in the namespace by default and not managed by the user
@@ -550,18 +554,18 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			var err error
 			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error hiding secret data: %s", err)
 			}
 			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error getting resource compare options: %s", err)
 			}
 			resDiffPtr, err := diff.Diff(target, live,
 				diff.WithNormalizer(comparisonResult.diffNormalizer),
 				diff.WithLogr(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())),
 				diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error applying diff: %s", err)
 			}
 			resDiff = *resDiffPtr
 		}
@@ -569,7 +573,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 		if live != nil {
 			data, err := json.Marshal(live)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error marshaling live json: %s", err)
 			}
 			item.LiveState = string(data)
 		} else {
@@ -579,7 +583,7 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 		if target != nil {
 			data, err := json.Marshal(target)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error marshaling target json: %s", err)
 			}
 			item.TargetState = string(data)
 		} else {
@@ -706,6 +710,18 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	app := origApp.DeepCopy()
 
 	if app.Operation != nil {
+		// If we get here, we are about process an operation but we cannot rely on informer since it might has stale data.
+		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
+		// We cannot rely on informer since applications might be updated by both application controller and api server.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Failed to retrieve latest application state: %v", err)
+			return
+		}
+		app = freshApp
+	}
+
+	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		_, err = ctrl.finalizeApplicationDeletion(app)
@@ -829,7 +845,7 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	}
 	// Don't delete live resources which are not permitted in the app project
 	for k, v := range objsMap {
-		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(objsMap, k)
 		}
 	}
@@ -1125,7 +1141,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		patchedApp, err := appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err = appClient.Patch(context.Background(), app.Name, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierr.IsNotFound(err) {
@@ -1154,10 +1170,6 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
-		}
-		// write back to informer in order to avoid stale cache
-		if err := ctrl.appInformer.GetStore().Update(patchedApp); err != nil {
-			log.Warnf("Fails to update informer: %v", err)
 		}
 		return nil
 	})

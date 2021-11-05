@@ -64,6 +64,7 @@ type AppStateManager interface {
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
+// comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         *v1alpha1.HealthStatus
@@ -155,7 +156,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -173,7 +174,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Plugins:           tools,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
 		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
@@ -458,7 +459,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(liveObjByKey, k)
 		}
 	}

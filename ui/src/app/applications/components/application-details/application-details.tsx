@@ -23,13 +23,16 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {nodeKey, urlPattern} from '../utils';
+import {ResourceStatus} from '../../../shared/models';
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+    showGroupedNodesPanel?: boolean;
+    groupedResources?: ResourceStatus[];
 }
 
 interface FilterInput {
@@ -64,7 +67,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0};
+        this.state = {page: 0, showGroupedNodesPanel: false, groupedResources: []};
     }
 
     private get showOperationState() {
@@ -86,6 +89,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private get selectedNodeKey() {
         const nodeContainer = this.selectedNodeInfo;
         return nodeContainer.key;
+    }
+
+    private toggleGroupedNodesPanel() {
+        this.setState({showGroupedNodesPanel: !this.state.showGroupedNodesPanel});
+    }
+
+    private closeGroupdedNodesPanel() {
+        this.setState({groupedResources: []});
+        this.toggleGroupedNodesPanel();
     }
 
     public render() {
@@ -148,6 +160,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
 
+                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
+                                const statusByKey = new Map<string, models.ResourceStatus>();
+                                application.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+                                const resources: any[] = [];
+                                tree.nodes.forEach(node => {
+                                    const resource: any = {...node};
+                                    resource.uid = node.uid;
+                                    const status = statusByKey.get(nodeKey(node));
+                                    if (status) {
+                                        resource.health = status.health;
+                                        resource.status = status.status;
+                                        resource.hook = status.hook;
+                                        resource.requiresPruning = status.requiresPruning;
+                                    }
+                                    resources.push(resource);
+                                });
+                                this.setState({
+                                    groupedResources: groupdedNodeIds ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(nodeKey(res))) : []
+                                });
+                                this.toggleGroupedNodesPanel();
+                            };
+
                             const renderCommitMessage = (message: string) =>
                                 message.split(/\s/).map(part =>
                                     urlPattern.test(part) ? (
@@ -175,6 +209,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                            }}
+                                                        />
+                                                        <i
+                                                            className={classNames('fa fa-object-group', {selected: pref.view === 'compact'})}
+                                                            title='Compact'
+                                                            onClick={() => {
+                                                                clearFilter();
+                                                                this.appContext.apis.navigation.goto('.', {view: 'compact'}, {replace: true});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'compact'}});
                                                             }}
                                                         />
                                                         <i
@@ -215,7 +258,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            {((pref.view === 'tree' || pref.view === 'network') && (
+                                            {((pref.view === 'tree' || pref.view === 'network' || pref.view === 'compact') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
@@ -230,7 +273,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
+                                                        compactView={pref.view === 'compact'}
                                                         onClearFilter={clearFilter}
+                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -281,6 +326,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     </div>
                                                 )}
                                         </div>
+                                        <SlidingPanel isShown={this.state.showGroupedNodesPanel} onClose={() => this.closeGroupdedNodesPanel()}>
+                                            <ApplicationResourceList
+                                                onNodeClick={fullName => this.selectNode(fullName)}
+                                                resources={this.state.groupedResources}
+                                                nodeMenu={node =>
+                                                    AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                        this.getApplicationActionMenu(application, false)
+                                                    )
+                                                }
+                                            />
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
                                                 tree={tree}

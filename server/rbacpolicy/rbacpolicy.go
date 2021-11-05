@@ -105,16 +105,18 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
+	var projName string
 	proj := p.getProjectFromRequest(rvals...)
 	if proj != nil {
 		if IsProjectSubject(subject) {
 			return p.enforceProjectToken(subject, proj, rvals...)
 		}
 		runtimePolicy = proj.ProjectPoliciesString()
+		projName = proj.Name
 	}
 
 	// NOTE: This calls prevent multiple creation of the wrapped enforcer
-	enforcer := p.enf.CreateEnforcerWithRuntimePolicy(runtimePolicy)
+	enforcer := p.enf.CreateEnforcerWithRuntimePolicy(projName, runtimePolicy)
 
 	// Check the subject. This is typically the 'admin' case.
 	// NOTE: the call to EnforceWithCustomEnforcer will also consider the default role
@@ -191,6 +193,5 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.
 	}
 
 	vals := append([]interface{}{subject}, rvals[1:]...)
-	return p.enf.EnforceRuntimePolicy(proj.ProjectPoliciesString(), vals...)
-
+	return p.enf.EnforceRuntimePolicy(proj.Name, proj.ProjectPoliciesString(), vals...)
 }

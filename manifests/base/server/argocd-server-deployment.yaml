@@ -166,6 +166,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.default.cache.expiration
                 optional: true
+        - name: ARGOCD_MAX_COOKIE_NUMBER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.http.cookie.maxnumber
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh

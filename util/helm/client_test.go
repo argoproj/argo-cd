@@ -65,7 +65,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -75,7 +75,7 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)

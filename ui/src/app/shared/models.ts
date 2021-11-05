@@ -453,6 +453,7 @@ export interface AuthSettings {
     uiBannerContent: string;
     uiBannerURL: string;
     uiBannerPermanent: boolean;
+    uiBannerPosition: string;
 }
 
 export interface UserInfo {
@@ -695,6 +696,7 @@ export interface SyncWindow {
     namespaces: string[];
     clusters: string[];
     manualSync: boolean;
+    timeZone: string;
 }
 
 export interface Project {

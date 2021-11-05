@@ -358,6 +358,7 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		// these are slow tests
 		Timeout(30).
 		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
 		When().
 		Create().
 		Sync().
@@ -379,7 +380,8 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests
-		Timeout(30)
+		Timeout(30).
+		HelmPassCredentials()
 	if legacyRepo {
 		ctx.And(func() {
 			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
@@ -548,25 +550,4 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
-
-// This is for the scenario of application source is from Git repo which has a helm chart with helm OCI registry dependency.
-// When the application project only allows git repository, this app creation should fail.
-func TestRepoPermission(t *testing.T) {
-	Given(t).
-		And(func() {
-			repoURL := fixture.RepoURL("")
-			output := FailOnErr(RunCli("proj", "remove-source", "default", "*")).(string)
-			assert.Empty(t, output)
-			output = FailOnErr(RunCli("proj", "add-source", "default", repoURL)).(string)
-			assert.Empty(t, output)
-		}).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		HelmOCIRepoAdded("myrepo").
-		Path("helm-oci-with-dependencies").
-		When().
-		IgnoreErrors().
-		Create().
-		Then().
-		Expect(Error("", "Unable to generate manifests"))
 }

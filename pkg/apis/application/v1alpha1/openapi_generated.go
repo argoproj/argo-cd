@@ -7,8 +7,8 @@
 package v1alpha1
 
 import (
-	spec "github.com/go-openapi/spec"
 	common "k8s.io/kube-openapi/pkg/common"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
@@ -775,6 +775,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						SchemaProps: spec.SchemaProps{
 							Description: "Version is the Helm version to use for templating (either \"2\" or \"3\")",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"passCredentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PassCredentials pass credentials to all domains (Helm's --pass-credentials)",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -1801,6 +1808,12 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"),
+						},
+					},
+					"lockRepo": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},
@@ -4522,6 +4535,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"timeZone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeZone of the sync that will be applied to the schedule",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

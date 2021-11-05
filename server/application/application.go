@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -313,7 +314,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return err
 		}
 
-		apiGroups, err := s.kubectl.GetAPIGroups(config)
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
 		if err != nil {
 			return err
 		}
@@ -329,7 +330,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Plugins:           plugins,
 			KustomizeOptions:  kustomizeOptions,
 			KubeVersion:       serverVersion,
-			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:     helmCreds,
 			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
 		})
@@ -1123,17 +1124,17 @@ func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) boo
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appLister.Get(*q.ApplicationName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting application: %s", err)
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error verifying rbac: %s", err)
 	}
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.Name, &items)
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cached app state: %s", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {

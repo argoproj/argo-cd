@@ -1,7 +1,7 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+export type AppsDetailsViewType = 'tree' | 'compact' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -68,6 +68,7 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    position: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -106,7 +107,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         }
     },
     pageSizes: {},
-    hideBannerContent: ''
+    hideBannerContent: '',
+    position: ''
 };
 
 export class ViewPreferencesService {

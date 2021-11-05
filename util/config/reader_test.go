@@ -46,6 +46,27 @@ func TestUnmarshalLocalFile(t *testing.T) {
 	}
 }
 
+func TestUnmarshal(t *testing.T) {
+	const (
+		field1 = "Hello, world!"
+		field2 = 42
+	)
+	sentinel := fmt.Sprintf("---\nfield1: %q\nfield2: %d", field1, field2)
+
+	var testStruct struct {
+		Field1 string
+		Field2 int
+	}
+	err := Unmarshal([]byte(sentinel), &testStruct)
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
+
+	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
+		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
+	}
+}
+
 func TestUnmarshalRemoteFile(t *testing.T) {
 	const (
 		field1 = "Hello, world!"

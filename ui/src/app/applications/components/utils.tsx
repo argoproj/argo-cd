@@ -597,11 +597,11 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
 
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
+    if (application.metadata.deletionTimestamp && !application.operation) {
+        return 'Delete';
+    }
     if (operation && operation.sync) {
         return 'Sync';
-    }
-    if (application.metadata.deletionTimestamp) {
-        return 'Delete';
     }
     return 'Unknown';
 }
@@ -768,7 +768,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
         current = 'Inactive';
     } else {
         for (const w of state.windows) {
-            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration) {
+            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration && w.timeZone === window.timeZone) {
                 current = 'Active';
                 break;
             } else {

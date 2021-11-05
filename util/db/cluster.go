@@ -181,17 +181,32 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
+	srv := strings.TrimRight(server, "/")
 	for _, clusterSecret := range clusterSecrets {
-		if cluster, err := secretToCluster(clusterSecret); err == nil && cluster.Server == strings.TrimRight(server, "/") {
+		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
 			return clusterSecret, nil
 		}
 	}
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 }
 
+func (db *db) getClusterFromSecret(server string) (*appv1.Cluster, error) {
+	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
+	if err != nil {
+		return nil, err
+	}
+	srv := strings.TrimRight(server, "/")
+	for _, clusterSecret := range clusterSecrets {
+		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
+			return secretToCluster(clusterSecret)
+		}
+	}
+	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+}
+
 // GetCluster returns a cluster from a query
-func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(server)
+func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+	cluster, err := db.getClusterFromSecret(server)
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == appv1.KubernetesInternalAPIServerAddr {
 			return db.getLocalCluster(), nil
@@ -199,7 +214,7 @@ func (db *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, er
 			return nil, err
 		}
 	}
-	return secretToCluster(clusterSecret)
+	return cluster, nil
 }
 
 // UpdateCluster updates a cluster
