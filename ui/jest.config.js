@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
-  transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
+  transformIgnorePatterns: [],
   globals: {
     'window': {localStorage: { getItem: () => '{}', setItem: () => null }},
     'ts-jest': {
