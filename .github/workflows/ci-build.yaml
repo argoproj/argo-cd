@@ -2,17 +2,17 @@ name: Integration tests
 on:
   push:
     branches:
-      - "master"
-      - "release-*"
-      - "!release-1.4"
-      - "!release-1.5"
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
   pull_request:
     branches:
-      - "master"
+      - 'master'
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: "1.16.5"
+  GOLANG_VERSION: '1.16.5'
 
 jobs:
   build-docker:
@@ -247,7 +247,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
-          node-version: "12.18.4"
+          node-version: '12.18.4'
       - name: Cache .pnpm-store
         uses: actions/cache@v1
         with:
@@ -346,14 +346,14 @@ jobs:
       - build-go
     env:
       GOPATH: /home/runner/go
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      ARGOCD_E2E_SSH_KNOWN_HOSTS: "../fixture/certs/ssh_known_hosts"
-      ARGOCD_E2E_K3S: "true"
-      ARGOCD_IN_CI: "true"
-      ARGOCD_E2E_APISERVER_PORT: "8088"
-      ARGOCD_SERVER: "127.0.0.1:8088"
+      ARGOCD_FAKE_IN_CLUSTER: 'true'
+      ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
+      ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
+      ARGOCD_E2E_SSH_KNOWN_HOSTS: '../fixture/certs/ssh_known_hosts'
+      ARGOCD_E2E_K3S: 'true'
+      ARGOCD_IN_CI: 'true'
+      ARGOCD_E2E_APISERVER_PORT: '8088'
+      ARGOCD_SERVER: '127.0.0.1:8088'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
