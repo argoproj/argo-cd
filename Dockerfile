@@ -90,6 +90,7 @@ FROM docker.io/library/node:12.18.4 as argocd-ui
 WORKDIR /src
 ADD ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
+RUN curl -f https://get.pnpm.io/v6.16.js | node - add --global pnpm@6
 RUN pnpm install
 
 ADD ["ui/", "."]
