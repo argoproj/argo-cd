@@ -248,12 +248,13 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: "12.18.4"
-      - name: Restore node dependency cache
-        id: cache-dependencies
+      - name: Cache .pnpm-store
         uses: actions/cache@v1
         with:
-          path: ui/node_modules
-          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-node${{ matrix.node-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+      - name: Install pnpm
+        run: curl -f https://get.pnpm.io/v6.16.js | node - add --global pnpm@6
       - name: Install node dependencies
         run: |
           cd ui && pnpm install --frozen-lockfile --no-optional
