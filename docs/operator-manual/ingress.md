@@ -359,7 +359,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    alb.ingress.kubernetes.io/backend-protocol-version: HTTP2 #This tells AWS to send traffic from the ALB using HTTP2. Can use GRPC as well if you want to leverage GRPC specific features
+    alb.ingress.kubernetes.io/backend-protocol-version: HTTP2 # This tells AWS to send traffic from the ALB using HTTP2. Can use GRPC as well if you want to leverage GRPC specific features
   labels:
     app: argogrpc
   name: argogrpc
@@ -396,12 +396,16 @@ Once we create this service, we can configure the Ingress to conditionally route
       http:
         paths:
         - backend:
-            serviceName: argogrpc
-            servicePort: 443
+            service:
+              name: argogrpc
+              port:
+                number: 443
           pathType: ImplementationSpecific
         - backend:
-            serviceName: argocd-server
-            servicePort: 443
+            service:
+              name: argocd-server
+              port:
+                number: 443
           pathType: ImplementationSpecific
     tls:
     - hosts:
