@@ -216,6 +216,8 @@ jobs:
           path: ${{ env.RELEASE_NOTES }}
 
       - name: Push changes to release branch
+        env:
+            GITHUB_TOKEN: ${{ secrets.ARGOBOT_PERSONAL_TOKEN }}
         run: |
           set -ue
           git push origin ${TARGET_BRANCH}
