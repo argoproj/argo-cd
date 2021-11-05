@@ -1534,6 +1534,10 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 
 func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
 	repo := q.Repo
+	// per Type doc, "git" should be assumed if empty or absent
+	if repo.Type == "" {
+		repo.Type = "git"
+	}
 	checks := map[string]func() error{
 		"git": func() error {
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
@@ -1551,15 +1555,11 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			}
 		},
 	}
-	if check, ok := checks[repo.Type]; ok {
-		return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, check()
+	check := checks[repo.Type]
+	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
+	err := check()
+	if err != nil {
+		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
 	}
-	var err error
-	for _, check := range checks {
-		err = check()
-		if err == nil {
-			return &apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil
-		}
-	}
-	return &apiclient.TestRepositoryResponse{VerifiedRepository: false}, err
+	return apiResp, nil
 }
