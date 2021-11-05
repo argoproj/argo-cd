@@ -60,8 +60,8 @@ containers:
       name: var-files
     - mountPath: /home/argocd/cmp-server/plugins
       name: plugins
-    - mountPath: /home/argocd/cmp-server/config/plugin-config.yaml # Plugin config file can either be volume mapped or baked into image
-      subPath: plugin-config.yaml
+    - mountPath: /home/argocd/cmp-server/config/plugin.yaml # Plugin config file can either be volume mapped or baked into image
+      subPath: plugin.yaml
       name: config-files
     - mountPath: /tmp
       name: tmp
@@ -74,7 +74,7 @@ containers:
 ### Plugin configuration file
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a well-known location 
-(e.g. /home/argocd/cmp-server/config/plugin-config.yaml). Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
+(e.g. /home/argocd/cmp-server/config/plugin.yaml). Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
 but various options can be used on how to place this file, including: 
 - Baking the file into the plugin image as part of docker build
 - Volume mapping the file through a configmap.
@@ -119,7 +119,7 @@ For example:
 
 ```yaml
 data:
-  plugin-config.yaml: |
+  plugin.yaml: |
     apiVersion: argoproj.io/v1alpha1
     kind: ConfigManagementPlugin
     metadata:
