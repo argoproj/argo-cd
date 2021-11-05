@@ -10,22 +10,22 @@ FROM ubuntu:21.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
-    ca-certificates \
-    curl \
-    openssh-server \
-    nginx \
-    fcgiwrap \
-    git \
-    git-lfs \
-    gpg \
-    make \
-    wget \
-    gcc \
-    sudo \
-    tini \
-    zip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        ca-certificates \
+        curl \
+        openssh-server \
+        nginx \
+        fcgiwrap \
+        git \
+        git-lfs \
+        gpg \
+        make \
+        wget \
+        gcc \
+        sudo \
+        tini \
+        zip && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
