@@ -15,7 +15,7 @@ RUN apt-get install -y -f \
 #Disable the SUID sandbox so that chrome can launch without being in a privileged container
 RUN dpkg-divert --add --rename --divert /opt/google/chrome/google-chrome.real /opt/google/chrome/google-chrome \
     && echo "#! /bin/bash\nexec /opt/google/chrome/google-chrome.real --no-sandbox --disable-setuid-sandbox \"\$@\"" > /opt/google/chrome/google-chrome \
-    && chmod 755 /opt/google/chrome/google-chrome
+     && chmod 755 /opt/google/chrome/google-chrome
 
 WORKDIR /usr/src/app
 COPY package*.json ./
