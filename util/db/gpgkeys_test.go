@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/gpg/testdata"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -37,7 +37,7 @@ var gpgCMSingleGoodPubkey = v1.ConfigMap{
 		},
 	},
 	Data: map[string]string{
-		"4AEE18F83AFDEB23": test.MustLoadFileToString("../gpg/testdata/github.asc"),
+		"4AEE18F83AFDEB23": testdata.Github_asc,
 	},
 }
 
@@ -51,8 +51,8 @@ var gpgCMMultiGoodPubkey = v1.ConfigMap{
 		},
 	},
 	Data: map[string]string{
-		"FDC79815400D88A9": test.MustLoadFileToString("../gpg/testdata/johndoe.asc"),
-		"F7842A5CEAA9C0B1": test.MustLoadFileToString("../gpg/testdata/janedoe.asc"),
+		"FDC79815400D88A9": testdata.Johndoe_asc,
+		"F7842A5CEAA9C0B1": testdata.Janedoe_asc,
 	},
 }
 
@@ -66,7 +66,7 @@ var gpgCMSingleKeyWrongId = v1.ConfigMap{
 		},
 	},
 	Data: map[string]string{
-		"5AEE18F83AFDEB23": test.MustLoadFileToString("../gpg/testdata/github.asc"),
+		"5AEE18F83AFDEB23": testdata.Github_asc,
 	},
 }
 
@@ -80,7 +80,7 @@ var gpgCMGarbagePubkey = v1.ConfigMap{
 		},
 	},
 	Data: map[string]string{
-		"4AEE18F83AFDEB23": test.MustLoadFileToString("../gpg/testdata/garbage.asc"),
+		"4AEE18F83AFDEB23": testdata.Garbage_asc,
 	},
 }
 
@@ -94,7 +94,7 @@ var gpgCMGarbageCMKey = v1.ConfigMap{
 		},
 	},
 	Data: map[string]string{
-		"wullerosekaufe": test.MustLoadFileToString("../gpg/testdata/github.asc"),
+		"wullerosekaufe": testdata.Github_asc,
 	},
 }
 
@@ -117,7 +117,7 @@ func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
 func Test_ValidatePGPKey(t *testing.T) {
 	// Good case - single PGP key
 	{
-		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/github.asc"))
+		key, err := validatePGPKey(testdata.Github_asc)
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, "4AEE18F83AFDEB23", key.KeyID)
@@ -127,13 +127,13 @@ func Test_ValidatePGPKey(t *testing.T) {
 	}
 	// Bad case - Garbage
 	{
-		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/garbage.asc"))
+		key, err := validatePGPKey(testdata.Garbage_asc)
 		assert.Error(t, err)
 		assert.Nil(t, key)
 	}
 	// Bad case - more than one key
 	{
-		key, err := validatePGPKey(test.MustLoadFileToString("../gpg/testdata/multi.asc"))
+		key, err := validatePGPKey(testdata.Multi_asc)
 		assert.Error(t, err)
 		assert.Nil(t, key)
 	}
@@ -210,7 +210,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be added
-		new, skipped, err := db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/github.asc"))
+		new, skipped, err := db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 1)
 		assert.Len(t, skipped, 0)
@@ -219,7 +219,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 1)
 
 		// Same key should not be added, but skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/github.asc"))
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 1)
@@ -228,7 +228,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 1)
 
 		// New keys should be added
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/multi.asc"))
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 2)
 		assert.Len(t, skipped, 0)
@@ -237,7 +237,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 3)
 
 		// Same new keys should be skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/multi.asc"))
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 2)
@@ -246,7 +246,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 3)
 
 		// Garbage input should result in error
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), test.MustLoadFileToString("../gpg/testdata/garbage.asc"))
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Garbage_asc)
 		assert.Error(t, err)
 		assert.Nil(t, new)
 		assert.Nil(t, skipped)
