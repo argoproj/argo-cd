@@ -1403,7 +1403,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
 				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
 			},
-			currentTime:    timeWithHour(15, time.UTC),
+			currentTime:    timeWithHour(16, time.UTC),
 			matchingIndex:  1,
 			expectedLength: 1,
 		},
