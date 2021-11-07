@@ -1,0 +1,42 @@
+---
+# Source: apps/templates/helm.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sth1
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: sth
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    repoURL: 'https://github.com/pasha-codefresh/argocd-example-apps'
+    targetRevision: HEAD
+    path: apps
+    helm:
+      valueFiles:
+        - values.yaml
+---
+# Source: apps/templates/helm.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sth2
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: sth
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    repoURL: 'https://github.com/pasha-codefresh/argocd-example-apps'
+    targetRevision: HEAD
+    path: apps
+    helm:
+      valueFiles:
+        - values.yaml
