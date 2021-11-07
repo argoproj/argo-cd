@@ -303,5 +303,4 @@ func TestConstructBasedOnName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(apps))
 	assert.Equal(t, "test", apps[0].Name)
-
 }
