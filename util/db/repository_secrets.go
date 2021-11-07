@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -31,17 +32,45 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 		},
 	}
 
-	s.repositoryToSecret(repository, repositorySecret)
+	repositoryToSecret(repository, repositorySecret)
 
 	_, err := s.db.createSecret(ctx, repositorySecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
+			hasLabel, err := s.hasRepoTypeLabel(secName)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, err.Error())
+			}
+			if !hasLabel {
+				msg := fmt.Sprintf("secret %q doesn't have the proper %q label: please fix the secret or delete it", secName, common.LabelKeySecretType)
+				return nil, status.Errorf(codes.InvalidArgument, msg)
+			}
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
 		}
 		return nil, err
 	}
 
 	return repository, s.db.settingsMgr.ResyncInformers()
+}
+
+// hasRepoTypeLabel will verify if a secret with the given name exists. If so it will check if
+// the secret has the proper label argocd.argoproj.io/secret-type defined. Will return true if
+// the label is found and false otherwise. Will return false if no secret is found with the given
+// name.
+func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, error) {
+	noCache := make(map[string]*corev1.Secret)
+	sec, err := s.db.getSecret(secretName, noCache)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	_, ok := sec.GetLabels()[common.LabelKeySecretType]
+	if ok {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
@@ -104,7 +133,7 @@ func (s *secretsRepositoryBackend) UpdateRepository(ctx context.Context, reposit
 		return nil, err
 	}
 
-	s.repositoryToSecret(repository, repositorySecret)
+	repositoryToSecret(repository, repositorySecret)
 
 	_, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repositorySecret, metav1.UpdateOptions{})
 	if err != nil {
@@ -317,7 +346,7 @@ func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*a
 	return repository, nil
 }
 
-func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
+func repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
 	}

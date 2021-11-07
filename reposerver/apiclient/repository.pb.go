@@ -249,7 +249,7 @@ func (m *TestRepositoryRequest) GetRepo() *v1alpha1.Repository {
 	return nil
 }
 
-// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+// TestRepositoryResponse represents the TestRepository response
 type TestRepositoryResponse struct {
 	// Request to verify the signature when generating the manifests (only for Git repositories)
 	VerifiedRepository   bool     `protobuf:"varint,1,opt,name=verifiedRepository,proto3" json:"verifiedRepository,omitempty"`
