@@ -534,6 +534,28 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref common.Refe
 							Format:      "",
 						},
 					},
+					"impersonateUser": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImpersonateUser is the impersonation username to be used to deploy",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"impersonateGroups": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImpersonateGroups are the impersonation groups to be used to deploy",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

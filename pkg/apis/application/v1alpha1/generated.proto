@@ -131,6 +131,12 @@ message ApplicationDestination {
 
   // Name is an alternate way of specifying the target cluster by its symbolic name
   optional string name = 3;
+
+  // ImpersonateUser is the impersonation username to be used to deploy
+  optional string impersonateUser = 4;
+
+  // ImpersonateGroups are the impersonation groups to be used to deploy
+  repeated string impersonateGroups = 5;
 }
 
 // ApplicationList is list of Application resources

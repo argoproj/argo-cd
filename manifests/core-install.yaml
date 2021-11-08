@@ -432,6 +432,16 @@ spec:
                 description: Destination is a reference to the target Kubernetes server
                   and namespace
                 properties:
+                  impersonateGroups:
+                    description: ImpersonateGroups are the impersonation groups to
+                      be used to deploy
+                    items:
+                      type: string
+                    type: array
+                  impersonateUser:
+                    description: ImpersonateUser is the impersonation username to
+                      be used to deploy
+                    type: string
                   name:
                     description: Name is an alternate way of specifying the target
                       cluster by its symbolic name
@@ -1952,6 +1962,16 @@ spec:
                         description: Destination is a reference to the application's
                           destination used for comparison
                         properties:
+                          impersonateGroups:
+                            description: ImpersonateGroups are the impersonation groups
+                              to be used to deploy
+                            items:
+                              type: string
+                            type: array
+                          impersonateUser:
+                            description: ImpersonateUser is the impersonation username
+                              to be used to deploy
+                            type: string
                           name:
                             description: Name is an alternate way of specifying the
                               target cluster by its symbolic name
@@ -2330,6 +2350,16 @@ spec:
                   description: ApplicationDestination holds information about the
                     application's destination
                   properties:
+                    impersonateGroups:
+                      description: ImpersonateGroups are the impersonation groups
+                        to be used to deploy
+                      items:
+                        type: string
+                      type: array
+                    impersonateUser:
+                      description: ImpersonateUser is the impersonation username to
+                        be used to deploy
+                      type: string
                     name:
                       description: Name is an alternate way of specifying the target
                         cluster by its symbolic name

@@ -4794,6 +4794,17 @@
       "type": "object",
       "title": "ApplicationDestination holds information about the application's destination",
       "properties": {
+        "impersonateGroups": {
+          "type": "array",
+          "title": "ImpersonateGroups are the impersonation groups to be used to deploy",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impersonateUser": {
+          "type": "string",
+          "title": "ImpersonateUser is the impersonation username to be used to deploy"
+        },
         "name": {
           "type": "string",
           "title": "Name is an alternate way of specifying the target cluster by its symbolic name"

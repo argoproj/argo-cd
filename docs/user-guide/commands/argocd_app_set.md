@@ -12,6 +12,8 @@ argocd app set APPNAME [flags]
       --allow-empty                                Set allow zero live resources when sync is automated
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
+      --dest-impersonate-groups stringArray        Groups to be used to deploy in k8s
+      --dest-impersonate-user string               User name to be used to deploy in k8s
       --dest-name string                           K8s cluster Name (e.g. minikube)
       --dest-namespace string                      K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)

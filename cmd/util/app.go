@@ -34,6 +34,8 @@ type AppOptions struct {
 	destName                        string
 	destServer                      string
 	destNamespace                   string
+	destImpersonateUser             string
+	destImpersonateGroups           []string
 	Parameters                      []string
 	valuesFiles                     []string
 	values                          string
@@ -84,6 +86,8 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&opts.destImpersonateUser, "dest-impersonate-user", "", "User name to be used to deploy in k8s")
+	command.Flags().StringArrayVar(&opts.destImpersonateGroups, "dest-impersonate-groups", []string{}, "Groups to be used to deploy in k8s")
 	command.Flags().StringArrayVarP(&opts.Parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
@@ -194,6 +198,10 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
 			spec.Destination.Namespace = appOpts.destNamespace
+		case "dest-impersonate-user":
+			spec.Destination.ImpersonateUser = appOpts.destImpersonateUser
+		case "dest-impersonate-groups":
+			spec.Destination.ImpersonateGroups = appOpts.destImpersonateGroups
 		case "project":
 			spec.Project = appOpts.project
 		case "nameprefix":

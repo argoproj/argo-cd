@@ -407,6 +407,15 @@ export const ApplicationCreatePanel = (props: {
                                                         component={Text}
                                                     />
                                                 </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField
+                                                        qeId='application-create-field-impersonate-user'
+                                                        formApi={api}
+                                                        label='Impersonate User'
+                                                        field='spec.destination.impersonateUser'
+                                                        component={Text}
+                                                    />
+                                                </div>
                                             </div>
                                         );
 

@@ -530,6 +530,11 @@ type ApplicationDestination struct {
 	// Name is an alternate way of specifying the target cluster by its symbolic name
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
+	// ImpersonateUser is the impersonation username to be used to deploy
+	ImpersonateUser string `json:"impersonateUser,omitempty" protobuf:"bytes,4,opt,name=impersonateUser"`
+	// ImpersonateGroups are the impersonation groups to be used to deploy
+	ImpersonateGroups []string `json:"impersonateGroups,omitempty" protobuf:"bytes,5,opt,name=impersonateGroups"`
+
 	// nolint:govet
 	isServerInferred bool `json:"-"`
 }
