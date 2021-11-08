@@ -1,6 +1,9 @@
 # Plugins
 
-Argo CD allows integrating more config management tools using config management plugins. Following changes are required to configure new plugin:
+Argo CD allows integrating more config management tools using config management plugins. 
+
+## Configure plugins via Argo CD configmap
+Following changes are required to configure new plugin:
 
 * Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or using custom image (see [custom_tools](../operator-manual/custom_tools.md)).
 * Register a new plugin in `argocd-cm` ConfigMap:
@@ -33,6 +36,103 @@ More config management plugin examples are available in [argocd-example-apps](ht
     `lockRepo` to `true` so that your plugin will have exclusive access to the
     repository at the time it is executed. Otherwise, two applications synced
     at the same time may result in a race condition and sync failure.
+
+## Configure plugin via sidecar
+
+As an effort to provide first-class support for additional plugin tools, we have enhanced the feature where an operator 
+can configure additional plugin tool via sidecar to repo-server. Following changes are required to configure new plugin:
+
+### Register plugin sidecar
+
+To install a plugin, simply patch argocd-repo-server to run config management plugin container as a sidecar, with argocd-cmp-server as it’s entrypoint. 
+You can use either off-the-shelf or custom built plugin image as sidecar image. For example:
+
+```yaml
+containers:
+- name: cmp
+  command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
+  image: busybox # This can be off-the-shelf or custom built image
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+  volumeMounts:
+    - mountPath: /var/run/argocd
+      name: var-files
+    - mountPath: /home/argocd/cmp-server/plugins
+      name: plugins
+    - mountPath: /home/argocd/cmp-server/config/plugin.yaml # Plugin config file can either be volume mapped or baked into image
+      subPath: plugin.yaml
+      name: config-files
+    - mountPath: /tmp
+      name: tmp
+``` 
+ 
+ * Make sure that entrypoint is Argo CD lightweight cmp server i.e. argocd-cmp-server
+ * Make sure that sidecar container is running as user 999
+ * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/`. It can either be volume mapped via configmap or baked into image
+
+### Plugin configuration file
+
+Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a well-known location 
+(e.g. /home/argocd/cmp-server/config/plugin.yaml). Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
+but various options can be used on how to place this file, including: 
+- Baking the file into the plugin image as part of docker build
+- Volume mapping the file through a configmap.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-plugin
+spec:
+  version: v1.0
+  generate:
+    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+  discover:
+    fileName: "./subdir/s*.yaml"
+  allowConcurrency: true
+  lockRepo: false
+```
+
+Note that, while the ConfigManagementPlugin looks like a Kubernetes object, it is not actually a custom resource. 
+It only follows kubernetes-style spec conventions.
+
+The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+
+The `discover.fileName` is used as matching pattern to determine whether application repository is supported by the plugin or not. 
+
+```yaml
+  discover:
+    find:
+      command: [sh, -c, find . -name env.yaml]
+```
+If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether application repository is supported by the plugin or not. The `find` command should returns
+non-error response in case when application source type is supported. 
+
+If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set `lockRepo` to `true` so that your plugin will have exclusive access to the
+repository at the time it is executed. Otherwise, two applications synced at the same time may result in a race condition and sync failure.
+
+### Volume map plugin configuration file via configmap
+
+If you are volume mapping the plugin configuration file through a configmap. Register a new plugin configuration file in `argocd-cmp-cm` configmap. 
+For example:
+
+```yaml
+data:
+  plugin.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: cmp-plugin
+    spec:
+      version: v1.0
+      generate:
+        command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+      discover:
+        fileName: "./subdir/s*.yaml"
+      allowConcurrency: true
+      lockRepo: false
+```
 
 ## Environment
 

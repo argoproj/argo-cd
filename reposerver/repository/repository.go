@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -56,6 +57,7 @@ import (
 
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
+	pluginNotSupported             = "config management plugin not supported."
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
@@ -746,7 +748,21 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+		} else {
+			var cmpManifests []string
+			var cmpErr error
+			cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+			if cmpErr == nil {
+				return &apiclient.ManifestResponse{
+					Manifests:  cmpManifests,
+					SourceType: string(appSourceType),
+				}, nil
+			} else {
+				err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
+			}
+		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
 		if directory = q.ApplicationSource.Directory; directory == nil {
@@ -1107,7 +1123,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
 	if plugin == nil {
-		return nil, fmt.Errorf("config management plugin with name '%s' is not supported", q.ApplicationSource.Plugin.Name)
+		return nil, fmt.Errorf(pluginNotSupported+" plugin name %s", q.ApplicationSource.Plugin.Name)
 	}
 
 	// Plugins can request to lock the complete repository when they need to
@@ -1123,6 +1139,25 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
+	env, err := getPluginEnvs(envVars, q, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	if plugin.Init != nil {
+		_, err := runCommand(*plugin.Init, appPath, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out, err := runCommand(plugin.Generate, appPath, env)
+	if err != nil {
+		return nil, err
+	}
+	return kube.SplitYAML([]byte(out))
+}
+
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
@@ -1144,23 +1179,61 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		parsedEnv[i] = parsedVar
 	}
 
-	pluginEnv := q.ApplicationSource.Plugin.Env
-	for i, j := range pluginEnv {
-		pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
-	}
-	env = append(env, pluginEnv.Environ()...)
-
-	if plugin.Init != nil {
-		_, err := runCommand(*plugin.Init, appPath, env)
-		if err != nil {
-			return nil, err
+	if q.ApplicationSource.Plugin != nil {
+		pluginEnv := q.ApplicationSource.Plugin.Env
+		for i, j := range pluginEnv {
+			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
 		}
+		env = append(env, pluginEnv.Environ()...)
 	}
-	out, err := runCommand(plugin.Generate, appPath, env)
+	return env, nil
+}
+func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+	// detect config management plugin server (sidecar)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(appPath)
 	if err != nil {
 		return nil, err
 	}
-	return kube.SplitYAML([]byte(out))
+	defer io.Close(conn)
+
+	config, err := cmpClient.GetPluginConfig(context.Background(), &pluginclient.ConfigRequest{})
+	if err != nil {
+		return nil, err
+	}
+	if config.LockRepo {
+		manifestGenerateLock.Lock(repoPath)
+		defer manifestGenerateLock.Unlock(repoPath)
+	} else if !config.AllowConcurrency {
+		manifestGenerateLock.Lock(appPath)
+		defer manifestGenerateLock.Unlock(appPath)
+	}
+
+	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
+	env, err := getPluginEnvs(envVars, q, creds)
+	if err != nil {
+		return nil, err
+	}
+	cmpManifests, err := cmpClient.GenerateManifest(context.Background(), &pluginclient.ManifestRequest{
+		AppPath:  appPath,
+		RepoPath: repoPath,
+		Env:      toEnvEntry(env),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cmpManifests.Manifests, nil
+}
+
+func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
+	envEntry := make([]*pluginclient.EnvEntry, 0)
+	for _, env := range envVars {
+		pair := strings.Split(env, "=")
+		if len(pair) != 2 {
+			continue
+		}
+		envEntry = append(envEntry, &pluginclient.EnvEntry{Name: pair[0], Value: pair[1]})
+	}
+	return envEntry
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {

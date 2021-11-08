@@ -2861,6 +2861,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-cmp-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-cmp-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-gpg-keys-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-gpg-keys-cm
@@ -3299,6 +3307,19 @@ spec:
           name: tmp
         - mountPath: /helm-working-dir
           name: helm-working-dir
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+      initContainers:
+      - command:
+        - cp
+        - -n
+        - /usr/local/bin/argocd
+        - /var/run/argocd/argocd-cmp-server
+        image: quay.io/argoproj/argocd:latest
+        name: copyutil
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -3326,6 +3347,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - emptyDir: {}
+        name: var-files
+      - emptyDir: {}
+        name: plugins
+      - configMap:
+          name: argocd-cmp-cm
+        name: config-files
 ---
 apiVersion: apps/v1
 kind: Deployment
