@@ -23,7 +23,9 @@ git push origin <yourbranch>
 
 First, make sure the failing build step succeeds on your machine. Remember the containerized build toolchain is available, too.
 
-If the build is failing at the `Ensuring Gopkg.lock is up-to-date` step, you need to update the dependencies before you push your commits. Run `make dep-ensure` and `make dep` and commit the changes to `Gopkg.lock` to your branch.
+If the build is failing at the `Ensure Go modules synchronicity` step, you need to first download all Go dependent modules locally via `go mod download` and then run `go mod tidy` to make sure the dependent Go modules are tidied up. Finally commit and push your changes to `go.mod` and `go.sum` to your branch.
+
+If the build is failing at the `Build & cache Go code`, you need to make sure `make build-local` runs successfully on your local machine.
 
 ### Why does the codegen step fail?
 
