@@ -37,7 +37,7 @@
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.4.3",
     "git-url-parse": "^11.1.2",
-    "html-webpack-plugin": "^3.2.0",
+    "html-webpack-plugin": "^4.0.0",
     "jest-junit": "^6.4.0",
     "js-yaml": "^3.13.1",
     "json-merge-patch": "^0.2.3",
