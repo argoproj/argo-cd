@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
 - argocd-cm.yaml
-- argocd-cmp-cm.yaml
 - argocd-cmd-params-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
