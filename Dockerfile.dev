@@ -3,7 +3,7 @@
 ####################################################################################################
 FROM argocd-base
 COPY argocd /usr/local/bin/
-COPY argocd-darwin-amd64 /usr/local/bin/
+COPY argocd-darwin-$(go env GOARCH) /usr/local/bin/
 COPY argocd-windows-amd64.exe /usr/local/bin/
 
 USER root
