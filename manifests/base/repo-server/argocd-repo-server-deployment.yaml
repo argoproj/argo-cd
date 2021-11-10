@@ -186,9 +186,6 @@ spec:
           name: var-files
         - emptyDir: {}
           name: plugins
-        - name: config-files
-          configMap:
-            name: argocd-cmp-cm
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

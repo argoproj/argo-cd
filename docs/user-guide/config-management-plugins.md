@@ -62,21 +62,26 @@ containers:
       name: plugins
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml # Plugin config file can either be volume mapped or baked into image
       subPath: plugin.yaml
-      name: config-files
+      name: cmp-plugin
     - mountPath: /tmp
       name: tmp
+  volumes:
+    - configMap:
+        name: cmp-plugin
+      name: cmp-plugin
 ``` 
  
- * Make sure that entrypoint is Argo CD lightweight cmp server i.e. argocd-cmp-server
+ * Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
  * Make sure that sidecar container is running as user 999
- * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/`. It can either be volume mapped via configmap or baked into image
+ * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/pluging.yaml`. It can either be volume mapped via configmap or baked into image
 
 ### Plugin configuration file
 
-Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a well-known location 
-(e.g. /home/argocd/cmp-server/config/plugin.yaml). Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
-but various options can be used on how to place this file, including: 
-- Baking the file into the plugin image as part of docker build
+Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at `/home/argocd/cmp-server/config/plugin.yaml`. 
+Argo CD is agnostic to the mechanism of how the configuration file would be placed, 
+but various options can be used on how to place this file, including:
+
+- Baking the file into the plugin image as part of docker build.
 - Volume mapping the file through a configmap.
 
 ```yaml
@@ -114,10 +119,14 @@ repository at the time it is executed. Otherwise, two applications synced at the
 
 ### Volume map plugin configuration file via configmap
 
-If you are volume mapping the plugin configuration file through a configmap. Register a new plugin configuration file in `argocd-cmp-cm` configmap. 
-For example:
+The `plugin.yaml` file can be delivered using a configmap. Create a Kubernetes config map and with the `plugin.yaml`
+key that holds the plugin configuration file:
 
 ```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-plugin
 data:
   plugin.yaml: |
     apiVersion: argoproj.io/v1alpha1
