@@ -9,9 +9,11 @@ argocd app manifests APPNAME [flags]
 ### Options
 
 ```
-  -h, --help              help for manifests
-      --revision string   Show manifests at a specific revision
-      --source string     Source of manifests. One of: live|git (default "git")
+  -h, --help                     help for manifests
+      --local string             Show local manifests
+      --local-repo-root string   Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --revision string          Show manifests at a specific revision
+      --source string            Source of manifests. One of: live|git (default "git")
 ```
 
 ### Options inherited from parent commands

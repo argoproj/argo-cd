@@ -1951,8 +1951,10 @@ func printOperationResult(opState *argoappv1.OperationState) {
 // NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command
 func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		source   string
-		revision string
+		source        string
+		revision      string
+		local         string
+		localRepoRoot string
 	)
 	var command = &cobra.Command{
 		Use:   "manifests APPNAME",
@@ -1963,7 +1965,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			appName := args[0]
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+			clientset := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			ctx := context.Background()
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
@@ -1972,7 +1975,22 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			var unstructureds []*unstructured.Unstructured
 			switch source {
 			case "git":
-				if revision != "" {
+				if local != "" {
+					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					errors.CheckError(err)
+
+					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
+					defer argoio.Close(settingsConn)
+					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					errors.CheckError(err)
+
+					clusterConn, clusterIf := clientset.NewClusterClientOrDie()
+					defer argoio.Close(clusterConn)
+					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					errors.CheckError(err)
+
+					unstructureds = getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+				} else if revision != "" {
 					q := applicationpkg.ApplicationManifestQuery{
 						Name:     &appName,
 						Revision: revision,
@@ -2007,6 +2025,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	command.Flags().StringVar(&local, "local", "", "Show local manifests")
+	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	return command
 }
 
