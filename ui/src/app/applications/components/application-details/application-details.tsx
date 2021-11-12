@@ -94,6 +94,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeContainer.key;
     }
 
+    private appRefresh(app: appModels.Application) {
+        services.applications.get(app.metadata.name, 'normal');
+        AppUtils.setAppRefreshing(app);
+        this.appChanged.next(app);
+    }
+
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
         this.setState({slidingPanelPage: 0});
@@ -164,6 +170,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
+                            const refreshApp = () => {
+                                this.appRefresh(application);
+                            };
 
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
@@ -291,7 +300,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <Filters
+                                                    pref={pref}
+                                                    tree={tree}
+                                                    resourceNodes={this.state.filteredGraph}
+                                                    onSetFilter={setFilter}
+                                                    onClearFilter={clearFilter}
+                                                    onOrphanedChanged={refreshApp}>
                                                     <div className='graph-options-panel'>
                                                         <a
                                                             className={`group-nodes-button`}
@@ -359,7 +374,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
-                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                        <Filters
+                                                            pref={pref}
+                                                            tree={tree}
+                                                            resourceNodes={filteredRes}
+                                                            onSetFilter={setFilter}
+                                                            onClearFilter={clearFilter}
+                                                            onOrphanedChanged={refreshApp}>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
                                                                     page={this.state.page}
@@ -560,9 +581,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {
-                        services.applications.get(app.metadata.name, 'normal');
-                        AppUtils.setAppRefreshing(app);
-                        this.appChanged.next(app);
+                        this.appRefresh(app);
                     }
                 }
             }

@@ -21,6 +21,7 @@ export const Filters = (props: {
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
+    onOrphanedChanged: () => void;
 }) => {
     const ctx = React.useContext(Context);
 
@@ -29,6 +30,10 @@ export const Filters = (props: {
     const onClearFilter = () => {
         setLoading(true);
         props.onClearFilter();
+    };
+
+    const onOrphanedChanged = () => {
+        props.onOrphanedChanged();
     };
 
     const shown = pref.hideFilters;
@@ -160,6 +165,7 @@ export const Filters = (props: {
                         onChange={val => {
                             ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                            onOrphanedChanged();
                         }}
                     />{' '}
                     <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
