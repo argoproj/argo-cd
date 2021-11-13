@@ -115,12 +115,6 @@ COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 RUN make argocd-all
 
-ARG BUILD_ALL_CLIS=true
-RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make BIN_NAME=argocd-darwin-$(go env GOARCH) GOOS=darwin GOARCH=$(go env GOARCH) argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows GOARCH=amd64 argocd-all \
-    ; fi
-
 ####################################################################################################
 # Final image
 ####################################################################################################
