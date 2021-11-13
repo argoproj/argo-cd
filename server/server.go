@@ -15,6 +15,7 @@ import (
 	"strings"
 	gosync "sync"
 	"time"
+	go_runtime "runtime"
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
@@ -813,24 +814,8 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	if err != nil {
 		log.Warnf("argocd not in PATH")
 	} else {
-		mux.HandleFunc(base+"/argocd-linux-amd64", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc(base+"/argocd-linux-"+go_runtime.GOARCH, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, linuxPath)
-		})
-	}
-	darwinPath, err := exec.LookPath("argocd-darwin-amd64")
-	if err != nil {
-		log.Warnf("argocd-darwin-amd64 not in PATH")
-	} else {
-		mux.HandleFunc(base+"/argocd-darwin-amd64", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, darwinPath)
-		})
-	}
-	windowsPath, err := exec.LookPath("argocd-windows-amd64.exe")
-	if err != nil {
-		log.Warnf("argocd-windows-amd64.exe not in PATH")
-	} else {
-		mux.HandleFunc(base+"/argocd-windows-amd64.exe", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, windowsPath)
 		})
 	}
 }
