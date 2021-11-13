@@ -12,10 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	go_runtime "runtime"
 	"strings"
 	gosync "sync"
 	"time"
-	go_runtime "runtime"
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
