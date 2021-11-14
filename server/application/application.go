@@ -1051,8 +1051,6 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
-	// if 
-
 	source := events.ObjectSource{
 		DesiredManifest: desiredState.CompiledManifest,
 		ActualManifest:  actualState.Manifest,
@@ -1210,21 +1208,29 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
 		
-		censoredManifest, err := replaceSecretValues(u)
-		if err != nil {
-			return nil, fmt.Errorf("failed to replace secret values on compiled manifest: %w", err)
-		}
+		// censoredManifest, err := replaceSecretValues(u)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to replace secret values on compiled manifest: %w", err)
+		// }
 
-		data, err := json.Marshal(censoredManifest)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal censored manifest: %w", err)
-		}
+		// data, err := json.Marshal(censoredManifest)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to marshal censored manifest: %w", err)
+		// }
 
-		m.CompiledManifest = string(data)
+		// m.CompiledManifest = string(data)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
 			ns == rs.Namespace {
+
+			if rs.Kind == "Secret" {
+				m.RawManifest, err = getCensoredRawManifest(m.RawManifest) 
+				if err != nil {
+					return nil, fmt.Errorf("failed to censore raw manifest: %w", err)
+				}
+			}
+
 			return m, nil
 		}
 	}
@@ -1232,6 +1238,37 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 	// no desired state for resource
 	// it's probably deleted from git
 	return &apiclient.Manifest{}, nil
+}
+
+func getCensoredRawManifest(manifest string) (string, error) {
+	var secret v1.Secret
+	var m []byte
+	var err error
+
+	if (true) {  //if yaml
+		yaml.Unmarshal([]byte(manifest), &secret)
+		secret.Data = map[string][]uint8{}
+		secret.StringData = map[string]string{}
+		m, err = yaml.Marshal(secret)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if false {  //if json
+		err := json.Unmarshal([]byte(manifest), &secret)
+		if err != nil {
+			return "", err
+		}
+		secret.Data = map[string][]uint8{}
+		secret.StringData = map[string]string{}
+		m, err = json.Marshal(secret)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return string(m), nil
 }
 
 func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
