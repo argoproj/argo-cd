@@ -195,6 +195,11 @@ spec:
       - backend:
           serviceName: argocd-server
           servicePort: https
+  tls:
+  - hosts:
+    - argocd.example.com
+    secretName: argocd-secret # do not change, this is provided by Argo CD
+  
 ```
 
 The above rule terminates TLS at the Argo CD API server, which detects the protocol being used,
