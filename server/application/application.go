@@ -1217,7 +1217,7 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 
 		data, err := json.Marshal(censoredManifest)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal densored manifest: %w", err)
+			return nil, fmt.Errorf("failed to marshal censored manifest: %w", err)
 		}
 
 		m.CompiledManifest = string(data)
