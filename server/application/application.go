@@ -1051,6 +1051,8 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
+	// if 
+
 	source := events.ObjectSource{
 		DesiredManifest: desiredState.CompiledManifest,
 		ActualManifest:  actualState.Manifest,
@@ -1207,6 +1209,18 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 		}
 
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
+		
+		censoredManifest, err := replaceSecretValues(u)
+		if err != nil {
+			return nil, fmt.Errorf("failed to replace secret values on compiled manifest: %w", err)
+		}
+
+		data, err := json.Marshal(censoredManifest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal densored manifest: %w", err)
+		}
+
+		m.CompiledManifest = string(data)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
