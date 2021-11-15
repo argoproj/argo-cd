@@ -1207,28 +1207,13 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 		}
 
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
-		
-		// censoredManifest, err := replaceSecretValues(u)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to replace secret values on compiled manifest: %w", err)
-		// }
-
-		// data, err := json.Marshal(censoredManifest)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to marshal censored manifest: %w", err)
-		// }
-
-		// m.CompiledManifest = string(data)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
 			ns == rs.Namespace {
 
-			if rs.Kind == "Secret" {
-				m.RawManifest, err = getCensoredRawManifest(m.RawManifest) 
-				if err != nil {
-					return nil, fmt.Errorf("failed to censore raw manifest: %w", err)
-				}
+			if rs.Kind == kube.SecretKind && rs.Version == "v1" {
+				m.RawManifest = m.CompiledManifest
 			}
 
 			return m, nil
