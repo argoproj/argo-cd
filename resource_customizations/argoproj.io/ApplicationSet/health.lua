@@ -17,6 +17,6 @@ if obj.status ~= nil then
   end
 end
 
-hs.status = "Unknown"
+hs.status = "Healthy"
 hs.message = ""
 return hs

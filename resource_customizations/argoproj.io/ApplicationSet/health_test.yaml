@@ -7,3 +7,7 @@ tests:
       status: Degraded
       message: "found less than two generators, Merge requires two or more"
     inputPath: testdata/errorApplicationSetWithStatusMessage.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/noStatusApplicationSet.yaml
