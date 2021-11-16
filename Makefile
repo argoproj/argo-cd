@@ -221,7 +221,7 @@ cli: test-tools-image
 	$(call run-in-test-client, GOOS=${HOST_OS} GOARCH=${HOST_ARCH} make cli-local)
 
 .PHONY: cli-local
-cli-local: clean-debug
+cli-local: clean-debug build-ui-local
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
@@ -341,6 +341,10 @@ lint-ui: test-tools-image
 .PHONY: lint-ui-local
 lint-ui-local:
 	cd ui && yarn lint
+
+.PHONY: build-ui-local
+build-ui-local:
+	cd ui && yarn build
 
 # Build all Go code
 .PHONY: build
