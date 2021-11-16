@@ -145,7 +145,7 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
-		repoURL:   rawRepoURL,
+		repoURL:   NormalizeGitURL(rawRepoURL),
 		root:      root,
 		creds:     creds,
 		insecure:  insecure,
