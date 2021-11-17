@@ -256,8 +256,18 @@ export interface ApplicationSpec {
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
+    ignoreDifferences?: ResourceIgnoreDifferences[];
     info?: Info[];
     revisionHistoryLimit?: number;
+}
+
+export interface ResourceIgnoreDifferences {
+    group: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    jsonPointers: string[];
+    jqPathExpressions: string[];
 }
 
 /**
@@ -442,6 +452,8 @@ export interface AuthSettings {
     uiCssURL: string;
     uiBannerContent: string;
     uiBannerURL: string;
+    uiBannerPermanent: boolean;
+    uiBannerPosition: string;
 }
 
 export interface UserInfo {
@@ -684,6 +696,7 @@ export interface SyncWindow {
     namespaces: string[];
     clusters: string[];
     manualSync: boolean;
+    timeZone: string;
 }
 
 export interface Project {

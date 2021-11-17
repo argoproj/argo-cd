@@ -77,6 +77,7 @@ argocd account get --account <username>
 
 * Set user password
 ```bash
+# if you are managing users as the admin user, <current-user-password> should be the current admin password.
 argocd account update-password \
   --account <name> \
   --current-password <current-user-password> \

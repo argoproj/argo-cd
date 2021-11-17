@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -20,6 +21,7 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
+	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
 type MetricsServer struct {
@@ -48,6 +50,8 @@ const (
 // https://prometheus.io/docs/practices/naming/
 var (
 	descAppDefaultLabels = []string{"namespace", "name", "project"}
+
+	descAppLabels *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -121,7 +125,7 @@ var (
 	redisRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
+			Help: "Number of redis requests executed during application reconciliation.",
 		},
 		[]string{"hostname", "initiator", "failed"},
 	)
@@ -137,19 +141,31 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
+
+	if len(appLabels) > 0 {
+		normalizedLabels := normalizeLabels("label", appLabels)
+		descAppLabels = prometheus.NewDesc(
+			"argocd_app_labels",
+			"Argo Application labels converted to Prometheus labels",
+			append(descAppDefaultLabels, normalizedLabels...),
+			nil,
+		)
+	}
+
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter)
+	registry := NewAppRegistry(appLister, appFilter, appLabels)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
 		// contains process, golang and controller workqueues metrics
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
+	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
@@ -178,6 +194,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		hostname:                hostname,
 		cron:                    cron.New(),
 	}, nil
+}
+
+func normalizeLabels(prefix string, appLabels []string) []string {
+	results := []string{}
+	for _, label := range appLabels {
+		//prometheus labels don't accept dash in their name
+		curr := strings.ReplaceAll(label, "-", "_")
+		result := fmt.Sprintf("%s_%s", prefix, curr)
+		results = append(results, result)
+	}
+	return results
 }
 
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
@@ -272,25 +299,30 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 type appCollector struct {
 	store     applister.ApplicationLister
 	appFilter func(obj interface{}) bool
+	appLabels []string
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) prometheus.Collector {
 	return &appCollector{
 		store:     appLister,
 		appFilter: appFilter,
+		appLabels: appLabels,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels))
 	return registry
 }
 
 // Describe implements the prometheus.Collector interface
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
+	if len(c.appLabels) > 0 {
+		ch <- descAppLabels
+	}
 	ch <- descAppInfo
 	ch <- descAppSyncStatusCode
 	ch <- descAppHealthStatus
@@ -305,7 +337,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	for _, app := range apps {
 		if c.appFilter(app) {
-			collectApps(ch, app)
+			c.collectApps(ch, app)
 		}
 	}
 }
@@ -317,7 +349,7 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
+func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
@@ -343,6 +375,15 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	}
 
 	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+
+	if len(c.appLabels) > 0 {
+		labelValues := []string{}
+		for _, desiredLabel := range c.appLabels {
+			value := app.GetLabels()[desiredLabel]
+			labelValues = append(labelValues, value)
+		}
+		addGauge(descAppLabels, 1, labelValues...)
+	}
 
 	// Deprecated controller metrics
 	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {

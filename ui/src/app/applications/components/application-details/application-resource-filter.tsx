@@ -1,8 +1,11 @@
 import * as React from 'react';
+import {Checkbox} from 'argo-ui';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {AppDetailsPreferences} from '../../../shared/services';
+import {AppDetailsPreferences, services} from '../../../shared/services';
+import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {resources} from '../resources';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
@@ -21,6 +24,7 @@ export interface ApplicationResourceFiltersProps {
 
 export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProps) => {
     const {pref, tree, onSetFilter} = props;
+    const ctx = React.useContext(Context);
 
     const onClearFilter = () => {
         setLoading(true);
@@ -57,11 +61,19 @@ export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProp
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: Map<string, string>; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
-            <Filter label={p.label} selected={selectedFor(p.prefix)} setSelected={v => setFilters(p.prefix, v)} options={p.options} field={!!p.field} radio={!!p.radio} />
+            <Filter
+                label={p.label}
+                selected={selectedFor(p.prefix)}
+                setSelected={v => setFilters(p.prefix, v)}
+                options={p.options}
+                abbreviations={p.abbreviations}
+                field={!!p.field}
+                radio={!!p.radio}
+            />
         );
     };
 
@@ -95,7 +107,7 @@ export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProp
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
+            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), abbreviations: resources, field: true})}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',
@@ -113,6 +125,19 @@ export const ApplicationResourceFilters = (props: ApplicationResourceFiltersProp
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
+            {(tree.orphanedNodes || []).length > 0 && (
+                <div className='filter'>
+                    <Checkbox
+                        checked={!!pref.orphanedResources}
+                        id='orphanedFilter'
+                        onChange={val => {
+                            ctx.navigation.goto('.', {orphaned: val}, {replace: true});
+                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                        }}
+                    />{' '}
+                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                </div>
+            )}
         </FiltersGroup>
     );
 };

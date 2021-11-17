@@ -82,6 +82,10 @@ type ArgoCDSettings struct {
 	UiBannerContent string `json:"uiBannerContent,omitempty"`
 	// URL for UI Banner
 	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	// Make Banner permanent and not closeable
+	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
+	// Position of UI Banner
+	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 }
@@ -273,6 +277,8 @@ const (
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
+	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
+	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
@@ -299,6 +305,10 @@ const (
 	settingUiBannerContentKey = "ui.bannercontent"
 	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
 	settingUiBannerURLKey = "ui.bannerurl"
+	// settingUiBannerPermanentKey designates the key for whether the banner is permanent and not closeable
+	settingUiBannerPermanentKey = "ui.bannerpermanent"
+	// settingUiBannerPositionKey designates the key for the position of the banner
+	settingUiBannerPositionKey = "ui.bannerposition"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -325,10 +335,11 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex             *sync.Mutex
-	initContextCancel func()
-	reposCache        []Repository
-	repoCredsCache    []RepositoryCredentials
+	mutex                 *sync.Mutex
+	initContextCancel     func()
+	reposCache            []Repository
+	repoCredsCache        []RepositoryCredentials
+	reposOrClusterChanged func()
 }
 
 type incompleteSettingsError struct {
@@ -355,6 +366,12 @@ type ArgoCDDiffOptions struct {
 
 func (e *incompleteSettingsError) Error() string {
 	return e.message
+}
+
+func (mgr *SettingsManager) onRepoOrClusterChanged() {
+	if mgr.reposOrClusterChanged != nil {
+		go mgr.reposOrClusterChanged()
+	}
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
@@ -517,6 +534,14 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil
+}
+
+func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
@@ -958,6 +983,13 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			mgr.invalidateCache()
+			mgr.onRepoOrClusterChanged()
+		},
+		AddFunc: func(obj interface{}) {
+			mgr.onRepoOrClusterChanged()
+		},
+		DeleteFunc: func(obj interface{}) {
+			mgr.onRepoOrClusterChanged()
 		},
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
@@ -1038,6 +1070,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
+	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
+	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
@@ -1300,14 +1334,25 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 
 }
 
+type SettingsManagerOpts func(mgs *SettingsManager)
+
+func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
+	return func(mgr *SettingsManager) {
+		mgr.reposOrClusterChanged = handler
+	}
+}
+
 // NewSettingsManager generates a new SettingsManager pointer and returns it
-func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
+func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,
 		namespace: namespace,
 		mutex:     &sync.Mutex{},
+	}
+	for i := range opts {
+		opts[i](mgr)
 	}
 
 	return mgr

@@ -59,6 +59,10 @@ func UnmarshalLocalFile(path string, obj interface{}) error {
 	return err
 }
 
+func Unmarshal(data []byte, obj interface{}) error {
+	return unmarshalObject(data, obj)
+}
+
 // UnmarshalRemoteFile retrieves JSON or YAML through a GET request.
 // The caller is responsible for checking error return values.
 func UnmarshalRemoteFile(url string, obj interface{}) error {

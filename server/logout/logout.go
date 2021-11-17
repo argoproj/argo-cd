@@ -20,12 +20,13 @@ import (
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, namespace string) *Handler {
+func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
 	return &Handler{
 		appClientset: appClientset,
 		namespace:    namespace,
 		settingsMgr:  settingsMrg,
 		rootPath:     rootPath,
+		baseHRef:     baseHRef,
 		verifyToken:  sessionMgr.VerifyToken,
 		revokeToken:  sessionMgr.RevokeToken,
 	}
@@ -38,6 +39,7 @@ type Handler struct {
 	rootPath     string
 	verifyToken  func(tokenString string) (jwt.Claims, string, error)
 	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
+	baseHRef     string
 }
 
 var (
@@ -85,11 +87,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(cookie.Name, common.AuthCookieName) {
 			continue
 		}
+
 		argocdCookie := http.Cookie{
 			Name:  cookie.Name,
 			Value: "",
 		}
-		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
+
+		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/"))
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 

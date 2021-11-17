@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,7 +72,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -1545,8 +1547,8 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	assert.Error(t, err)
-	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {

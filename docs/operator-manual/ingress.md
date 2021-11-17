@@ -79,7 +79,7 @@ Since Contour Ingress supports only a single protocol per Ingress object, define
 
 Internal HTTP/HTTPS Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-http
@@ -102,7 +102,7 @@ spec:
 
 Internal gRPC Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-grpc
@@ -124,7 +124,7 @@ spec:
 
 External HTTPS SSO Callback Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-external-callback-http
@@ -178,7 +178,7 @@ In order to expose the Argo CD API server with a single ingress rule and hostnam
 must be used to passthrough TLS connections and terminate TLS at the Argo CD API server.
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-ingress
@@ -244,7 +244,7 @@ way would be to define two Ingress objects. One for HTTP/HTTPS, and the other fo
 
 HTTP/HTTPS Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-http-ingress
@@ -269,7 +269,7 @@ spec:
 
 gRPC Ingress:
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-server-grpc-ingress
@@ -379,7 +379,7 @@ spec:
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
 
 ```yaml
-  apiVersion: networking.k8s.io/v1 # Use extensions/v1beta1 for Kubernetes 1.18 and older
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     annotations:
@@ -407,6 +407,162 @@ Once we create this service, we can configure the Ingress to conditionally route
     - hosts:
       - argocd.argoproj.io
 ```
+
+## Google Cloud load balancers with Kubernetes Ingress
+
+You can make use of the integration of GKE with Google Cloud to deploy Load Balancers using just Kubernetes objects.
+
+For this we will need these five objects:
+- A Service
+- A BackendConfig
+- A FrontendConfig
+- A secret with your SSL certificate
+- An Ingress for GKE
+
+If you need detail for all the options available for these Google integrations, you can check the [Google docs on configuring Ingress features](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features) 
+
+### Disable internal TLS
+
+First, to avoid internal redirection loops from HTTP to HTTPS, the API server should be run with TLS disabled. Edit the argocd-server deployment to add the --insecure flag to the argocd-server command. For this you can edit your resource live with `kubectl -n argocd edit deployments.apps argocd-server` or use a kustomize patch before installing Argo CD.
+
+The container command should change from:
+```yaml
+      containers:
+      - command:
+        - argocd-server
+        - --staticassets
+        - /shared/app
+```
+
+To:
+```yaml
+      containers:
+      - command:
+        - argocd-server
+        - --insecure
+        - --staticassets
+        - /shared/app
+```
+
+### Creating a service
+
+Now you need an externally accesible service. This is practically the same as the internal service Argo CD has, but as a NodePort and with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+
+The service:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-external
+  namespace: argocd
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"ports": {"http":"argocd-backend-config"}}'
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: argocd-server
+```
+
+### Creating a BackendConfig
+
+See that previous service referencing a backend config called `argo-backend-config`? So lets deploy it using this yaml:
+
+```yaml
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: argocd-backend-config
+  namespace: argocd
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 5
+    healthyThreshold: 1
+    unhealthyThreshold: 2
+    type: HTTP
+    requestPath: /healthz
+    port: 8080
+```
+
+It uses the same health check as the pods.
+
+### Creating a FrontendConfig
+
+Now we can deploy a frontend config with an HTTP to HTTPS redirect:
+
+```yaml
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: argocd-frontend-config
+  namespace: argocd
+spec:
+  redirectToHttps:
+    enabled: true
+```
+
+---
+!!! note
+
+    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).  
+
+---
+
+### Creating a certificate secret
+
+We need now to create a secret with the SSL certificate we want in our load balancer. It's as easy as executing this command on the path you have your certificate keys stored:
+
+```
+kubectl -n argocd create secret tls secret-yourdomain-com \
+  --cert cert-file.crt --key key-file.key
+``` 
+
+### Creating an Ingress
+
+And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
+spec:
+  tls:
+    - secretName: secret-yourdomain-com
+  rules:
+    - host: argocd.yourdomain.com
+      http:
+        paths:
+          - path: /*
+            backend:
+              serviceName: argocd-server-external
+              servicePort: http
+```
+---
+!!! warning "Deprecation Warning"
+
+    Note that, according to this [deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122), if you're using Kubernetes 1.22+, instead of `networking.k8s.io/v1beta1`, you should use `networking.k8s.io/v1`.
+
+---
+
+As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
+
+You can get that IP address describing the Ingress object like this:
+
+```
+kubectl -n argocd describe ingresses argocd | grep Address
+```
+
+Once the DNS change is propagated, you're ready to use Argo with your Google Cloud Load Balancer
 
 ## Authenticating through multiple layers of authenticating reverse proxies
 

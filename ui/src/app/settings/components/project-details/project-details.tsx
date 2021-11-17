@@ -180,7 +180,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='project-details'>
                                                 <Tabs
                                                     selectedTabKey={params.get('tab') || 'summary'}
-                                                    onTabSelected={tab => ctx.navigation.goto('.', {tab})}
+                                                    onTabSelected={tab => ctx.navigation.goto('.', {tab}, {replace: true})}
                                                     navCenter={true}
                                                     tabs={[
                                                         {
@@ -210,14 +210,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     isShown={params.get('editRole') !== null || params.get('newRole') !== null}
                                                     onClose={() => {
                                                         this.setState({token: ''});
-                                                        ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                        ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                     }}
                                                     header={
                                                         <div>
                                                             <button
                                                                 onClick={() => {
                                                                     this.setState({token: ''});
-                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                                 }}
                                                                 className='argo-button argo-button--base-o'>
                                                                 Cancel
@@ -236,7 +236,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                             try {
                                                                                 this.projectRoleFormApi.setValue('deleteRole', true);
                                                                                 this.projectRoleFormApi.submitForm(null);
-                                                                                ctx.navigation.goto('.', {editRole: null});
+                                                                                ctx.navigation.goto('.', {editRole: null}, {replace: true});
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete project role' e={e} />,
@@ -271,7 +271,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             submit={async (projRoleParams: ProjectRoleParams) => {
                                                                 try {
                                                                     await services.projects.updateRole(projRoleParams);
-                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                                     this.loader.reload();
                                                                 } catch (e) {
                                                                     ctx.notifications.show({
@@ -293,14 +293,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
                                                     onClose={() => {
                                                         this.setState({token: ''});
-                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                     }}
                                                     header={
                                                         <div>
                                                             <button
                                                                 onClick={() => {
                                                                     this.setState({token: ''});
-                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                                 }}
                                                                 className='argo-button argo-button--base-o'>
                                                                 Cancel
@@ -327,7 +327,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                                 this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
                                                                                 this.projectSyncWindowsFormApi.setValue('deleteWindow', true);
                                                                                 this.projectSyncWindowsFormApi.submitForm(null);
-                                                                                ctx.navigation.goto('.', {editWindow: null});
+                                                                                ctx.navigation.goto('.', {editWindow: null}, {replace: true});
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete sync window' e={e} />,
@@ -360,7 +360,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
                                                                 try {
                                                                     await services.projects.updateWindow(projectSyncWindowsParams);
-                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null});
+                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                                     this.loader.reload();
                                                                 } catch (e) {
                                                                     ctx.notifications.show({
@@ -387,8 +387,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async deleteJWTToken(params: DeleteJWTTokenParams, notifications: NotificationsApi) {
         try {
             await services.projects.deleteJWTToken(params);
-            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
-            this.loader.setData([project, globalProjects]);
+            const info = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData(info);
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
@@ -400,8 +400,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async createJWTToken(params: CreateJWTTokenParams, notifications: NotificationsApi) {
         try {
             const jwtToken = await services.projects.createJWTToken(params);
-            const {project, globalProjects} = await services.projects.getDetailed(this.props.match.params.name);
-            this.loader.setData([project, globalProjects]);
+            const info = await services.projects.getDetailed(this.props.match.params.name);
+            this.loader.setData(info);
             this.setState({token: jwtToken.token});
         } catch (e) {
             notifications.show({
@@ -503,7 +503,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 </span>
                                             </div>
                                             <div className='columns small-2'>
-                                                {window.kind}:{window.schedule}:{window.duration}
+                                                {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
                                             </div>
                                             <div className='columns small-2'>{(window.applications || ['-']).join(',')}</div>
                                             <div className='columns small-2'>{(window.namespaces || ['-']).join(',')}</div>
@@ -647,12 +647,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
-                                        <div className='columns small-8'>Namespace</div>
+                                        <div className='columns small-3'>Name</div>
+                                        <div className='columns small-5'>Namespace</div>
                                     </div>
                                     {proj.spec.destinations.map((dest, i) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-4'>{dest.server}</div>
-                                            <div className='columns small-8'>{dest.namespace}</div>
+                                            <div className='columns small-3'>{dest.name}</div>
+                                            <div className='columns small-5'>{dest.namespace}</div>
                                         </div>
                                     ))}
                                 </React.Fragment>
@@ -667,7 +669,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
-                                        <div className='columns small-8'>Namespace</div>
+                                        <div className='columns small-3'>Name</div>
+                                        <div className='columns small-5'>Namespace</div>
                                     </div>
                                     {(formApi.values.spec.destinations || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
@@ -679,7 +682,15 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                 />
                                             </div>
-                                            <div className='columns small-8'>
+                                            <div className='columns small-3'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.destinations[${i}].name`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                                />
+                                            </div>
+                                            <div className='columns small-5'>
                                                 <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
                                             </div>
                                             <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
@@ -692,7 +703,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 'spec.destinations',
                                                 (formApi.values.spec.destinations || []).concat({
                                                     server: '*',
-                                                    namespace: '*'
+                                                    namespace: '*',
+                                                    name: '*'
                                                 })
                                             )
                                         }>

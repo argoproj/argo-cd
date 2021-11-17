@@ -106,6 +106,7 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, "").Health.Status

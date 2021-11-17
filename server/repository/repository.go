@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -118,6 +120,15 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, err
 	}
 
+	// getRepo does not return an error for unconfigured repositories, so we are checking here
+	exists, err := s.db.RepositoryExists(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+	}
+
 	// For backwards compatibility, if we have no repo type set assume a default
 	rType := repo.Type
 	if rType == "" {
@@ -135,6 +146,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		Proxy:                      repo.Proxy,
+		Project:                    repo.Project,
 	}
 
 	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
@@ -166,6 +178,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				EnableLFS: repo.EnableLFS,
 				EnableOCI: repo.EnableOCI,
 				Proxy:     repo.Proxy,
+				Project:   repo.Project,
 			})
 		}
 	}
@@ -341,7 +354,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
+			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
 	if err != nil {
@@ -408,15 +421,11 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 // ValidateAccess checks whether access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
 		return nil, err
 	}
 
-	repo = &appsv1.Repository{
+	repo := &appsv1.Repository{
 		Repo:                       q.Repo,
 		Type:                       q.Type,
 		Name:                       q.Name,
@@ -434,12 +443,10 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Proxy:                      q.Proxy,
 	}
 
-	var repoCreds *appsv1.RepoCreds
-
 	// If repo does not have credentials, check if there are credentials stored
 	// for it and if yes, copy them
 	if !repo.HasCredentials() {
-		repoCreds, err = s.db.GetRepositoryCredentials(ctx, q.Repo)
+		repoCreds, err := s.db.GetRepositoryCredentials(ctx, q.Repo)
 		if err != nil {
 			return nil, err
 		}
@@ -447,7 +454,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
-	err = s.testRepo(ctx, repo)
+	err := s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}

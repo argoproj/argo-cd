@@ -16,7 +16,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.x
+          python-version: 3.9.8
       - name: build
         run: |
           pip install -r docs/requirements.txt

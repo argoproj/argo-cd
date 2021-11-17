@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/assets"
@@ -14,7 +15,9 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	"github.com/casbin/casbin/util"
 	jwt "github.com/dgrijalva/jwt-go/v4"
+	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,9 +34,22 @@ const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
 	ConfigMapScopesKey        = "scopes"
+	ConfigMapMatchModeKey     = "policy.matchMode"
+	GlobMatchMode             = "glob"
+	RegexMatchMode            = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
+
+// CasbinEnforcer represents methods that must be implemented by a Casbin enforces
+type CasbinEnforcer interface {
+	EnableLog(bool)
+	Enforce(rvals ...interface{}) bool
+	LoadPolicy() error
+	EnableEnforce(bool)
+	AddFunction(name string, function func(args ...interface{}) (interface{}, error))
+	GetGroupingPolicy() [][]string
+}
 
 // Enforcer is a wrapper around an Casbin enforcer that:
 // * is backed by a kubernetes config map
@@ -42,60 +58,165 @@ const (
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	*casbin.Enforcer
+	lock               sync.Mutex
+	enforcerCache      *gocache.Cache
 	adapter            *argocdAdapter
+	enableLog          bool
+	enabled            bool
 	clientset          kubernetes.Interface
 	namespace          string
 	configmap          string
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
 	defaultRole        string
+	matchMode          string
+}
+
+// cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
+type cachedEnforcer struct {
+	enforcer CasbinEnforcer
+	policy   string
+}
+
+func (e *Enforcer) invalidateCache(actions ...func()) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	for _, action := range actions {
+		action()
+	}
+	e.enforcerCache.Flush()
+}
+
+func (e *Enforcer) getCabinEnforcer(project string, policy string) CasbinEnforcer {
+	res, err := e.tryGetCabinEnforcer(project, policy)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+// tryGetCabinEnforcer returns the cached enforcer for the given optional project and project policy.
+func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnforcer, error) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	var cached *cachedEnforcer
+	val, ok := e.enforcerCache.Get(project)
+	if ok {
+		if c, ok := val.(*cachedEnforcer); ok && c.policy == policy {
+			cached = c
+		}
+	}
+	if cached != nil {
+		return cached.enforcer, nil
+	}
+	var err error
+	var enforcer CasbinEnforcer
+	if policy != "" {
+		if enforcer, err = newEnforcerSafe(e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
+			// fallback to default policy if project policy is invalid
+			log.Errorf("Failed to load project '%s' policy", project)
+			enforcer, err = newEnforcerSafe(e.model, e.adapter)
+		}
+	} else {
+		enforcer, err = newEnforcerSafe(e.model, e.adapter)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	matchFunc := globMatchFunc
+	if e.matchMode == RegexMatchMode {
+		matchFunc = util.RegexMatchFunc
+	}
+	enforcer.AddFunction("globOrRegexMatch", matchFunc)
+	enforcer.EnableLog(e.enableLog)
+	enforcer.EnableEnforce(e.enabled)
+	e.enforcerCache.SetDefault(project, &cachedEnforcer{enforcer: enforcer, policy: policy})
+	return enforcer, nil
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
-func newEnforcerSafe(params ...interface{}) (e *casbin.Enforcer, err error) {
-	enfs, err := casbin.NewEnforcerSafe(params...)
+func newEnforcerSafe(params ...interface{}) (e CasbinEnforcer, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+			e = nil
+		}
+	}()
+	enfs := casbin.NewCachedEnforcer(params...)
 	if err != nil {
 		return nil, err
 	}
-	enfs.AddFunction("globMatch", func(args ...interface{}) (interface{}, error) {
-		if len(args) < 2 {
-			return false, nil
-		}
-		val, ok := args[0].(string)
-		if !ok {
-			return false, nil
-		}
-
-		pattern, ok := args[1].(string)
-		if !ok {
-			return false, nil
-		}
-
-		return glob.Match(pattern, val), nil
-	})
+	// Default glob match mode
+	enfs.AddFunction("globOrRegexMatch", globMatchFunc)
 	return enfs, nil
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
 	builtInModel := newBuiltInModel()
-	enf, err := newEnforcerSafe(builtInModel, adapter)
-	if err != nil {
-		panic(err)
-	}
-	enf.EnableLog(false)
 	return &Enforcer{
-		Enforcer:           enf,
+		enforcerCache:      gocache.New(time.Hour, time.Hour),
 		adapter:            adapter,
 		clientset:          clientset,
 		namespace:          namespace,
 		configmap:          configmap,
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
+		enabled:            true,
 	}
+}
+
+// EnableLog executes casbin.Enforcer functionality.
+func (e *Enforcer) EnableLog(s bool) {
+	e.invalidateCache(func() {
+		e.enableLog = s
+	})
+}
+
+// EnableEnforce executes casbin.Enforcer functionality and will invalidate cache if required.
+func (e *Enforcer) EnableEnforce(s bool) {
+	e.invalidateCache(func() {
+		e.enabled = s
+	})
+}
+
+// LoadPolicy executes casbin.Enforcer functionality and will invalidate cache if required.
+func (e *Enforcer) LoadPolicy() error {
+	_, err := e.tryGetCabinEnforcer("", "")
+	return err
+}
+
+// Glob match func
+func globMatchFunc(args ...interface{}) (interface{}, error) {
+	if len(args) < 2 {
+		return false, nil
+	}
+	val, ok := args[0].(string)
+	if !ok {
+		return false, nil
+	}
+
+	pattern, ok := args[1].(string)
+	if !ok {
+		return false, nil
+	}
+
+	return glob.Match(pattern, val), nil
+}
+
+// SetMatchMode set match mode on runtime, glob match or regex match
+func (e *Enforcer) SetMatchMode(mode string) {
+	e.invalidateCache(func() {
+		if mode == RegexMatchMode {
+			e.matchMode = RegexMatchMode
+		} else {
+			e.matchMode = GlobMatchMode
+		}
+	})
 }
 
 // SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
@@ -114,7 +235,7 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...interface{}) bool {
-	return enforce(e.Enforcer, e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	return enforce(e.getCabinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -149,36 +270,25 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 // EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) bool {
-	enf := e.CreateEnforcerWithRuntimePolicy(policy)
+func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...interface{}) bool {
+	enf := e.CreateEnforcerWithRuntimePolicy(project, policy)
 	return e.EnforceWithCustomEnforcer(enf, rvals...)
 }
 
 // CreateEnforcerWithRuntimePolicy creates an enforcer with a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) CreateEnforcerWithRuntimePolicy(policy string) *casbin.Enforcer {
-	var enf *casbin.Enforcer
-	var err error
-	if policy == "" {
-		enf = e.Enforcer
-	} else {
-		enf, err = newEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
-		if err != nil {
-			log.Warnf("invalid runtime policy: %s", policy)
-			enf = e.Enforcer
-		}
-	}
-	return enf
+func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string) CasbinEnforcer {
+	return e.getCabinEnforcer(project, policy)
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
-func (e *Enforcer) EnforceWithCustomEnforcer(enf *casbin.Enforcer, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...interface{}) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
 		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
@@ -207,13 +317,17 @@ func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc Claims
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies
 func (e *Enforcer) SetBuiltinPolicy(policy string) error {
-	e.adapter.builtinPolicy = policy
+	e.invalidateCache(func() {
+		e.adapter.builtinPolicy = policy
+	})
 	return e.LoadPolicy()
 }
 
 // SetUserPolicy sets a user policy, augmenting the built-in policy
 func (e *Enforcer) SetUserPolicy(policy string) error {
-	e.adapter.userDefinedPolicy = policy
+	e.invalidateCache(func() {
+		e.adapter.userDefinedPolicy = policy
+	})
 	return e.LoadPolicy()
 }
 
@@ -281,6 +395,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""

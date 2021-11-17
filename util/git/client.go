@@ -24,9 +24,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
@@ -94,6 +97,9 @@ type nativeGitClient struct {
 
 var (
 	maxAttemptsCount = 1
+	maxRetryDuration time.Duration
+	retryDuration    time.Duration
+	factor           int64
 )
 
 func init() {
@@ -104,6 +110,11 @@ func init() {
 			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
 	}
+
+	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
+	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
+	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -262,6 +273,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		return auth, nil
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
+		if auth.Username == "" {
+			auth.Username = "x-access-token"
+		}
 		return &auth, nil
 	case GitHubAppCreds:
 		token, err := creds.getAccessToken()
@@ -467,8 +481,19 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		if res, err = m.lsRemote(revision); err == nil {
+		res, err = m.lsRemote(revision)
+		if err == nil {
 			return
+		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
+			// Formula: timeToWait = duration * factor^retry_number
+			// Note that timeToWait should equal to duration for the first retry attempt.
+			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			if maxRetryDuration > 0 {
+				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
+			}
+			time.Sleep(time.Duration(timeToWait))
 		}
 	}
 	return

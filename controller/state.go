@@ -64,6 +64,7 @@ type AppStateManager interface {
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
+// comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         *v1alpha1.HealthStatus
@@ -98,6 +99,7 @@ type appStateManager struct {
 	cache                *appstatecache.Cache
 	namespace            string
 	statusRefreshTimeout time.Duration
+	resourceTracking     argo.ResourceTracking
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -148,12 +150,13 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,9 +174,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Plugins:           tools,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err
@@ -455,14 +459,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(liveObjByKey, k)
 		}
 	}
 
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
@@ -496,6 +502,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+
+	for i := range reconciliation.Target {
+		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
+	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
@@ -681,6 +691,7 @@ func NewAppStateManager(
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
+	resourceTracking argo.ResourceTracking,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:       liveStateCache,
@@ -694,5 +705,6 @@ func NewAppStateManager(
 		projInformer:         projInformer,
 		metricsServer:        metricsServer,
 		statusRefreshTimeout: statusRefreshTimeout,
+		resourceTracking:     resourceTracking,
 	}
 }

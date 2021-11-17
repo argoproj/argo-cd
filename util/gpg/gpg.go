@@ -41,7 +41,7 @@ var verificationAdditionalFields = regexp.MustCompile(`^gpg:\s+issuer\s.+$`)
 // Regular expression to match the signature status of a commit signature verification
 var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
 
-// This is the recipe for automatic key generation, passed to gpg --batch --generate-key
+// This is the recipe for automatic key generation, passed to gpg --batch --gen-key
 // for initializing our keyring with a trustdb. A new private key will be generated each
 // time argocd-server starts, so it's transient and is not used for anything except for
 // creating the trustdb in a specific argocd-repo-server pod.
@@ -263,7 +263,7 @@ func InitializeGnuPG() error {
 
 	defer f.Close()
 
-	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--generate-key", f.Name())
+	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--gen-key", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)

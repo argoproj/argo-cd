@@ -18,6 +18,7 @@ export interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;
@@ -53,7 +54,7 @@ export const CheckboxRow = (props: {
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='checkbox__item__label'>{props.option.label}</div>
+            <div className='filter__item__label'>{props.option.label}</div>
             <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
@@ -145,6 +146,7 @@ export const Filter = (props: FilterProps) => {
                             <Autocomplete
                                 placeholder={props.label}
                                 items={labels}
+                                abbreviations={props.abbreviations}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {

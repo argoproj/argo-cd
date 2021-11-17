@@ -37,19 +37,20 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string) (Helm, error) {
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, passCredentials bool) (Helm, error) {
 	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
 		return nil, err
 	}
 	cmd.IsLocal = isLocal
 
-	return &helm{repos: repos, cmd: *cmd}, nil
+	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials}, nil
 }
 
 type helm struct {
-	cmd   Cmd
-	repos []HelmRepository
+	cmd             Cmd
+	repos           []HelmRepository
+	passCredentials bool
 }
 
 var _ Helm = &helm{}
@@ -79,10 +80,10 @@ func (h *helm) DependencyBuild() error {
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
 			if repo.Creds.Username != "" && repo.Creds.Password != "" {
-				_, err := h.cmd.Login(repo.Repo, repo.Creds)
+				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {
-					_, _ = h.cmd.Logout(repo.Repo, repo.Creds)
+					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
 				}()
 
 				if err != nil {
@@ -90,7 +91,7 @@ func (h *helm) DependencyBuild() error {
 				}
 			}
 		} else {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 
 			if err != nil {
 				return err
@@ -171,8 +172,9 @@ func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
+		p := append([]string(nil), prefixes...)
 		for j, v := range i {
-			flatVals(v, output, append(prefixes[0:len(prefixes)-1], fmt.Sprintf("%s[%v]", prefixes[len(prefixes)-1], j))...)
+			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)
 		}
 	default:
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)

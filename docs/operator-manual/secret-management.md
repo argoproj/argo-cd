@@ -4,7 +4,7 @@ Argo CD is un-opinionated about how secrets are managed. There's many ways to do
 
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 * [GoDaddy Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets)
-* [External Secrets Operator](https://github.com/ContainerSolutions/externalsecret-operator)
+* [External Secrets Operator](https://github.com/external-secrets/external-secrets)
 * [Hashicorp Vault](https://www.vaultproject.io)
 * [Banzai Cloud Bank-Vaults](https://github.com/banzaicloud/bank-vaults)
 * [Helm Secrets](https://github.com/jkroepke/helm-secrets)

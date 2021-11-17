@@ -12,10 +12,10 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 
 	argoapi "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -43,21 +43,20 @@ func testAPI(clientOpts *argoapi.ClientOptions) error {
 	return err
 }
 
-func addKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.Flags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.Flags(), kflags)
-	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-}
-
 // InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
 func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *int) *cobra.Command {
 	ctx, cancel := context.WithCancel(context.Background())
-	clientConfig := addKubectlFlagsToCmd(cmd)
+	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+	clientConfig := cli.AddKubectlFlagsToSet(flags)
+	// copy k8s persistent flags into argocd command flags
+	flags.VisitAll(func(flag *pflag.Flag) {
+		// skip Kubernetes server flags since argocd has it's own server flag
+		if flag.Name == "server" {
+			return
+		}
+		cmd.Flags().AddFlag(flag)
+	})
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		startInProcessAPI := clientOpts.Core
 		if !startInProcessAPI {

@@ -1,5 +1,28 @@
 # Helm
 
+## Declarative
+
+You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubeseal
+```
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
@@ -10,8 +33,8 @@ flag. The flag can be repeated to support multiple values files:
 argocd app set helm-guestbook --values values-production.yaml
 ```
 !!! note
-    Values files must be in the same git repository as the Helm chart. The files can be in a different 
-    location in which case it can be accessed using a relative path relative to the root directory of 
+    Values files must be in the same git repository as the Helm chart. The files can be in a different
+    location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
 ## Helm Parameters
@@ -193,4 +216,25 @@ spec:
   source:
     helm:
       version: v3
+```
+
+## Helm `--pass-credentials`
+
+Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
+prevents sending repository credentials to download charts that are being served
+from a different domain than the repository.
+
+If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-pass-credentials
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      passCredentials: true
 ```

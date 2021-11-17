@@ -169,6 +169,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     preventOverflow: {
                                                                                         enabled: true
                                                                                     },
+                                                                                    hide: {
+                                                                                        enabled: false
+                                                                                    },
                                                                                     flip: {
                                                                                         enabled: false
                                                                                     }
@@ -196,7 +199,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'});
+                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
                                                                             }
                                                                         },
                                                                         {
@@ -408,7 +411,7 @@ const labelForSortMode = {
     topLevelResource: 'Top Level Resource'
 };
 
-const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
 function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';

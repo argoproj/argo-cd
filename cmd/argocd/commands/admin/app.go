@@ -10,6 +10,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
@@ -88,9 +90,12 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
-
+			if len(apps) > 1 {
+				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+			}
+			app := apps[0]
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -350,7 +355,7 @@ func reconcileApplications(
 		return true
 	}, func(r *http.Request) error {
 		return nil
-	})
+	}, []string{})
 
 	if err != nil {
 		return nil, err
@@ -366,7 +371,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking())
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -408,5 +413,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil)
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil, argo.NewResourceTracking())
 }

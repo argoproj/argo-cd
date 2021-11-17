@@ -200,6 +200,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if a.context.helmPassCredentials {
+		args = append(args, "--helm-pass-credentials")
+	}
 	return args
 }
 
@@ -271,6 +274,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 	if a.context.force {
 		args = append(args, "--force")
+	}
+
+	if a.context.replace {
+		args = append(args, "--replace")
 	}
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
