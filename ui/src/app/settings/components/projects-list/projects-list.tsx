@@ -17,7 +17,6 @@ export class ProjectsList extends React.Component {
                 {ctx => (
                     <Page
                         title='Projects'
-<<<<<<< HEAD
                         breadcrumbs={[{title: 'Settings', path: '/settings'}, {title: 'Projects'}]}
                         actionMenu={[
                             {
@@ -27,13 +26,6 @@ export class ProjectsList extends React.Component {
                             }
                         ]}>
                         <div className='projects' style={{padding: '0 80px'}}>
-=======
-                        toolbar={{
-                            breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]}
-                        }}>
-                        <div className='projects argo-container'>
->>>>>>> master
                             <DataLoader load={() => services.projects.list()}>
                                 {projects =>
                                     (projects.length > 0 && (

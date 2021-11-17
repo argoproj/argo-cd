@@ -68,11 +68,8 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
-<<<<<<< HEAD
     hideSidebar: boolean;
-=======
     position: string;
->>>>>>> master
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
