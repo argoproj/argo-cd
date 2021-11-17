@@ -168,10 +168,16 @@ func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
 func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 	switch i := input.(type) {
 	case map[string]interface{}:
+		if len(i) == 0 {
+			output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", "")
+		}
 		for k, v := range i {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
+		if len(i) == 0 {
+			output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", "")
+		}
 		p := append([]string(nil), prefixes...)
 		for j, v := range i {
 			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)
