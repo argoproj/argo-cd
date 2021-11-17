@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
+	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
@@ -34,6 +35,8 @@ func main() {
 		command = appcontroller.NewCommand()
 	case "argocd-repo-server":
 		command = reposerver.NewCommand()
+	case "argocd-cmp-server":
+		command = cmpserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
 	default:

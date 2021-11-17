@@ -424,7 +424,7 @@ func retrieveScopedClusters(name string, db db.ArgoDB, ctx context.Context) []*a
 	return clusters
 }
 
-//GetAppProject returns a project from an application
+// GetAppProjectWithScopedResources returns a project from an application with scoped resources
 func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
