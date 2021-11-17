@@ -4,13 +4,11 @@ export const ARGO_FAILED_COLOR = '#E96D76';
 export const ARGO_RUNNING_COLOR = '#0DADEA';
 export const ARGO_GRAY4_COLOR = '#CCD6DD';
 export const ARGO_TERMINATING_COLOR = '#DE303D';
-<<<<<<< HEAD
+
 export const SILVER_LINING = '#30303d';
 export const SIDEBAR_COLOR = SILVER_LINING;
 export const SLATE = '#191826';
-=======
 export const ARGO_SUSPENDED_COLOR = '#766f94';
->>>>>>> master
 
 export const COLORS = {
     connection_status: {
