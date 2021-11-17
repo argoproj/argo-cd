@@ -411,7 +411,7 @@ const labelForSortMode = {
     topLevelResource: 'Top Level Resource'
 };
 
-const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
 function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';
