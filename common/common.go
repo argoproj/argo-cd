@@ -54,6 +54,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
+	// Default path to cmp server plugin socket file
+	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
+	// Default path to cmp server plugin configuration file
+	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	PluginConfigFileName = "plugin.yaml"
 )
 
 // Argo CD application related constants
@@ -183,6 +189,8 @@ const (
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
+	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
+	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
 )
 
 const (
@@ -207,5 +215,14 @@ func GetGnuPGHomePath() string {
 		return DefaultGnuPgHomePath
 	} else {
 		return gnuPgHome
+	}
+}
+
+// GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
+func GetPluginSockFilePath() string {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
 	}
 }

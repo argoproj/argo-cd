@@ -85,15 +85,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
 			}
 
-			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-
-			if isTerminal && !skipConfirmation {
-				message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
-				if !cli.AskToProceed(message) {
-					os.Exit(1)
-				}
-			}
-
 			overrides := clientcmd.ConfigOverrides{
 				Context: *clstContext,
 			}
@@ -124,6 +115,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				if clusterOpts.ServiceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
 				} else {
+					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+
+					if isTerminal && !skipConfirmation {
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
+						if !cli.AskToProceed(message) {
+							os.Exit(1)
+						}
+					}
 					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
 				}
 				errors.CheckError(err)
