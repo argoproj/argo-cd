@@ -8,6 +8,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.4.1-0.20211103220110-c7bab2eeca22
+	github.com/argoproj/notifications-engine v0.3.0 // indirect
 	github.com/argoproj/pkg v0.9.1
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.2
@@ -87,6 +88,9 @@ require (
 )
 
 replace (
+	// https://github.com/golang/go/issues/33546#issuecomment-519656923
+	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0

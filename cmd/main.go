@@ -10,6 +10,7 @@ import (
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
+	notification "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
@@ -39,6 +40,8 @@ func main() {
 		command = cmpserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
+	case "argocd-notification":
+		command = notification.NewCommand()
 	default:
 		command = cli.NewCommand()
 	}
