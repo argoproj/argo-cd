@@ -360,7 +360,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
-	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase, PodName: pod.Name, PodNamespace: pod.Namespace}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})

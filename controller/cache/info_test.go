@@ -227,6 +227,8 @@ func TestGetPodInfo(t *testing.T) {
 	assert.Equal(t, []string{"bar"}, info.Images)
 	assert.Equal(t, &PodInfo{
 		NodeName:         "minikube",
+		PodName:          "helm-guestbook-pod",
+		PodNamespace:     "default",
 		ResourceRequests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("128Mi")},
 	}, info.PodInfo)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)

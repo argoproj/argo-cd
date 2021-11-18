@@ -1278,6 +1278,9 @@ func TestGetAppHosts(t *testing.T) {
 		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
 		ResourcesInfo: []argoappv1.HostResourceInfo{{
 			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		},
+		AppResourcesInfo: []argoappv1.AppResourceInfo{{
+			Name: "", CpuRequested: 1000, MemoryRequested: 0, CpuUsage: "METRICS_NOT_AVAILABLE", MemoryUsage: "METRICS_NOT_AVAILABLE", CpuUsagePercentage: "N/A", MemoryUsagePercentage: "N/A"},
 		}}}, hosts)
 }
 

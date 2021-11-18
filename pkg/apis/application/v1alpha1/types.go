@@ -1055,6 +1055,17 @@ type ResourceNetworkingInfo struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
+// This holds the pod information
+type AppResourceInfo struct {
+	Name                  string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	CpuRequested          int64  `json:"cpuRequested,omitempty" protobuf:"bytes,2,name=cpuRequested"`
+	MemoryRequested       int64  `json:"memoryRequested,omitempty" protobuf:"bytes,3,name=memoryRequested"`
+	CpuUsage              string `json:"cpuUsage,omitempty" protobuf:"bytes,4,name=cpuUsage"`
+	MemoryUsage           string `json:"memoryUsage,omitempty" protobuf:"bytes,5,name=memoryUsage"`
+	CpuUsagePercentage    string `json:"cpuUsagePercentage,omitempty" protobuf:"bytes,6,name=cpuUsagePercentage"`
+	MemoryUsagePercentage string `json:"memoryUsagePercentage,omitempty" protobuf:"bytes,7,name=cpuUsagePercentage"`
+}
+
 // TODO: describe this type
 type HostResourceInfo struct {
 	ResourceName         v1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
@@ -1067,9 +1078,10 @@ type HostResourceInfo struct {
 // TODO: describe purpose of this type
 // TODO: describe members of this type
 type HostInfo struct {
-	Name          string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
-	SystemInfo    v1.NodeSystemInfo  `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	Name             string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	ResourcesInfo    []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
+	SystemInfo       v1.NodeSystemInfo  `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	AppResourcesInfo []AppResourceInfo  `json:"appResourcesInfo,omitempty" protobuf:"bytes,4,name=appResourcesInfo"`
 }
 
 // ApplicationTree holds nodes which belongs to the application

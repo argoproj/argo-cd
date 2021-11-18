@@ -90,6 +90,23 @@ message AppProjectStatus {
   map<string, JWTTokens> jwtTokensByRole = 1;
 }
 
+// This holds the pod information
+message AppResourceInfo {
+  optional string name = 1;
+
+  optional int64 cpuRequested = 2;
+
+  optional int64 memoryRequested = 3;
+
+  optional string cpuUsage = 4;
+
+  optional string memoryUsage = 5;
+
+  optional string cpuUsagePercentage = 6;
+
+  optional string memoryUsagePercentage = 7;
+}
+
 // Application is a definition of Application resource.
 // +genclient
 // +genclient:noStatus
@@ -623,6 +640,8 @@ message HostInfo {
   repeated HostResourceInfo resourcesInfo = 2;
 
   optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  repeated AppResourceInfo appResourcesInfo = 4;
 }
 
 // TODO: describe this type

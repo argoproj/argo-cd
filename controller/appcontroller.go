@@ -75,6 +75,8 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
+var sizes = [9]string{"Bytes", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"}
+
 func (a CompareWith) Max(b CompareWith) CompareWith {
 	return CompareWith(math.Max(float64(a), float64(b)))
 }
@@ -446,6 +448,49 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
 }
 
+type PodMetrics struct {
+	Kind       string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,2,opt,name=apiVersion"`
+	Metadata   struct {
+		Name              string    `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+		Namespace         string    `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+		SelfLink          string    `json:"selfLink,omitempty" protobuf:"bytes,4,opt,name=selfLink"`
+		CreationTimestamp time.Time `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
+	} `json:"metadata"`
+	Timestamp  metav1.Time
+	Window     metav1.Duration
+	Containers []ContainerMetrics
+}
+
+type ContainerMetrics struct {
+	Name  string
+	Usage struct {
+		CPU    string `json:"cpu"`
+		Memory string `json:"memory"`
+	} `json:"usage"`
+}
+
+func getMetric(clientset *kubernetes.Clientset, pod *PodMetrics, podName string, podNamespace string) error {
+	if podNamespace == "" {
+		podNamespace = "default"
+	}
+	data, err := clientset.RESTClient().Get().AbsPath("apis/metrics.k8s.io/v1beta1/namespaces/" + podNamespace + "/pods/" + podName).DoRaw(context.Background())
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, &pod)
+	return err
+}
+
+func formatSize(bytes float64) string {
+	if bytes < 0 {
+		return "0 Bytes"
+	}
+	const k = 1024
+	var i = int(math.Floor(math.Log(bytes) / math.Log(k)))
+	return fmt.Sprintf("%.2f", (bytes/math.Pow(k, float64(i)))) + " " + sizes[i]
+}
+
 func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
 	supportedResourceNames := map[v1.ResourceName]bool{
 		v1.ResourceCPU:     true,
@@ -457,6 +502,17 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		if node.Group == "" && node.Kind == kube.PodKind {
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
 		}
+	}
+
+	logCtx := log.WithField("application", a.Name)
+	var cluster *appv1.Cluster
+	cluster, getClusterError := ctrl.db.GetCluster(context.Background(), a.Spec.Destination.Server)
+	if getClusterError != nil {
+		logCtx.Infoln("Error getting cluster for metrics. Error is:", getClusterError.Error())
+	}
+	clientset, configError := kubernetes.NewForConfig(cluster.RESTConfig())
+	if configError != nil {
+		logCtx.Infoln("Error creating config for metrics. Error is:", configError.Error())
 	}
 
 	allNodesInfo := map[string]statecache.NodeInfo{}
@@ -481,6 +537,8 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 	}
 
 	var hosts []appv1.HostInfo
+	appResourcesInfo := []appv1.AppResourceInfo{}
+	appReqMap := map[string]appv1.AppResourceInfo{}
 	for nodeName, appPods := range appPodsByNode {
 		node, ok := allNodesInfo[nodeName]
 		if !ok {
@@ -505,6 +563,84 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 				info := resources[name]
 				info.RequestedByApp += resource.MilliValue()
+				appReq := appReqMap[pod.PodName]
+				appReq.Name = pod.PodName
+				if name == v1.ResourceCPU {
+					appReq.CpuRequested = resource.MilliValue()
+				} else if name == v1.ResourceMemory {
+					appReq.MemoryRequested = resource.MilliValue()
+				}
+				var targetPodMetric PodMetrics
+				appReq.CpuUsagePercentage = "N/A"
+				appReq.MemoryUsagePercentage = "N/A"
+				appReq.CpuUsage = "METRICS_NOT_AVAILABLE"
+				appReq.MemoryUsage = "METRICS_NOT_AVAILABLE"
+				if getClusterError == nil && configError == nil {
+					metricErr := getMetric(clientset, &targetPodMetric, pod.PodName, pod.PodNamespace)
+					if metricErr != nil {
+						// If error, just log the error and no metrics will be reported
+						logCtx.Infoln("Error getting metric for pod ", pod.PodName, ". Error is: ", metricErr.Error())
+					} else {
+						var totalMemoryUsed float64
+						var totalCpuUsed int64 = 0
+						for _, container := range targetPodMetric.Containers {
+							var cpuSize = container.Usage.CPU
+							if cpuSize[len(cpuSize)-1:] == "m" { // If there is an m, remove it
+								cpuSize = cpuSize[0 : len(cpuSize)-1]
+							}
+							cpuSizeInt, pErr := strconv.ParseInt(cpuSize, 10, 64)
+							if pErr != nil {
+								cpuSizeInt = 0
+							}
+							totalCpuUsed += cpuSizeInt
+							var mem = container.Usage.Memory
+							var memSize = mem[0 : len(mem)-2] // The memory units are included
+							var unit = mem[len(mem)-2:]
+							var index int64 = 0
+							for x, u := range sizes {
+								if u == unit {
+									index = int64(x)
+									break
+								}
+							}
+							memSizeInt, err := strconv.ParseInt(memSize, 10, 64)
+							if err != nil {
+								memSizeInt = 0
+							}
+							var floatMem float64 = math.Floor(float64(memSizeInt) * math.Pow(1024.0, float64(index)))
+							totalMemoryUsed += floatMem
+						}
+						appReq.CpuUsagePercentage = "0%"
+						var cpuRequestedSize = appReq.CpuRequested
+						if cpuRequestedSize > 0 {
+							if cpuRequestedSize >= totalCpuUsed {
+								var cpuUsagePercentage float64 = (1.0 - ((float64(cpuRequestedSize) - float64(totalCpuUsed)) / float64(cpuRequestedSize))) * 100.0
+								appReq.CpuUsagePercentage = strconv.FormatFloat(cpuUsagePercentage, 'f', 2, 64) + "%"
+							} else {
+								var usagePercentage float64 = (1.0 + (float64(totalCpuUsed)-float64(cpuRequestedSize))/float64(cpuRequestedSize)) * 100.0
+								appReq.CpuUsagePercentage = strconv.FormatFloat(usagePercentage, 'f', 2, 64) + "%"
+							}
+						} else {
+							appReq.CpuUsagePercentage = "N/A"
+						}
+
+						var reqInBytes float64 = float64(appReq.MemoryRequested) / 1000 // convert from milli
+						if reqInBytes >= totalMemoryUsed {
+							var usagePercentage float64 = (1.0 - (reqInBytes-totalMemoryUsed)/reqInBytes) * 100.0
+							if usagePercentage < 1.0 {
+								appReq.MemoryUsagePercentage = "<1%"
+							} else {
+								appReq.MemoryUsagePercentage = strconv.FormatFloat(usagePercentage, 'f', 2, 64) + "%"
+							}
+						} else {
+							var usagePercentage float64 = (1.0 + (totalMemoryUsed-reqInBytes)/reqInBytes) * 100.0
+							appReq.MemoryUsagePercentage = strconv.FormatFloat(usagePercentage, 'f', 2, 64) + "%"
+						}
+						appReq.MemoryUsage = formatSize(totalMemoryUsed)
+						appReq.CpuUsage = strconv.FormatInt(totalCpuUsed, 10) + "m"
+					}
+				}
+				appReqMap[pod.PodName] = appReq
 				resources[name] = info
 			}
 		}
@@ -529,7 +665,10 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		sort.Slice(resourcesInfo, func(i, j int) bool {
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
-		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo})
+		for _, item := range appReqMap {
+			appResourcesInfo = append(appResourcesInfo, item)
+		}
+		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo, AppResourcesInfo: appResourcesInfo})
 	}
 	return hosts, nil
 }

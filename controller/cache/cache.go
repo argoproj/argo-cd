@@ -77,6 +77,8 @@ type PodInfo struct {
 	NodeName         string
 	ResourceRequests v1.ResourceList
 	Phase            v1.PodPhase
+	PodName          string
+	PodNamespace     string
 }
 
 type NodeInfo struct {

@@ -22,6 +22,21 @@ $num-stats: 2;
         }
     }
 
+    &__tooltip {
+        display: grid;
+        justify-content: left;
+        text-align: left;
+        &__name {
+            font-weight: bold;
+        }
+        &__underutilized {
+            color: red;
+        }   
+    }
+    &__tooltip__section {
+        font-weight: bold;
+    }
+
     &__nodes-container {
         display: flex;
         flex-wrap: wrap;

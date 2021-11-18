@@ -5,7 +5,7 @@ import Moment from 'react-moment';
 
 import {AppContext} from '../../../shared/context';
 import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
-import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
+import {Application, ApplicationTree, AppResourceInfo, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -29,6 +29,7 @@ interface PodGroup extends Partial<ResourceNode> {
     pods: Pod[];
     info?: InfoItem[];
     hostResourcesInfo?: HostResourceInfo[];
+    appResourcesInfo?: AppResourceInfo[];
     resourceStatus?: Partial<ResourceStatus>;
     renderMenu?: () => React.ReactNode;
     fullName?: string;
@@ -86,6 +87,17 @@ export class PodView extends React.Component<PodViewProps> {
                                         if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
                                             return <React.Fragment />;
                                         }
+                                        const appPodMap = new Map<string, AppResourceInfo>();
+                                        if (group.appResourcesInfo != null) {
+                                            group.pods.forEach(pod => {
+                                                group.appResourcesInfo.forEach(appReq => {
+                                                    if (appReq.name === pod.name) {
+                                                        appPodMap.set(appReq.name, appReq);
+                                                    }
+                                                });
+                                            });
+                                        }
+
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
                                                 <div
@@ -159,9 +171,50 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     anchor={() => (
                                                                         <Tooltip
                                                                             content={
-                                                                                <div>
-                                                                                    {pod.metadata.name}
+                                                                                <div className='pod-view__tooltip'>
+                                                                                    <div className='pod-view__tooltip__name'>{pod.metadata.name}</div>
                                                                                     <div>Health: {pod.health}</div>
+                                                                                    {appPodMap.get(pod.name) ? (
+                                                                                        <>
+                                                                                            <br />
+                                                                                            <div className='pod-view__tooltip__section'>Requested</div>
+                                                                                            <div>
+                                                                                                CPU: {formatMetric(ResourceName.ResourceCPU, appPodMap.get(pod.name)?.cpuRequested)}
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                Memory:{' '}
+                                                                                                {formatMetric(
+                                                                                                    ResourceName.ResourceMemory,
+                                                                                                    appPodMap.get(pod.name)?.memoryRequested
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <br />
+                                                                                            <div className='pod-view__tooltip__section'>Actual Usage</div>
+                                                                                            <div>
+                                                                                                CPU:{' '}
+                                                                                                {appPodMap.get(pod.name)?.cpuUsage !== 'METRICS_NOT_AVAILABLE'
+                                                                                                    ? appPodMap.get(pod.name)?.cpuUsage
+                                                                                                    : 'Metrics not available'}
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                Memory:{' '}
+                                                                                                {appPodMap.get(pod.name)?.memoryUsage !== 'METRICS_NOT_AVAILABLE'
+                                                                                                    ? appPodMap.get(pod.name)?.memoryUsage
+                                                                                                    : 'Metrics not available'}
+                                                                                            </div>
+                                                                                            {appPodMap.get(pod.name)?.cpuUsage !== 'METRICS_NOT_AVAILABLE' &&
+                                                                                                appPodMap.get(pod.name)?.memoryUsage !== 'METRICS_NOT_AVAILABLE' && (
+                                                                                                    <>
+                                                                                                        <br />
+                                                                                                        <div className='pod-view__tooltip__section'>Usage Percentage</div>
+                                                                                                        <div>CPU: {appPodMap.get(pod.name)?.cpuUsagePercentage}</div>
+                                                                                                        <div>Memory: {appPodMap.get(pod.name)?.memoryUsagePercentage}</div>
+                                                                                                    </>
+                                                                                                )}
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <></>
+                                                                                    )}
                                                                                 </div>
                                                                             }
                                                                             popperOptions={{
@@ -300,7 +353,8 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
                         {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
-                    hostResourcesInfo: infraNode.resourcesInfo
+                    hostResourcesInfo: infraNode.resourcesInfo,
+                    appResourcesInfo: infraNode.appResourcesInfo
                 };
             });
         }
@@ -367,7 +421,8 @@ export class PodView extends React.Component<PodViewProps> {
                                 {name: 'Kernel Version', value: 'N/A'},
                                 {name: 'OS/Arch', value: 'N/A'}
                             ],
-                            hostResourcesInfo: []
+                            hostResourcesInfo: [],
+                            appResourcesInfo: []
                         };
                     }
                 }

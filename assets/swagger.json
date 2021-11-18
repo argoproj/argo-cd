@@ -4755,6 +4755,35 @@
         }
       }
     },
+    "v1alpha1AppResourceInfo": {
+      "type": "object",
+      "title": "This holds the pod information",
+      "properties": {
+        "cpuRequested": {
+          "type": "string",
+          "format": "int64"
+        },
+        "cpuUsage": {
+          "type": "string"
+        },
+        "cpuUsagePercentage": {
+          "type": "string"
+        },
+        "memoryRequested": {
+          "type": "string",
+          "format": "int64"
+        },
+        "memoryUsage": {
+          "type": "string"
+        },
+        "memoryUsagePercentage": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Application": {
       "type": "object",
       "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
@@ -5539,6 +5568,12 @@
       "type": "object",
       "title": "HostInfo holds host name and resources metrics\nTODO: describe purpose of this type\nTODO: describe members of this type",
       "properties": {
+        "appResourcesInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppResourceInfo"
+          }
+        },
         "name": {
           "type": "string"
         },

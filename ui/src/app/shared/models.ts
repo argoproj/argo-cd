@@ -867,10 +867,21 @@ export interface HostResourceInfo {
     capacity: number;
 }
 
+export interface AppResourceInfo {
+    name: string;
+    memoryRequested: number;
+    cpuRequested: number;
+    memoryUsage: string;
+    cpuUsage: string;
+    memoryUsagePercentage: string;
+    cpuUsagePercentage: string;
+}
+
 export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    appResourcesInfo: AppResourceInfo[];
 }
 
 export interface NodeSystemInfo {

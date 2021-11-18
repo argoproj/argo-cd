@@ -18,6 +18,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectList":                   schema_pkg_apis_application_v1alpha1_AppProjectList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectSpec":                   schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectStatus":                 schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppResourceInfo":                  schema_pkg_apis_application_v1alpha1_AppResourceInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application":                      schema_pkg_apis_application_v1alpha1_Application(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition":             schema_pkg_apis_application_v1alpha1_ApplicationCondition(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination":           schema_pkg_apis_application_v1alpha1_ApplicationDestination(ref),
@@ -412,6 +413,61 @@ func schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTTokens"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_AppResourceInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "This holds the pod information",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"cpuRequested": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"memoryRequested": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"cpuUsage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"memoryUsage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"cpuUsagePercentage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"memoryUsagePercentage": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -2170,11 +2226,24 @@ func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback)
 							Ref:     ref("k8s.io/api/core/v1.NodeSystemInfo"),
 						},
 					},
+					"appResourcesInfo": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppResourceInfo"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo", "k8s.io/api/core/v1.NodeSystemInfo"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppResourceInfo", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo", "k8s.io/api/core/v1.NodeSystemInfo"},
 	}
 }
 
