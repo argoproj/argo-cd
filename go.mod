@@ -8,7 +8,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.4.1-0.20211103220110-c7bab2eeca22
-	github.com/argoproj/notifications-engine v0.3.0 // indirect
+	github.com/argoproj/notifications-engine v0.3.0
 	github.com/argoproj/pkg v0.9.1
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.2
@@ -25,6 +25,7 @@ require (
 	github.com/go-openapi/loads v0.19.4
 	github.com/go-openapi/runtime v0.19.4
 	github.com/go-openapi/spec v0.19.5 // indirect
+	github.com/go-openapi/validate v0.19.5 // indirect
 	github.com/go-redis/cache/v8 v8.4.2
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/gobwas/glob v0.2.3
@@ -53,8 +54,8 @@ require (
 	github.com/pquerna/cachecontrol v0.0.0-20180306154005-525d0eb5f91d // indirect
 	github.com/prometheus/client_golang v1.11.0
 	github.com/r3labs/diff v1.1.0
-	github.com/robfig/cron v1.1.0
-	github.com/rs/cors v1.6.0 // indirect
+	github.com/robfig/cron v1.2.0
+	github.com/rs/cors v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.5
@@ -62,12 +63,14 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/undefinedlabs/go-mpatch v1.0.6
+	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c
 	google.golang.org/grpc v1.38.0
 	gopkg.in/go-playground/webhooks.v5 v5.11.0
@@ -75,7 +78,7 @@ require (
 	k8s.io/api v0.22.2
 	k8s.io/apiextensions-apiserver v0.22.2
 	k8s.io/apimachinery v0.22.2
-	k8s.io/client-go v0.22.2
+	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	k8s.io/code-generator v0.22.2
 	k8s.io/component-base v0.22.2
 	k8s.io/klog/v2 v2.9.0

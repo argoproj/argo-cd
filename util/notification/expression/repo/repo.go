@@ -7,8 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj-labs/argocd-notifications/expr/shared"
-	"github.com/argoproj-labs/argocd-notifications/shared/argocd"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+
+	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	giturls "github.com/whilp/git-urls"
@@ -34,7 +35,7 @@ func getApplicationSource(obj *unstructured.Unstructured) (*v1alpha1.Application
 	return &application.Spec.Source, nil
 }
 
-func getAppDetails(app *unstructured.Unstructured, argocdService argocd.Service) (*shared.AppDetail, error) {
+func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
 	appSource, err := getApplicationSource(app)
 	if err != nil {
 		return nil, err
@@ -46,7 +47,7 @@ func getAppDetails(app *unstructured.Unstructured, argocdService argocd.Service)
 	return appDetail, nil
 }
 
-func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdService argocd.Service) (*shared.CommitMetadata, error) {
+func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdService service.Service) (*shared.CommitMetadata, error) {
 	repoURL, ok, err := unstructured.NestedString(app.Object, "spec", "source", "repoURL")
 	if err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func repoURLToHTTPS(rawURL string) string {
 	return parsed.String()
 }
 
-func NewExprs(argocdService argocd.Service, app *unstructured.Unstructured) map[string]interface{} {
+func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map[string]interface{} {
 	return map[string]interface{}{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
@@ -52,7 +54,7 @@ type NotificationController interface {
 func NewController(
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
-	argocdService argocd.Service,
+	argocdService service.Service,
 	namespace string,
 	appLabelSelector string,
 	registry *controller.MetricsRegistry,
@@ -62,7 +64,7 @@ func NewController(
 	appProjInformer := newInformer(newAppProjClient(client, namespace), "")
 	secretInformer := v1Informers.NewSecretInformer(k8sClient, namespace, 3*time.Minute, cache.Indexers{})
 	configMapInformer := v1Informers.NewConfigMapInformer(k8sClient, namespace, 3*time.Minute, cache.Indexers{})
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService), namespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "", ""), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
 		secretInformer:    secretInformer,

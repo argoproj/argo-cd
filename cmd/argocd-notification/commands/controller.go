@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+
 	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
 
 	controller "github.com/argoproj/notifications-engine/pkg/controller"
@@ -88,7 +90,7 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("Unknown log format '%s'", logFormat)
 			}
 
-			argocdService, err := NewArgoCDService(k8sClient, namespace, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
+			argocdService, err := service.NewArgoCDService(k8sClient, namespace, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
 			if err != nil {
 				return err
 			}
