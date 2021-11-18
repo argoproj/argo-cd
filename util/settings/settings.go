@@ -106,6 +106,8 @@ type Help struct {
 	ChatURL string `json:"chatUrl,omitempty"`
 	// the text for getting chat help, defaults to "Chat now!"
 	ChatText string `json:"chatText,omitempty"`
+	// the URLs for downloading argocd binaries
+	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -927,6 +929,12 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	return &Help{
 		ChatURL:  argoCDCM.Data[helpChatURL],
 		ChatText: chatText,
+		BinaryURLs: map[string]string{
+			"windows-amd64": argoCDCM.Data["help.download.windows-amd64"],
+			"linux-amd64": argoCDCM.Data["help.download.linux-amd64"],
+			"darwin-amd64": argoCDCM.Data["help.download.darwin-amd64"],
+			"darwin-arm64": argoCDCM.Data["help.download.darwin-arm64"],
+		},
 	}, nil
 }
 

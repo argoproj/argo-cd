@@ -3570,6 +3570,13 @@
       "type": "object",
       "title": "Help settings",
       "properties": {
+        "binaryUrls": {
+          "type": "object",
+          "title": "the URLs for downloading argocd binaries",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "chatText": {
           "type": "string",
           "title": "the text for getting chat help, defaults to \"Chat now!\""
