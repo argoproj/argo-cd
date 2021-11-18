@@ -179,3 +179,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Faro](https://www.faro.com/)
 1. [Rise](https://www.risecard.eu/)
 2. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
+1. [Skyscanner](https://www.skyscanner.net/)
