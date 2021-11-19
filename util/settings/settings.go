@@ -149,6 +149,46 @@ type KustomizeSettings struct {
 	Versions     []KustomizeVersion
 }
 
+var (
+	ByClusterURLIndexer     = "byClusterURL"
+	byClusterURLIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
+		if !ok {
+			return nil, nil
+		}
+		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+			return nil, nil
+		}
+		if s.Data == nil {
+			return nil, nil
+		}
+		if url, ok := s.Data["server"]; ok {
+			return []string{strings.TrimRight(string(url), "/")}, nil
+		}
+		return nil, nil
+	}
+	ByProjectClusterIndexer = "byProjectCluster"
+	ByProjectRepoIndexer    = "byProjectRepo"
+	byProjectIndexerFunc    = func(secretType string) func(obj interface{}) ([]string, error) {
+		return func(obj interface{}) ([]string, error) {
+			s, ok := obj.(*apiv1.Secret)
+			if !ok {
+				return nil, nil
+			}
+			if s.Labels == nil || s.Labels[common.LabelKeySecretType] != secretType {
+				return nil, nil
+			}
+			if s.Data == nil {
+				return nil, nil
+			}
+			if project, ok := s.Data["project"]; ok {
+				return []string{string(project)}, nil
+			}
+			return nil, nil
+		}
+	}
+)
+
 func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
 	binaryPath := ""
 	buildOptions := ""
@@ -333,11 +373,12 @@ const (
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
-	ctx        context.Context
-	clientset  kubernetes.Interface
-	secrets    v1listers.SecretLister
-	configmaps v1listers.ConfigMapLister
-	namespace  string
+	ctx             context.Context
+	clientset       kubernetes.Interface
+	secrets         v1listers.SecretLister
+	secretsInformer cache.SharedIndexInformer
+	configmaps      v1listers.ConfigMapLister
+	namespace       string
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
@@ -386,6 +427,14 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 		return nil, err
 	}
 	return mgr.secrets, nil
+}
+
+func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, error) {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+	return mgr.secretsInformer, nil
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
@@ -999,7 +1048,12 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
-	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	indexers := cache.Indexers{
+		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
+		ByClusterURLIndexer:     byClusterURLIndexerFunc,
+		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
+		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
+	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
 	cmInformer.AddEventHandler(eventHandler)
@@ -1049,6 +1103,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	secretsInformer.AddEventHandler(handler)
 	cmInformer.AddEventHandler(handler)
 	mgr.secrets = v1listers.NewSecretLister(secretsInformer.GetIndexer())
+	mgr.secretsInformer = secretsInformer
 	mgr.configmaps = v1listers.NewConfigMapLister(cmInformer.GetIndexer())
 	return nil
 }

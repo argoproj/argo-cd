@@ -891,39 +891,6 @@ func TestGetGlobalProjects(t *testing.T) {
 	})
 }
 
-func Test_retrieveScopedRepositories(t *testing.T) {
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test"), Project: "test"}
-
-	repos := make([]*argoappv1.Repository, 0)
-	repos = append(repos, repo)
-
-	db := &dbmocks.ArgoDB{}
-
-	db.On("ListRepositories", context.TODO()).Return(repos, nil)
-
-	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
-
-	assert.Len(t, scopedRepos, 1)
-	assert.Equal(t, scopedRepos[0].Repo, repo.Repo)
-
-}
-
-func Test_retrieveScopedRepositoriesWithNotProjectAssigned(t *testing.T) {
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test")}
-
-	repos := make([]*argoappv1.Repository, 0)
-	repos = append(repos, repo)
-
-	db := &dbmocks.ArgoDB{}
-
-	db.On("ListRepositories", context.TODO()).Return(repos, nil)
-
-	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
-
-	assert.Len(t, scopedRepos, 0)
-
-}
-
 func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 
 	r1 := argoappv1.Repository{}

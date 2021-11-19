@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 var (
@@ -190,31 +191,45 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 }
 
-func (db *db) getClusterFromSecret(server string) (*appv1.Cluster, error) {
-	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
+// GetCluster returns a cluster from a query
+func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
 	}
-	srv := strings.TrimRight(server, "/")
-	for _, clusterSecret := range clusterSecrets {
-		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
-			return secretToCluster(clusterSecret)
-		}
+	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
+	if err != nil {
+		return nil, err
 	}
+	if len(res) > 0 {
+		return secretToCluster(res[0].(*apiv1.Secret))
+	}
+	if server == appv1.KubernetesInternalAPIServerAddr {
+		return db.getLocalCluster(), nil
+	}
+
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 }
 
-// GetCluster returns a cluster from a query
-func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	cluster, err := db.getClusterFromSecret(server)
+// GetProjectClusters return project scoped clusters by given project name
+func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error) {
+	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
-		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound && server == appv1.KubernetesInternalAPIServerAddr {
-			return db.getLocalCluster(), nil
-		} else {
+		return nil, err
+	}
+	secrets, err := informer.GetIndexer().ByIndex(settings.ByProjectClusterIndexer, project)
+	if err != nil {
+		return nil, err
+	}
+	var res []*appv1.Cluster
+	for i := range secrets {
+		cluster, err := secretToCluster(secrets[i].(*apiv1.Secret))
+		if err != nil {
 			return nil, err
 		}
+		res = append(res, cluster)
 	}
-	return cluster, nil
+	return res, nil
 }
 
 // UpdateCluster updates a cluster
