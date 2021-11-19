@@ -88,6 +88,8 @@ type ArgoCDSettings struct {
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
+	// BinaryUrls contains the URLs for downloading argocd binaries
+	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -311,6 +313,8 @@ const (
 	settingUiBannerPermanentKey = "ui.bannerpermanent"
 	// settingUiBannerPositionKey designates the key for the position of the banner
 	settingUiBannerPositionKey = "ui.bannerposition"
+	// settingsBinaryUrls designates the key for the argocd binary URLs
+	settingsBinaryUrls = "help.download"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -1080,7 +1084,14 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
-	// TODO: Do we need to add binaryUrls here so updates get populated?
+	if argoCDCM.Data[settingUiBannerPositionKey] != "" {
+		settings.BinaryUrls = map[string]string{
+			// TODO: Check existence before inserting to the map
+			"darwin-amd64": argoCDCM.Data[settingUiBannerPositionKey+".darwin-amd64"],
+			"darwin-arm64": argoCDCM.Data[settingUiBannerPositionKey+".darwin-arm64"],
+			"windows-amd64": argoCDCM.Data[settingUiBannerPositionKey+".windows-amd64"],
+		}
+	}
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
