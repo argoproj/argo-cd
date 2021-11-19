@@ -183,8 +183,6 @@ jobs:
           git tag ${RELEASE_TAG}
 
       - name: Build Docker image for release
-        env:
-          BUILD_ALL_CLIS: true
         run: |
           set -ue
           git clean -fd
