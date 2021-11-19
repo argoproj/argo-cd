@@ -121,7 +121,6 @@ func TestSameURL(t *testing.T) {
 		" https://github.com/argoproj/test ":               "https://github.com/argoproj/test.git",
 		"\thttps://github.com/argoproj/test\n":             "https://github.com/argoproj/test.git",
 		"https://1234.visualstudio.com/myproj/_git/myrepo": "https://1234.visualstudio.com/myproj/_git/myrepo",
-		"https://dev.azure.com/1234/myproj/_git/myrepo":    "https://dev.azure.com/1234/myproj/_git/myrepo",
 	}
 	for k, v := range data {
 		assert.True(t, SameURL(k, v))
@@ -337,7 +336,6 @@ func TestNewFactory(t *testing.T) {
 		args args
 	}{
 		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
-		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 	}
 	for _, tt := range tests {
 
