@@ -96,8 +96,6 @@ github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj/gitops-engine v0.4.1 h1:kBAAWVUBfnhD40sRIEr3XcUcPZHODOmwSXSpySmVWR0=
-github.com/argoproj/gitops-engine v0.4.1/go.mod h1:EdFe8qIOqsmbyxRhtIydU4BUeyZ4VTsY6R3XVQhU9LA=
 github.com/argoproj/pkg v0.9.1 h1:osfOS3QkzfRf+W43lbCZb0o0bzrBweQhL+U3rgEg+5M=
 github.com/argoproj/pkg v0.9.1/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -467,6 +465,8 @@ github.com/itchyny/gojq v0.12.3 h1:s7jTCyOk/dy5bnDIScj24YX4Cr1yhEO2iW/bQT4Pm2s=
 github.com/itchyny/gojq v0.12.3/go.mod h1:mi4PdXSlFllHyByM68JKUrbiArtEdEnNEmjbwxcQKAg=
 github.com/itchyny/timefmt-go v0.1.2 h1:q0Xa4P5it6K6D7ISsbLAMwx1PnWlixDcJL6/sFs93Hs=
 github.com/itchyny/timefmt-go v0.1.2/go.mod h1:0osSSCQSASBJMsIZnhAaF1C2fCBTJZXrnj37mG8/c+A=
+github.com/jannfis/gitops-engine v0.4.1-hotfix h1:6UPmC6mPE1ul6GqD8NEtgzP9BQAFMLQn7eMfof1G9NE=
+github.com/jannfis/gitops-engine v0.4.1-hotfix/go.mod h1:EdFe8qIOqsmbyxRhtIydU4BUeyZ4VTsY6R3XVQhU9LA=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
