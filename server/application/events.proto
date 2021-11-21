@@ -63,13 +63,14 @@ message ObjectSource {
     optional string revision = 6 [(gogoproto.nullable) = false];
     optional string commitMessage = 7 [(gogoproto.nullable) = false];
     optional string commitAuthor = 8 [(gogoproto.nullable) = false];
-    optional string appName = 9 [(gogoproto.nullable) = false];
-    map<string, string> appLabels = 10 [(gogoproto.nullable) = false];
-    optional string syncStatus = 11 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 12 [(gogoproto.nullable) = false];
-    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 13;
-    optional string healthStatus = 14;
-    optional string healthMessage = 15;
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 9;
+    optional string appName = 10 [(gogoproto.nullable) = false];
+    map<string, string> appLabels = 11 [(gogoproto.nullable) = false];
+    optional string syncStatus = 12 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 13 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
+    optional string healthStatus = 15;
+    optional string healthMessage = 16;
 }
 
 /**

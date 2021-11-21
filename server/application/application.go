@@ -70,9 +70,7 @@ const (
 var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
-	resourceStatusNotFoundErr = errors.New("resource status not found")
-
-	applicationEventCacheExpiration = time.Minute * 60
+	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
@@ -947,22 +945,23 @@ func (s *Server) streamApplicationEvents(
 ) error {
 	logCtx := log.NewEntry(log.New()).WithField("application", a.Name)
 
-	// get the desired state manifests of the application
-	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name: &a.Name,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to get application desired state manifests: %w", err)
-	}
-
 	logCtx.Info("streaming application events")
-	appEvent, err := getApplicationEventPayload(a, es, desiredManifests)
+	appEvent, err := s.getApplicationEventPayload(ctx, a, es)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
 	}
 
 	if err := stream.Send(appEvent); err != nil {
 		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+	}
+
+	// get the desired state manifests of the application
+	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
+		Name:     &a.Name,
+		Revision: a.Status.Sync.Revision,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get application desired state manifests: %w", err)
 	}
 
 	appTree, err := s.getAppResources(ctx, a)
@@ -1029,20 +1028,35 @@ func getResourceEventPayload(
 	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
 ) (*events.Event, error) {
+	var err error
 	errors := []*events.ObjectError{}
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
 			// no actual or desired state, don't send event
-			return nil, fmt.Errorf("cannot get resources desired and actual state")
-		}
+			u := &unstructured.Unstructured{}
+			apiVersion := rs.Version
+			if rs.Group != "" {
+				apiVersion = rs.Group + "/" + rs.Version
+			}
 
-		// no actual state, use desired state as event object
-		manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+			u.SetAPIVersion(apiVersion)
+			u.SetKind(rs.Kind)
+			u.SetName(rs.Name)
+			u.SetNamespace(rs.Namespace)
+			object, err = u.MarshalJSON()
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
+			}
+		} else {
+			// no actual state, use desired state as event object
+			manifestWithNamespace, err := addDestNamespaceToManifest([]byte(desiredState.CompiledManifest), rs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
+			}
+
+			object = manifestWithNamespace
 		}
-		object = manifestWithNamespace
 	}
 
 	if rs.RequiresPruning {
@@ -1060,6 +1074,7 @@ func getResourceEventPayload(
 		Revision:        a.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
+		CommitDate:      manifestsResponse.CommitDate,
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
@@ -1076,7 +1091,7 @@ func getResourceEventPayload(
 	if rs.Health != nil {
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
-		if rs.Health.Status == health.HealthStatusDegraded {
+		if rs.Health.Status != health.HealthStatusHealthy {
 			errors = append(errors, parseAggregativeHealthErrors(rs, apptree)...)
 		}
 	}
@@ -1148,7 +1163,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, manifestsResponse *apiclient.ManifestResponse) (*events.Event, error) {
+func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource) (*events.Event, error) {
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
@@ -1158,19 +1173,40 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, ma
 		APIVersion: appv1.SchemeGroupVersion.String(),
 	}
 
+	revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
+		Name:     &a.Name,
+		Revision: &a.Status.Sync.Revision,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+	}
+
+	if obj.ObjectMeta.Labels == nil {
+		obj.ObjectMeta.Labels = map[string]string{}
+	}
+
+	obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+	obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+	obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+
 	object, err := json.Marshal(&obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal application event")
 	}
 
+	actualManifest := string(object)
+	if a.DeletionTimestamp != nil {
+		actualManifest = "" // mark as deleted
+	}
+
 	source := &events.ObjectSource{
-		DesiredManifest: "", // not sure
-		GitManifest:     "", // not sure
-		ActualManifest:  string(object),
+		DesiredManifest: "",
+		GitManifest:     "",
+		ActualManifest:  actualManifest,
 		RepoURL:         a.Spec.Source.RepoURL,
-		CommitMessage:   manifestsResponse.CommitMessage,
-		CommitAuthor:    manifestsResponse.CommitAuthor,
-		Path:            "", // not sure
+		CommitMessage:   "",
+		CommitAuthor:    "",
+		Path:            "",
 		Revision:        "",
 		AppName:         "",
 		AppLabels:       map[string]string{},
@@ -1185,10 +1221,26 @@ func getApplicationEventPayload(a *appv1.Application, es *events.EventSource, ma
 		source.HealthMessage = &a.Status.Health.Message
 	}
 
+	errs := []*events.ObjectError{}
+
+	for _, cnd := range a.Status.Conditions {
+		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
+			continue
+		}
+
+		errs = append(errs, &events.ObjectError{
+			Type:     "sync",
+			Level:    "error",
+			Message:  cnd.Message,
+			LastSeen: *cnd.LastTransitionTime,
+		})
+	}
+
 	payload := events.EventPayload{
 		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
 		Object:    object,
 		Source:    source,
+		Errors:    errs,
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
@@ -1206,11 +1258,18 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 			return nil, fmt.Errorf("failed to unmarshal compiled manifest: %w", err)
 		}
 
+		if u == nil {
+			return nil, fmt.Errorf("no compiled manifest for: %s", m.Path)
+		}
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
 			u.GetName() == rs.Name &&
 			ns == rs.Namespace {
+			if rs.Kind == kube.SecretKind && rs.Version == "v1" {
+				m.RawManifest = m.CompiledManifest
+			}
+
 			return m, nil
 		}
 	}
