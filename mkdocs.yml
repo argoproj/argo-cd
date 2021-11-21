@@ -107,6 +107,25 @@ nav:
     - user-guide/best_practices.md
     - user-guide/status-badge.md
     - user-guide/external-url.md
+    - Notification:
+        - Services:
+            - user-guide/notifications/services/overview.md
+            - user-guide/notifications/services/email.md
+            - user-guide/notifications/services/github.md
+            - user-guide/notifications/services/slack.md
+            - user-guide/notifications/services/mattermost.md
+            - user-guide/notifications/services/opsgenie.md
+            - user-guide/notifications/services/grafana.md
+            - user-guide/notifications/services/teams.md
+            - user-guide/notifications/services/telegram.md
+            - user-guide/notifications/services/webhook.md
+            - user-guide/notifications/services/rocketchat.md
+        - Overview: user-guide/notifications.md
+        - user-guide/notifications/triggers.md
+        - user-guide/notifications/templates.md
+        - user-guide/notifications/subscriptions.md
+        - user-guide/notifications/catalog.md
+        - user-guide/notifications/troubleshooting.md
     - user-guide/notifications.md
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
