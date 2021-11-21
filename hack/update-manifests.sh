@@ -11,7 +11,7 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
-IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/argoproj}"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/codefresh}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
