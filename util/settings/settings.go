@@ -935,9 +935,9 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 		ChatText: chatText,
 		BinaryURLs: map[string]string{
 			"windows-amd64": argoCDCM.Data["help.download.windows-amd64"],
-			"linux-amd64": argoCDCM.Data["help.download.linux-amd64"],
-			"darwin-amd64": argoCDCM.Data["help.download.darwin-amd64"],
-			"darwin-arm64": argoCDCM.Data["help.download.darwin-arm64"],
+			"linux-amd64":   argoCDCM.Data["help.download.linux-amd64"],
+			"darwin-amd64":  argoCDCM.Data["help.download.darwin-amd64"],
+			"darwin-arm64":  argoCDCM.Data["help.download.darwin-arm64"],
 		},
 	}, nil
 }
@@ -1087,8 +1087,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if argoCDCM.Data[settingUiBannerPositionKey] != "" {
 		settings.BinaryUrls = map[string]string{
 			// TODO: Check existence before inserting to the map
-			"darwin-amd64": argoCDCM.Data[settingUiBannerPositionKey+".darwin-amd64"],
-			"darwin-arm64": argoCDCM.Data[settingUiBannerPositionKey+".darwin-arm64"],
+			"darwin-amd64":  argoCDCM.Data[settingUiBannerPositionKey+".darwin-amd64"],
+			"darwin-arm64":  argoCDCM.Data[settingUiBannerPositionKey+".darwin-arm64"],
 			"windows-amd64": argoCDCM.Data[settingUiBannerPositionKey+".windows-amd64"],
 		}
 	}
