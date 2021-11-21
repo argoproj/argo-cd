@@ -47,7 +47,7 @@ data:
 
 The `message` field of the template definition allows creating a basic notification for any notification service. You can leverage notification service-specific
 fields to create complex notifications. For example using service-specific you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
-See corresponding service [documentation](./services/overview.md) for more information.
+See corresponding service [documentation](services/overview.md) for more information.
 
 ## Change the timezone
 
