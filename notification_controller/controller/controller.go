@@ -58,13 +58,15 @@ func NewController(
 	namespace string,
 	appLabelSelector string,
 	registry *controller.MetricsRegistry,
+	secretName string,
+	configMapName string,
 ) *notificationController {
 	appClient := client.Resource(applications)
 	appInformer := newInformer(appClient.Namespace(namespace), appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), "")
 	secretInformer := v1Informers.NewSecretInformer(k8sClient, namespace, 3*time.Minute, cache.Indexers{})
 	configMapInformer := v1Informers.NewConfigMapInformer(k8sClient, namespace, 3*time.Minute, cache.Indexers{})
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "", ""), namespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
 		secretInformer:    secretInformer,

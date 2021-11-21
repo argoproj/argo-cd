@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 			log.Infof("serving metrics on port %d", metricsPort)
 			log.Infof("loading configuration %d", metricsPort)
 
-			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry)
+			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
 			err = ctrl.Init(context.Background())
 			if err != nil {
 				return err
