@@ -107,6 +107,7 @@ nav:
     - user-guide/best_practices.md
     - user-guide/status-badge.md
     - user-guide/external-url.md
+    - user-guide/notifications.md
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
