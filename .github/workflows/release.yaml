@@ -49,7 +49,7 @@ jobs:
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
           # Codefresh change: add to filter below a check for `-cf.*` postfix
-          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+((-rc[0-9]+)|(-cf.*))*$'; then
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+((-rc[0-9]+)|(-cap-.*))*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
