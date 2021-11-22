@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra/doc"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
+
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
@@ -103,9 +107,9 @@ func newDocsCommand() *cobra.Command {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
-			//if err := generateCommandsDocs(&commandDocs); err != nil {
-			//	log.Fatal(err)
-			//}
+			if err := generateCommandsDocs(&commandDocs); err != nil {
+				log.Fatal(err)
+			}
 			if err := ioutil.WriteFile("./docs/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
@@ -146,24 +150,24 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 	})
 }
 
-//func generateCommandsDocs(out io.Writer) error {
-//	toolsCmd := tools.NewToolsCommand()
-//	for _, subCommand := range toolsCmd.Commands() {
-//		for _, c := range subCommand.Commands() {
-//			var cmdDesc bytes.Buffer
-//			if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
-//				return err
-//			}
-//			for _, line := range strings.Split(cmdDesc.String(), "\n") {
-//				if strings.HasPrefix(line, "### SEE ALSO") {
-//					break
-//				}
-//				_, _ = fmt.Fprintf(out, "%s\n", line)
-//			}
-//		}
-//	}
-//	return nil
-//}
+func generateCommandsDocs(out io.Writer) error {
+	toolsCmd := admin.NewNotificationsCommand()
+	for _, subCommand := range toolsCmd.Commands() {
+		for _, c := range subCommand.Commands() {
+			var cmdDesc bytes.Buffer
+			if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
+				return err
+			}
+			for _, line := range strings.Split(cmdDesc.String(), "\n") {
+				if strings.HasPrefix(line, "### SEE ALSO") {
+					break
+				}
+				_, _ = fmt.Fprintf(out, "%s\n", line)
+			}
+		}
+	}
+	return nil
+}
 
 func dieOnError(err error, msg string) {
 	if err != nil {
