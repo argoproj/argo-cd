@@ -163,21 +163,22 @@ jobs:
             exit 1
           fi
 
-      - name: Create VERSION information
-        run: |
-          set -ue
-          echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
-          echo "${TARGET_VERSION}" > VERSION
-          git commit -m "Bump version to ${TARGET_VERSION}" VERSION
+      ## Codefresh change
+      # - name: Create VERSION information
+      #   run: |
+      #     set -ue
+      #     echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
+      #     echo "${TARGET_VERSION}" > VERSION
+      #     git commit -m "Bump version to ${TARGET_VERSION}" VERSION
 
-      - name: Generate new set of manifests
-        run: |
-          set -ue
-          make install-codegen-tools-local
-          helm2 init --client-only
-          make manifests-local VERSION=${TARGET_VERSION}
-          git diff
-          git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
+      # - name: Generate new set of manifests
+      #   run: |
+      #     set -ue
+      #     make install-codegen-tools-local
+      #     helm2 init --client-only
+      #     make manifests-local VERSION=${TARGET_VERSION}
+      #     git diff
+      #     git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
 
       - name: Create the release tag
         run: |
@@ -215,7 +216,8 @@ jobs:
       - name: Push changes to release branch
         run: |
           set -ue
-          git push origin ${TARGET_BRANCH}
+          # Codefresh change
+          # git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
 
       - name: Create GitHub release
