@@ -108,7 +108,7 @@ nav:
     - user-guide/status-badge.md
     - user-guide/external-url.md
     - Notification:
-        - Overview: user-guide/notifications.md
+        - Overview: user-guide/notifications/index.md
         - user-guide/notifications/triggers.md
         - user-guide/notifications/templates.md
         - user-guide/notifications/subscriptions.md
