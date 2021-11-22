@@ -36,11 +36,6 @@ var (
 	appProjects  = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
 )
 
-func newAppClient(client dynamic.Interface, namespace string) dynamic.ResourceInterface {
-	resClient := client.Resource(applications).Namespace(namespace)
-	return resClient
-}
-
 func newAppProjClient(client dynamic.Interface, namespace string) dynamic.ResourceInterface {
 	resClient := client.Resource(appProjects).Namespace(namespace)
 	return resClient
