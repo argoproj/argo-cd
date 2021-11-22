@@ -15,6 +15,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	_ "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	math "math"
 	math_bits "math/bits"
 )
@@ -377,6 +378,7 @@ type ManifestResponse struct {
 	VerifyResult         string   `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
 	CommitMessage        string   `protobuf:"bytes,8,opt,name=commitMessage,proto3" json:"commitMessage,omitempty"`
 	CommitAuthor         string   `protobuf:"bytes,9,opt,name=commitAuthor,proto3" json:"commitAuthor,omitempty"`
+	CommitDate           *v1.Time `protobuf:"bytes,10,opt,name=commitDate,proto3" json:"commitDate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -469,6 +471,13 @@ func (m *ManifestResponse) GetCommitAuthor() string {
 		return m.CommitAuthor
 	}
 	return ""
+}
+
+func (m *ManifestResponse) GetCommitDate() *v1.Time {
+	if m != nil {
+		return m.CommitDate
+	}
+	return nil
 }
 
 type ListRefsRequest struct {
@@ -2204,6 +2213,18 @@ func (m *ManifestResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.CommitDate != nil {
+		{
+			size, err := m.CommitDate.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x52
+	}
 	if len(m.CommitAuthor) > 0 {
 		i -= len(m.CommitAuthor)
 		copy(dAtA[i:], m.CommitAuthor)
@@ -3304,6 +3325,10 @@ func (m *ManifestResponse) Size() (n int) {
 	}
 	l = len(m.CommitAuthor)
 	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.CommitDate != nil {
+		l = m.CommitDate.Size()
 		n += 1 + l + sovRepository(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -4819,6 +4844,42 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.CommitAuthor = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitDate", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.CommitDate == nil {
+				m.CommitDate = &v1.Time{}
+			}
+			if err := m.CommitDate.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

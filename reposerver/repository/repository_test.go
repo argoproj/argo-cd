@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -53,6 +54,12 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 		gitClient.On("Checkout", mock.Anything).Return(nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
+		gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
+			Author:  "author",
+			Date:    time.Time{},
+			Message: "test",
+			Tags:    []string{"tag1", "tag2"},
+		}, nil)
 		gitClient.On("Root").Return(root)
 		if signed {
 			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
@@ -112,6 +119,12 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything).Return(nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
+			Author:  "author",
+			Date:    time.Time{},
+			Message: "test",
+			Tags:    []string{"tag1", "tag2"},
+		}, nil)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 	})
@@ -190,6 +203,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
+	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
@@ -205,10 +219,13 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 				Line:             1,
 			},
 		},
-		Namespace:  "",
-		Server:     "",
-		Revision:   "1.1.0",
-		SourceType: "Helm",
+		Namespace:     "",
+		CommitDate:    &commitDate,
+		CommitMessage: "test",
+		CommitAuthor:  "author",
+		Server:        "",
+		Revision:      "1.1.0",
+		SourceType:    "Helm",
 	}
 	assert.Equal(t, expected, response)
 }
@@ -704,6 +721,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 // This is a Helm first-class app with a values file inside the repo directory
 // (`~/go/src/github.com/argoproj/argo-cd/reposerver/repository`), so it is allowed
 func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
+	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{
 		Chart:          "my-chart",
@@ -724,10 +742,13 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 				Path:             "Chart.yaml",
 			},
 		},
-		Namespace:  "",
-		Server:     "",
-		Revision:   "1.1.0",
-		SourceType: "Helm",
+		Namespace:     "",
+		Server:        "",
+		Revision:      "1.1.0",
+		SourceType:    "Helm",
+		CommitDate:    &commitDate,
+		CommitMessage: "test",
+		CommitAuthor:  "author",
 	}, response)
 }
 
@@ -821,7 +842,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
+					{
 						Name: "passwordContent",
 						Path: externalSecretPath,
 					},
@@ -848,7 +869,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
+					{
 						Name: "passwordContent",
 						Path: "../external/external-secret.txt",
 					},
@@ -1058,12 +1079,12 @@ func TestGetHelmCharts(t *testing.T) {
 
 func TestGetRevisionMetadata(t *testing.T) {
 	service, gitClient := newServiceWithMocks("../..", false)
-	now := time.Now()
+	epoch := time.Time{}
 
-	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
+	gitClient.On("RevisionMetadata", mock.AnythingOfType("string")).Return(&git.RevisionMetadata{
 		Message: "test",
 		Author:  "author",
-		Date:    now,
+		Date:    epoch,
 		Tags:    []string{"tag1", "tag2"},
 	}, nil)
 
@@ -1075,7 +1096,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test", res.Message)
-	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, epoch, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
@@ -1089,7 +1110,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test", res.Message)
-	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, epoch, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
@@ -1423,7 +1444,8 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{
 					TargetRevision: regularGitTagHash,
 				},
-				NoCache: true,
+				NoCache:  true,
+				Revision: regularGitTagHash,
 			},
 			wantError: false,
 			service:   newServiceWithCommitSHA(".", regularGitTagHash),
@@ -1437,7 +1459,8 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{
 					TargetRevision: annotatedGitTaghash,
 				},
-				NoCache: true,
+				NoCache:  true,
+				Revision: annotatedGitTaghash,
 			},
 			wantError: false,
 			service:   newServiceWithCommitSHA(".", annotatedGitTaghash),
