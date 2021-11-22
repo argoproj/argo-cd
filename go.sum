@@ -598,6 +598,7 @@ github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHX
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mattn/go-runewidth v0.0.7/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
+github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/mattn/go-zglob v0.0.3 h1:6Ry4EYsScDyt5di4OI6xw1bYhOqfE5S33Z1OPy+d+To=
 github.com/mattn/go-zglob v0.0.3/go.mod h1:9fxibJccNxU2cnpIKLRRFA7zX7qhkJIQWBb449FYHOo=
@@ -663,6 +664,7 @@ github.com/oklog/oklog v0.3.2/go.mod h1:FCV+B7mhrz4o+ueLpx+KqkyXRGMWOYEvfiXtdGtb
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5/go.mod h1:vsDQFd/mU46D+Z4whnwzcISnGGzXWMclvtLoiIKAKIo=
+github.com/olekukonko/tablewriter v0.0.4 h1:vHD/YYe1Wolo78koG299f7V/VAS08c6IpCLn+Ejf/w8=
 github.com/olekukonko/tablewriter v0.0.4/go.mod h1:zq6QwlOf5SlnkVbMSr5EoBv3636FWnp+qbPhuoO21uA=
 github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852/go.mod h1:eqOVx5Vwu4gd2mmMZvVZsgIqNSaW3xxRThUJ0k/TPk4=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
@@ -1424,10 +1426,18 @@ sigs.k8s.io/controller-runtime v0.8.3 h1:GMHvzjTmaWHQB8HadW+dIvBoJuLvZObYJ5YoZru
 sigs.k8s.io/controller-runtime v0.8.3/go.mod h1:U/l+DUopBc1ecfRZ5aviA9JDmGFQKvLf5YkZNx2e0sU=
 sigs.k8s.io/kustomize/api v0.8.11 h1:LzQzlq6Z023b+mBtc6v72N2mSHYmN8x7ssgbf/hv0H8=
 sigs.k8s.io/kustomize/api v0.8.11/go.mod h1:a77Ls36JdfCWojpUqR6m60pdGY1AYFix4AH83nJtY1g=
+sigs.k8s.io/kustomize/api v0.10.1 h1:KgU7hfYoscuqag84kxtzKdEC3mKMb99DPI3a0eaV1d0=
+sigs.k8s.io/kustomize/api v0.10.1/go.mod h1:2FigT1QN6xKdcnGS2Ppp1uIWrtWN28Ms8A3OZUZhwr8=
 sigs.k8s.io/kustomize/cmd/config v0.9.13/go.mod h1:7547FLF8W/lTaDf0BDqFTbZxM9zqwEJqCKN9sSR0xSs=
+sigs.k8s.io/kustomize/cmd/config v0.10.2 h1:2GD3+knDaqZo6rSibkc4kKGp8auNBJrGPZQCTWN4Rtc=
+sigs.k8s.io/kustomize/cmd/config v0.10.2/go.mod h1:K2aW7nXJ0AaT+VA/eO0/dzFLxmpFcTzudmAgDwPY1HQ=
 sigs.k8s.io/kustomize/kustomize/v4 v4.2.0/go.mod h1:MOkR6fmhwG7hEDRXBYELTi5GSFcLwfqwzTRHW3kv5go=
+sigs.k8s.io/kustomize/kustomize/v4 v4.4.1 h1:6hgMEo3Gt0XmhDt4vo0FJ0LRDMc4i8JC6SUW24D4hQM=
+sigs.k8s.io/kustomize/kustomize/v4 v4.4.1/go.mod h1:qOKJMMz2mBP+vcS7vK+mNz4HBLjaQSWRY22EF6Tb7Io=
 sigs.k8s.io/kustomize/kyaml v0.11.0 h1:9KhiCPKaVyuPcgOLJXkvytOvjMJLoxpjodiycb4gHsA=
 sigs.k8s.io/kustomize/kyaml v0.11.0/go.mod h1:GNMwjim4Ypgp/MueD3zXHLRJEjz7RvtPae0AwlvEMFM=
+sigs.k8s.io/kustomize/kyaml v0.13.0 h1:9c+ETyNfSrVhxvphs+K2dzT3dh5oVPPEqPOE/cUpScY=
+sigs.k8s.io/kustomize/kyaml v0.13.0/go.mod h1:FTJxEZ86ScK184NpGSAQcfEqee0nul8oLCK30D47m4E=
 sigs.k8s.io/structured-merge-diff/v4 v4.0.2/go.mod h1:bJZC9H9iH24zzfZ/41RGcq60oK1F7G282QMXDPYydCw=
 sigs.k8s.io/structured-merge-diff/v4 v4.1.2 h1:Hr/htKFmJEbtMgS/UD0N+gtgctAqz81t3nu+sPzynno=
 sigs.k8s.io/structured-merge-diff/v4 v4.1.2/go.mod h1:j/nl6xW8vLS49O8YvXW1ocPhZawJtm+Yrr7PPRQ0Vg4=
