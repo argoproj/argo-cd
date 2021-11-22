@@ -76,7 +76,7 @@ nav:
         - operator-manual/upgrading/1.2-1.3.md
         - operator-manual/upgrading/1.1-1.2.md
         - operator-manual/upgrading/1.0-1.1.md
-  - User Guide2:
+  - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
     - user-guide/kustomize.md
@@ -108,7 +108,12 @@ nav:
     - user-guide/status-badge.md
     - user-guide/external-url.md
     - Notification:
-        - Services:
+        - Overview: user-guide/notifications.md
+        - user-guide/notifications/triggers.md
+        - user-guide/notifications/templates.md
+        - user-guide/notifications/subscriptions.md
+        - user-guide/notifications/catalog.md
+        - Notification Services:
             - user-guide/notifications/services/overview.md
             - user-guide/notifications/services/email.md
             - user-guide/notifications/services/github.md
@@ -120,13 +125,7 @@ nav:
             - user-guide/notifications/services/telegram.md
             - user-guide/notifications/services/webhook.md
             - user-guide/notifications/services/rocketchat.md
-        - Overview: user-guide/notifications.md
-        - user-guide/notifications/triggers.md
-        - user-guide/notifications/templates.md
-        - user-guide/notifications/subscriptions.md
-        - user-guide/notifications/catalog.md
         - user-guide/notifications/troubleshooting.md
-    - user-guide/notifications.md
     - Command Reference: user-guide/commands/argocd.md
   - Developer Guide:
     - developer-guide/index.md
