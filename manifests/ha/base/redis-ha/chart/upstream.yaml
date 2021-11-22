@@ -770,7 +770,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: haproxy:2.0.22-alpine
+        image: haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -790,7 +790,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: haproxy
-        image: haproxy:2.0.22-alpine
+        image: haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
