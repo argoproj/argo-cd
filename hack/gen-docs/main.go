@@ -19,8 +19,8 @@ func main() {
 }
 
 func generateNotificationsDocs() {
-	os.RemoveAll("./docs/operator-manual/notifications/services")
-	os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
+	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
+	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
 	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
 	if err != nil {
 		log.Fatal(err)
