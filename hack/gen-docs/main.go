@@ -48,7 +48,6 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if rootitem == nil {
 		return fmt.Errorf("Can't find '%s' root item in mkdoc.yml", parent)
 	}
-
 	rootnavitemmap := rootitem.(map[interface{}]interface{})
 	childnav, _ := findNavItem(rootnavitemmap[parent].([]interface{}), child)
 
