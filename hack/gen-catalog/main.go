@@ -103,14 +103,14 @@ func newDocsCommand() *cobra.Command {
 			notificationTemplates, notificationTriggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build builtin config")
 			generateBuiltInTriggersDocs(&builtItDocsData, notificationTriggers, notificationTemplates)
-			if err := ioutil.WriteFile("./docs/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
+			if err := ioutil.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
 			if err := generateCommandsDocs(&commandDocs); err != nil {
 				log.Fatal(err)
 			}
-			if err := ioutil.WriteFile("./docs/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
+			if err := ioutil.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 		},
