@@ -193,7 +193,7 @@ notification-catalog:
 .PHONY: notification-docs
 notification-docs:
 	mkdir -p docs/services
-	cp -r vendor/github.com/argoproj/notifications-engine/docs/services/* docs/services && rm docs/services/*.go
+	cp -r vendor/github.com/argoproj/notifications-engine/docs/services/* docs/operator-manual/notifications/services && rm docs/operator-manual/notifications/services/*.go
 	go run ./hack/gen-catalog docs
 
 
@@ -208,7 +208,7 @@ clidocsgen: ensure-gopath
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local notification-docs # gogen protogen clientgen openapigen clidocsgen manifests-local notification-catalog
+codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen

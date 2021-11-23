@@ -1,6 +1,6 @@
 # Slack
 
-If you want to send message using incoming webhook, you can use [webhook](webhook.md#send-slack).
+If you want to send message using incoming webhook, you can use [webhook](./webhook.md#send-slack).
 
 ## Parameters
 

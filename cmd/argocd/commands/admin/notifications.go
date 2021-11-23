@@ -23,8 +23,6 @@ func NewNotificationsCommand() *cobra.Command {
 		argocdRepoServer          string
 		argocdRepoServerPlaintext bool
 		argocdRepoServerStrictTLS bool
-		configMapName             string
-		secretName                string
 	)
 
 	var argocdService service.Service
@@ -32,7 +30,7 @@ func NewNotificationsCommand() *cobra.Command {
 		"argocd-notifications",
 		"argocd-notifications",
 		applications,
-		settings.GetFactorySettings(argocdService, secretName, configMapName), func(clientConfig clientcmd.ClientConfig) {
+		settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
@@ -49,7 +47,5 @@ func NewNotificationsCommand() *cobra.Command {
 	toolsCommand.PersistentFlags().StringVar(&argocdRepoServer, "argocd-repo-server", "argocd-repo-server:8081", "Argo CD repo server address")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", false, "Use a plaintext client (non-TLS) to connect to repository server")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
-	toolsCommand.Flags().StringVar(&configMapName, "config-map-name", "argocd-notifications-cm", "Set notifications ConfigMap name")
-	toolsCommand.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	return toolsCommand
 }
