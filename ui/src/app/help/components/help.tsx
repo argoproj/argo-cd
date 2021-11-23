@@ -11,7 +11,7 @@ export const Help = () => {
     return (
         <DataLoader
             load={() =>
-                combineLatest([services.authService.settings(), services.viewPreferences.getPreferences()]).pipe(
+                combineLatest([services.authService.settings()]).pipe(
                     map(items => {
                         return {
                             binaryUrls: items[0].help.binaryUrls
