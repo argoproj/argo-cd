@@ -40,21 +40,21 @@ export const Help = () => {
                                                 <i className='fab fa-linux' /> Linux
                                             </a>
                                             &nbsp;
-                                            {binaryUrls['darwin-amd64'] && (
+                                            {binaryUrls.hasOwnProperty('darwin-amd64') && (
                                                 <a href={`${binaryUrls['darwin-amd64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab apple' /> MacOS (amd64)
+                                                    <i className='fab fa-apple' /> MacOS (amd64)
                                                 </a>
                                             )}
                                             &nbsp;
-                                            {binaryUrls['darwin-arm64'] && (
+                                            {binaryUrls.hasOwnProperty('darwin-arm64') && (
                                                 <a href={`${binaryUrls['darwin-arm64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab apple' /> MacOS (arm64)
+                                                    <i className='fab fa-apple' /> MacOS (arm64)
                                                 </a>
                                             )}
                                             &nbsp;
-                                            {binaryUrls['windows-amd64'] && (
+                                            {binaryUrls.hasOwnProperty('windows-amd64') && (
                                                 <a href={`${binaryUrls['windows-amd64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab windows' /> Windows
+                                                    <i className='fab fa-windows' /> Windows
                                                 </a>
                                             )}
                                         </div>
