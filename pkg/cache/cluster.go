@@ -32,10 +32,14 @@ import (
 )
 
 const (
-	clusterResyncTimeout       = 24 * time.Hour
-	watchResyncTimeout         = 10 * time.Minute
 	watchResourcesRetryTimeout = 1 * time.Second
 	ClusterRetryTimeout        = 10 * time.Second
+
+	// default duration before we invalidate entire cluster cache. Can be set to 0 to never invalidate cache
+	defaultClusterResyncTimeout = 24 * time.Hour
+
+	// default duration before restarting individual resource watch
+	defaultWatchResyncTimeout = 10 * time.Minute
 
 	// Same page size as in k8s.io/client-go/tools/pager/pager.go
 	defaultListPageSize = 500
@@ -133,9 +137,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 			Tracer: tracing.NopTracer{},
 		},
 		syncStatus: clusterCacheSync{
-			resyncTimeout: clusterResyncTimeout,
+			resyncTimeout: defaultClusterResyncTimeout,
 			syncTime:      nil,
 		},
+		watchResyncTimeout:      defaultWatchResyncTimeout,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
 		log:                     log,
@@ -154,6 +159,9 @@ type clusterCache struct {
 	apiResources  []kube.APIResourceInfo
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
+
+	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
+	watchResyncTimeout time.Duration
 
 	// size of a page for list operations pager.
 	listPageSize int64
@@ -389,6 +397,10 @@ func (syncStatus *clusterCacheSync) synced() bool {
 	if syncStatus.syncError != nil {
 		return time.Now().Before(syncTime.Add(ClusterRetryTimeout))
 	}
+	if syncStatus.resyncTimeout == 0 {
+		// cluster resync timeout has been disabled
+		return true
+	}
 	return time.Now().Before(syncTime.Add(syncStatus.resyncTimeout))
 }
 
@@ -514,8 +526,12 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			resourceVersion = ""
 		}()
 
-		shouldResync := time.NewTimer(watchResyncTimeout)
-		defer shouldResync.Stop()
+		var watchResyncTimeoutCh <-chan time.Time
+		if c.watchResyncTimeout > 0 {
+			shouldResync := time.NewTimer(c.watchResyncTimeout)
+			defer shouldResync.Stop()
+			watchResyncTimeoutCh = shouldResync.C
+		}
 
 		for {
 			select {
@@ -524,7 +540,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				return nil
 
 			// re-synchronize API state and restart watch periodically
-			case <-shouldResync.C:
+			case <-watchResyncTimeoutCh:
 				return fmt.Errorf("Resyncing %s on %s during to timeout", api.GroupKind, c.config.Host)
 
 			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
