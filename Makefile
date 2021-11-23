@@ -192,8 +192,7 @@ notification-catalog:
 
 .PHONY: notification-docs
 notification-docs:
-	mkdir -p docs/services
-	cp -r vendor/github.com/argoproj/notifications-engine/docs/services/* docs/operator-manual/notifications/services && rm docs/operator-manual/notifications/services/*.go
+	go run ./hack/gen-docs
 	go run ./hack/gen-catalog docs
 
 

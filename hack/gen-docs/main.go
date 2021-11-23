@@ -1,4 +1,4 @@
-package gen_docs
+package main
 
 import (
 	"fmt"
@@ -19,20 +19,20 @@ func main() {
 }
 
 func generateNotificationsDocs() {
-	os.RemoveAll("./docs/generated/notification-services")
-	os.MkdirAll("./docs/generated/notification-services/", 0755)
-	files, err := docs.CopyServicesDocs("./docs/generated/notification-services/")
+	os.RemoveAll("./docs/operator-manual/notifications/services")
+	os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
+	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
 	if err != nil {
 		log.Fatal(err)
 	}
 	if files != nil {
-		if e := updateMkDocsNav("Notifications", "Services", files); e != nil {
+		if e := updateMkDocsNav("Operator Manual", "Notification", "Notification Services", files); e != nil {
 			log.Fatal(e)
 		}
 	}
 }
 
-func updateMkDocsNav(parent string, child string, files []string) error {
+func updateMkDocsNav(parent string, child string, subchild string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
 	data, err := ioutil.ReadFile("mkdocs.yml")
@@ -44,16 +44,21 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 		return e
 	}
 	nav := un.Object["nav"].([]interface{})
-	navitem, _ := findNavItem(nav, parent)
-	if navitem == nil {
-		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
+	rootitem, _ := findNavItem(nav, parent)
+	if rootitem == nil {
+		return fmt.Errorf("Can't find '%s' root item in mkdoc.yml", parent)
 	}
-	navitemmap := navitem.(map[interface{}]interface{})
-	subnav := navitemmap[parent].([]interface{})
-	subnav = removeNavItem(subnav, child)
+
+	rootnavitemmap := rootitem.(map[interface{}]interface{})
+	childnav, _ := findNavItem(rootnavitemmap[parent].([]interface{}), child)
+
+	childnavmap := childnav.(map[interface{}]interface{})
+	childnavitems := childnavmap[child].([]interface{})
+
+	childnavitems = removeNavItem(childnavitems, subchild)
 	commands := make(map[string]interface{})
-	commands[child] = files
-	navitemmap[parent] = append(subnav, commands)
+	commands[subchild] = files
+	childnavmap[child] = append(childnavitems, commands)
 
 	newmkdocs, err := yaml.Marshal(un.Object)
 	if err != nil {
