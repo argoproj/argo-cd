@@ -191,7 +191,7 @@ jobs:
           set -ue
           git clean -fd
           mkdir -p dist/
-          make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false
+          make image IMAGE_TAG="v${TARGET_VERSION}" DOCKER_PUSH=false
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
