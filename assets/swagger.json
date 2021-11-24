@@ -4899,6 +4899,10 @@
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
         },
+        "passCredentials": {
+          "type": "boolean",
+          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+        },
         "releaseName": {
           "type": "string",
           "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"

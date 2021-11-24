@@ -11,6 +11,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Adventure](https://jp.adventurekk.com/)
 1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
+1. [Allianz Direct](https://www.allianzdirect.de/)
 1. [Ambassador Labs](https://www.getambassador.io/)
 1. [Ant Group](https://www.antgroup.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
@@ -178,3 +179,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [p3r](https://www.p3r.one/)
 1. [Faro](https://www.faro.com/)
 1. [Rise](https://www.risecard.eu/)
+2. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
+1. [Skyscanner](https://www.skyscanner.net/)

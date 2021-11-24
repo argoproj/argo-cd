@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
@@ -262,4 +263,42 @@ func TestReadAppsFromURI(t *testing.T) {
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
 
+}
+
+func TestConstructAppFromStdin(t *testing.T) {
+	file, err := ioutil.TempFile(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+
+	_, _ = file.WriteString(appsYaml)
+	_ = file.Sync()
+
+	if _, err := file.Seek(0, 0); err != nil {
+		log.Fatal(err)
+	}
+
+	os.Stdin = file
+
+	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	if err := file.Close(); err != nil {
+		log.Fatal(err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(apps))
+	assert.Equal(t, "sth1", apps[0].Name)
+	assert.Equal(t, "sth2", apps[1].Name)
+
+}
+
+func TestConstructBasedOnName(t *testing.T) {
+	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(apps))
+	assert.Equal(t, "test", apps[0].Name)
 }

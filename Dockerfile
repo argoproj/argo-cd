@@ -96,7 +96,7 @@ ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' NODE_ONLINE_ENV='online' yarn build
+RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
@@ -115,12 +115,6 @@ COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
 RUN make argocd-all
 
-ARG BUILD_ALL_CLIS=true
-RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
-    ; fi
-
 ####################################################################################################
 # Final image
 ####################################################################################################
@@ -130,6 +124,7 @@ COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/l
 USER root
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
 

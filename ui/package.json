@@ -97,6 +97,7 @@
     "babel-jest": "^24.9.0",
     "babel-loader": "^8.0.6",
     "codecov": "^3.7.2",
+    "esbuild-loader": "^2.15.1",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^24.9.0",
     "jest-transform-css": "^2.0.0",

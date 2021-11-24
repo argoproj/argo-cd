@@ -238,7 +238,7 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 	return list, err
 }
 
-// Get returns a project with scoped resources
+// GetDetailedProject returns a project with scoped resources
 func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery) (*project.DetailedProjectsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
