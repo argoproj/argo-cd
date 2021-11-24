@@ -23,7 +23,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
-import {nodeKey, urlPattern} from '../utils';
+import {urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 
 require('./application-details.scss');
@@ -31,7 +31,6 @@ require('./application-details.scss');
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
-    showGroupedNodesPanel?: boolean;
     groupedResources?: ResourceStatus[];
 }
 
@@ -67,7 +66,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, showGroupedNodesPanel: false, groupedResources: []};
+        this.state = {page: 0, groupedResources: []};
     }
 
     private get showOperationState() {
@@ -91,13 +90,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeContainer.key;
     }
 
-    private toggleGroupedNodesPanel() {
-        this.setState({showGroupedNodesPanel: !this.state.showGroupedNodesPanel});
-    }
-
-    private closeGroupdedNodesPanel() {
+    private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
-        this.toggleGroupedNodesPanel();
     }
 
     public render() {
@@ -162,12 +156,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
                             const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
-                                application.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
                                 const resources: any[] = [];
                                 tree.nodes.forEach(node => {
                                     const resource: any = {...node};
                                     resource.uid = node.uid;
-                                    const status = statusByKey.get(nodeKey(node));
+                                    const status = statusByKey.get(AppUtils.nodeKey(node));
                                     if (status) {
                                         resource.health = status.health;
                                         resource.status = status.status;
@@ -177,9 +171,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     resources.push(resource);
                                 });
                                 this.setState({
-                                    groupedResources: groupdedNodeIds ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(nodeKey(res))) : []
+                                    groupedResources: groupdedNodeIds
+                                        ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
+                                        : []
                                 });
-                                this.toggleGroupedNodesPanel();
                             };
 
                             const renderCommitMessage = (message: string) =>
@@ -215,7 +210,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             className={classNames('fa fa-object-group', {selected: pref.view === 'compact'})}
                                                             title='Compact'
                                                             onClick={() => {
-                                                                clearFilter();
                                                                 this.appContext.apis.navigation.goto('.', {view: 'compact'}, {replace: true});
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'compact'}});
                                                             }}
@@ -326,7 +320,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     </div>
                                                 )}
                                         </div>
-                                        <SlidingPanel isShown={this.state.showGroupedNodesPanel} onClose={() => this.closeGroupdedNodesPanel()}>
+                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
                                             <ApplicationResourceList
                                                 onNodeClick={fullName => this.selectNode(fullName)}
                                                 resources={this.state.groupedResources}

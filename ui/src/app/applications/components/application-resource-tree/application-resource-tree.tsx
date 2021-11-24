@@ -39,7 +39,7 @@ export interface ApplicationResourceTreeProps {
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
     onNodeClick?: (fullName: string) => any;
-    onGroupdNodeClick?: (groupdedNodeIds: string[]) => any;
+    onGroupdNodeClick?: (groupedNodeIds: string[]) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     onClearFilter: () => any;
     showOrphanedResources: boolean;
@@ -172,17 +172,17 @@ function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
     if (groupedNodesArr.length > 0) {
         groupedNodesArr.forEach((obj: {kind: string; nodeIds: string[]; parentIds: dagre.Node[]}) => {
             const {nodeIds, kind, parentIds} = obj;
-            const groupdedNodeIds: string[] = [];
+            const groupedNodeIds: string[] = [];
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 if (index > -1) {
-                    groupdedNodeIds.push(nodeId);
+                    groupedNodeIds.push(nodeId);
                 }
                 graph.removeNode(nodeId);
             });
             graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
                 kind,
-                groupdedNodeIds,
+                groupedNodeIds,
                 height: NODE_HEIGHT,
                 width: NODE_WIDTH,
                 count: nodeIds.length,
@@ -259,7 +259,6 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
 
 function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number} & dagre.Node & ResourceTreeNode) {
     const indicators = new Array<number>();
-    const groupdedNodeIds = node.groupdedNodeIds;
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
         indicators.push(count--);
@@ -273,7 +272,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
                 <div className='application-resource-tree__node-content-wrap-overflow'>
-                    <a className='application-resource-tree__node-title' onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(groupdedNodeIds)}>
+                    <a className='application-resource-tree__node-title' onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
                         click to show details of {node.count} collapsed {node.kind}
                     </a>
                 </div>
