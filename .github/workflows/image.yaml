@@ -45,6 +45,7 @@ jobs:
         env:
           QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+          IMAGE_NAMESPACE: quay.io/codefresh
         run: |
           set -ue
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
