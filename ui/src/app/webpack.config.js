@@ -66,6 +66,7 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
+            'process.env.HOST_ARCH': JSON.stringify(process.env.HOST_ARCH || 'amd64'),
             'SYSTEM_INFO': JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest'
             })

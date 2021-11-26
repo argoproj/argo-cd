@@ -20,16 +20,8 @@ export const Help = () => (
                     <div className='columns large-4 small-6'>
                         <div className='help-box'>
                             <p>Want to download the CLI tool?</p>
-                            <a href={`download/argocd-linux-amd64`} className='user-info-panel-buttons argo-button argo-button--base'>
+                            <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
                                 <i className='fab fa-linux ' /> Linux
-                            </a>
-                            &nbsp;
-                            <a href={`download/argocd-darwin-amd64`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                <i className='fab fa-apple' /> macOS
-                            </a>
-                            &nbsp;
-                            <a href={`download/argocd-windows-amd64.exe`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                <i className='fab fa-windows' /> Windows
                             </a>
                         </div>
                     </div>
