@@ -2087,22 +2087,33 @@ func (app *Application) CascadedDeletion() bool {
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.
 func (app *Application) IsRefreshRequested() (RefreshType, bool) {
+	refreshType, err := getRefreshType(app, AnnotationKeyRefresh)
+	return refreshType, err == nil
+}
+
+// GetRefreshType returns RefreshTypeNormal if annotation argocd.argoproj.io/refresh-type is not defined.
+func (app *Application) GetRefreshType() RefreshType {
+	refreshType, _ := getRefreshType(app, AnnotationKeyRefreshType)
+	return refreshType
+}
+
+func getRefreshType(app *Application, annotationKey string) (RefreshType, error) {
 	refreshType := RefreshTypeNormal
 	annotations := app.GetAnnotations()
 	if annotations == nil {
-		return refreshType, false
+		return refreshType, fmt.Errorf("annotations are not exist")
 	}
 
-	typeStr, ok := annotations[AnnotationKeyRefresh]
+	typeStr, ok := annotations[annotationKey]
 	if !ok {
-		return refreshType, false
+		return refreshType, fmt.Errorf("annotations %s not exist", annotationKey)
 	}
 
 	if typeStr == string(RefreshTypeHard) {
 		refreshType = RefreshTypeHard
 	}
 
-	return refreshType, true
+	return refreshType, nil
 }
 
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer

@@ -1322,7 +1322,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
 	compareWith := CompareWithLatest
-	refreshType := appv1.RefreshTypeNormal
+	refreshType := app.GetRefreshType()
 	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
