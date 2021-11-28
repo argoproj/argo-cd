@@ -126,6 +126,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
 	visited := 0
+	if flags == nil {
+		return visited
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 		switch f.Name {
@@ -528,9 +531,30 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	}
 }
 
-func readAppFromStdin(app *argoappv1.Application) error {
+func readApps(yml []byte, apps *[]*argoappv1.Application) error {
+	yamls, _ := kube.SplitYAMLToString(yml)
+
+	var err error
+
+	for _, yml := range yamls {
+		var app argoappv1.Application
+		err = config.Unmarshal([]byte(yml), &app)
+		*apps = append(*apps, &app)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	err := config.UnmarshalReader(reader, &app)
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	err = readApps(data, apps)
 	if err != nil {
 		return fmt.Errorf("unable to read manifest from stdin: %v", err)
 	}
@@ -552,30 +576,17 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 		return err
 	}
 
-	yamls, _ := kube.SplitYAMLToString(yml)
-
-	for _, yml := range yamls {
-		var app argoappv1.Application
-		err = config.Unmarshal([]byte(yml), &app)
-		*apps = append(*apps, &app)
-		if err != nil {
-			return err
-		}
-	}
-
-	return err
+	return readApps(yml, apps)
 }
 
 func constructAppsFromStdin() ([]*argoappv1.Application, error) {
-	var app *argoappv1.Application
+	apps := make([]*argoappv1.Application, 0)
 	// read stdin
-	err := readAppFromStdin(app)
+	err := readAppsFromStdin(&apps)
 	if err != nil {
 		return nil, err
 	}
-	return []*argoappv1.Application{
-		app,
-	}, nil
+	return apps, nil
 }
 
 func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {

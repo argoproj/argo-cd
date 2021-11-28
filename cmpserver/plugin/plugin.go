@@ -113,7 +113,7 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(config.Spec.Discover.Find, q.Path, os.Environ())
+	find, err := runCommand(config.Spec.Discover.Find.Command, q.Path, os.Environ())
 	if err != nil {
 		return &repoResponse, err
 	}
