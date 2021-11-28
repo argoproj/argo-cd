@@ -213,6 +213,7 @@ stringData:
 Example for GitHub App:
 
 ```yaml
+apiVersion: v1
 kind: Secret
 metadata:
   name: github-repo
