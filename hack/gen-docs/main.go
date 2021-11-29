@@ -58,7 +58,6 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	commands := make(map[string]interface{})
 	commands[subchild] = files
 	childnavmap[child] = append(childnavitems, commands)
-
 	newmkdocs, err := yaml.Marshal(un.Object)
 	if err != nil {
 		return err
