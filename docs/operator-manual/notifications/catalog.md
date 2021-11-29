@@ -134,8 +134,8 @@ slack:
       "color": "#f4c030",
       "fields": [
       {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
+        "title": "Health Status",
+        "value": "{{.app.status.health.status}}",
         "short": true
       },
       {
@@ -159,8 +159,8 @@ slack:
 teams:
   facts: |
     [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
+      "name": "Health Status",
+      "value": "{{.app.status.health.status}}"
     },
     {
       "name": "Repository",

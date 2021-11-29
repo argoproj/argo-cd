@@ -57,10 +57,10 @@ func newCatalogCommand() *cobra.Command {
 			}
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")
-			target := path.Join(wd, "catalog/install.yaml")
+			target := path.Join(wd, "notifications_catalog/install.yaml")
 
-			templatesDir := path.Join(wd, "catalog/templates")
-			triggersDir := path.Join(wd, "catalog/triggers")
+			templatesDir := path.Join(wd, "notifications_catalog/templates")
+			triggersDir := path.Join(wd, "notifications_catalog/triggers")
 
 			templates, triggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build catalog config")
@@ -97,8 +97,8 @@ func newDocsCommand() *cobra.Command {
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")
 
-			templatesDir := path.Join(wd, "catalog/templates")
-			triggersDir := path.Join(wd, "catalog/triggers")
+			templatesDir := path.Join(wd, "notifications_catalog/templates")
+			triggersDir := path.Join(wd, "notifications_catalog/triggers")
 
 			notificationTemplates, notificationTriggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build builtin config")
