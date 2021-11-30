@@ -872,7 +872,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 }
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
-func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string) {
+func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
 		a, err := appServer.appLister.Get(appName)
 		require.NoError(t, err)
@@ -884,7 +884,7 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 				context.Background(), a, metav1.UpdateOptions{})
 			require.NoError(t, err)
 			atomic.AddInt32(patched, 1)
-			break
+			ch <- ""
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -899,20 +899,28 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	var patched int32
 
-	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name)
+	ch := make(chan string, 1)
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
 		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+
+	select {
+	case <-ch:
+		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Out of time ( 10 seconds )")
+	}
+
 }
 
 func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	testApp := newTestApp()
 	testApp.ObjectMeta.ResourceVersion = "1"
 	appServer := newTestAppServer(testApp)
@@ -927,15 +935,24 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	var patched int32
 
-	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name)
+	ch := make(chan string, 1)
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
 		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
 	require.NotNil(t, getAppDetailsQuery)
 	assert.True(t, getAppDetailsQuery.NoCache)
 	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
+
+	assert.NoError(t, err)
+	select {
+	case <-ch:
+		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Out of time ( 10 seconds )")
+	}
 }
