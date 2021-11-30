@@ -721,9 +721,7 @@ func TestGetCachedAppState(t *testing.T) {
 	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
-
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			return nil
