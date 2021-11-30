@@ -88,6 +88,8 @@ type ArgoCDSettings struct {
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
+	// BinaryUrls contains the URLs for downloading argocd binaries
+	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -106,6 +108,8 @@ type Help struct {
 	ChatURL string `json:"chatUrl,omitempty"`
 	// the text for getting chat help, defaults to "Chat now!"
 	ChatText string `json:"chatText,omitempty"`
+	// the URLs for downloading argocd binaries
+	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -309,6 +313,8 @@ const (
 	settingUiBannerPermanentKey = "ui.bannerpermanent"
 	// settingUiBannerPositionKey designates the key for the position of the banner
 	settingUiBannerPositionKey = "ui.bannerposition"
+	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
+	settingsBinaryUrlsKey = "help.download"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -925,8 +931,9 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 		chatText = "Chat now!"
 	}
 	return &Help{
-		ChatURL:  argoCDCM.Data[helpChatURL],
-		ChatText: chatText,
+		ChatURL:    argoCDCM.Data[helpChatURL],
+		ChatText:   chatText,
+		BinaryURLs: getDownloadBinaryUrlsFromConfigMap(argoCDCM),
 	}, nil
 }
 
@@ -1061,6 +1068,16 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
+func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]string {
+	binaryUrls := map[string]string{}
+	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-arm64", "linux-amd64"} {
+		if val, ok := argoCDCM.Data[settingsBinaryUrlsKey+"."+archType]; ok {
+			binaryUrls[archType] = val
+		}
+	}
+	return binaryUrls
+}
+
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
@@ -1072,6 +1089,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
+	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}

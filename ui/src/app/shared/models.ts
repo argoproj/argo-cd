@@ -445,6 +445,7 @@ export interface AuthSettings {
     help: {
         chatUrl: string;
         chatText: string;
+        binaryUrls: Record<string, string>;
     };
     plugins: Plugin[];
     userLoginsDisabled: boolean;
