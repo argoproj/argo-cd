@@ -728,6 +728,7 @@ func TestGetCachedAppState(t *testing.T) {
 		})
 		assert.NoError(t, err)
 	})
+
 	t.Run("CacheMissErrorTriggersRefresh", func(t *testing.T) {
 		retryCount := 0
 		patched := false
