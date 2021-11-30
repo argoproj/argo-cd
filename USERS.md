@@ -31,6 +31,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [CARFAX](https://www.carfax.com)
 1. [Celonis](https://www.celonis.com/)
 1. [Chime](https://www.chime.com)
+1. [Cisco ET&I](https://eti.cisco.com/)
 1. [Codefresh](https://www.codefresh.io/)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
