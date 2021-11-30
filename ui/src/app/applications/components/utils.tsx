@@ -5,11 +5,10 @@ import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
-import {AppContext} from '../../shared/context';
+import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
-import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -843,8 +842,10 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
         color = COLORS.sync_window.allow;
     }
 
+    const ctx = React.useContext(Context);
+
     return (
-        <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
+        <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{color}}>
             <i className={className} style={{color}} /> SyncWindow
         </a>
     );
