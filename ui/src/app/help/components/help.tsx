@@ -37,8 +37,14 @@ export const Help = () => {
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
                                             <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux
+                                                <i className='fab fa-linux' /> Linux (amd64)
                                             </a>
+                                            &nbsp;
+                                            {binaryUrls.hasOwnProperty('linux-arm64') && (
+                                                <a href={`${binaryUrls['linux-arm64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
+                                                    <i className='fab fa-linux' /> Linux (arm64)
+                                                </a>
+                                            )}
                                             &nbsp;
                                             {binaryUrls.hasOwnProperty('darwin-amd64') && (
                                                 <a href={`${binaryUrls['darwin-amd64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
