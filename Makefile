@@ -186,6 +186,16 @@ openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
+.PHONY: notification-catalog
+notification-catalog:
+	go run ./hack/gen-catalog catalog
+
+.PHONY: notification-docs
+notification-docs:
+	go run ./hack/gen-docs
+	go run ./hack/gen-catalog docs
+
+
 .PHONY: clientgen
 clientgen: ensure-gopath
 	export GO111MODULE=off
@@ -195,8 +205,9 @@ clientgen: ensure-gopath
 clidocsgen: ensure-gopath
 	go run tools/cmd-docs/main.go	
 
+
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
