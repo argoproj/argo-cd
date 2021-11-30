@@ -949,7 +949,6 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
 
 	assert.NoError(t, err)
-
 	select {
 	case <-ch:
 		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
