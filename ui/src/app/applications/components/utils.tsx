@@ -843,6 +843,7 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
     }
 
     const ctx = React.useContext(Context);
+
     return (
         <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{color}}>
             <i className={className} style={{color}} /> SyncWindow
