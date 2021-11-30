@@ -910,7 +910,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 	assert.NoError(t, err)
 
 	select {
-	case _ = <-ch:
+	case <-ch:
 		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
@@ -951,7 +951,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.NoError(t, err)
 
 	select {
-	case _ = <-ch:
+	case <-ch:
 		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
