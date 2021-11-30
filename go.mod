@@ -3,6 +3,7 @@ module github.com/argoproj/argo-cd/v2
 go 1.16
 
 require (
+	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver v1.5.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
@@ -12,7 +13,7 @@ require (
 	github.com/argoproj/pkg v0.9.1
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.2
-	github.com/casbin/casbin v1.9.1
+	github.com/casbin/casbin/v2 v2.39.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
