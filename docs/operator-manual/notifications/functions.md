@@ -4,8 +4,8 @@ Time related functions.
 <hr>
 **`time.Now() Time`**
 
-Executes function built-in Golang [time.Now](https://golang.org/pkg/time/#Now) function.
-Returns an instance of Golang [Time](https://golang.org/pkg/time/#Time).
+Executes function built-in Golang [time.Now](https://golang.org/pkg/time/#Now) function. Returns an instance of
+Golang [Time](https://golang.org/pkg/time/#Time).
 
 <hr>
 **`time.Parse(val string) Time`**
@@ -19,6 +19,22 @@ String related functions.
 **`strings.ReplaceAll() string`**
 
 Executes function built-in Golang [strings.ReplaceAll](https://pkg.go.dev/strings#ReplaceAll) function.
+
+<hr>
+**`strings.ToUpper() string`**
+
+Executes function built-in Golang [strings.ToUpper](https://pkg.go.dev/strings#ToUpper) function.
+
+<hr>
+**`strings.ToLower() string`**
+
+Executes function built-in Golang [strings.ToLower](https://pkg.go.dev/strings#ToLower) function.
+
+### **sync**
+
+<hr>
+**`sync.GetInfoItem(app map, name string) string`**
+Returns the `info` item value by given name stored in the Argo CD App sync operation.
 
 ### **repo**
 Functions that provide additional information about Application source repository.
