@@ -1530,10 +1530,10 @@ func TestSyncWindows_Matches(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
+		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Clusters = nil
+		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
