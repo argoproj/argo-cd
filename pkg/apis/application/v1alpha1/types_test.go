@@ -1523,11 +1523,17 @@ func TestSyncWindows_Matches(t *testing.T) {
 		assert.Equal(t, 1, len(*windows))
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
-	t.Run("MatchAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
+	t.Run("MatchCluster", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Equal(t, 1, len(*windows))
-		proj.Spec.SyncWindows[0].Applications = nil
+		proj.Spec.SyncWindows[0].Clusters = nil
+	})
+	t.Run("MatchAppName", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
@@ -2121,6 +2127,7 @@ func newTestApp() *Application {
 			Destination: ApplicationDestination{
 				Namespace: "default",
 				Server:    "cluster1",
+				Name:      "clusterName",
 			},
 		},
 	}
