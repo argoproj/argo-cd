@@ -2127,6 +2127,7 @@ func newTestApp() *Application {
 			Destination: ApplicationDestination{
 				Namespace: "default",
 				Server:    "cluster1",
+				Name:      "clusterName",
 			},
 		},
 	}
