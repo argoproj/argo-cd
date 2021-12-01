@@ -1,4 +1,5 @@
 import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
@@ -308,6 +309,80 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getActionItems(
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    tree: appModels.ApplicationTree,
+    appContext: AppContext,
+    appChanged: BehaviorSubject<appModels.Application>,
+    isQuickStart: boolean
+): Observable<ActionMenuItem[]> {
+    let menuItems: Observable<ActionMenuItem[]>;
+    const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+    const items: MenuItem[] = [
+        ...((isRoot && [
+            {
+                title: 'Sync',
+                iconClassName: 'fa fa-sync',
+                action: () => showDeploy(nodeKey(resource), appContext)
+            }
+        ]) ||
+            []),
+        {
+            title: 'Delete',
+            iconClassName: 'fa fa-times-circle',
+            action: async () => {
+                return deletePopup(appContext.apis, resource, application, appChanged);
+            }
+        }
+    ];
+    if (!isQuickStart) {
+        items.unshift({
+            title: 'Details',
+            iconClassName: 'fa fa-info-circle',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+        });
+    }
+
+    if (findChildPod(resource, tree)) {
+        items.push({
+            title: 'Logs',
+            iconClassName: 'fa fa-align-left',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+        });
+    }
+    if (isQuickStart) {
+        return from([items]);
+    }
+    const resourceActions = services.applications
+        .getResourceActions(application.metadata.name, resource)
+        .then(actions => {
+            items.concat(
+                actions.map(action => ({
+                    title: action.name,
+                    disabled: !!action.disabled,
+                    action: async () => {
+                        try {
+                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                            if (confirmed) {
+                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                            }
+                        } catch (e) {
+                            appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
+                }))
+            );
+            return items;
+        })
+        .catch(() => items);
+    menuItems = merge(from([items]), from(resourceActions));
+    return menuItems;
+}
+
 export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -321,60 +396,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
-        const items: MenuItem[] = [
-            {
-                title: 'Details',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)}, {replace: true})
-            },
-            ...((isRoot && [
-                {
-                    title: 'Sync',
-                    action: () => showDeploy(nodeKey(resource), appContext)
-                }
-            ]) ||
-                []),
-            {
-                title: 'Delete',
-                action: async () => {
-                    return deletePopup(appContext.apis, resource, application, appChanged);
-                }
-            }
-        ];
-        if (findChildPod(resource, tree)) {
-            items.push({
-                title: 'Logs',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-            });
-        }
-        const resourceActions = services.applications
-            .getResourceActions(application.metadata.name, resource)
-            .then(actions =>
-                items.concat(
-                    actions.map(action => ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    }))
-                )
-            )
-            .catch(() => items);
-        menuItems = merge(from([items]), from(resourceActions));
+        menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -395,6 +417,45 @@ export function renderResourceMenu(
                         </li>
                     ))}
                 </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceButtons(
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    tree: appModels.ApplicationTree,
+    appContext: AppContext,
+    appChanged: BehaviorSubject<appModels.Application>
+): React.ReactNode {
+    let menuItems: Observable<ActionMenuItem[]>;
+    menuItems = getActionItems(resource, application, tree, appContext, appChanged, true);
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <div className='pod-view__node__quick-start-actions'>
+                    {items.map((item, i) => (
+                        <ActionButton
+                            disabled={item.disabled}
+                            key={i}
+                            action={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}
+                            icon={item.iconClassName}
+                            tooltip={
+                                item.title
+                                    .toString()
+                                    .charAt(0)
+                                    .toUpperCase() + item.title.toString().slice(1)
+                            }
+                        />
+                    ))}
+                </div>
             )}
         </DataLoader>
     );
