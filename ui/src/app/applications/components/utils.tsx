@@ -357,7 +357,7 @@ function getActionItems(
     const resourceActions = services.applications
         .getResourceActions(application.metadata.name, resource)
         .then(actions => {
-            items.concat(
+            return items.concat(
                 actions.map(action => ({
                     title: action.name,
                     disabled: !!action.disabled,
@@ -376,7 +376,6 @@ function getActionItems(
                     }
                 }))
             );
-            return items;
         })
         .catch(() => items);
     menuItems = merge(from([items]), from(resourceActions));
