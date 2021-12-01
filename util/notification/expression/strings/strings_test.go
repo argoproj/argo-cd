@@ -26,7 +26,6 @@ func TestReplaceAll(t *testing.T) {
 	expected := "test=replace"
 	replaceAllFn, ok := exprs["ReplaceAll"].(func(s, old, new string) string)
 	assert.True(t, ok)
-
 	actual := replaceAllFn(input, "_", "=")
 	assert.Equal(t, expected, actual)
 }
