@@ -22,7 +22,6 @@ func TestNewExprs(t *testing.T) {
 
 func TestReplaceAll(t *testing.T) {
 	exprs := NewExprs()
-
 	input := "test_replace"
 	expected := "test=replace"
 	replaceAllFn, ok := exprs["ReplaceAll"].(func(s, old, new string) string)
