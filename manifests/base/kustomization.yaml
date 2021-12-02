@@ -8,6 +8,7 @@ images:
   newTag: latest
 resources:
 - ./application-controller
+- ./applicationset
 - ./dex
 - ./repo-server
 - ./server
