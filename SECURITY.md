@@ -64,3 +64,8 @@ findings (unless you prefer to stay anonymous, of course).
 Please report vulnerabilities by e-mail to the following address: 
 
 * cncf-argo-security@lists.cncf.io
+
+## Securing your Argo CD Instance
+
+See the [operator manual security page](docs/operator-manual/security.md) for 
+additional security information.
