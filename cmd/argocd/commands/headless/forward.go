@@ -18,6 +18,7 @@ import (
 
 type forwardCacheClient struct {
 	namespace string
+	context   string
 	init      sync.Once
 	client    cache.CacheClient
 	err       error
@@ -25,7 +26,9 @@ type forwardCacheClient struct {
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
 	c.init.Do(func() {
-		overrides := clientcmd.ConfigOverrides{}
+		overrides := clientcmd.ConfigOverrides{
+			CurrentContext: c.context,
+		}
 		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
 			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
 		if err != nil {
@@ -74,6 +77,7 @@ func (c *forwardCacheClient) NotifyUpdated(key string) error {
 
 type forwardRepoClientset struct {
 	namespace     string
+	context       string
 	init          sync.Once
 	repoClientset repoapiclient.Clientset
 	err           error
@@ -81,7 +85,9 @@ type forwardRepoClientset struct {
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
-		overrides := clientcmd.ConfigOverrides{}
+		overrides := clientcmd.ConfigOverrides{
+			CurrentContext: c.context,
+		}
 		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
 		if err != nil {
 			c.err = err

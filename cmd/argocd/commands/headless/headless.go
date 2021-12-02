@@ -108,12 +108,17 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return err
 		}
 
+		var context string
+		if cmd.Flag("context").Changed {
+			context = cmd.Flag("context").Value.String()
+		}
+
 		mr, err := miniredis.Run()
 		if err != nil {
 			return err
 		}
 
-		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace}), time.Hour)
+		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: context}), time.Hour)
 		srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 			EnableGZip:    false,
 			Namespace:     namespace,
@@ -125,7 +130,7 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			KubeClientset: kubeClientset,
 			Insecure:      true,
 			ListenHost:    "localhost",
-			RepoClientset: &forwardRepoClientset{namespace: namespace},
+			RepoClientset: &forwardRepoClientset{namespace: namespace, context: context},
 		})
 
 		go srv.Run(ctx, *port, 0)
