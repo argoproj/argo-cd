@@ -505,6 +505,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	for i := range reconciliation.Target {
 		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
+		// TODO implement the managedFields logic here
 	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
