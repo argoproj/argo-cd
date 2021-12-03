@@ -785,11 +785,11 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 
 	isRequested, level := ctrl.isRefreshRequested(app1.Name)
 	assert.True(t, isRequested)
-	assert.Equal(t, ComparisonWithNothing, level)
+	assert.Equal(t, CompareWithRecent, level)
 
 	isRequested, level = ctrl.isRefreshRequested(app2.Name)
 	assert.True(t, isRequested)
-	assert.Equal(t, ComparisonWithNothing, level)
+	assert.Equal(t, CompareWithRecent, level)
 }
 
 func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
