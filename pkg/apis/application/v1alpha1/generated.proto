@@ -194,6 +194,8 @@ message ApplicationSourceHelm {
   repeated string valueFiles = 1;
 
   // Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
+  // +listType=map
+  // +listMapKey=name
   repeated HelmParameter parameters = 2;
 
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
@@ -203,6 +205,8 @@ message ApplicationSourceHelm {
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
+  // +listType=map
+  // +listMapKey=name
   repeated HelmFileParameter fileParameters = 5;
 
   // Version is the Helm version to use for templating (either "2" or "3")

@@ -234,6 +234,9 @@ spec:
                                   type: string
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -254,6 +257,9 @@ spec:
                                   type: string
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
                           passCredentials:
                             description: PassCredentials pass credentials to all domains
                               (Helm's --pass-credentials)
@@ -591,6 +597,9 @@ spec:
                               type: string
                           type: object
                         type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -610,6 +619,9 @@ spec:
                               type: string
                           type: object
                         type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       passCredentials:
                         description: PassCredentials pass credentials to all domains
                           (Helm's --pass-credentials)
@@ -959,6 +971,9 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -980,6 +995,9 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
                             passCredentials:
                               description: PassCredentials pass credentials to all
                                 domains (Helm's --pass-credentials)
@@ -1342,6 +1360,9 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                    x-kubernetes-list-map-keys:
+                                    - name
+                                    x-kubernetes-list-type: map
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -1365,6 +1386,9 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                    x-kubernetes-list-map-keys:
+                                    - name
+                                    x-kubernetes-list-type: map
                                   passCredentials:
                                     description: PassCredentials pass credentials
                                       to all domains (Helm's --pass-credentials)
@@ -1707,6 +1731,9 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -1729,6 +1756,9 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                               passCredentials:
                                 description: PassCredentials pass credentials to all
                                   domains (Helm's --pass-credentials)
@@ -2058,6 +2088,9 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2080,6 +2113,9 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                               passCredentials:
                                 description: PassCredentials pass credentials to all
                                   domains (Helm's --pass-credentials)

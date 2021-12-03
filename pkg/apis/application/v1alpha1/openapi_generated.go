@@ -730,6 +730,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"parameters": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
 							Type:        []string{"array"},
@@ -758,6 +766,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"fileParameters": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "FileParameters are file parameters to the helm template",
 							Type:        []string{"array"},

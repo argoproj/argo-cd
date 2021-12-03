@@ -4894,14 +4894,14 @@
       "properties": {
         "fileParameters": {
           "type": "array",
-          "title": "FileParameters are file parameters to the helm template",
+          "title": "FileParameters are file parameters to the helm template\n+listType=map\n+listMapKey=name",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
         },
         "parameters": {
           "type": "array",
-          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation\n+listType=map\n+listMapKey=name",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
