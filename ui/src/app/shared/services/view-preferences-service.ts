@@ -9,6 +9,7 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
