@@ -229,12 +229,16 @@ type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 	// Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
+	// +listType=map
+	// +listMapKey=name
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values specifies Helm values to be passed to helm template, typically defined as a block
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
+	// +listType=map
+	// +listMapKey=name
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
