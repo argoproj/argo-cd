@@ -14,7 +14,7 @@ import {ResourceLabel} from '../resource-label';
 import {BASE_COLORS, ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
-export function treeNodeKey(node: NodeId & {uid?: string}) {
+function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
