@@ -7,12 +7,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/expression"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/notification/expression"
 )
 
-func GetFactorySettings(argocdService service.Service, secretName, configMapName string) api.Settings {
+func GetFactorySettings(argocdService argo.Service, secretName, configMapName string) api.Settings {
 	return api.Settings{
 		SecretName:    secretName,
 		ConfigMapName: configMapName,
@@ -22,7 +22,7 @@ func GetFactorySettings(argocdService service.Service, secretName, configMapName
 	}
 }
 
-func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
+func initGetVars(argocdService argo.Service, cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
 	context := map[string]string{}
 	if contextYaml, ok := configMap.Data["context"]; ok {
 		if err := yaml.Unmarshal([]byte(contextYaml), &context); err != nil {

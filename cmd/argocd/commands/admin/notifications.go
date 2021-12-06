@@ -3,11 +3,12 @@ package admin
 import (
 	"log"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
 
 	"github.com/argoproj/notifications-engine/pkg/cmd"
@@ -25,7 +26,7 @@ func NewNotificationsCommand() *cobra.Command {
 		argocdRepoServerStrictTLS bool
 	)
 
-	var argocdService service.Service
+	var argocdService argo.Service
 	toolsCommand := cmd.NewToolsCommand(
 		"argocd-notifications",
 		"argocd-notifications",
@@ -39,7 +40,7 @@ func NewNotificationsCommand() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
 			}
-			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
+			argocdService, err = argo.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
 			if err != nil {
 				log.Fatalf("Failed to initalize Argo CD service: %v", err)
 			}

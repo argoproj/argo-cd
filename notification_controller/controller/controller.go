@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -50,7 +50,7 @@ type NotificationController interface {
 func NewController(
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
-	argocdService service.Service,
+	argocdService argo.Service,
 	namespace string,
 	appLabelSelector string,
 	registry *controller.MetricsRegistry,

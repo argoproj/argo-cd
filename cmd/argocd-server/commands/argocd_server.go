@@ -2,9 +2,10 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/argo/service"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/go-redis/redis/v8"
@@ -17,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -97,25 +97,11 @@ func NewCommand() *cobra.Command {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
 			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
 
-			// Load CA information to use for validating connections to the
-			// repository server, if strict TLS validation was requested.
-			if !repoServerPlaintext && repoServerStrictTLS {
-				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/server/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-					fmt.Sprintf("%s/server/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-				)
-				if err != nil {
-					log.Fatalf("%v", err)
-				}
-				tlsConfig.Certificates = pool
-			}
+			svcFactory := service.NewServicesFactory()
 
-			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
+			repoclientset := svcFactory.CreateRepoClientset(repoServerAddress, repoServerTimeoutSeconds, repoServerPlaintext, repoServerStrictTLS)
+
 			if rootPath != "" {
 				if baseHRef != "" && baseHRef != rootPath {
 					log.Warnf("--basehref and --rootpath had conflict: basehref: %s rootpath: %s", baseHRef, rootPath)
