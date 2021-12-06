@@ -19,7 +19,10 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
-			normalize(live, config, mf, comparison.Modified)
+			err := normalize(live, config, mf, comparison.Modified)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -28,9 +31,12 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 // normalize will check if the modified set has fields that are present in the managed fields entry. If so,
 // it will remove the fields from the live and config objects so it is ignored in diffs.
-func normalize(live, config *unstructured.Unstructured, mf v1.ManagedFieldsEntry, modified *fieldpath.Set) {
+func normalize(live, config *unstructured.Unstructured, mf v1.ManagedFieldsEntry, modified *fieldpath.Set) error {
 	liveSet := &fieldpath.Set{}
-	liveSet.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
+	err := liveSet.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
+	if err != nil {
+		return err
+	}
 
 	intersect := liveSet.Intersection(modified)
 	if !intersect.Empty() {
@@ -40,6 +46,7 @@ func normalize(live, config *unstructured.Unstructured, mf v1.ManagedFieldsEntry
 			unstructured.RemoveNestedField(live.Object, fields...)
 		})
 	}
+	return nil
 }
 
 // Compare will compare the live and the config state and returned a typed.Comparison
