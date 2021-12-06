@@ -141,7 +141,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const prepNodes = (): any[] => {
+                            const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
                                 const resources = new Map<string, any>();
@@ -161,13 +161,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 return resourcesRef;
                             };
 
-                            const filteredRes = prepNodes().filter(res => {
+                            const filteredRes = resourceNodes().filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
                             const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
-                                const resources = prepNodes();
+                                const resources = resourceNodes();
                                 this.setState({
                                     groupedResources: groupdedNodeIds
                                         ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
