@@ -12,6 +12,6 @@ Argo CD is un-opinionated about how secrets are managed. There's many ways to do
 * [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
 * [KSOPS](https://github.com/viaduct-ai/kustomize-sops#argo-cd-integration)
 * [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
-
+* [argocd-vault-replacer](https://github.com/crumbhole/argocd-vault-replacer)
 
 For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364)
