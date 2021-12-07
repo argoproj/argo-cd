@@ -1523,6 +1523,12 @@ func TestSyncWindows_Matches(t *testing.T) {
 		assert.Equal(t, 1, len(*windows))
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
+	t.Run("MatchClusterName", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Clusters = nil
+	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
@@ -2121,6 +2127,7 @@ func newTestApp() *Application {
 			Destination: ApplicationDestination{
 				Namespace: "default",
 				Server:    "cluster1",
+				Name:      "clusterName",
 			},
 		},
 	}

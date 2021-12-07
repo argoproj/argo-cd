@@ -1837,7 +1837,10 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
-					if globMatch(c, app.Spec.Destination.Server) {
+					dst := app.Spec.Destination
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}

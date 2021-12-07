@@ -17,6 +17,7 @@ env:
 jobs:
   prepare-release:
     name: Perform automatic release on trigger ${{ github.ref }}
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       # The name of the tag as supplied by the GitHub event

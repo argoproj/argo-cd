@@ -10,7 +10,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.4.1-0.20211103220110-c7bab2eeca22
 	github.com/argoproj/notifications-engine v0.3.0
-	github.com/argoproj/pkg v0.9.1
+	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.2
 	github.com/casbin/casbin/v2 v2.39.1

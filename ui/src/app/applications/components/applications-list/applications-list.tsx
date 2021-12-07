@@ -18,6 +18,7 @@ import {ApplicationsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
+import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 
 require('./applications-list.scss');
 require('./flex-top-bar.scss');
@@ -281,6 +282,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
+    const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
@@ -397,6 +399,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     title: 'Sync Apps',
                                                                     iconClassName: 'fa fa-sync',
                                                                     action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
+                                                                },
+                                                                {
+                                                                    title: 'Refresh Apps',
+                                                                    iconClassName: 'fa fa-redo',
+                                                                    action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
                                                                 }
                                                             ]
                                                         }
@@ -484,6 +491,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             key='syncsPanel'
                                                                             show={syncAppsInput}
                                                                             hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
+                                                                            apps={filteredApps}
+                                                                        />
+                                                                        <ApplicationsRefreshPanel
+                                                                            key='refreshPanel'
+                                                                            show={refreshAppsInput}
+                                                                            hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
                                                                             apps={filteredApps}
                                                                         />
                                                                     </>

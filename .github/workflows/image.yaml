@@ -10,6 +10,7 @@ env:
 
 jobs:
   publish:
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
