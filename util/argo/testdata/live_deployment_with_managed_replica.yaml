@@ -1,46 +1,3 @@
-package argo_test
-
-import (
-	"testing"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-)
-
-func TestNormalize(t *testing.T) {
-	t.Run("will normalize desired state respecting manager", func(t *testing.T) {
-		// given
-		desiredState := StrToUnstructured(DesiredDeployment)
-		liveState := StrToUnstructured(LiveDeployment)
-
-		// when
-		err := argo.Normalize(liveState, desiredState, []string{"kube-controller-manager"})
-
-		// then
-		assert.NoError(t, err)
-		desiredReplicas, ok, err := unstructured.NestedFloat64(desiredState.Object, "spec", "replicas")
-		assert.False(t, ok)
-		assert.NoError(t, err)
-		liveReplicas, ok, err := unstructured.NestedFloat64(liveState.Object, "spec", "replicas")
-		assert.False(t, ok)
-		assert.NoError(t, err)
-		assert.Equal(t, liveReplicas, desiredReplicas)
-	})
-}
-
-func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte(jsonStr), &obj)
-	if err != nil {
-		panic(err)
-	}
-	return &unstructured.Unstructured{Object: obj}
-}
-
-const (
-	LiveDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -194,31 +151,3 @@ status:
   readyReplicas: 2
   replicas: 2
   updatedReplicas: 2
-`
-
-	DesiredDeployment = `
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/instance: guestbook
-  name: kustomize-guestbook-ui
-  namespace: default
-spec:
-  replicas: 1
-  revisionHistoryLimit: 3
-  selector:
-    matchLabels:
-      app: guestbook-ui
-  template:
-    metadata:
-      labels:
-        app: guestbook-ui
-    spec:
-      containers:
-        - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
-          name: guestbook-ui
-          ports:
-            - containerPort: 80
-`
-)

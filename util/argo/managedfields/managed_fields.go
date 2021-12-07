@@ -1,4 +1,4 @@
-package argo
+package managedfields
 
 import (
 	"bytes"
@@ -10,8 +10,12 @@ import (
 )
 
 // Normalize will compare the live and config states. If config mutates a field that belongs to one of
-// the trustedManagers it will remove that field from both live and config objects.
+// the trustedManagers it will remove that field from both live and config objects. It is a no-op if
+// no trustedManagers is provided.
 func Normalize(live, config *unstructured.Unstructured, trustedManagers []string) error {
+	if len(trustedManagers) == 0 {
+		return nil
+	}
 	comparison, err := Compare(live, config)
 	if err != nil {
 		return err

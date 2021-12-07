@@ -466,6 +466,14 @@ spec:
                       type: array
                     kind:
                       type: string
+                    managedFieldsManagers:
+                      description: ManagedFieldsManagers is a list of trusted managers.
+                        Fields mutated by those managers will take precedence over
+                        the desired state defined in the SCM and won't be displayed
+                        in diffs
+                      items:
+                        type: string
+                      type: array
                     name:
                       type: string
                     namespace:

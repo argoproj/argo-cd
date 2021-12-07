@@ -30,6 +30,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -368,6 +369,8 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	ignoreDiffConfig := argo.NewIgnoreDiffConfig(app.Spec.IgnoreDifferences, resourceOverrides)
+
 	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
@@ -505,7 +508,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	for i := range reconciliation.Target {
 		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
-		// TODO implement the managedFields logic here
+		// just normalize on managed fields if live and target aren't nil as we just care
+		// about conflicting fields
+		if reconciliation.Live[i] != nil && reconciliation.Target[i] != nil {
+			gvk := reconciliation.Target[i].GetObjectKind().GroupVersionKind()
+			if ok, ignoreDiff := ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind); ok {
+				managedfields.Normalize(reconciliation.Live[i], reconciliation.Target[i], ignoreDiff.ManagedFieldsManagers)
+			}
+		}
 	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
