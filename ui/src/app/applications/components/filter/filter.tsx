@@ -97,7 +97,7 @@ export const Filter = (props: FilterProps) => {
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
-                    return {label: v} as CheckboxOption;
+                    return {label: v, count: props.options.find(x => x.label === v).count} as CheckboxOption;
                 })
             );
         }

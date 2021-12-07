@@ -336,7 +336,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
                                                                     page={this.state.page}
