@@ -207,6 +207,7 @@ Some users find this pattern preferable to maintaining their own version of the 
 
 Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
 
+```
 # helm-gcs plugin
 repoServer:
   volumes:
@@ -254,6 +255,7 @@ repoServer:
           helm plugin install https://github.com/hayorov/helm-gcs.git;
           helm repo add bulder-shared gs://my-private-helm-gcs-repository;
           chmod -R 777 $HELM_DATA_HOME;
+```
 
 ## Helm Version
 
