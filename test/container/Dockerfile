@@ -2,7 +2,7 @@ FROM redis:6.2.4 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.16.5 as golang
+FROM golang:1.16.11 as golang
 
 FROM registry:2.7.1 as registry
 
