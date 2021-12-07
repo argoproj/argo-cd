@@ -253,7 +253,7 @@ repoServer:
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add bulder-shared gs://my-private-helm-gcs-repository;
+          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
           chmod -R 777 $HELM_DATA_HOME;
 ```
 
