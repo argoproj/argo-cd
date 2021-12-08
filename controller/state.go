@@ -513,7 +513,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		if reconciliation.Live[i] != nil && reconciliation.Target[i] != nil {
 			gvk := reconciliation.Target[i].GetObjectKind().GroupVersionKind()
 			if ok, ignoreDiff := ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind); ok {
-				managedfields.Normalize(reconciliation.Live[i], reconciliation.Target[i], ignoreDiff.ManagedFieldsManagers)
+				err := managedfields.Normalize(reconciliation.Live[i], reconciliation.Target[i], ignoreDiff.ManagedFieldsManagers)
+				if err != nil {
+					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				}
 			}
 		}
 	}
