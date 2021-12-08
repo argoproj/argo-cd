@@ -3,11 +3,12 @@ package managedfields_test
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
