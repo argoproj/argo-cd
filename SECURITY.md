@@ -68,4 +68,5 @@ Please report vulnerabilities by e-mail to the following address:
 ## Securing your Argo CD Instance
 
 See the [operator manual security page](docs/operator-manual/security.md) for 
-additional security information.
+additional information about Argo CD's security features and how to make your 
+Argo CD production ready.
