@@ -3,7 +3,6 @@ package managedfields_test
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 	"github.com/ghodss/yaml"
