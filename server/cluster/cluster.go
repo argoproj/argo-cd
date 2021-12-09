@@ -181,6 +181,12 @@ var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv
 	"clusterResources": func(updated *appv1.Cluster, existing *appv1.Cluster) {
 		updated.ClusterResources = existing.ClusterResources
 	},
+	"labels": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Labels = existing.Labels
+	},
+	"annotations": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Annotations = existing.Annotations
+	},
 }
 
 // Update updates a cluster
