@@ -19,7 +19,9 @@ The diffing customization can be configured for single or multiple application r
 
 ## Application Level Configuration
 
-Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
+Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
+
+The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
 ```yaml
 spec:
@@ -52,6 +54,18 @@ spec:
     jqPathExpressions:
     - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
+
+To ignore fields owned by specific managers defined in your live resources:
+```yaml
+spec:
+  ignoreDifferences:
+  - group: *
+    kind: *
+    managedFieldsManagers:
+    - kube-controller-manager
+```
+
+The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
 
 ## System-Level Configuration
 
