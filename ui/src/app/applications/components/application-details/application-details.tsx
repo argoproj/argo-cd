@@ -207,14 +207,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-object-group', {selected: pref.view === 'compact'})}
-                                                            title='Compact'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'compact'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'compact'}});
-                                                            }}
-                                                        />
-                                                        <i
                                                             className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
                                                             title='Pods'
                                                             onClick={() => {
@@ -252,7 +244,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            {((pref.view === 'tree' || pref.view === 'network' || pref.view === 'compact') && (
+                                            {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
@@ -267,7 +259,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
-                                                        compactView={pref.view === 'compact'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                     />

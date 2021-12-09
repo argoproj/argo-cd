@@ -35,7 +35,6 @@ export interface ApplicationResourceTreeProps {
     app: models.Application;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
-    compactView: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
     onNodeClick?: (fullName: string) => any;
@@ -484,6 +483,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodes = Array.from(nodeByKey.values());
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
+    const [showCompactNodes, setShowCompactNodes] = React.useState(false);
+    function toggleCompactView() {
+        setShowCompactNodes(!showCompactNodes);
+    }
+
     if (props.useNetworkingHierarchy) {
         // Network view
         const hasParents = new Set<string>();
@@ -584,7 +588,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (props.nodeFilter) {
             filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
         }
-        if (props.compactView) {
+        if (showCompactNodes) {
             groupNodes(nodes, graph);
         }
     }
@@ -640,6 +644,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             <div
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
                 style={{width: size.width + 150, height: size.height + 250}}>
+                {!props.useNetworkingHierarchy && (
+                    <button
+                        className={`argo-button argo-button--base${!showCompactNodes ? '-o' : ''}`}
+                        style={{border: 'none', width: '160px'}}
+                        onClick={() => toggleCompactView()}>
+                        <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
+                        Group Nodes
+                    </button>
+                )}
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;
