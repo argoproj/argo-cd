@@ -511,8 +511,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		// just normalize on managed fields if live and target aren't nil as we just care
 		// about conflicting fields
 		if reconciliation.Live[i] != nil && reconciliation.Target[i] != nil {
-			gvk := reconciliation.Target[i].GetObjectKind().GroupVersionKind()
-			if ok, ignoreDiff := ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind); ok {
+			t := reconciliation.Target[i]
+			gvk := t.GetObjectKind().GroupVersionKind()
+			if ok, ignoreDiff := ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, t.GetName(), t.GetNamespace()); ok {
 				err := managedfields.Normalize(reconciliation.Live[i], reconciliation.Target[i], ignoreDiff.ManagedFieldsManagers)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
