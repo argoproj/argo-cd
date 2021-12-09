@@ -13,6 +13,14 @@ metadata:
   - apiVersion: apps/v1
     fieldsType: FieldsV1
     fieldsV1:
+      f:spec:
+        f:revisionHistoryLimit: {}
+    manager: revision-history-manager
+    operation: Apply
+    time: "2021-12-07T20:52:51Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
       f:metadata:
         f:annotations:
           .: {}
