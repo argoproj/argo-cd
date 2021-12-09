@@ -170,10 +170,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return err
 	}
 
-	err = argokube.SetAppInstanceLabel(config, labelKey, label)
-	if err != nil {
-		return err
-	}
+	argokube.RemoveLabel(live, labelKey)
 
 	return nil
 }
