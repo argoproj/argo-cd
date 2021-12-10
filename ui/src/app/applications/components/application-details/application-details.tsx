@@ -145,7 +145,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
                                 const resources = new Map<string, any>();
-                                tree.nodes.forEach(node => {
+                                tree.nodes
+                                .map(node => ({...node, orphaned: false}))
+                                .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                .forEach(node => {
                                     const resource: any = {...node};
                                     resource.uid = node.uid;
                                     const status = statusByKey.get(AppUtils.nodeKey(node));
