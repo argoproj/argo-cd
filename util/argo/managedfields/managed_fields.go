@@ -11,35 +11,40 @@ import (
 
 // Normalize will compare the live and config states. If config mutates
 // a field that belongs to one of the trustedManagers it will remove
-// that field from both live and config objects. It is a no-op if no
-// trustedManagers is provided. It is also a no-op if live or config
-// are nil.
-func Normalize(live, config *unstructured.Unstructured, trustedManagers []string) error {
+// that field from both live and config objects and return the normalized
+// objects in this order. This function won't modify the live and config
+// parameters. It is a no-op if no trustedManagers is provided. It is also
+// a no-op if live or config are nil.
+func Normalize(live, config *unstructured.Unstructured, trustedManagers []string) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	if len(trustedManagers) == 0 {
-		return nil
+		return nil, nil, nil
 	}
 	if live == nil || config == nil {
-		return nil
+		return nil, nil, nil
 	}
-	comparison, err := Compare(live, config)
+
+	liveCopy := live.DeepCopy()
+	configCopy := config.DeepCopy()
+	comparison, err := Compare(liveCopy, configCopy)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
-			err := normalize(live, config, mf, comparison.Modified)
+			err := normalize(liveCopy, configCopy, mf, comparison.Modified)
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 		}
 	}
 
-	return nil
+	return liveCopy, configCopy, nil
 }
 
-// normalize will check if the modified set has fields that are present in the managed fields entry. If so,
-// it will remove the fields from the live and config objects so it is ignored in diffs.
+// normalize will check if the modified set has fields that are present
+// in the managed fields entry. If so, it will remove the fields from
+// the live and config objects so it is ignored in diffs.
 func normalize(live, config *unstructured.Unstructured, mf v1.ManagedFieldsEntry, modified *fieldpath.Set) error {
 	liveSet := &fieldpath.Set{}
 	err := liveSet.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))

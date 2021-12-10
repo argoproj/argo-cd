@@ -19,21 +19,21 @@ func TestNormalize(t *testing.T) {
 		trustedManagers := []string{"kube-controller-manager", "revision-history-manager"}
 
 		// when
-		err := managedfields.Normalize(liveState, desiredState, trustedManagers)
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers)
 
 		// then
 		assert.NoError(t, err)
-		desiredReplicas, ok, err := unstructured.NestedFloat64(desiredState.Object, "spec", "replicas")
+		desiredReplicas, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "replicas")
 		assert.False(t, ok)
 		assert.NoError(t, err)
-		liveReplicas, ok, err := unstructured.NestedFloat64(liveState.Object, "spec", "replicas")
+		liveReplicas, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "replicas")
 		assert.False(t, ok)
 		assert.NoError(t, err)
 		assert.Equal(t, liveReplicas, desiredReplicas)
-		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveState.Object, "spec", "revisionHistoryLimit")
+		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		assert.NoError(t, err)
-		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredState.Object, "spec", "revisionHistoryLimit")
+		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		assert.NoError(t, err)
 		assert.Equal(t, liveRevisionHistory, desiredRevisionHistory)
@@ -46,14 +46,14 @@ func TestNormalize(t *testing.T) {
 		trustedManagers := []string{"another-manager"}
 
 		// when
-		err := managedfields.Normalize(liveState, desiredState, trustedManagers)
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers)
 
 		// then
 		assert.NoError(t, err)
-		validateNestedFloat64(t, float64(1), desiredState, "spec", "replicas")
-		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
-		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
-		validateNestedFloat64(t, float64(3), liveState, "spec", "revisionHistoryLimit")
+		validateNestedFloat64(t, float64(1), desiredResult, "spec", "replicas")
+		validateNestedFloat64(t, float64(1), desiredResult, "spec", "revisionHistoryLimit")
+		validateNestedFloat64(t, float64(2), liveResult, "spec", "replicas")
+		validateNestedFloat64(t, float64(3), liveResult, "spec", "revisionHistoryLimit")
 	})
 	t.Run("no-op if live state is nil", func(t *testing.T) {
 		// given
@@ -61,10 +61,12 @@ func TestNormalize(t *testing.T) {
 		trustedManagers := []string{"kube-controller-manager"}
 
 		// when
-		err := managedfields.Normalize(nil, desiredState, trustedManagers)
+		liveResult, desiredResult, err := managedfields.Normalize(nil, desiredState, trustedManagers)
 
 		// then
 		assert.NoError(t, err)
+		assert.Nil(t, liveResult)
+		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
 
@@ -75,10 +77,12 @@ func TestNormalize(t *testing.T) {
 		trustedManagers := []string{"kube-controller-manager"}
 
 		// when
-		err := managedfields.Normalize(liveState, nil, trustedManagers)
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, nil, trustedManagers)
 
 		// then
 		assert.NoError(t, err)
+		assert.Nil(t, liveResult)
+		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
 		validateNestedFloat64(t, float64(3), liveState, "spec", "revisionHistoryLimit")
 	})
@@ -88,10 +92,12 @@ func TestNormalize(t *testing.T) {
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 
 		// when
-		err := managedfields.Normalize(liveState, desiredState, []string{})
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, []string{})
 
 		// then
 		assert.NoError(t, err)
+		assert.Nil(t, liveResult)
+		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
 		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
