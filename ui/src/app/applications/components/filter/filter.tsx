@@ -116,8 +116,7 @@ export const Filter = (props: FilterProps) => {
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
-                        className='argo-button argo-button--base argo-button--sm'
-                        style={{marginLeft: 'auto'}}
+                        className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
                             setValues({} as {[label: string]: boolean});
                             setInput('');

@@ -30,6 +30,12 @@ data:
   help.chatUrl: "https://mycorp.slack.com/argo-cd"
   # the text for getting chat help, defaults to "Chat now!"
   help.chatText: "Chat now!"
+  # The URLs to download additional ArgoCD binaries (besides the Linux amd64 binary included by default)
+  # for different OS architectures. If provided, additional download buttons will be displayed on the help page.
+  help.download.linux-arm64: "path-or-url-to-download"
+  help.download.darwin-amd64: "path-or-url-to-download"
+  help.download.darwin-arm64: "path-or-url-to-download"
+  help.download.windows-amd64: "path-or-url-to-download"
 
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso

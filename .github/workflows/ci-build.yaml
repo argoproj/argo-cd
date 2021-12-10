@@ -12,7 +12,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: '1.16.11'
 
 jobs:
   build-docker:

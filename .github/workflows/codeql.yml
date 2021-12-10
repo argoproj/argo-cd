@@ -8,6 +8,7 @@ on:
 
 jobs:
   CodeQL-Build:
+    if: github.repository == 'argoproj/argo-cd'
 
     # CodeQL runs on ubuntu-latest and windows-latest
     runs-on: ubuntu-latest

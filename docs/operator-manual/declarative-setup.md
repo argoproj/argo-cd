@@ -213,6 +213,7 @@ stringData:
 Example for GitHub App:
 
 ```yaml
+apiVersion: v1
 kind: Secret
 metadata:
   name: github-repo
@@ -224,7 +225,7 @@ stringData:
   repo: https://github.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
-  githubAppPrivateKeySecret: |
+  githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----

@@ -11,7 +11,7 @@ Argo CD is un-opinionated about how secrets are managed. There's many ways to do
 * [Kustomize secret generator plugins](https://github.com/kubernetes-sigs/kustomize/blob/fd7a353df6cece4629b8e8ad56b71e30636f38fc/examples/kvSourceGoPlugin.md#secret-values-from-anywhere)
 * [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
 * [KSOPS](https://github.com/viaduct-ai/kustomize-sops#argo-cd-integration)
-* [argocd-vault-plugin](https://github.com/IBM/argocd-vault-plugin)
-
+* [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
+* [argocd-vault-replacer](https://github.com/crumbhole/argocd-vault-replacer)
 
 For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364)

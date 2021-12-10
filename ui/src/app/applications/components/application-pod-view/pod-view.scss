@@ -197,6 +197,17 @@ $num-stats: 2;
                 }
             }
         }
+
+        &__quick-start-actions {
+            display: flex;
+            padding-top: 1em;
+            justify-content: center;
+
+            &.disabled {
+                cursor: default !important;
+                color: $argo-color-gray-3 !important;
+            }
+        }
     }
 
     @media screen and (max-width: map-get($breakpoints, large)) {

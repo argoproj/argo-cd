@@ -6,10 +6,11 @@ on:
       - master
 
 env:
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: '1.16.11'
 
 jobs:
   publish:
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
