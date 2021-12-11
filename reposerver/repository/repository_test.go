@@ -156,7 +156,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -178,7 +178,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -310,7 +310,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
 		assert.Nil(t, err)
 		return cachedManifestResponse
 	}
