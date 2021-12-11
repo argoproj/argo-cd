@@ -131,7 +131,11 @@ func RemoveLabel(un *unstructured.Unstructured, key string) {
 	for k := range labels {
 		if k == key {
 			delete(labels, k)
-			un.SetLabels(labels)
+			if len(labels) == 0 {
+				un.SetLabels(nil)
+			} else {
+				un.SetLabels(labels)
+			}
 			break
 		}
 	}
