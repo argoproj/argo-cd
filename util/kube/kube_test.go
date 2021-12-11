@@ -217,5 +217,5 @@ func TestRemoveLabel(t *testing.T) {
 
 	RemoveLabel(&obj, "test")
 
-	assert.Len(t, obj.GetLabels(), 0)
+	assert.Nil(t, obj.GetLabels())
 }
