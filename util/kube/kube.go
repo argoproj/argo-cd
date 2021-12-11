@@ -120,3 +120,19 @@ func GetAppInstanceLabel(un *unstructured.Unstructured, key string) string {
 	}
 	return ""
 }
+
+// RemoveLabel removes label with the specified name
+func RemoveLabel(un *unstructured.Unstructured, key string) {
+	labels := un.GetLabels()
+	if labels == nil {
+		return
+	}
+
+	for k := range labels {
+		if k == key {
+			delete(labels, k)
+			un.SetLabels(labels)
+			break
+		}
+	}
+}
