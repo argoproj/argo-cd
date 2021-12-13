@@ -229,7 +229,7 @@ func NewImportCommand() *cobra.Command {
 						fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
 
-				} else if specsEqual(*bakObj, liveObj, stopOperation) {
+				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation){
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
@@ -306,6 +306,18 @@ func NewImportCommand() *cobra.Command {
 	return &command
 }
 
+
+// check app has no need to stop operation.
+func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOperation bool) bool{
+	if !stopOperation {
+		return true
+	}
+	switch liveObj.GetKind() {
+	case "Application":
+		return liveObj.Object["operation"] == nil
+ 	}
+	return true
+}
 // export writes the unstructured object and removes extraneous cruft from output before writing
 func export(w io.Writer, un unstructured.Unstructured) {
 	name := un.GetName()
