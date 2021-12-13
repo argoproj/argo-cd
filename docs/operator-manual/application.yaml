@@ -115,9 +115,16 @@ spec:
         factor: 2 # a factor to multiply the base duration after each failed retry
         maxDuration: 3m # the maximum amount of time allowed for the backoff strategy
 
-  # Ignore differences at the specified json pointers
+  # Will ignore differences between live and desired states during the diff. Note that these configurations are not
+  # used during the sync process.
   ignoreDifferences:
+  # for the specified json pointers
   - group: apps
     kind: Deployment
     jsonPointers:
     - /spec/replicas
+  # for the specified managedFields managers
+  - group: "*"
+    kind: "*"
+    managedFieldsManagers:
+    - kube-controller-manager

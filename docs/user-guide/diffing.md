@@ -80,6 +80,16 @@ data:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
+Resource customization can also be applied for all resources system wide. The example bellow will ignore all differences made by `kube-controller-manager` in all resources:
+
+```yaml
+data:
+  resource.customizations: |
+    ignoreDifferences:
+      managedFieldsManagers:
+      - kube-controller-manager
+```
+
 The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
 handling that edge case:
 

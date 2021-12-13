@@ -715,11 +715,9 @@ func safeDeepCopy(obj *unstructured.Unstructured) *unstructured.Unstructured {
 }
 
 func appCondition(t v1alpha1.ApplicationConditionType, err error) v1alpha1.ApplicationCondition {
-	now := metav1.Now()
 	return v1alpha1.ApplicationCondition{
-		Type:               t,
-		Message:            err.Error(),
-		LastTransitionTime: &now,
+		Type:    t,
+		Message: err.Error(),
 	}
 }
 
