@@ -177,7 +177,7 @@ func isArgoCDConfigMap(name string) bool {
 
 // specsEqual returns if the spec, data, labels, annotations, and finalizers of the two
 // supplied objects are equal, indicating that no update is necessary during importing
-func specsEqual(left, right unstructured.Unstructured) bool {
+func specsEqual(left, right unstructured.Unstructured, stopOperation bool) bool {
 	if !reflect.DeepEqual(left.GetAnnotations(), right.GetAnnotations()) {
 		return false
 	}
@@ -206,7 +206,13 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 		delete(rightStatus, "reconciledAt")
 		delete(leftStatus, "observedAt")
 		delete(rightStatus, "observedAt")
-		return reflect.DeepEqual(leftSpec, rightSpec) && reflect.DeepEqual(leftStatus, rightStatus)
+
+		if stopOperation {
+			//In the case of stopOperation, if live app operation field is not nil, then we need to do update
+			return reflect.DeepEqual(leftSpec, rightSpec) && reflect.DeepEqual(leftStatus, rightStatus) && right.Object["operation"] == nil
+		}else {
+			return reflect.DeepEqual(leftSpec, rightSpec) && reflect.DeepEqual(leftStatus, rightStatus)
+		}
 	}
 	return false
 }
