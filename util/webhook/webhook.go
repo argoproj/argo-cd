@@ -31,6 +31,7 @@ import (
 
 type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
+	GetTrackingMethod() (string, error)
 }
 
 var _ settingsSource = &settings.SettingsManager{}
@@ -214,6 +215,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
+	if err != nil {
+		log.Warnf("Failed to get trackingMethod: %v", err)
+		return
+	}
 	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
 	if err != nil {
 		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
@@ -243,7 +249,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 						continue
 					}
 				} else if change.shaBefore != "" && change.shaAfter != "" {
-					if err := a.storePreviouslyCachedManifests(&app, change, appInstanceLabelKey); err != nil {
+					if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
 						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 					}
 				}
@@ -252,7 +258,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, appInstanceLabelKey string) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
 	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
 	if err != nil {
 		return err
@@ -264,10 +270,10 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return err
 	}
 	var cachedManifests cache.CachedManifestResponse
-	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
+	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
 		return err
 	}
-	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
+	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
 		return err
 	}
 	return nil
