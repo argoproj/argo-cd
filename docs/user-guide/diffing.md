@@ -80,14 +80,13 @@ data:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
-Resource customization can also be applied for all resources system wide. The example bellow will ignore all differences made by `kube-controller-manager` in all resources:
+Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example bellow shows how to configure ArgoCD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
 
 ```yaml
 data:
-  resource.customizations: |
-    ignoreDifferences:
-      managedFieldsManagers:
-      - kube-controller-manager
+  resource.customizations.ignoreDifferences.apps_Deployment: |
+    managedFieldsManagers:
+    - kube-controller-manager
 ```
 
 The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
