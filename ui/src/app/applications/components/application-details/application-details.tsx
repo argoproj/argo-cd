@@ -32,6 +32,7 @@ interface ApplicationDetailsState {
     page: number;
     revision?: string;
     groupedResources?: ResourceStatus[];
+    showCompactNodes?: boolean;
 }
 
 interface FilterInput {
@@ -66,7 +67,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: []};
+        this.state = {page: 0, groupedResources: [], showCompactNodes: false};
     }
 
     private get showOperationState() {
@@ -92,6 +93,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
+    }
+
+    private toggleCompactView() {
+        this.setState({showCompactNodes: !this.state.showCompactNodes});
     }
 
     public render() {
@@ -246,6 +251,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                    {pref.view === 'tree' && (
+                                                        <button
+                                                            className={`argo-button argo-button--base${!this.state.showCompactNodes ? '-o' : ''}`}
+                                                            style={{border: 'none', width: '160px'}}
+                                                            onClick={() => this.toggleCompactView()}>
+                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
+                                                            Group Nodes
+                                                        </button>
+                                                    )}
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -255,6 +269,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        showCompactNodes={this.state.showCompactNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
