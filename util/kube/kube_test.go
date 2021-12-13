@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
-
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -206,4 +205,17 @@ func TestGetAppInstanceLabel(t *testing.T) {
 	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Nil(t, err)
 	assert.Equal(t, "my-app", GetAppInstanceLabel(&obj, common.LabelKeyAppInstance))
+}
+
+func TestRemoveLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	obj.SetLabels(map[string]string{"test": "value"})
+
+	RemoveLabel(&obj, "test")
+
+	assert.Nil(t, obj.GetLabels())
 }
