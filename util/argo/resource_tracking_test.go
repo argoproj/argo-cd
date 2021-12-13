@@ -107,24 +107,29 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func sampleResource() *unstructured.Unstructured {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	if err != nil {
+		panic(err)
+	}
+	var obj *unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
 func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	rt := NewResourceTracking()
 
 	// live object is a resource that has old style tracking label
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var liveObj *unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &liveObj)
-	assert.Nil(t, err)
-	err = rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	liveObj := sampleResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
 	assert.Nil(t, err)
 
 	// config object is a resource that has new style tracking annotation
-	yamlBytes, err = ioutil.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var configObj *unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &configObj)
-	assert.Nil(t, err)
+	configObj := sampleResource()
 	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
 	assert.Nil(t, err)
 
@@ -135,6 +140,30 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
+}
+
+func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
+	rt := NewResourceTracking()
+
+	// live object is a resource that has old style tracking label
+	liveObj := sampleResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
+
+	// config object is a resource that has new style tracking annotation
+	configObj := sampleResource()
+	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	assert.Nil(t, err)
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	assert.Nil(t, err)
+
+	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
+
+	// the normalization should affect add the new style annotation and drop old tracking label from live object
+	annotation := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
+	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
+	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
+	assert.True(t, hasOldLabel)
 }
 
 func TestIsOldTrackingMethod(t *testing.T) {
