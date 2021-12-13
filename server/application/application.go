@@ -1190,6 +1190,11 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
+	// Make sure access to the logs is permitted
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return err
+	}
+
 	tree, err := s.getAppResources(ws.Context(), a)
 	if err != nil {
 		return err

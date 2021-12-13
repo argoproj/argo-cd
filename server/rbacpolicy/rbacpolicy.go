@@ -21,6 +21,7 @@ const (
 	ResourceCertificates = "certificates"
 	ResourceAccounts     = "accounts"
 	ResourceGPGKeys      = "gpgkeys"
+	ResourceLogs         = "logs"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -40,6 +41,7 @@ var (
 		ResourceApplications,
 		ResourceRepositories,
 		ResourceCertificates,
+		ResourceLogs,
 	}
 	Actions = []string{
 		ActionGet,
