@@ -146,35 +146,36 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
-                                ? (tree.orphanedNodes || []).map(node => ({
-                                      ...node,
-                                      status: null,
-                                      health: null
-                                  }))
-                                : [];
-                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                            const resourceNodes = (): any[] => {
+                                const statusByKey = new Map<string, models.ResourceStatus>();
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                const resources = new Map<string, any>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resource: any = {...node};
+                                        resource.uid = node.uid;
+                                        const status = statusByKey.get(AppUtils.nodeKey(node));
+                                        if (status) {
+                                            resource.health = status.health;
+                                            resource.status = status.status;
+                                            resource.hook = status.hook;
+                                            resource.requiresPruning = status.requiresPruning;
+                                        }
+                                        resources.set(node.uid, resource);
+                                    });
+                                const resourcesRef = Array.from(resources.values());
+                                return resourcesRef;
+                            };
+
+                            const filteredRes = resourceNodes().filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
-
                             const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
-                                const statusByKey = new Map<string, models.ResourceStatus>();
-                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
-                                const resources: any[] = [];
-                                tree.nodes.forEach(node => {
-                                    const resource: any = {...node};
-                                    resource.uid = node.uid;
-                                    const status = statusByKey.get(AppUtils.nodeKey(node));
-                                    if (status) {
-                                        resource.health = status.health;
-                                        resource.status = status.status;
-                                        resource.hook = status.hook;
-                                        resource.requiresPruning = status.requiresPruning;
-                                    }
-                                    resources.push(resource);
-                                });
+                                const resources = resourceNodes();
                                 this.setState({
                                     groupedResources: groupdedNodeIds
                                         ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
