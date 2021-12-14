@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.2.0 (Unreleased)
+## v2.2.0 (2021-12-14)
 
 > [Upgrade instructions](./docs/operator-manual/upgrading/2.1-2.2.md)
 
@@ -31,6 +31,14 @@ as there are no conflicts with other Kubernetes tools, and you can easily instal
 * Persistent banner (#7312) with custom positioning (#7462)
 * Cluster name support in project destinations (#7198)
 * around 30 more features and a total of 84 bug fixes
+
+## v2.1.7 (2021-12-14)
+
+- fix: issue with keepalive (#7861)
+- fix nil pointer dereference error (#7905)
+- fix: env vars to tune cluster cache were broken (#7779)
+- fix: upgraded gitops engine to v0.4.2 (fixes #7561)
+
 
 ## v2.1.6 (2021-11-16)
 
