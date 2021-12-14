@@ -35,7 +35,6 @@ export interface ApplicationResourceTreeProps {
     app: models.Application;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
-    compactView: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
     onNodeClick?: (fullName: string) => any;
@@ -43,6 +42,7 @@ export interface ApplicationResourceTreeProps {
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     onClearFilter: () => any;
     showOrphanedResources: boolean;
+    showCompactNodes: boolean;
 }
 
 interface Line {
@@ -484,6 +484,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodes = Array.from(nodeByKey.values());
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
+
     if (props.useNetworkingHierarchy) {
         // Network view
         const hasParents = new Set<string>();
@@ -584,7 +585,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (props.nodeFilter) {
             filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
         }
-        if (props.compactView) {
+        if (props.showCompactNodes) {
             groupNodes(nodes, graph);
         }
     }
