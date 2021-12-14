@@ -196,6 +196,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
+// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
 var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func normalizeLabels(prefix string, appLabels []string) []string {
