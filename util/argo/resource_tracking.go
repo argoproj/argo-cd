@@ -150,6 +150,8 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
+// Normalize updates live resource and removes diff caused but missing annotation or extra tracking label.
+// The normalization is required to ensure smooth transition to new tracking method.
 func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {
 		return nil
@@ -170,9 +172,8 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return err
 	}
 
-	err = argokube.SetAppInstanceLabel(config, labelKey, label)
-	if err != nil {
-		return err
+	if argokube.GetAppInstanceLabel(config, labelKey) == "" {
+		argokube.RemoveLabel(live, labelKey)
 	}
 
 	return nil
