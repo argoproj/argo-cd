@@ -20,6 +20,11 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: argocd-notifications-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -105,6 +110,47 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: argocd-notifications-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-secret
+  resources:
+  - secrets
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -212,6 +258,18 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  name: argocd-notifications-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-notifications-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-notifications-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -280,6 +338,12 @@ metadata:
     app.kubernetes.io/name: argocd-gpg-keys-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-gpg-keys-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: argocd-notifications-cm
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -788,6 +852,12 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
+  name: argocd-notifications-secret
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
   labels:
     app.kubernetes.io/name: argocd-secret
     app.kubernetes.io/part-of: argocd
@@ -835,6 +905,21 @@ spec:
     targetPort: 8082
   selector:
     app.kubernetes.io/name: argocd-application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-notifications-controller-metrics
+  name: argocd-notifications-controller-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: Service
@@ -1082,6 +1167,56 @@ spec:
         name: static-files
       - emptyDir: {}
         name: dexconfig
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-notifications-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-notifications-controller
+    spec:
+      containers:
+      - command:
+        - /app/argocd-notifications-backend
+        - controller
+        image: argoprojlabs/argocd-notifications:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          tcpSocket:
+            port: 9001
+        name: argocd-notifications-controller
+        volumeMounts:
+        - mountPath: /app/config/tls
+          name: tls-certs
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
+        workingDir: /app
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: argocd-notifications-controller
+      volumes:
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
