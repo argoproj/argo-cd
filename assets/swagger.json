@@ -5792,16 +5792,25 @@
     },
     "v1alpha1OverrideIgnoreDiff": {
       "type": "object",
-      "title": "TODO: describe this type",
+      "title": "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between\nthe desired state and live state",
       "properties": {
         "jSONPointers": {
           "type": "array",
+          "title": "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
           "items": {
             "type": "string"
           }
         },
         "jqPathExpressions": {
           "type": "array",
+          "title": "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
           "items": {
             "type": "string"
           }
@@ -6163,6 +6172,13 @@
         },
         "kind": {
           "type": "string"
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
+          "items": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string"

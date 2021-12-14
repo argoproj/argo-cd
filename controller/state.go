@@ -30,6 +30,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -368,6 +369,8 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	ignoreDiffConfig := argo.NewIgnoreDiffConfig(app.Spec.IgnoreDifferences, resourceOverrides)
+
 	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
@@ -503,15 +506,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
 
-	for i := range reconciliation.Target {
-		_ = m.resourceTracking.Normalize(reconciliation.Target[i], reconciliation.Live[i], appLabelKey, string(trackingMethod))
+	params := &preDiffNormalizeParams{
+		targets:          reconciliation.Target,
+		lives:            reconciliation.Live,
+		ignoreDiffConfig: ignoreDiffConfig,
+		appLabel:         appLabelKey,
+		trackingMethod:   string(trackingMethod),
+	}
+	normResults := m.preDiffNormalize(params)
+	if len(normResults.conditions) > 0 {
+		conditions = append(conditions, normResults.conditions...)
 	}
 
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
-		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
+		diffResults, err = diff.DiffArray(normResults.targets, normResults.lives, diffOpts...)
 	} else {
-		diffResults, err = m.diffArrayCached(reconciliation.Target, reconciliation.Live, cachedDiff, diffOpts...)
+		diffResults, err = m.diffArrayCached(normResults.targets, normResults.lives, cachedDiff, diffOpts...)
 	}
 
 	if err != nil {
@@ -649,6 +660,65 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes
+}
+
+type normalizeResults struct {
+	lives      []*unstructured.Unstructured
+	targets    []*unstructured.Unstructured
+	conditions []v1alpha1.ApplicationCondition
+}
+
+type preDiffNormalizeParams struct {
+	targets          []*unstructured.Unstructured
+	lives            []*unstructured.Unstructured
+	ignoreDiffConfig *argo.IgnoreDiffConfig
+	appLabel         string
+	trackingMethod   string
+}
+
+// preDiffNormalize applies the normalization of live and target resources before invoking
+// the diff. None of the attributes in the preDiffNormalizeParams will be modified. The
+// normalizeResults will return a list of ApplicationConditions in case something goes
+// wrong during the normalization.
+func (m *appStateManager) preDiffNormalize(p *preDiffNormalizeParams) *normalizeResults {
+	results := &normalizeResults{}
+	for i := range p.targets {
+		target := safeDeepCopy(p.targets[i])
+		live := safeDeepCopy(p.lives[i])
+		_ = m.resourceTracking.Normalize(target, live, p.appLabel, p.trackingMethod)
+		// just normalize on managed fields if live and target aren't nil as we just care
+		// about conflicting fields
+		if live != nil && target != nil {
+			gvk := target.GetObjectKind().GroupVersionKind()
+			ok, ignoreDiff := p.ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
+			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
+				var err error
+				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)
+				if err != nil {
+					condition := appCondition(v1alpha1.ApplicationConditionComparisonError, err)
+					results.conditions = append(results.conditions, condition)
+				}
+			}
+		}
+		results.lives = append(results.lives, live)
+		results.targets = append(results.targets, target)
+	}
+	return results
+}
+
+// safeDeepCopy will return nil if given obj is nil.
+func safeDeepCopy(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	if obj == nil {
+		return nil
+	}
+	return obj.DeepCopy()
+}
+
+func appCondition(t v1alpha1.ApplicationConditionType, err error) v1alpha1.ApplicationCondition {
+	return v1alpha1.ApplicationCondition{
+		Type:    t,
+		Message: err.Error(),
+	}
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {

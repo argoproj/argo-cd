@@ -89,6 +89,7 @@ require (
 	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	sigs.k8s.io/controller-runtime v0.8.3
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.0
 	sigs.k8s.io/yaml v1.2.0
 )
 
