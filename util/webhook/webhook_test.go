@@ -32,6 +32,10 @@ func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
 	return "mycompany.com/appname", nil
 }
 
+func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
+	return "", nil
+}
+
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
