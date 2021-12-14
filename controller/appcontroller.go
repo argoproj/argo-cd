@@ -166,19 +166,26 @@ func NewApplicationController(
 		AddFunc: func(obj interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
-				ctrl.InvalidateProjectsCache()
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
-				ctrl.InvalidateProjectsCache()
+				if projMeta, ok := new.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.Add(key)
-				ctrl.InvalidateProjectsCache()
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
 			}
 		},
 	})
@@ -207,11 +214,17 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) InvalidateProjectsCache() {
-	ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
-		ctrl.projByNameCache.Delete(key)
-		return true
-	})
+func (ctrl *ApplicationController) InvalidateProjectsCache(names ...string) {
+	if len(names) > 0 {
+		for _, name := range names {
+			ctrl.projByNameCache.Delete(name)
+		}
+	} else {
+		ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+			ctrl.projByNameCache.Delete(key)
+			return true
+		})
+	}
 }
 
 func (ctrl *ApplicationController) GetMetricsServer() *metrics.MetricsServer {
@@ -1089,7 +1102,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	ctrl.setOperationState(app, state)
-	if state.Phase.Completed() && !app.Operation.Sync.DryRun {
+	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if _, err := cache.MetaNamespaceKeyFunc(app); err == nil {
