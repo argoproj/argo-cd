@@ -64,12 +64,11 @@ func TestEnforceAllPolicies(t *testing.T) {
 	claims = jwt.MapClaims{"sub": "bob"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
+
 	claims = jwt.MapClaims{"sub": "proj:my-proj:my-role", "iat": 1234}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-
-	fmt.Println("*********", len(newFakeProj().Spec.Roles[0].Policies))
-
 	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
+
 	claims = jwt.MapClaims{"groups": []string{"my-org:my-team"}}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))

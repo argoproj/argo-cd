@@ -169,7 +169,7 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case ResourceApplications:
+			case ResourceApplications, ResourceLogs:
 				if objSplit := strings.Split(obj, "/"); len(objSplit) == 2 {
 					return getProjectByName(objSplit[0])
 				}
