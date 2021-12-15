@@ -258,4 +258,9 @@ func TestAppRevisionHasChanged(t *testing.T) {
 			TargetRevision: "env/test",
 		},
 	}}, "env/test", false))
+	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+		Source: v1alpha1.ApplicationSource{
+			TargetRevision: "refs/heads/env/test",
+		},
+	}}, "env/test", false))
 }
