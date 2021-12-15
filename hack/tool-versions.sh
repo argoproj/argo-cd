@@ -8,6 +8,7 @@
 # downloaded binary with a ".sha256" suffix appended, containing the proper
 # SHA256 sum of the binary.
 ###############################################################################
+awscliv2_version=2.4.6
 helm2_version=2.17.0
 helm3_version=3.7.1
 jq_version=1.6
