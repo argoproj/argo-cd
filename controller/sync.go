@@ -172,6 +172,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
+	// mutate normalize logic
+	// compareResult.diffNormalizer.Normalize(target)
+	// normalize from managedFields
+
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
