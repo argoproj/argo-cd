@@ -1587,3 +1587,19 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 	assert.Equal(t, repos[0].Repo, repo1)
 	assert.Equal(t, repos[1].Repo, repo2)
 }
+
+func TestResolveRevision(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "HEAD",
+	})
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.Nil(t, err)
+
+}

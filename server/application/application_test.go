@@ -72,6 +72,13 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
+func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
+		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
+	}
+}
+
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer(objects ...runtime.Object) *Server {
 	f := func(enf *rbac.Enforcer) {
@@ -112,6 +119,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+	mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
 
@@ -491,7 +499,6 @@ func TestSyncAndTerminate(t *testing.T) {
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
-
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
