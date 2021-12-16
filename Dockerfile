@@ -32,6 +32,7 @@ RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
+RUN ./install.sh awscli-linux
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -49,9 +50,8 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
+    apt-get install -y git git-lfs tini gpg tzdata && \
     apt-get clean && \
-    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
