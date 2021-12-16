@@ -238,6 +238,7 @@ func Test_affectedRevisionInfo_noLinks(t *testing.T) {
 		},
 	})
 }
+
 func TestAppRevisionHasChanged(t *testing.T) {
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
 		Source: v1alpha1.ApplicationSource{},
