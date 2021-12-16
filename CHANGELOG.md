@@ -823,7 +823,7 @@ More documentation and tools are coming in patch releases.
 The Argo CD deletes all **in-flight** hooks if you terminate running sync operation. The hook state assessment change implemented in this release the Argo CD enables detection of 
 an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `StatefulSet`, `ReplicaSet` etc. So if you terminate the sync operation that has, for example,
 `StatefulSet` hook that is `Progressing` it will be deleted. The long-running jobs are not supposed to be used as a sync hook and you should consider using
-[Sync Waves](https://argoproj.github.io/argo-cd/user-guide/sync-waves/) instead.
+[Sync Waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) instead.
 
 #### Enhancements
 * feat: Add custom health checks for cert-manager v0.11.0 (#2689) 
