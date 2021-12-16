@@ -1,0 +1,32 @@
+apiVersion: fed.solo.io/v1
+kind: FailoverScheme
+metadata:
+  annotations:
+  labels:
+    app.kubernetes.io/instance: sample-backend
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: daznservice
+    app.kubernetes.io/version: 2.0.0
+  name: sample-backend
+  namespace: sample-backend
+spec:
+  failoverGroups:
+  - priorityGroup:
+    - cluster: xxx
+      upstreams:
+      - name: sample-backend
+        namespace: sample-backend
+  - priorityGroup:
+    - cluster: yyy
+      upstreams:
+      - name: sample-backend
+        namespace: sample-backend
+  primary:
+    clusterName: xxx
+    name: sample-backend
+    namespace: sample-backend
+    selector:
+      app: petstore
+    serviceName: petstore
+status:
+  state: PENDING

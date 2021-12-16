@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: Healthy
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for Gloo
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: DunnoMate
+    inputPath: testdata/degraded.yaml

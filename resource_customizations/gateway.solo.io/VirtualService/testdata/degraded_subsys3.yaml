@@ -1,0 +1,37 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  annotations:
+  name: petstore-https
+  namespace: default
+spec:
+  virtualHost:
+    domains:
+    - petstore.test.gateway.argocd.com
+    routes:
+    - matchers:
+      - exact: /health
+      options:
+        autoHostRewrite: true
+        prefixRewrite: ""
+      routeAction:
+        single:
+          upstream:
+            name: petstore
+            namespace: default
+status:
+  statuses:
+    gloo-system:
+      reportedBy: gateway
+      state: 3
+      subresourceStatuses:
+        '*v1.Proxy.gloo-system.gateway-proxy':
+          reportedBy: gloo
+          state: 3
+    other-system:
+      reportedBy: gateway
+      state: 1
+      subresourceStatuses:
+        '*v1.Proxy.gloo-system.gateway-proxy':
+          reportedBy: gloo
+          state: 1

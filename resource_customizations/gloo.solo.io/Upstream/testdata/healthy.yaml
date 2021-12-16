@@ -1,0 +1,28 @@
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: petstore
+  namespace: default
+spec:
+  circuitBreakers:
+    maxConnections: 20480
+    maxPendingRequests: 20490
+    maxRequests: 20480
+    maxRetries: 3
+  healthChecks:
+  - alwaysLogHealthCheckFailures: true
+    eventLogPath: /dev/stdout
+    healthyThreshold: 3
+    httpHealthCheck:
+      path: /health
+    interval: 5s
+    timeout: 2s
+    unhealthyThreshold: 3
+  kube:
+    selector:
+      app: petstore
+    serviceName: petstore
+    serviceNamespace: default
+    servicePort: 8080
+status:
+  state: 1
