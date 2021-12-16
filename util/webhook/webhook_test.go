@@ -238,15 +238,6 @@ func Test_affectedRevisionInfo_noLinks(t *testing.T) {
 		},
 	})
 }
-
-func appWithRevision(targetRevision string) *v1alpha1.Application {
-	return &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
-			TargetRevision: targetRevision,
-		},
-	}}
-}
-
 func TestAppRevisionHasChanged(t *testing.T) {
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
 		Source: v1alpha1.ApplicationSource{},
@@ -292,6 +283,14 @@ func TestAppRevisionHasChanged(t *testing.T) {
 }
 
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
+	appWithRevision := func(targetRevision string) *v1alpha1.Application {
+		return &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: targetRevision,
+			},
+		}}
+	}
+
 	githubPushPayload := func(branchName string) github.PushPayload {
 		// This payload's "ref" member always has the full git ref, according to the field description.
 		// https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#push
