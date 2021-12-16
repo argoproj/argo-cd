@@ -43,6 +43,14 @@ func testAPI(clientOpts *argoapi.ClientOptions) error {
 	return err
 }
 
+func retrieveContextIfChanged(cmd *cobra.Command) string {
+	ctx := cmd.Flag("context")
+	if ctx != nil && ctx.Changed {
+		return ctx.Value.String()
+	}
+	return ""
+}
+
 // InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
 func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *int) *cobra.Command {
@@ -108,17 +116,14 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return err
 		}
 
-		var context string
-		if cmd.Flag("context").Changed {
-			context = cmd.Flag("context").Value.String()
-		}
+		flagContext := retrieveContextIfChanged(cmd)
 
 		mr, err := miniredis.Run()
 		if err != nil {
 			return err
 		}
 
-		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: context}), time.Hour)
+		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: flagContext}), time.Hour)
 		srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 			EnableGZip:    false,
 			Namespace:     namespace,
@@ -130,7 +135,7 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			KubeClientset: kubeClientset,
 			Insecure:      true,
 			ListenHost:    "localhost",
-			RepoClientset: &forwardRepoClientset{namespace: namespace, context: context},
+			RepoClientset: &forwardRepoClientset{namespace: namespace, context: flagContext},
 		})
 
 		go srv.Run(ctx, *port, 0)
