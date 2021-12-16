@@ -154,13 +154,15 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case bitbucketserver.RepositoryReferenceChangedPayload:
 
 		// Webhook module does not parse the inner links
-		for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-			link := l.(map[string]interface{})
-			if link["name"] == "http" {
-				webURLs = append(webURLs, link["href"].(string))
-			}
-			if link["name"] == "ssh" {
-				webURLs = append(webURLs, link["href"].(string))
+		if payload.Repository.Links != nil {
+			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+				link := l.(map[string]interface{})
+				if link["name"] == "http" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
+				if link["name"] == "ssh" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
 			}
 		}
 
@@ -342,8 +344,14 @@ func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHe
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
+	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
+	for _, prefix := range targetRevisionHasPrefixList {
+		if strings.HasPrefix(app.Spec.Source.TargetRevision, prefix) {
+			return revision == targetRev
+		}
+	}
 
-	return targetRev == revision
+	return app.Spec.Source.TargetRevision == revision
 }
 
 func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {
