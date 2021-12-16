@@ -27,6 +27,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+
+	flag "github.com/spf13/pflag"
 )
 
 func testAPI(clientOpts *argoapi.ClientOptions) error {
@@ -43,10 +45,9 @@ func testAPI(clientOpts *argoapi.ClientOptions) error {
 	return err
 }
 
-func retrieveContextIfChanged(cmd *cobra.Command) string {
-	ctx := cmd.Flag("context")
-	if ctx != nil && ctx.Changed {
-		return ctx.Value.String()
+func retrieveContextIfChanged(contextFlag *flag.Flag) string {
+	if contextFlag != nil && contextFlag.Changed {
+		return contextFlag.Value.String()
 	}
 	return ""
 }
@@ -116,14 +117,14 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return err
 		}
 
-		flagContext := retrieveContextIfChanged(cmd)
+		context := retrieveContextIfChanged(cmd.Flag("context"))
 
 		mr, err := miniredis.Run()
 		if err != nil {
 			return err
 		}
 
-		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: flagContext}), time.Hour)
+		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: context}), time.Hour)
 		srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 			EnableGZip:    false,
 			Namespace:     namespace,
@@ -135,7 +136,7 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			KubeClientset: kubeClientset,
 			Insecure:      true,
 			ListenHost:    "localhost",
-			RepoClientset: &forwardRepoClientset{namespace: namespace, context: flagContext},
+			RepoClientset: &forwardRepoClientset{namespace: namespace, context: context},
 		})
 
 		go srv.Run(ctx, *port, 0)
