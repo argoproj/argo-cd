@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: Healthy
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for Sync
+    inputPath: testdata/progressing.yaml

@@ -1,0 +1,30 @@
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  annotations:
+  generation: 1
+  name: example-com
+  namespace: example
+spec:
+  endpoints:
+  - dnsName: example-com-alpha.test.gateway
+    providerSpecific:
+    - name: alias
+      value: "true"
+    - name: aws/region
+      value: eu-central-1
+    recordTTL: 120
+    recordType: CNAME
+    setIdentifier: eu-central-1
+    targets:
+    - eu-central-1
+  - dnsName: example-com-test-alpha.test.gateway
+    providerSpecific:
+    - name: alias
+      value: "true"
+    recordTTL: 120
+    recordType: CNAME
+    targets:
+    - eu-central-1
+status:
+  observedGeneration: 2
