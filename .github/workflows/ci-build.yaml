@@ -436,7 +436,7 @@ jobs:
         if: ${{ failure() }}
 
   lint-docs:
-    name: Ensure docs are linted
+    name: Lint docs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
