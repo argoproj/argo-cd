@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+
 	"github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
@@ -265,11 +266,11 @@ func TestAppRevisionHasChanged(t *testing.T) {
 }
 
 func Test_getWebUrlRegex(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		shouldMatch bool
-		webURL string
-		repo string
-		name string
+		webURL      string
+		repo        string
+		name        string
 	}{
 		// Ensure input is regex-escaped.
 		{false, "https://example.com/org/a..d", "https://example.com/org/abcd", "dots in repo names should not be treated as wildcards"},
