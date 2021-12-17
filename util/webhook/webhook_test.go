@@ -291,7 +291,8 @@ func Test_getWebUrlRegex(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			regexp := getWebUrlRegex(testCopy.webURL)
+			regexp, err := getWebUrlRegex(testCopy.webURL)
+			assert.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
 				t.Errorf("appRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
 			}
