@@ -61,9 +61,11 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/aws-cli/v2/current/dist /usr/local/aws-cli/v2/current/dist
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+RUN ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
