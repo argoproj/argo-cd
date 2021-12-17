@@ -2573,4 +2573,10 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
 	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
 	assert.Error(t, err)
+
+	err = validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some.project/*, allow")
+	assert.NoError(t, err)
+
+	err = validatePolicy("some-project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
 }
