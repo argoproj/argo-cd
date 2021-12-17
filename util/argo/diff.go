@@ -7,6 +7,8 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/go-logr/logr"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -15,44 +17,60 @@ import (
 
 // DiffConfig defines the configurations used while applying diffs.
 type DiffConfig struct {
-	Ignores               []v1alpha1.ResourceIgnoreDifferences
-	Overrides             map[string]v1alpha1.ResourceOverride
-	AppLabelKey           string
-	TrackingMethod        string
-	NoCache               bool
+	// Ignores is list of ignore differences configuration set in the Application.
+	Ignores []v1alpha1.ResourceIgnoreDifferences
+	// SettingsMgr is used to retrieve the necessary system settings that are missing
+	// in this DiffConfig
+	SettingsMgr *settings.SettingsManager
+	// Overrides is map of system configurations to override the Application ones.
+	// The key should follow the "group/kind" format.
+	Overrides      map[string]v1alpha1.ResourceOverride
+	AppLabelKey    string
+	TrackingMethod string
+	// AppName the Application name. Used to retrieve the cached diff.
+	AppName string
+	// NoCache defines if should retrieve the diff from cache.
+	NoCache bool
+	// StateCache is used when retrieving the diff from the cache.
 	StateCache            *appstatecache.Cache
 	IgnoreAggregatedRoles bool
+	// Logger used during the diff
+	Logger logr.Logger
 }
 
 type normalizeResults struct {
-	lives      []*unstructured.Unstructured
-	targets    []*unstructured.Unstructured
-	conditions []v1alpha1.ApplicationCondition
+	lives   []*unstructured.Unstructured
+	targets []*unstructured.Unstructured
 }
 
-type preDiffNormalizeParams struct {
-	targets          []*unstructured.Unstructured
-	lives            []*unstructured.Unstructured
-	ignoreDiffConfig *IgnoreDiffConfig
-	resourceTracking ResourceTracking
-	appLabel         string
-	trackingMethod   string
-}
-
-func StateDiff(appName string, live, config []*unstructured.Unstructured, diffConfig *DiffConfig) (*diff.DiffResultList, error) {
-
-	params := &preDiffNormalizeParams{
-		targets: config,
-		lives:   live,
-		ignoreDiffConfig: &IgnoreDiffConfig{
-			ignores:   diffConfig.Ignores,
-			overrides: diffConfig.Overrides,
-		},
-		resourceTracking: NewResourceTracking(),
-		appLabel:         diffConfig.AppLabelKey,
-		trackingMethod:   diffConfig.TrackingMethod,
+func StateDiff(live, config *unstructured.Unstructured, diffConfig *DiffConfig) (diff.DiffResult, error) {
+	results, err := StateDiffs([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
+	if err != nil {
+		return diff.DiffResult{}, err
 	}
-	normResults, err := preDiffNormalize(params)
+	if len(results.Diffs) != 1 {
+		return diff.DiffResult{}, fmt.Errorf("StateDiff error: unexpected diff results: expected 1 got %d", len(results.Diffs))
+	}
+	return results.Diffs[0], nil
+}
+
+// TODO implement the validateDiffConfig
+func validateDiffConfig(diffConfig *DiffConfig) error {
+	// Overrides      map[string]v1alpha1.ResourceOverride
+	// AppLabelKey    string
+	// TrackingMethod string
+	// NoCache bool
+	// AppName string
+	// StateCache            *appstatecache.Cache
+	// IgnoreAggregatedRoles bool
+
+	return nil
+}
+
+func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig *DiffConfig) (*diff.DiffResultList, error) {
+	err := validateDiffConfig(diffConfig)
+
+	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +84,11 @@ func StateDiff(appName string, live, config []*unstructured.Unstructured, diffCo
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles),
 	}
 
-	useCache, cachedDiff := diffConfig.diffFromCache(appName)
+	if diffConfig.Logger != nil {
+		diffOpts = append(diffOpts, diff.WithLogr(diffConfig.Logger))
+	}
+
+	useCache, cachedDiff := diffConfig.diffFromCache(diffConfig.AppName)
 	if useCache && cachedDiff != nil {
 		return diffArrayCached(normResults.targets, normResults.lives, cachedDiff, diffOpts...)
 	}
@@ -129,7 +151,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
 func (c *DiffConfig) diffFromCache(appName string) (bool, []*appv1.ResourceDiff) {
-	if c.NoCache || c.StateCache == nil {
+	if c.NoCache || c.StateCache == nil || appName == "" {
 		return false, nil
 	}
 	cachedDiff := make([]*appv1.ResourceDiff, 0)
@@ -143,17 +165,19 @@ func (c *DiffConfig) diffFromCache(appName string) (bool, []*appv1.ResourceDiff)
 // the diff. None of the attributes in the preDiffNormalizeParams will be modified. The
 // normalizeResults will return a list of ApplicationConditions in case something goes
 // wrong during the normalization.
-func preDiffNormalize(p *preDiffNormalizeParams) (*normalizeResults, error) {
+func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig *DiffConfig) (*normalizeResults, error) {
 	results := &normalizeResults{}
-	for i := range p.targets {
-		target := safeDeepCopy(p.targets[i])
-		live := safeDeepCopy(p.lives[i])
-		_ = p.resourceTracking.Normalize(target, live, p.appLabel, p.trackingMethod)
+	for i := range targets {
+		target := safeDeepCopy(targets[i])
+		live := safeDeepCopy(lives[i])
+		resourceTracking := NewResourceTracking()
+		_ = resourceTracking.Normalize(target, live, diffConfig.AppLabelKey, diffConfig.TrackingMethod)
 		// just normalize on managed fields if live and target aren't nil as we just care
 		// about conflicting fields
 		if live != nil && target != nil {
 			gvk := target.GetObjectKind().GroupVersionKind()
-			ok, ignoreDiff := p.ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
+			idc := NewIgnoreDiffConfig(diffConfig.Ignores, diffConfig.Overrides)
+			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
 				var err error
 				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)

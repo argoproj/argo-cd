@@ -447,11 +447,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		Overrides:             resourceOverrides,
 		AppLabelKey:           appLabelKey,
 		TrackingMethod:        string(trackingMethod),
+		AppName:               app.GetName(),
 		NoCache:               noCache || specChanged || revisionChanged,
 		StateCache:            m.cache,
 		IgnoreAggregatedRoles: compareOptions.IgnoreAggregatedRoles,
 	}
-	diffResults, err := argo.StateDiff(app.GetName(), reconciliation.Live, reconciliation.Target, diffConfig)
+	diffResults, err := argo.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
