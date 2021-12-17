@@ -154,13 +154,15 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case bitbucketserver.RepositoryReferenceChangedPayload:
 
 		// Webhook module does not parse the inner links
-		for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-			link := l.(map[string]interface{})
-			if link["name"] == "http" {
-				webURLs = append(webURLs, link["href"].(string))
-			}
-			if link["name"] == "ssh" {
-				webURLs = append(webURLs, link["href"].(string))
+		if payload.Repository.Links != nil {
+			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+				link := l.(map[string]interface{})
+				if link["name"] == "http" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
+				if link["name"] == "ssh" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
 			}
 		}
 
