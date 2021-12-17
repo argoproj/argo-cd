@@ -227,19 +227,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 
 	for _, webURL := range webURLs {
-		urlObj, err := url.Parse(webURL)
-		if err != nil {
-			log.Warnf("Failed to parse repoURL '%s'", webURL)
+		repoRegexp := getWebUrlRegex(webURL)
+		if repoRegexp == nil {
 			continue
 		}
-
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
-		repoRegexp, err := regexp.Compile(regexpStr)
-		if err != nil {
-			log.Warnf("Failed to compile regexp for repoURL '%s'", webURL)
-			continue
-		}
-
 		for _, app := range apps.Items {
 			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
 				if appFilesHaveChanged(&app, changedFiles) {
@@ -256,6 +247,25 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			}
 		}
 	}
+}
+
+func getWebUrlRegex(webURL string) *regexp.Regexp {
+	urlObj, err := url.Parse(webURL)
+	if err != nil {
+		log.Warnf("Failed to parse repoURL '%s'", webURL)
+		return nil
+	}
+
+	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
+	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|\w+@|ssh://(\w+@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`, regexEscapedHostname, regexEscapedPath)
+	repoRegexp, err := regexp.Compile(regexpStr)
+	if err != nil {
+		log.Warnf("Failed to compile regexp for repoURL '%s'", webURL)
+		return nil
+	}
+
+	return repoRegexp
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
