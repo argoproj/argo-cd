@@ -40,7 +40,7 @@ func main() {
 		command = cmpserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
-	case "argocd-notification":
+	case "argocd-notifications":
 		command = notification.NewCommand()
 	default:
 		command = cli.NewCommand()

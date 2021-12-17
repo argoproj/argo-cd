@@ -19,25 +19,14 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
-. ${SCRIPT_ROOT}/hack/versions.sh
-CODEGEN_PKG=$GOPATH/pkg/mod/k8s.io/code-generator@${kube_version}
+PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
+
 TARGET_SCRIPT=/tmp/generate-groups.sh
-
-(
-  cd $CODEGEN_PKG
-  go install ./cmd/{defaulter-gen,client-gen,lister-gen,informer-gen,deepcopy-gen}
-)
-
-export GO111MODULE=off
-
-sed -e '/go install/d' ${CODEGEN_PKG}/generate-groups.sh > ${TARGET_SCRIPT}
-
-export GO111MODULE=on
+sed -e '/go install/d' ${PROJECT_ROOT}/vendor/k8s.io/code-generator/generate-groups.sh > ${TARGET_SCRIPT}
 
 [ -e ./v2 ] || ln -s . v2
-bash -x ${TARGET_SCRIPT} "deepcopy,client,informer,lister" \
+GOBIN=${PROJECT_ROOT}/dist bash -x ${TARGET_SCRIPT} "deepcopy,client,informer,lister" \
   github.com/argoproj/argo-cd/v2/pkg/client github.com/argoproj/argo-cd/v2/pkg/apis \
   "application:v1alpha1" \
-  --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
+  --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt
 [ -e ./v2 ] && rm -rf v2

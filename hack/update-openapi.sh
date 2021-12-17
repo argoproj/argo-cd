@@ -6,13 +6,8 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
-CODEGEN_PKG=${PROJECT_ROOT}/vendor/k8s.io/kube-openapi
+PATH="${PROJECT_ROOT}/dist:${PATH}"
 VERSION="v1alpha1"
-
-export GO111MODULE=off
-go build -o dist/openapi-gen ${CODEGEN_PKG}/cmd/openapi-gen
-
-export GO111MODULE=on
 
 [ -e ./v2 ] || ln -s . v2
 ./dist/openapi-gen \
