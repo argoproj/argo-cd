@@ -249,6 +249,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 }
 
+// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
 func getWebUrlRegex(webURL string) *regexp.Regexp {
 	urlObj, err := url.Parse(webURL)
 	if err != nil {
