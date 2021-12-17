@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -28,10 +29,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-)
-
-const (
-	errDestinationMissing = "Destination server missing from app spec"
 )
 
 // FormatAppConditions returns string representation of give app condition list
@@ -276,7 +273,7 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr, db)...)
 
 	return conditions, nil
 }
@@ -305,6 +302,7 @@ func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDe
 //
 // It also checks:
 // - If we used both name and server then we return an invalid spec error
+// - If neither name nor server is set we return a missing destination error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
@@ -321,6 +319,8 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 			}
 		}
+	} else if dest.Server == "" {
+		return errors.New("Destination server missing from app spec")
 	}
 	return nil
 }
@@ -350,28 +350,35 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 	}
 
-	if spec.Destination.Server != "" {
-		if !proj.IsDestinationPermitted(spec.Destination) {
+	// ValidateDestination will resolve the destination's server address from its name for us, if possible
+	if err := ValidateDestination(ctx, &spec.Destination, db); err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: err.Error(),
+		})
+		return conditions, nil
+	}
+
+	// spec.Destination.Server is now guaranteed to be set
+	if !proj.IsDestinationPermitted(spec.Destination) {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+		})
+	}
+	// Ensure the k8s cluster the app is referencing, is configured in Argo CD
+	_, err := db.GetCluster(ctx, spec.Destination.Server)
+	if err != nil {
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
 			})
+		} else {
+			return nil, err
 		}
-		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, spec.Destination.Server)
-		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
-				})
-			} else {
-				return nil, err
-			}
-		}
-	} else if spec.Destination.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
 	}
+
 	return conditions, nil
 }
 
@@ -469,13 +476,15 @@ func verifyGenerateManifests(
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
 	settingsMgr *settings.SettingsManager,
+	db db.ArgoDB,
 ) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" {
+
+	if err := ValidateDestination(ctx, &spec.Destination, db); err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: errDestinationMissing,
+			Message: err.Error(),
 		})
 	}
 

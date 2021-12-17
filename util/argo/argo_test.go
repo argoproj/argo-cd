@@ -707,6 +707,16 @@ func TestValidateDestination(t *testing.T) {
 		assert.False(t, dest.IsServerInferred())
 	})
 
+	t.Run("Error when having neither server url nor name", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Namespace: "default",
+		}
+
+		err := ValidateDestination(context.Background(), &dest, nil)
+		assert.Equal(t, "Destination server missing from app spec", err.Error())
+		assert.False(t, dest.IsServerInferred())
+	})
+
 	t.Run("List clusters fails", func(t *testing.T) {
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
