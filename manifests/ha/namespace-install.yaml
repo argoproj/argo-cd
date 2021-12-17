@@ -1185,9 +1185,8 @@ spec:
     spec:
       containers:
       - command:
-        - /app/argocd-notifications-backend
-        - controller
-        image: argoprojlabs/argocd-notifications:latest
+        - argocd-notifications
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
