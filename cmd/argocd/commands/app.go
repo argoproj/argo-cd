@@ -893,10 +893,17 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					val := argoSettings.ResourceOverrides[k]
 					overrides[k] = *val
 				}
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
-				errors.CheckError(err)
 
-				diffRes, err := diff.Diff(item.target, item.live, diff.WithNormalizer(normalizer))
+				diffConfig := &argo.DiffConfig{
+					Ignores:        app.Spec.IgnoreDifferences,
+					Overrides:      overrides,
+					AppLabelKey:    argoSettings.AppLabelKey,
+					TrackingMethod: argoSettings.TrackingMethod,
+					NoCache:        true,
+					// TODO retrieve the compareOptions in the protobuf
+					// IgnoreAggregatedRoles: ??,
+				}
+				diffRes, err := argo.StateDiff(item.live, item.target, diffConfig)
 				errors.CheckError(err)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {
