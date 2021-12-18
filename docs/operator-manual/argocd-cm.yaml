@@ -81,6 +81,8 @@ data:
     - /webhooks/0/clientConfig/caBundle
     jqPathExpressions:
     - .webhooks[0].clientConfig.caBundle
+    managedFieldsManagers:
+    - kube-controller-manager
 
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}

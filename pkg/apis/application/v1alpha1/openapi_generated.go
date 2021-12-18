@@ -2662,11 +2662,13 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between the desired state and live state",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"jsonPointers": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2680,7 +2682,23 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 					},
 					"jqPathExpressions": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2693,7 +2711,7 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"jsonPointers", "jqPathExpressions"},
+				Required: []string{"jsonPointers", "jqPathExpressions", "managedFieldsManagers"},
 			},
 		},
 	}
@@ -3462,6 +3480,21 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 					"jqPathExpressions": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
