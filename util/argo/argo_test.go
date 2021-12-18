@@ -579,6 +579,45 @@ func TestValidatePermissions(t *testing.T) {
 		assert.Contains(t, conditions[0].Message, "has not been configured")
 	})
 
+	t.Run("Destination cluster name does not exist", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Name:      "does-not-exist",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
+			Items: []argoappv1.Cluster{
+				{
+					Name:   "dind",
+					Server: "https://127.0.0.1:6443",
+				},
+			},
+		}, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "unable to find destination server: there are no clusters with this name: does-not-exist")
+	})
+
 	t.Run("Cannot get cluster info from DB", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
 			Source: argoappv1.ApplicationSource{
@@ -607,6 +646,44 @@ func TestValidatePermissions(t *testing.T) {
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
 		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.Error(t, err)
+	})
+
+	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Name:      "does-exist",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		cluster := argoappv1.Cluster{
+			Name:   "does-exist",
+			Server: "https://127.0.0.1:6443",
+		}
+		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
+			Items: []argoappv1.Cluster{cluster},
+		}, nil)
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 0)
 	})
 }
 
@@ -704,16 +781,6 @@ func TestValidateDestination(t *testing.T) {
 
 		err := ValidateDestination(context.Background(), &dest, nil)
 		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", err.Error())
-		assert.False(t, dest.IsServerInferred())
-	})
-
-	t.Run("Error when having neither server url nor name", func(t *testing.T) {
-		dest := argoappv1.ApplicationDestination{
-			Namespace: "default",
-		}
-
-		err := ValidateDestination(context.Background(), &dest, nil)
-		assert.Equal(t, "Destination server missing from app spec", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
 
