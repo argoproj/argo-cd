@@ -33,6 +33,7 @@ interface ApplicationDetailsState {
     revision?: string;
     groupedResources?: ResourceStatus[];
     showCompactNodes?: boolean;
+    slidingPanelPage?: number;
 }
 
 interface FilterInput {
@@ -67,7 +68,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], showCompactNodes: false};
+        this.state = {page: 0, groupedResources: [], showCompactNodes: false, slidingPanelPage: 0};
     }
 
     private get showOperationState() {
@@ -93,6 +94,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
+        this.setState({slidingPanelPage: 0});
     }
 
     private toggleCompactView() {
@@ -329,15 +331,25 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
-                                            <ApplicationResourceList
-                                                onNodeClick={fullName => this.selectNode(fullName)}
-                                                resources={this.state.groupedResources}
-                                                nodeMenu={node =>
-                                                    AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
-                                                        this.getApplicationActionMenu(application, false)
-                                                    )
-                                                }
-                                            />
+                                            <div style={{marginTop: '1.25em'}}>
+                                                <Paginate
+                                                    page={this.state.slidingPanelPage}
+                                                    data={this.state.groupedResources}
+                                                    onPageChange={page => this.setState({slidingPanelPage: page})}
+                                                    preferencesKey='grouped-nodes-details'>
+                                                    {data => (
+                                                        <ApplicationResourceList
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            resources={data}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application, false)
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
+                                                </Paginate>
+                                            </div>
                                         </SlidingPanel>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
