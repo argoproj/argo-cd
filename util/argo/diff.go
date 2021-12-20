@@ -14,15 +14,20 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// DiffConfigBuilder is used as a safe way to create valid DiffConfigs.
 type DiffConfigBuilder struct {
 	diffConfig *diffConfig
 }
 
+// NewDiffConfigBuilder create a new DiffConfigBuilder instance.
 func NewDiffConfigBuilder() *DiffConfigBuilder {
 	return &DiffConfigBuilder{
 		diffConfig: &diffConfig{},
 	}
 }
+
+// WithIgnores sets the list of ResourceIgnoreDifferences in the diff config. Will set an
+// empty list if the input parameter is nil.
 func (b *DiffConfigBuilder) WithIgnores(i []v1alpha1.ResourceIgnoreDifferences) *DiffConfigBuilder {
 	ignores := i
 	if ignores == nil {
@@ -31,6 +36,9 @@ func (b *DiffConfigBuilder) WithIgnores(i []v1alpha1.ResourceIgnoreDifferences) 
 	b.diffConfig.ignores = ignores
 	return b
 }
+
+// WithOverrides sets the map of ResourceOverride in the diff config. Will set an
+// empty map if the input parameter is nil.
 func (b *DiffConfigBuilder) WithOverrides(o map[string]v1alpha1.ResourceOverride) *DiffConfigBuilder {
 	overrides := o
 	if overrides == nil {
@@ -39,34 +47,52 @@ func (b *DiffConfigBuilder) WithOverrides(o map[string]v1alpha1.ResourceOverride
 	b.diffConfig.overrides = overrides
 	return b
 }
+
+// WithAppLabelKey sets the appLabelKey in the diff config.
 func (b *DiffConfigBuilder) WithAppLabelKey(l string) *DiffConfigBuilder {
 	b.diffConfig.appLabelKey = &l
 	return b
 }
+
+// WithTrackingMethod sets the trackingMethod in the diff config.
 func (b *DiffConfigBuilder) WithTrackingMethod(t string) *DiffConfigBuilder {
 	b.diffConfig.trackingMethod = &t
 	return b
 }
+
+// WithAppName sets the appName in the diff config.
 func (b *DiffConfigBuilder) WithAppName(n string) *DiffConfigBuilder {
 	b.diffConfig.appName = &n
 	return b
 }
+
+// WithNoCache sets the nocache in the diff config.
 func (b *DiffConfigBuilder) WithNoCache(c bool) *DiffConfigBuilder {
 	b.diffConfig.noCache = &c
 	return b
 }
+
+// WithStateCache sets the appstatecache.Cache in the diff config.
 func (b *DiffConfigBuilder) WithStateCache(s *appstatecache.Cache) *DiffConfigBuilder {
 	b.diffConfig.stateCache = s
 	return b
 }
+
+// WithIgnoreAggregatedRoles sets the ignoreAggregatedRoles in the diff config.
 func (b *DiffConfigBuilder) WithIgnoreAggregatedRoles(i bool) *DiffConfigBuilder {
 	b.diffConfig.ignoreAggregatedRoles = &i
 	return b
 }
+
+// WithLogger sets the logger in the diff config.
 func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 	b.diffConfig.logger = l
 	return b
 }
+
+// Build will first validate the current state of the diff config and return the
+// DiffConfig implementation if no errors are found. Will return nil and the error
+// details otherwise.
 func (b *DiffConfigBuilder) Build() (DiffConfig, error) {
 	err := b.diffConfig.Validate()
 	if err != nil {
@@ -225,19 +251,6 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	return diff.DiffArray(normResults.targets, normResults.lives, diffOpts...)
 }
 
-// TODO implement the validateDiffConfig
-func validateDiffConfig(diffConfig *DiffConfig) error {
-	// Overrides      map[string]v1alpha1.ResourceOverride
-	// AppLabelKey    string
-	// TrackingMethod string
-	// NoCache bool
-	// AppName string
-	// StateCache            *appstatecache.Cache
-	// IgnoreAggregatedRoles bool
-
-	return nil
-}
-
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
@@ -290,7 +303,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 	return &diffResultList, nil
 }
 
-// diffFromCache will verify if it should retrieve the cached ResourceDiff based on this
+// DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
 func (c *diffConfig) DiffFromCache(appName string) (bool, []*appv1.ResourceDiff) {
