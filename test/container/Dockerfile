@@ -29,7 +29,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
