@@ -442,16 +442,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
 
-	diffConfig := &argo.DiffConfig{
-		Ignores:               app.Spec.IgnoreDifferences,
-		Overrides:             resourceOverrides,
-		AppLabelKey:           appLabelKey,
-		TrackingMethod:        string(trackingMethod),
-		AppName:               app.GetName(),
-		NoCache:               noCache || specChanged || revisionChanged,
-		StateCache:            m.cache,
-		IgnoreAggregatedRoles: compareOptions.IgnoreAggregatedRoles,
-	}
+	// it necessary to ignore the error at this point to avoid creating duplicated
+	// application conditions as argo.StateDiffs will validate this diffConfig again.
+	diffConfig, _ := argo.NewDiffConfigBuilder().
+		WithIgnores(app.Spec.IgnoreDifferences).
+		WithOverrides(resourceOverrides).
+		WithAppLabelKey(appLabelKey).
+		WithTrackingMethod(string(trackingMethod)).
+		WithAppName(app.GetName()).
+		WithNoCache(noCache || specChanged || revisionChanged).
+		WithStateCache(m.cache).
+		WithIgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles).
+		Build()
+
 	diffResults, err := argo.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}

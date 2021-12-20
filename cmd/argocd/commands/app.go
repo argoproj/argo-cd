@@ -16,7 +16,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
@@ -894,15 +893,18 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					overrides[k] = *val
 				}
 
-				diffConfig := &argo.DiffConfig{
-					Ignores:        app.Spec.IgnoreDifferences,
-					Overrides:      overrides,
-					AppLabelKey:    argoSettings.AppLabelKey,
-					TrackingMethod: argoSettings.TrackingMethod,
-					NoCache:        true,
-					// TODO retrieve the compareOptions in the protobuf
-					// IgnoreAggregatedRoles: ??,
-				}
+				diffConfig, err := argo.NewDiffConfigBuilder().
+					WithIgnores(app.Spec.IgnoreDifferences).
+					WithOverrides(overrides).
+					WithAppLabelKey(argoSettings.AppLabelKey).
+					WithTrackingMethod(argoSettings.TrackingMethod).
+					WithNoCache(true).
+					// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
+					// compareOptions in the protobuf
+					WithIgnoreAggregatedRoles(false).
+					Build()
+				errors.CheckError(err)
+
 				diffRes, err := argo.StateDiff(item.live, item.target, diffConfig)
 				errors.CheckError(err)
 

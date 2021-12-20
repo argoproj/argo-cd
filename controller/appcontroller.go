@@ -584,15 +584,19 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("error getting tracking method: %s", err)
 			}
 
-			diffConfig := &argo.DiffConfig{
-				Ignores:               app.Spec.IgnoreDifferences,
-				Overrides:             resourceOverrides,
-				AppLabelKey:           appLabelKey,
-				TrackingMethod:        trackingMethod,
-				NoCache:               true,
-				IgnoreAggregatedRoles: compareOptions.IgnoreAggregatedRoles,
-				Logger:                logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()),
+			diffConfig, err := argo.NewDiffConfigBuilder().
+				WithIgnores(app.Spec.IgnoreDifferences).
+				WithOverrides(resourceOverrides).
+				WithAppLabelKey(appLabelKey).
+				WithTrackingMethod(trackingMethod).
+				WithAppName(app.GetName()).
+				WithNoCache(true).
+				WithIgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles).
+				Build()
+			if err != nil {
+				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)
 			}
+
 			diffResult, err := argo.StateDiff(live, target, diffConfig)
 			if err != nil {
 				return nil, fmt.Errorf("error applying diff: %s", err)
