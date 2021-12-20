@@ -8,13 +8,13 @@ import (
 	generator "github.com/argoproj/argo-cd/v2/performance-test/generators"
 )
 
-func NewProjectGenerationCommand() *cobra.Command {
+func NewApplicationGenerationCommand() *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "project",
-		Short: "Generate project",
-		Long:  "Generate project",
+		Use:   "application",
+		Short: "Generate application",
+		Long:  "Generate application",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewProjectGenerator(generator.ConnectToK8s())
+			pg := generator.NewApplicationGenerator(generator.ConnectToK8s())
 			err := pg.Generate()
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())

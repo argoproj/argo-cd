@@ -33,6 +33,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	command.AddCommand(NewProjectGenerationCommand())
+	command.AddCommand(NewApplicationGenerationCommand())
 
 	return command
 }
