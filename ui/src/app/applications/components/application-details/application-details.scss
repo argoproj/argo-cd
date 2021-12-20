@@ -33,6 +33,10 @@ $header: 120px;
         }
     }
 
+    &__sliding-panel-pagination-wrap {
+        margin-top: 1.25em;
+    }
+
     &__warning {
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
