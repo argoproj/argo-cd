@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -141,4 +142,72 @@ func TestSyncComparisonError(t *testing.T) {
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
 	assert.Equal(t, "abc123", opState.SyncResult.Revision)
+}
+
+func TestAppStateManager_SyncAppState(t *testing.T) {
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func() *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data)
+
+		return &fixture{
+			project:     project,
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("will fail the sync if finds shared resources", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		syncErrorMsg := "deployment already applied by another application"
+		condition := v1alpha1.ApplicationCondition{
+			Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
+			Message: syncErrorMsg,
+		}
+		f.application.Status.Conditions = append(f.application.Status.Conditions, condition)
+
+		// Sync with source unspecified
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source:      &v1alpha1.ApplicationSource{},
+				SyncOptions: []string{"FailOnSharedResource=true"},
+			},
+		}}
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationFailed, opState.Phase)
+		assert.Contains(t, opState.Message, syncErrorMsg)
+	})
 }

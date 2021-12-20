@@ -46,7 +46,7 @@ import (
 const (
 	guestbookPath          = "guestbook"
 	guestbookPathLocal     = "./testdata/guestbook_local"
-	globalWithNoNameSpace  = "global-with-no-namesapce"
+	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
 )
 
@@ -141,6 +141,26 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, "annotation", app.Annotations["test"])
 			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
 		})
+}
+
+func TestDeleteAppResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// app should be listed
+			if _, err := RunCli("app", "delete-resource", Name(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
+				assert.NoError(t, err)
+			}
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
@@ -1649,6 +1669,27 @@ func TestSyncOptionReplace(t *testing.T) {
 		Path("config-map").
 		When().
 		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+		})
+}
+
+func TestSyncOptionReplaceFromCLI(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		Replace().
+		When().
 		Create().
 		Sync().
 		Then().

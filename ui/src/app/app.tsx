@@ -214,18 +214,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                 <Redirect path='*' to='/' />
                             </Switch>
                         </Router>
-                        <DataLoader load={() => services.authService.settings()}>
-                            {s =>
-                                (s.help && s.help.chatUrl && (
-                                    <div style={{position: 'fixed', right: 10, bottom: 10}}>
-                                        <a href={s.help.chatUrl} className='argo-button argo-button--special'>
-                                            <i className='fas fa-comment-alt' /> {s.help.chatText}
-                                        </a>
-                                    </div>
-                                )) ||
-                                null
-                            }
-                        </DataLoader>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />

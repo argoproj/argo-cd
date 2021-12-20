@@ -5,12 +5,22 @@
     - [Config Management Tools Integrations (proposal)](#config-management-tools-integrations-proposal)
     - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
     - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
-    - [Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
   - [v2.3 and beyond](#v23-and-beyond)
-    - [Application Details Page Usability](#application-details-page-usability)
-    - [Cluster Management User Interface](#cluster-management-user-interface)
+    - [Input Forms UI Refresh](#input-forms-ui-refresh)
+    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
+    - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
+    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
+    - [Compact Resources Tree](#compact-resources-tree)
+    - [Web Shell](#web-shell)
+    - [Helm values from external repo](#helm-values-from-external-repo)
+    - [Config Management Tools Integrations UI/CLI](#config-management-tools-integrations-uicli)
+    - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
+    - [Dependencies between applications](#dependencies-between-applications)
+    - [Maintain difference in cluster and git values for specific fields](#maintain-difference-in-cluster-and-git-values-for-specific-fields)
+    - [Multi-tenancy improvements](#multi-tenancy-improvements)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
+    - [✅ Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
     - [✅ Core Functionality Bug Fixes](#-core-functionality-bug-fixes)
     - [✅ Performance](#-performance)
     - [✅ ApplicationSet](#-applicationset)
@@ -19,7 +29,6 @@
     - [✅ Argo CD Notifications](#-argo-cd-notifications)
     - [✅ Automated Registry Monitoring](#-automated-registry-monitoring)
     - [✅ Projects Enhancements](#-projects-enhancements)
-
 
 ## v2.2
 
@@ -44,17 +53,59 @@ Instead of asking an administrator to change Argo CD settings end users can perf
 
 ## v2.3 and beyond
 
-### Application Details Page Usability
+### Input Forms UI Refresh
 
-Application details page has accumulated multiple usability and feature requests such as 
-[Node view](https://github.com/argoproj/argo-cd/issues/1483),
-Network view ([1](https://github.com/argoproj/argo-cd/issues/2892), [2](https://github.com/argoproj/argo-cd/issues/2338))
- [etc](https://github.com/argoproj/argo-cd/issues/2199).
+Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
 
-### Cluster Management User Interface
+### Merge ApplicationSet controller into Argo CD
 
-Argo CD has information about whole clusters, not just applications in it.
-We need to provide a user interface for cluster administrators that visualize cluster level resources.
+The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
+The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+
+### Merge Argo CD Notifications into Argo CD
+
+The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
+
+### Merge Argo CD Image Updater into Argo CD
+
+The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+
+### Compact resources tree
+
+An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
+
+### Web Shell
+
+Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.com/argoproj/argo-cd/issues/4351)
+
+### Helm values from external repo
+
+The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
+
+### Config Management Tools Integrations UI/CLI
+
+The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/pull/5927). The Argo CD UI/CLI
+should provide first class experience for configured third-party config management tools: [#5734](https://github.com/argoproj/argo-cd/issues/5734).
+
+### Allow specifying parent/child relationships in config
+
+The feature [#5082](https://github.com/argoproj/argo-cd/issues/5082) allows configuring parent/child relationships between resources. This allows to correctly
+visualize custom resources that don't have owner references.
+
+### Dependencies between applications
+
+The feature allows specifying dependencies between applications that allow orchestrating synchronization of multiple applications. [#3517](https://github.com/argoproj/argo-cd/issues/3517)
+
+### Maintain difference in cluster and git values for specific fields
+
+The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
+
+### Multi-tenancy improvements
+
+The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
+* [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
+* [AppSource](https://github.com/argoproj-labs/appsource)
+
 
 ### GitOps Engine Enhancements
 
@@ -109,7 +160,7 @@ to improve user experience.
 
 To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
 
-That includes more metrics, out of the box alerts and a cluster management user interface.
+That includes more metrics, out-of-the-box alerts and a cluster management user interface.
 
 
 ### ✅ Argo CD Notifications

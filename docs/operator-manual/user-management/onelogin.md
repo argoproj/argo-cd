@@ -111,6 +111,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
 data:
   url: https://<argocd.myproject.com>
   oidc.config: |
@@ -143,6 +146,8 @@ kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
 data:
   policy.default: role:readonly
   policy.csv: |

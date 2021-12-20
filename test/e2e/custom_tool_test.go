@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -149,7 +150,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
-			expectedApiVersion := GetApiVersions()
+			expectedApiVersion := GetApiResources()
 			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
 			sort.Strings(expectedApiVersionSlice)
 
@@ -192,5 +193,99 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
+		})
+}
+func startCMPServer(configFile string) {
+	pluginSockFilePath := TmpDir + PluginSockFilePath
+	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
+	os.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
+	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
+		// path/to/whatever does not exist
+		err := os.Mkdir(pluginSockFilePath, 0700)
+		CheckError(err)
+	}
+	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
+}
+
+//Discover by fileName
+func TestCMPDiscoverWithFileName(t *testing.T) {
+	pluginName := "cmp-fileName"
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-fileName")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path(pluginName).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+//Discover by Find glob
+func TestCMPDiscoverWithFindGlob(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+//Discover by Find command
+func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
+	pluginName := "cmp-find-command"
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-command")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path(pluginName).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			assert.NoError(t, err)
+			assert.Equal(t, "baz", output)
+		}).
+		And(func(app *Application) {
+			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			assert.NoError(t, err)
+			assert.Equal(t, expectedKubeVersion, output)
+		}).
+		And(func(app *Application) {
+			expectedApiVersion := GetApiResources()
+			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
+			sort.Strings(expectedApiVersionSlice)
+
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			assert.NoError(t, err)
+			outputSlice := strings.Split(output, ",")
+			sort.Strings(outputSlice)
+
+			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
 		})
 }

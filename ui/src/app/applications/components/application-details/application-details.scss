@@ -37,12 +37,6 @@ $header: 120px;
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
     }
-    &__orphaned-filter {
-        position: fixed;
-        top: $header + 100px;
-        right: 60px;
-        z-index: 1;
-    }
 
     &__refreshing-label {
         position: fixed;
@@ -123,6 +117,10 @@ $header: 120px;
         position: absolute;
         right: 0;
         top: 0;
+    }
+
+    &__external_link {
+        margin-left: 5px;
     }
 
     pre {

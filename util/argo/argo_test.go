@@ -6,8 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -208,21 +209,35 @@ func Test_enrichSpec(t *testing.T) {
 	})
 }
 
-func TestAPIGroupsToVersions(t *testing.T) {
-	versions := APIGroupsToVersions([]metav1.APIGroup{{
-		Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1beta1"}, {GroupVersion: "apps/v1beta2"}},
+func TestAPIResourcesToStrings(t *testing.T) {
+	resources := []kube.APIResourceInfo{{
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
 	}, {
-		Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "extensions/v1beta1"}},
-	}})
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta2"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}, {
+		GroupVersionResource: schema.GroupVersionResource{Group: "extensions", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}}
 
-	assert.EqualValues(t, []string{"apps/v1beta1", "apps/v1beta2", "extensions/v1beta1"}, versions)
+	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta2", "extensions/v1beta1"}, APIResourcesToStrings(resources, false))
+	assert.ElementsMatch(t, []string{
+		"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment", "extensions/v1beta1", "extensions/v1beta1/Deployment"},
+		APIResourcesToStrings(resources, true))
 }
 
 func TestValidateRepo(t *testing.T) {
 	repoPath, err := filepath.Abs("./../..")
 	assert.NoError(t, err)
 
-	apiGroups := []metav1.APIGroup{{Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1beta1"}, {GroupVersion: "apps/v1beta2"}}}}
+	apiResources := []kube.APIResourceInfo{{
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}, {
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta2"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}}
 	kubeVersion := "v1.16"
 	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: "sample options"}
 	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
@@ -253,6 +268,7 @@ func TestValidateRepo(t *testing.T) {
 		Source:           &app.Spec.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		NoRevisionCache:  true,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	repo.Type = "git"
@@ -278,11 +294,38 @@ func TestValidateRepo(t *testing.T) {
 		return true
 	})).Return(nil, nil)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIGroups: apiGroups}, proj)
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{
+			"globalProjects": `
+ - projectName: default-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: Exists
+ - projectName: default-non-x
+   labelSelector:
+     matchExpressions:
+      - key: is-x
+        operator: DoesNotExist
+`,
+		},
+	}
+
+	kubeClient := fake.NewSimpleClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)
-	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta2"}, receivedRequest.ApiVersions)
+	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment"}, receivedRequest.ApiVersions)
 	assert.Equal(t, kubeVersion, receivedRequest.KubeVersion)
 	assert.Equal(t, app.Spec.Destination.Namespace, receivedRequest.Namespace)
 	assert.Equal(t, &app.Spec.Source, receivedRequest.ApplicationSource)
@@ -848,35 +891,36 @@ func TestGetGlobalProjects(t *testing.T) {
 	})
 }
 
-func Test_retrieveScopedRepositories(t *testing.T) {
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test"), Project: "test"}
+func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 
-	repos := make([]*argoappv1.Repository, 0)
-	repos = append(repos, repo)
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{
+		Name: "SomeName",
+	}
 
-	db := &dbmocks.ArgoDB{}
-
-	db.On("ListRepositories", context.TODO()).Return(repos, nil)
-
-	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
-
-	assert.Len(t, scopedRepos, 1)
-	assert.Equal(t, scopedRepos[0].Repo, repo.Repo)
+	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
+	assert.Equal(t, difference, []string{"Name"})
 
 }
 
-func Test_retrieveScopedRepositoriesWithNotProjectAssigned(t *testing.T) {
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", "test")}
+func Test_GenerateSpecIsDifferentErrorMessageWithNoDiff(t *testing.T) {
 
-	repos := make([]*argoappv1.Repository, 0)
-	repos = append(repos, repo)
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{}
 
-	db := &dbmocks.ArgoDB{}
+	msg := GenerateSpecIsDifferentErrorMessage("application", r1, r2)
+	assert.Equal(t, msg, "existing application spec is different; use upsert flag to force update")
 
-	db.On("ListRepositories", context.TODO()).Return(repos, nil)
+}
 
-	scopedRepos := retrieveScopedRepositories("test", db, context.TODO())
+func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 
-	assert.Len(t, scopedRepos, 0)
+	r1 := argoappv1.Repository{}
+	r2 := argoappv1.Repository{
+		Name: "test",
+	}
+
+	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
+	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
 
 }

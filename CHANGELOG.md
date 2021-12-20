@@ -1,5 +1,75 @@
 # Changelog
 
+## v2.2.0 (2021-12-14)
+
+> [Upgrade instructions](./docs/operator-manual/upgrading/2.1-2.2.md)
+
+### Project Scoped repositories and clusters
+
+The project scoped repositories and clusters is a feature that simplifies registering the repositories and cluster credentials.
+Instead of requiring operators to set up in advance all clusters and git repositories that can be used, developers can now do
+this on their own in a self-service manner.
+
+### Config Management Plugins V2
+
+The Config Management Plugins V2 is set of enhancement of the existing config management plugins feature.
+The list includes improved installation experience, ability to package plugin into a separate image and
+improved plugin manifests discovery.
+
+### Resource tracking
+
+Argo CD has traditionally tracked the resources it manages by the well-known "app.kubernetes.io/instance" property.
+While using this property works ok in simple scenarios, it also has several limitations. ArgoCD now allows you to use
+a new annotation (argocd.argoproj.io/tracking-id) for tracking your resources. Using this annotation is a much more flexible approach
+as there are no conflicts with other Kubernetes tools, and you can easily install multiple Argo CD instances on the same clusters.
+
+### Bug Fixes and Performance Enhancements
+
+* Argo CD API server caches RBAC checks that significantly improves the GET /api/v1/applications API performance (#7587)
+* Argo CD RBAC supports regex matches (#7165)
+* Health check support for KubeVirt (#7176), Cassandra (#7017), Openshift Route (#7112), DeploymentConfig (#7114), Confluent (#6957) and SparkApplication (#7434) CRDs.
+* Persistent banner (#7312) with custom positioning (#7462)
+* Cluster name support in project destinations (#7198)
+* around 30 more features and a total of 84 bug fixes
+
+## v2.1.7 (2021-12-14)
+
+- fix: issue with keepalive (#7861)
+- fix nil pointer dereference error (#7905)
+- fix: env vars to tune cluster cache were broken (#7779)
+- fix: upgraded gitops engine to v0.4.2 (fixes #7561)
+
+
+## v2.1.6 (2021-11-16)
+
+- fix: don't use revision caching during app creation (#7508)
+- fix: supporting OCI dependencies. Fixes #6062 (#6994)
+
+## v2.1.5 (2021-11-16)
+
+- fix: Invalid memory address or nil pointer dereference in processRequestedAppOperation (#7501)
+
+## v2.1.4 (2021-11-15)
+
+- fix: Operation has completed with phase: Running (#7482)
+- fix: Application status panel shows Syncing instead of Deleting (#7486)
+- fix(ui): Add Error Boundary around Extensions and comply with new Extensions API (#7215)
+
+
+## v2.1.3 (2021-10-29)
+
+- fix: core-install.yaml always refers to latest argocd image (#7321)
+- fix: handle applicationset backup forbidden error (#7306)
+- fix: Argo CD should not use cached git/helm revision during app creation/update validation (#7244)
+
+## v2.1.2 (2021-10-02)
+
+- fix: cluster filter popping out of box (#7135)
+- fix: gracefully shutdown metrics server when dex config changes (#7138)
+- fix: upgrade gitops engine version to v0.4.1 (#7088)
+- fix: repository name already exists when multiple helm dependencies  (#7096)
+
+
 ## v2.1.1 (2021-08-25)
 
 ### Bug Fixes
@@ -753,7 +823,7 @@ More documentation and tools are coming in patch releases.
 The Argo CD deletes all **in-flight** hooks if you terminate running sync operation. The hook state assessment change implemented in this release the Argo CD enables detection of 
 an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `StatefulSet`, `ReplicaSet` etc. So if you terminate the sync operation that has, for example,
 `StatefulSet` hook that is `Progressing` it will be deleted. The long-running jobs are not supposed to be used as a sync hook and you should consider using
-[Sync Waves](https://argoproj.github.io/argo-cd/user-guide/sync-waves/) instead.
+[Sync Waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) instead.
 
 #### Enhancements
 * feat: Add custom health checks for cert-manager v0.11.0 (#2689) 

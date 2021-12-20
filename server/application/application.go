@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -212,7 +213,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
-		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
+		return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("application", existing.Spec, a.Spec))
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 		return nil, err
@@ -313,7 +314,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return err
 		}
 
-		apiGroups, err := s.kubectl.GetAPIGroups(config)
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
 		if err != nil {
 			return err
 		}
@@ -329,8 +330,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Plugins:           plugins,
 			KustomizeOptions:  kustomizeOptions,
 			KubeVersion:       serverVersion,
-			ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:     helmCreds,
+			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
 		})
 		return err
 	})
@@ -414,6 +416,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
+				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			})
 			return err
 		}); err != nil {
@@ -486,7 +489,6 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": namespace,
 		}).String()
 	}
-
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
 	return kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
@@ -848,7 +850,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return err
 		}
@@ -1121,17 +1123,17 @@ func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) boo
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appLister.Get(*q.ApplicationName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting application: %s", err)
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error verifying rbac: %s", err)
 	}
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.Name, &items)
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cached app state: %s", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
@@ -1222,6 +1224,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceSeconds: sinceSeconds,
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
+			Previous:     q.Previous,
 		}).Stream(ws.Context())
 		podName := pod.Name
 		logStream := make(chan logEntry)

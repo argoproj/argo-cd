@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -40,6 +42,7 @@ type AppOptions struct {
 	helmSetStrings                  []string
 	helmSetFiles                    []string
 	helmVersion                     string
+	helmPassCredentials             bool
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -86,6 +89,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
+	command.Flags().BoolVar(&opts.helmPassCredentials, "helm-pass-credentials", false, "Pass credentials to all domain")
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
@@ -122,6 +126,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
 	visited := 0
+	if flags == nil {
+		return visited
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 		switch f.Name {
@@ -156,6 +163,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
 		case "helm-version":
 			setHelmOpt(&spec.Source, helmOpts{version: appOpts.helmVersion})
+		case "helm-pass-credentials":
+			setHelmOpt(&spec.Source, helmOpts{passCredentials: appOpts.helmPassCredentials})
 		case "helm-set":
 			setHelmOpt(&spec.Source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
@@ -372,13 +381,14 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 }
 
 type helmOpts struct {
-	valueFiles     []string
-	values         string
-	releaseName    string
-	version        string
-	helmSets       []string
-	helmSetStrings []string
-	helmSetFiles   []string
+	valueFiles      []string
+	values          string
+	releaseName     string
+	version         string
+	helmSets        []string
+	helmSetStrings  []string
+	helmSetFiles    []string
+	passCredentials bool
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -396,6 +406,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.version != "" {
 		src.Helm.Version = opts.version
+	}
+	if opts.passCredentials {
+		src.Helm.PassCredentials = opts.passCredentials
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
@@ -518,39 +531,99 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	}
 }
 
-func readAppFromStdin(app *argoappv1.Application) error {
+func readApps(yml []byte, apps *[]*argoappv1.Application) error {
+	yamls, _ := kube.SplitYAMLToString(yml)
+
+	var err error
+
+	for _, yml := range yamls {
+		var app argoappv1.Application
+		err = config.Unmarshal([]byte(yml), &app)
+		*apps = append(*apps, &app)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	err := config.UnmarshalReader(reader, &app)
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	err = readApps(data, apps)
 	if err != nil {
 		return fmt.Errorf("unable to read manifest from stdin: %v", err)
 	}
 	return nil
 }
 
-func readAppFromURI(fileURL string, app *argoappv1.Application) error {
-	parsedURL, err := url.ParseRequestURI(fileURL)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		err = config.UnmarshalLocalFile(fileURL, &app)
-	} else {
-		err = config.UnmarshalRemoteFile(fileURL, &app)
+func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
+
+	readFilePayload := func() ([]byte, error) {
+		parsedURL, err := url.ParseRequestURI(fileURL)
+		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			return ioutil.ReadFile(fileURL)
+		}
+		return config.ReadRemoteFile(fileURL)
 	}
-	return err
+
+	yml, err := readFilePayload()
+	if err != nil {
+		return err
+	}
+
+	return readApps(yml, apps)
 }
 
-func ConstructApp(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
-	var app argoappv1.Application
-	if fileURL == "-" {
-		// read stdin
-		err := readAppFromStdin(&app)
-		if err != nil {
-			return nil, err
+func constructAppsFromStdin() ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read stdin
+	err := readAppsFromStdin(&apps)
+	if err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	var app *argoappv1.Application
+	// read arguments
+	if len(args) == 1 {
+		if appName != "" && appName != args[0] {
+			return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
 		}
-	} else if fileURL != "" {
-		// read uri
-		err := readAppFromURI(fileURL, &app)
-		if err != nil {
-			return nil, err
-		}
+		appName = args[0]
+	}
+	app = &argoappv1.Application{
+		TypeMeta: v1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: application.Group + "/v1alpha1",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name: appName,
+		},
+	}
+	SetAppSpecOptions(flags, &app.Spec, &appOpts)
+	SetParameterOverrides(app, appOpts.Parameters)
+	mergeLabels(app, labels)
+	setAnnotations(app, annotations)
+	return []*argoappv1.Application{
+		app,
+	}, nil
+}
+
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read uri
+	err := readAppsFromURI(fileURL, &apps)
+	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
 		if len(args) == 1 && args[0] != app.Name {
 			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 		}
@@ -561,32 +634,20 @@ func ConstructApp(fileURL, appName string, labels, annotations, args []string, a
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
-	} else {
-		// read arguments
-		if len(args) == 1 {
-			if appName != "" && appName != args[0] {
-				return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
-			}
-			appName = args[0]
-		}
-		app = argoappv1.Application{
-			TypeMeta: v1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: application.Group + "/v1alpha1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: appName,
-			},
-		}
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
+		SetParameterOverrides(app, appOpts.Parameters)
+		mergeLabels(app, labels)
+		setAnnotations(app, annotations)
 	}
-	return &app, nil
+	return apps, nil
+}
+
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	if fileURL == "-" {
+		return constructAppsFromStdin()
+	} else if fileURL != "" {
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+	}
+	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {

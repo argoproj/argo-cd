@@ -30,6 +30,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -64,6 +65,7 @@ type AppStateManager interface {
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
+// comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         *v1alpha1.HealthStatus
@@ -98,6 +100,7 @@ type appStateManager struct {
 	cache                *appstatecache.Cache
 	namespace            string
 	statusRefreshTimeout time.Duration
+	resourceTracking     argo.ResourceTracking
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -148,12 +151,13 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
 	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
 	if err != nil {
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,9 +175,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		Plugins:           tools,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
+		ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
+		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
 	})
 	if err != nil {
 		return nil, nil, err
@@ -364,6 +369,8 @@ func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructur
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	ignoreDiffConfig := argo.NewIgnoreDiffConfig(app.Spec.IgnoreDifferences, resourceOverrides)
+
 	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
@@ -455,14 +462,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server) {
+		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
 			delete(liveObjByKey, k)
 		}
 	}
 
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
@@ -497,11 +506,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
 
+	params := &preDiffNormalizeParams{
+		targets:          reconciliation.Target,
+		lives:            reconciliation.Live,
+		ignoreDiffConfig: ignoreDiffConfig,
+		appLabel:         appLabelKey,
+		trackingMethod:   string(trackingMethod),
+	}
+	normResults := m.preDiffNormalize(params)
+	if len(normResults.conditions) > 0 {
+		conditions = append(conditions, normResults.conditions...)
+	}
+
 	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
 		// (rare) cache miss
-		diffResults, err = diff.DiffArray(reconciliation.Target, reconciliation.Live, diffOpts...)
+		diffResults, err = diff.DiffArray(normResults.targets, normResults.lives, diffOpts...)
 	} else {
-		diffResults, err = m.diffArrayCached(reconciliation.Target, reconciliation.Live, cachedDiff, diffOpts...)
+		diffResults, err = m.diffArrayCached(normResults.targets, normResults.lives, cachedDiff, diffOpts...)
 	}
 
 	if err != nil {
@@ -641,6 +662,65 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	return &compRes
 }
 
+type normalizeResults struct {
+	lives      []*unstructured.Unstructured
+	targets    []*unstructured.Unstructured
+	conditions []v1alpha1.ApplicationCondition
+}
+
+type preDiffNormalizeParams struct {
+	targets          []*unstructured.Unstructured
+	lives            []*unstructured.Unstructured
+	ignoreDiffConfig *argo.IgnoreDiffConfig
+	appLabel         string
+	trackingMethod   string
+}
+
+// preDiffNormalize applies the normalization of live and target resources before invoking
+// the diff. None of the attributes in the preDiffNormalizeParams will be modified. The
+// normalizeResults will return a list of ApplicationConditions in case something goes
+// wrong during the normalization.
+func (m *appStateManager) preDiffNormalize(p *preDiffNormalizeParams) *normalizeResults {
+	results := &normalizeResults{}
+	for i := range p.targets {
+		target := safeDeepCopy(p.targets[i])
+		live := safeDeepCopy(p.lives[i])
+		_ = m.resourceTracking.Normalize(target, live, p.appLabel, p.trackingMethod)
+		// just normalize on managed fields if live and target aren't nil as we just care
+		// about conflicting fields
+		if live != nil && target != nil {
+			gvk := target.GetObjectKind().GroupVersionKind()
+			ok, ignoreDiff := p.ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
+			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
+				var err error
+				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)
+				if err != nil {
+					condition := appCondition(v1alpha1.ApplicationConditionComparisonError, err)
+					results.conditions = append(results.conditions, condition)
+				}
+			}
+		}
+		results.lives = append(results.lives, live)
+		results.targets = append(results.targets, target)
+	}
+	return results
+}
+
+// safeDeepCopy will return nil if given obj is nil.
+func safeDeepCopy(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	if obj == nil {
+		return nil
+	}
+	return obj.DeepCopy()
+}
+
+func appCondition(t v1alpha1.ApplicationConditionType, err error) v1alpha1.ApplicationCondition {
+	return v1alpha1.ApplicationCondition{
+		Type:    t,
+		Message: err.Error(),
+	}
+}
+
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
@@ -681,6 +761,7 @@ func NewAppStateManager(
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
+	resourceTracking argo.ResourceTracking,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:       liveStateCache,
@@ -694,5 +775,6 @@ func NewAppStateManager(
 		projInformer:         projInformer,
 		metricsServer:        metricsServer,
 		statusRefreshTimeout: statusRefreshTimeout,
+		resourceTracking:     resourceTracking,
 	}
 }

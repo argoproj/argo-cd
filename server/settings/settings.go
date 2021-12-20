@@ -79,6 +79,11 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
+	trackingMethod, err := s.mgr.GetTrackingMethod()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
@@ -92,14 +97,16 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
 		},
 		Help: &settingspkg.Help{
-			ChatUrl:  help.ChatURL,
-			ChatText: help.ChatText,
+			ChatUrl:    help.ChatURL,
+			ChatText:   help.ChatText,
+			BinaryUrls: help.BinaryURLs,
 		},
 		Plugins:            plugins,
 		UserLoginsDisabled: userLoginsDisabled,
 		KustomizeVersions:  kustomizeVersions,
 		UiCssURL:           argoCDSettings.UiCssURL,
 		PasswordPattern:    argoCDSettings.PasswordPattern,
+		TrackingMethod:     trackingMethod,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -114,6 +121,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.ConfigManagementPlugins = tools
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
+		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
+		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

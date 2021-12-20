@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	go_runtime "runtime"
 	"strings"
 	gosync "sync"
 	"time"
@@ -372,6 +373,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
 	errors.CheckError(conn.Close())
+	if err := metricsServ.Shutdown(ctx); err != nil {
+		log.Fatalf("Failed to gracefully shutdown metrics server: %v", err)
+	}
 }
 
 func (a *ArgoCDServer) Initialized() bool {
@@ -632,7 +636,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.RootPath, "/"), "/"))
+	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")
@@ -810,24 +814,8 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	if err != nil {
 		log.Warnf("argocd not in PATH")
 	} else {
-		mux.HandleFunc(base+"/argocd-linux-amd64", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc(base+"/argocd-linux-"+go_runtime.GOARCH, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, linuxPath)
-		})
-	}
-	darwinPath, err := exec.LookPath("argocd-darwin-amd64")
-	if err != nil {
-		log.Warnf("argocd-darwin-amd64 not in PATH")
-	} else {
-		mux.HandleFunc(base+"/argocd-darwin-amd64", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, darwinPath)
-		})
-	}
-	windowsPath, err := exec.LookPath("argocd-windows-amd64.exe")
-	if err != nil {
-		log.Warnf("argocd-windows-amd64.exe not in PATH")
-	} else {
-		mux.HandleFunc(base+"/argocd-windows-amd64.exe", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, windowsPath)
 		})
 	}
 }

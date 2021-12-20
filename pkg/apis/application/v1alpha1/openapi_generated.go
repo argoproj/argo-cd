@@ -7,8 +7,8 @@
 package v1alpha1
 
 import (
-	spec "github.com/go-openapi/spec"
 	common "k8s.io/kube-openapi/pkg/common"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
@@ -778,6 +778,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"passCredentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PassCredentials pass credentials to all domains (Helm's --pass-credentials)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1447,6 +1454,38 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations for cluster secret metadata",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"server", "name", "config"},
 			},
@@ -1769,6 +1808,12 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"),
+						},
+					},
+					"lockRepo": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 				},
@@ -2617,11 +2662,13 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between the desired state and live state",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"jsonPointers": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2635,7 +2682,23 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 					},
 					"jqPathExpressions": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2648,7 +2711,7 @@ func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"jsonPointers", "jqPathExpressions"},
+				Required: []string{"jsonPointers", "jqPathExpressions", "managedFieldsManagers"},
 			},
 		},
 	}
@@ -3417,6 +3480,21 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 					"jqPathExpressions": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -4490,6 +4568,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"timeZone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeZone of the sync that will be applied to the schedule",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

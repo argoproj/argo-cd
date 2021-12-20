@@ -182,6 +182,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				GithubAppInstallationID:    repoOpts.Repo.GithubAppInstallationId,
 				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
 				Proxy:                      repoOpts.Proxy,
+				Project:                    repoOpts.Repo.Project,
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)

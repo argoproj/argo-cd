@@ -13,7 +13,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
-KUBECTL_VERSION=$(shell go list -m all | grep k8s.io/client-go | cut -d ' ' -f5)
+KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
 GOCACHE?=$(HOME)/.cache/go-build
@@ -45,7 +45,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=20m
+ARGOCD_E2E_TEST_TIMEOUT?=30m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -186,6 +186,16 @@ openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
+.PHONY: notification-catalog
+notification-catalog:
+	go run ./hack/gen-catalog catalog
+
+.PHONY: notification-docs
+notification-docs:
+	go run ./hack/gen-docs
+	go run ./hack/gen-catalog docs
+
+
 .PHONY: clientgen
 clientgen: ensure-gopath
 	export GO111MODULE=off
@@ -195,8 +205,9 @@ clientgen: ensure-gopath
 clidocsgen: ensure-gopath
 	go run tools/cmd-docs/main.go	
 
+
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -214,9 +225,9 @@ cli-local: clean-debug
 .PHONY: release-cli
 release-cli: clean-debug image
 	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
+	make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all
+	make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all
 	docker cp tmp-argocd-linux:/usr/local/bin/argocd ${DIST_DIR}/argocd-linux-amd64
-	docker cp tmp-argocd-linux:/usr/local/bin/argocd-darwin-amd64 ${DIST_DIR}/argocd-darwin-amd64
-	docker cp tmp-argocd-linux:/usr/local/bin/argocd-windows-amd64.exe ${DIST_DIR}/argocd-windows-amd64.exe
 	docker rm tmp-argocd-linux
 
 .PHONY: test-tools-image
@@ -235,7 +246,7 @@ manifests: test-tools-image
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 .PHONY: server
 server: clean-debug
@@ -261,11 +272,10 @@ image:
 	find ./ui/dist -type f -not -name gitkeep -delete
 	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-darwin-amd64 ./cmd
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-windows-amd64.exe ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
@@ -276,10 +286,8 @@ endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
-# The "BUILD_ALL_CLIS" argument is to skip building the CLIs for darwin and windows
-# which would take a really long time.
 armimage:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm . --build-arg BUILD_ALL_CLIS="false"
+	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
@@ -409,12 +417,14 @@ start-e2e-local:
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
 	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
+	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
 	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
+	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -539,3 +549,7 @@ dep-ui-local:
 
 start-test-k8s:
 	go run ./hack/k8s
+
+.PHONY: list
+list:
+	@LC_ALL=C $(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'

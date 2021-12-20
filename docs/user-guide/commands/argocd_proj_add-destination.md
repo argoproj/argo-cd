@@ -3,13 +3,14 @@
 Add project destination
 
 ```
-argocd proj add-destination PROJECT SERVER NAMESPACE [flags]
+argocd proj add-destination PROJECT SERVER/NAME NAMESPACE [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for add-destination
+      --name   Use name as destination instead server
 ```
 
 ### Options inherited from parent commands

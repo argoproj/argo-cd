@@ -3,7 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
+	"math"
 	"reflect"
 	"sync"
 	"time"
@@ -24,6 +24,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -32,25 +33,47 @@ import (
 const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
 	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
+
+	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
+	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
+
+	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
+	EnvClusterCacheListPageSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE"
+
+	// EnvClusterCacheListSemaphore is the env variable to control size of the list semaphore
+	// This is used to limit the number of concurrent memory consuming operations on the
+	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
+	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 )
 
+// GitOps engine cluster cache tuning options
 var (
-	// K8SClusterResyncDuration controls the duration of cluster cache refresh
-	K8SClusterResyncDuration = 12 * time.Hour
+	// clusterCacheResyncDuration controls the duration of cluster cache refresh.
+	// NOTE: this differs from gitops-engine default of 24h
+	clusterCacheResyncDuration = 12 * time.Hour
+
+	// clusterCacheWatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
+	// for before relisting & restarting the watch
+	clusterCacheWatchResyncDuration = 10 * time.Minute
+
+	// The default limit of 50 is chosen based on experiments.
+	clusterCacheListSemaphoreSize int64 = 50
+
+	// clusterCacheListPageSize is the page size when performing K8s list requests.
+	// 500 is equal to kubectl's size
+	clusterCacheListPageSize int64 = 500
 )
 
 func init() {
-
-	if clusterResyncDurationStr := os.Getenv(EnvClusterCacheResyncDuration); clusterResyncDurationStr != "" {
-		if duration, err := time.ParseDuration(clusterResyncDurationStr); err == nil {
-			K8SClusterResyncDuration = duration
-		}
-	}
+	clusterCacheResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, clusterCacheResyncDuration, 0, math.MaxInt64)
+	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
+	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
+	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error)
+	GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error)
 	// Returns true of given group kind is a namespaced resource
 	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
@@ -105,19 +128,19 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterFilter func(cluster *appv1.Cluster) bool) LiveStateCache {
+	clusterFilter func(cluster *appv1.Cluster) bool,
+	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
-		appInformer:     appInformer,
-		db:              db,
-		clusters:        make(map[string]clustercache.ClusterCache),
-		onObjectUpdated: onObjectUpdated,
-		kubectl:         kubectl,
-		settingsMgr:     settingsMgr,
-		metricsServer:   metricsServer,
-		// The default limit of 50 is chosen based on experiments.
-		listSemaphore: semaphore.NewWeighted(50),
-		clusterFilter: clusterFilter,
+		appInformer:      appInformer,
+		db:               db,
+		clusters:         make(map[string]clustercache.ClusterCache),
+		onObjectUpdated:  onObjectUpdated,
+		kubectl:          kubectl,
+		settingsMgr:      settingsMgr,
+		metricsServer:    metricsServer,
+		clusterFilter:    clusterFilter,
+		resourceTracking: resourceTracking,
 	}
 }
 
@@ -127,17 +150,14 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db              db.ArgoDB
-	appInformer     cache.SharedIndexInformer
-	onObjectUpdated ObjectUpdatedHandler
-	kubectl         kube.Kubectl
-	settingsMgr     *settings.SettingsManager
-	metricsServer   *metrics.MetricsServer
-	clusterFilter   func(cluster *appv1.Cluster) bool
-
-	// listSemaphore is used to limit the number of concurrent memory consuming operations on the
-	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
-	listSemaphore *semaphore.Weighted
+	db               db.ArgoDB
+	appInformer      cache.SharedIndexInformer
+	onObjectUpdated  ObjectUpdatedHandler
+	kubectl          kube.Kubectl
+	settingsMgr      *settings.SettingsManager
+	metricsServer    *metrics.MetricsServer
+	clusterFilter    func(cluster *appv1.Cluster) bool
+	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -285,9 +305,12 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(),
-		clustercache.SetListSemaphore(c.listSemaphore),
-		clustercache.SetResyncTimeout(K8SClusterResyncDuration),
+	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
+	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
+		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
+		clustercache.SetListPageSize(clusterCacheListPageSize),
+		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
+		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
@@ -295,7 +318,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
-			appName := kube.GetAppInstanceLabel(un, cacheSettings.appInstanceLabelKey)
+
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
@@ -306,7 +330,9 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
-	)
+	}
+
+	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
@@ -419,12 +445,12 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	})
 }
 
-func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []metav1.APIGroup, error) {
+func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
 		return "", nil, err
 	}
-	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIGroups(), nil
+	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
 func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {

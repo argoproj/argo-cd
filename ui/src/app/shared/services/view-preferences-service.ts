@@ -1,7 +1,7 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+export type AppsDetailsViewType = 'tree' | 'compact' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -9,6 +9,7 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
@@ -19,6 +20,10 @@ export interface AppDetailsPreferences {
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+}
+
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -55,6 +60,7 @@ export class AppsListPreferences {
     public clustersFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
 }
 
 export interface ViewPreferences {
@@ -63,6 +69,7 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    position: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -95,10 +102,14 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
-        hideFilters: false
+        hideFilters: false,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
-    hideBannerContent: ''
+    hideBannerContent: '',
+    position: ''
 };
 
 export class ViewPreferencesService {

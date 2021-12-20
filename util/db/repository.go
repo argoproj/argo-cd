@@ -5,12 +5,14 @@ import (
 	"hash/fnv"
 
 	log "github.com/sirupsen/logrus"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apiv1 "k8s.io/api/core/v1"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -82,6 +84,37 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	}
 
 	return repository, err
+}
+
+func (db *db) GetProjectRepositories(ctx context.Context, project string) ([]*appsv1.Repository, error) {
+	informer, err := db.settingsMgr.GetSecretsInformer()
+	if err != nil {
+		return nil, err
+	}
+	secrets, err := informer.GetIndexer().ByIndex(settings.ByProjectRepoIndexer, project)
+	if err != nil {
+		return nil, err
+	}
+	var res []*appv1.Repository
+	for i := range secrets {
+		repo, err := secretToRepository(secrets[i].(*apiv1.Secret))
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, repo)
+	}
+	return res, nil
+}
+
+func (db *db) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
+	secretsBackend := db.repoBackend()
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	if exists || err != nil {
+		return exists, err
+	}
+
+	legacyBackend := db.legacyRepoBackend()
+	return legacyBackend.RepositoryExists(ctx, repoURL)
 }
 
 func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {

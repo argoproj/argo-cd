@@ -10,6 +10,7 @@ interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;
@@ -45,7 +46,7 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='checkbox__item__label'>{props.option.label}</div>
+            <div className='filter__item__label'>{props.option.label}</div>
             <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
@@ -115,8 +116,7 @@ export const Filter = (props: FilterProps) => {
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
-                        className='argo-button argo-button--base argo-button--sm'
-                        style={{marginLeft: 'auto'}}
+                        className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
                             setValues({} as {[label: string]: boolean});
                             setInput('');
@@ -138,6 +138,7 @@ export const Filter = (props: FilterProps) => {
                             <Autocomplete
                                 placeholder={props.label}
                                 items={labels}
+                                abbreviations={props.abbreviations}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {

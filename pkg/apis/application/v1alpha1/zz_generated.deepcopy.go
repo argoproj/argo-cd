@@ -703,6 +703,20 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
@@ -1391,6 +1405,11 @@ func (in *OverrideIgnoreDiff) DeepCopyInto(out *OverrideIgnoreDiff) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ManagedFieldsManagers != nil {
+		in, out := &in.ManagedFieldsManagers, &out.ManagedFieldsManagers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1689,6 +1708,11 @@ func (in *ResourceIgnoreDifferences) DeepCopyInto(out *ResourceIgnoreDifferences
 	}
 	if in.JQPathExpressions != nil {
 		in, out := &in.JQPathExpressions, &out.JQPathExpressions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ManagedFieldsManagers != nil {
+		in, out := &in.ManagedFieldsManagers, &out.ManagedFieldsManagers
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

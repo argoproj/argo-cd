@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,7 +88,11 @@ func NewExportCommand() *cobra.Command {
 			}
 			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
 			if err != nil && !apierr.IsNotFound(err) {
-				errors.CheckError(err)
+				if apierr.IsForbidden(err) {
+					log.Warn(err)
+				} else {
+					errors.CheckError(err)
+				}
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
@@ -107,10 +111,11 @@ func NewExportCommand() *cobra.Command {
 // NewImportCommand defines a new command for exporting Kubernetes and Argo CD resources.
 func NewImportCommand() *cobra.Command {
 	var (
-		clientConfig clientcmd.ClientConfig
-		prune        bool
-		dryRun       bool
-		verbose      bool
+		clientConfig  clientcmd.ClientConfig
+		prune         bool
+		dryRun        bool
+		verbose       bool
+		stopOperation bool
 	)
 	var command = cobra.Command{
 		Use:   "import SOURCE",
@@ -176,6 +181,17 @@ func NewImportCommand() *cobra.Command {
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: proj.GetName()}] = proj
 			}
+			applicationSets, err := acdClients.applicationSets.List(context.Background(), v1.ListOptions{})
+			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
+			} else {
+				errors.CheckError(err)
+			}
+			if applicationSets != nil {
+				for _, appSet := range applicationSets.Items {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: appSet.GetName()}] = appSet
+				}
+			}
 
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)
@@ -199,22 +215,39 @@ func NewImportCommand() *cobra.Command {
 					dynClient = acdClients.applicationSets
 				}
 				if !exists {
+					isForbidden := false
 					if !dryRun {
 						_, err = dynClient.Create(context.Background(), bakObj, v1.CreateOptions{})
-						errors.CheckError(err)
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+						} else {
+							errors.CheckError(err)
+						}
 					}
-					fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
-				} else if specsEqual(*bakObj, liveObj) {
+					if !isForbidden {
+						fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					}
+
+				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation) {
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
 				} else {
+					isForbidden := false
 					if !dryRun {
-						newLive := updateLive(bakObj, &liveObj)
+						newLive := updateLive(bakObj, &liveObj, stopOperation)
 						_, err = dynClient.Update(context.Background(), newLive, v1.UpdateOptions{})
-						errors.CheckError(err)
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
+						} else {
+							errors.CheckError(err)
+						}
 					}
-					fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					if !isForbidden {
+						fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+					}
 				}
 			}
 
@@ -239,16 +272,24 @@ func NewImportCommand() *cobra.Command {
 								}
 							}
 						}
+					case "ApplicationSet":
+						dynClient = acdClients.applicationSets
 					default:
-						logrus.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
+					isForbidden := false
 					if !dryRun {
 						err = dynClient.Delete(context.Background(), key.Name, v1.DeleteOptions{})
-						if err != nil && !apierr.IsNotFound(err) {
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							isForbidden = true
+							log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+						} else {
 							errors.CheckError(err)
 						}
 					}
-					fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+					if !isForbidden {
+						fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+					}
 				} else {
 					fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 				}
@@ -260,8 +301,21 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Print what will be performed")
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
+	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
 
 	return &command
+}
+
+// check app has no need to stop operation.
+func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOperation bool) bool {
+	if !stopOperation {
+		return true
+	}
+	switch liveObj.GetKind() {
+	case "Application":
+		return liveObj.Object["operation"] == nil
+	}
+	return true
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
@@ -289,7 +343,7 @@ func export(w io.Writer, un unstructured.Unstructured) {
 
 // updateLive replaces the live object's finalizers, spec, annotations, labels, and data from the
 // backup object but leaves all other fields intact (status, other metadata, etc...)
-func updateLive(bak, live *unstructured.Unstructured) *unstructured.Unstructured {
+func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstructured.Unstructured {
 	newLive := live.DeepCopy()
 	newLive.SetAnnotations(bak.GetAnnotations())
 	newLive.SetLabels(bak.GetLabels())
@@ -304,6 +358,12 @@ func updateLive(bak, live *unstructured.Unstructured) *unstructured.Unstructured
 		if _, ok := bak.Object["status"]; ok {
 			newLive.Object["status"] = bak.Object["status"]
 		}
+		if stopOperation {
+			newLive.Object["operation"] = nil
+		}
+
+	case "ApplicationSet":
+		newLive.Object["spec"] = bak.Object["spec"]
 	}
 	return newLive
 }

@@ -38,6 +38,7 @@ argocd admin [flags]
 
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
 * [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
+* [argocd admin argocd-notifications](argocd_admin_argocd-notifications.md)	 - Set of CLI commands that helps manage notifications settings
 * [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
 * [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
 * [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
