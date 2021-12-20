@@ -18,6 +18,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         git \
         git-lfs \
         gpg \
+        jq \
         make \
         wget \
         gcc \
