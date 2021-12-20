@@ -17,16 +17,21 @@ func NewProjectGenerator(clientSet *appclientset.Clientset) Generator {
 	return &ProjectGenerator{clientSet}
 }
 
-func (pg *ProjectGenerator) Generate() error {
+func (pg *ProjectGenerator) Generate(opts *GenerateOpts) error {
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects("argocd")
-	_, err := projects.Create(context.TODO(), &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
-			GenerateName: "project-",
-			Namespace:    "argocd",
-		},
-		Spec: v1alpha1.AppProjectSpec{
-			Description: "generated-project",
-		},
-	}, v1.CreateOptions{})
-	return err
+	for i := 0; i < opts.Samples; i++ {
+		_, err := projects.Create(context.TODO(), &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				GenerateName: "project-",
+				Namespace:    "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Description: "generated-project",
+			},
+		}, v1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

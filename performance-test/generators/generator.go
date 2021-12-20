@@ -10,8 +10,12 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 )
 
+type GenerateOpts struct {
+	Samples int
+}
+
 type Generator interface {
-	Generate() error
+	Generate(opts *GenerateOpts) error
 }
 
 func ConnectToK8s() *appclientset.Clientset {

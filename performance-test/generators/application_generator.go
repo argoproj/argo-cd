@@ -17,25 +17,30 @@ func NewApplicationGenerator(clientSet *appclientset.Clientset) Generator {
 	return &ApplicationGenerator{clientSet}
 }
 
-func (pg *ApplicationGenerator) Generate() error {
+func (pg *ApplicationGenerator) Generate(opts *GenerateOpts) error {
 	applications := pg.clientSet.ArgoprojV1alpha1().Applications("argocd")
-	_, err := applications.Create(context.TODO(), &v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{
-			GenerateName: "application-",
-			Namespace:    "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Project: "default",
-			Destination: v1alpha1.ApplicationDestination{
-				Namespace: "argocd",
-				Name:      "in-cluster",
+	for i := 0; i < opts.Samples; i++ {
+		_, err := applications.Create(context.TODO(), &v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{
+				GenerateName: "application-",
+				Namespace:    "argocd",
 			},
-			Source: v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps",
-				Path:           "helm-guestbook",
-				TargetRevision: "master",
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Destination: v1alpha1.ApplicationDestination{
+					Namespace: "argocd",
+					Name:      "in-cluster",
+				},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
+					Path:           "helm-guestbook",
+					TargetRevision: "master",
+				},
 			},
-		},
-	}, v1.CreateOptions{})
-	return err
+		}, v1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
