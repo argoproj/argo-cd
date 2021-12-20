@@ -3,11 +3,12 @@ package argo
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/go-logr/logr"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -183,7 +184,7 @@ func (c *diffConfig) Validate() error {
 	if c.noCache == nil {
 		return fmt.Errorf("%s: NoCache can not be nil", msg)
 	}
-	if *c.noCache == false {
+	if !*c.noCache {
 		if c.appName == nil {
 			return fmt.Errorf("%s: AppName must be set when retrieving from cache", msg)
 		}
