@@ -61,19 +61,22 @@ func (b *DiffConfigBuilder) WithTrackingMethod(t string) *DiffConfigBuilder {
 	return b
 }
 
-// WithAppName sets the appName in the diff config.
+// WithAppName sets the appName in the diff config. The appName is only required
+// if retrieving the diff from the cache (NoCache = false).
 func (b *DiffConfigBuilder) WithAppName(n string) *DiffConfigBuilder {
 	b.diffConfig.appName = &n
 	return b
 }
 
-// WithNoCache sets the nocache in the diff config.
+// WithNoCache sets the nocache in the diff config. Defines if it should retrieve
+// the computed diff from the cache.
 func (b *DiffConfigBuilder) WithNoCache(c bool) *DiffConfigBuilder {
 	b.diffConfig.noCache = &c
 	return b
 }
 
-// WithStateCache sets the appstatecache.Cache in the diff config.
+// WithStateCache sets the appstatecache.Cache in the diff config. Only required if
+// retrieving the diff from the cache (NoCache = false).
 func (b *DiffConfigBuilder) WithStateCache(s *appstatecache.Cache) *DiffConfigBuilder {
 	b.diffConfig.stateCache = s
 	return b
@@ -147,26 +150,44 @@ func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
 func (c *diffConfig) AppLabelKey() string {
+	if c.appLabelKey == nil {
+		return ""
+	}
 	return *c.appLabelKey
 }
 func (c *diffConfig) TrackingMethod() string {
+	if c.trackingMethod == nil {
+		return ""
+	}
 	return *c.trackingMethod
 }
 func (c *diffConfig) AppName() string {
+	if c.appName == nil {
+		return ""
+	}
 	return *c.appName
 }
 func (c *diffConfig) NoCache() bool {
+	if c.noCache == nil {
+		return false
+	}
 	return *c.noCache
 }
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
+	if c.ignoreAggregatedRoles == nil {
+		return false
+	}
 	return *c.ignoreAggregatedRoles
 }
 func (c *diffConfig) Logger() logr.Logger {
 	return c.logger
 }
+
+// Validate will check the current state of this diffConfig and return
+// error if it finds any required configuration missing.
 func (c *diffConfig) Validate() error {
 	msg := "diffConfig validation error"
 	if c.ignores == nil {
