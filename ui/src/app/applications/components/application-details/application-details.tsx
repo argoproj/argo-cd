@@ -331,7 +331,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
-                                            <div style={{marginTop: '1.25em'}}>
+                                            <div className='application-details__sliding-panel-pagination-wrap'>
                                                 <Paginate
                                                     page={this.state.slidingPanelPage}
                                                     data={this.state.groupedResources}
