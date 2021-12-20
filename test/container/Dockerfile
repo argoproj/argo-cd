@@ -37,6 +37,8 @@ ENV GOPATH /go
 ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
+ADD go.mod go.mod
+ADD go.sum go.sum
 
 RUN ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
