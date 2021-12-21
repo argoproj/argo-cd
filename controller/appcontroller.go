@@ -48,6 +48,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -584,7 +585,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("error getting tracking method: %s", err)
 			}
 
-			diffConfig, err := argo.NewDiffConfigBuilder().
+			diffConfig, err := argodiff.NewDiffConfigBuilder().
 				WithIgnores(app.Spec.IgnoreDifferences).
 				WithOverrides(resourceOverrides).
 				WithAppLabelKey(appLabelKey).
@@ -597,7 +598,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)
 			}
 
-			diffResult, err := argo.StateDiff(live, target, diffConfig)
+			diffResult, err := argodiff.StateDiff(live, target, diffConfig)
 			if err != nil {
 				return nil, fmt.Errorf("error applying diff: %s", err)
 			}

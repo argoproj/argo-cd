@@ -29,6 +29,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -444,7 +445,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// it necessary to ignore the error at this point to avoid creating duplicated
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
-	diffConfig, _ := argo.NewDiffConfigBuilder().
+	diffConfig, _ := argodiff.NewDiffConfigBuilder().
 		WithIgnores(app.Spec.IgnoreDifferences).
 		WithOverrides(resourceOverrides).
 		WithAppLabelKey(appLabelKey).
@@ -455,7 +456,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		WithIgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles).
 		Build()
 
-	diffResults, err := argo.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
+	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true

@@ -1,16 +1,17 @@
-package argo_test
+package diff_test
 
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v2/test"
+	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
 
 func TestStateDiff(t *testing.T) {
@@ -23,9 +24,6 @@ func TestStateDiff(t *testing.T) {
 		ignoreRoles    bool
 		appName        string
 		stateCache     *appstatecache.Cache
-	}
-	type fixture struct {
-		diffConfig argo.DiffConfig
 	}
 	defaultDiffConfigParams := func() *diffConfigParams {
 		return &diffConfigParams{
@@ -74,8 +72,8 @@ func TestStateDiff(t *testing.T) {
 				}
 				return params
 			},
-			desiredState:               testutil.StrToUnstructured(testdata.DesiredDeploymentYaml),
-			liveState:                  testutil.StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
+			desiredState:               testutil.YamlToUnstructured(testdata.DesiredDeploymentYaml),
+			liveState:                  testutil.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
 			expectedNormalizedReplicas: 1,
 			expectedPredictedReplicas:  1,
 		},
@@ -92,8 +90,8 @@ func TestStateDiff(t *testing.T) {
 				}
 				return params
 			},
-			desiredState:               testutil.StrToUnstructured(testdata.DesiredDeploymentYaml),
-			liveState:                  testutil.StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
+			desiredState:               testutil.YamlToUnstructured(testdata.DesiredDeploymentYaml),
+			liveState:                  testutil.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
 			expectedNormalizedReplicas: 2,
 			expectedPredictedReplicas:  3,
 		},
@@ -110,8 +108,8 @@ func TestStateDiff(t *testing.T) {
 				}
 				return params
 			},
-			desiredState:               testutil.StrToUnstructured(testdata.DesiredDeploymentYaml),
-			liveState:                  testutil.StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
+			desiredState:               testutil.YamlToUnstructured(testdata.DesiredDeploymentYaml),
+			liveState:                  testutil.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
 			expectedNormalizedReplicas: 1,
 			expectedPredictedReplicas:  1,
 		},
@@ -128,8 +126,8 @@ func TestStateDiff(t *testing.T) {
 				}
 				return params
 			},
-			desiredState:               testutil.StrToUnstructured(testdata.DesiredDeploymentYaml),
-			liveState:                  testutil.StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
+			desiredState:               testutil.YamlToUnstructured(testdata.DesiredDeploymentYaml),
+			liveState:                  testutil.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml),
 			expectedNormalizedReplicas: 1,
 			expectedPredictedReplicas:  1,
 		},
@@ -147,12 +145,12 @@ func TestStateDiff(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.True(t, result.Modified)
-			normalized := testutil.StrToUnstructured(string(result.NormalizedLive))
+			normalized := testutil.YamlToUnstructured(string(result.NormalizedLive))
 			replicas, found, err := unstructured.NestedFloat64(normalized.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
 			assert.Equal(t, float64(tc.expectedNormalizedReplicas), replicas)
-			predicted := testutil.StrToUnstructured(string(result.PredictedLive))
+			predicted := testutil.YamlToUnstructured(string(result.PredictedLive))
 			predictedReplicas, found, err := unstructured.NestedFloat64(predicted.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)

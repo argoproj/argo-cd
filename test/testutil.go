@@ -72,9 +72,9 @@ func MustLoadFileToString(path string) string {
 	return string(o)
 }
 
-func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
+func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte(jsonStr), &obj)
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)
 	}

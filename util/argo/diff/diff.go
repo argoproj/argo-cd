@@ -1,4 +1,4 @@
-package argo
+package diff
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
@@ -253,7 +254,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		return nil, err
 	}
 
-	diffNormalizer, err := NewDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := argo.NewDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +334,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*appv1.ResourceDiff)
 		return false, nil
 	}
 	cachedDiff := make([]*appv1.ResourceDiff, 0)
-	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) != nil {
+	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) == nil {
 		return true, cachedDiff
 	}
 	return false, nil
@@ -348,7 +349,7 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 	for i := range targets {
 		target := safeDeepCopy(targets[i])
 		live := safeDeepCopy(lives[i])
-		resourceTracking := NewResourceTracking()
+		resourceTracking := argo.NewResourceTracking()
 		_ = resourceTracking.Normalize(target, live, diffConfig.AppLabelKey(), diffConfig.TrackingMethod())
 		// just normalize on managed fields if live and target aren't nil as we just care
 		// about conflicting fields

@@ -45,6 +45,7 @@ import (
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -893,7 +894,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					overrides[k] = *val
 				}
 
-				diffConfig, err := argo.NewDiffConfigBuilder().
+				diffConfig, err := argodiff.NewDiffConfigBuilder().
 					WithIgnores(app.Spec.IgnoreDifferences).
 					WithOverrides(overrides).
 					WithAppLabelKey(argoSettings.AppLabelKey).
@@ -905,7 +906,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Build()
 				errors.CheckError(err)
 
-				diffRes, err := argo.StateDiff(item.live, item.target, diffConfig)
+				diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
 				errors.CheckError(err)
 
 				if diffRes.Modified || item.target == nil || item.live == nil {
