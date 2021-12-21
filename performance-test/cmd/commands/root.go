@@ -36,8 +36,9 @@ func NewCommand() *cobra.Command {
 		DisableAutoGenTag: true,
 	}
 
-	command.AddCommand(NewProjectGenerationCommand(&generateOpts))
-	command.AddCommand(NewApplicationGenerationCommand(&generateOpts))
+	command.AddCommand(NewProjectCommand(&generateOpts))
+	command.AddCommand(NewApplicationCommand(&generateOpts))
+	command.AddCommand(NewAllResourcesCommand(&generateOpts))
 
 	command.PersistentFlags().IntVar(&generateOpts.Samples, "samples", 0, "Amount of samples")
 

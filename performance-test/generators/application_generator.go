@@ -24,6 +24,7 @@ func (pg *ApplicationGenerator) Generate(opts *GenerateOpts) error {
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "application-",
 				Namespace:    "argocd",
+				Labels:       labels,
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -43,4 +44,11 @@ func (pg *ApplicationGenerator) Generate(opts *GenerateOpts) error {
 		}
 	}
 	return nil
+}
+
+func (ag *ApplicationGenerator) Clean() error {
+	applications := ag.clientSet.ArgoprojV1alpha1().Applications("argocd")
+	return applications.DeleteCollection(context.TODO(), v1.DeleteOptions{}, v1.ListOptions{
+		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
+	})
 }

@@ -10,12 +10,17 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 )
 
+var labels = map[string]string{
+	"app.kubernetes.io/generated-by": "argocd-generator",
+}
+
 type GenerateOpts struct {
 	Samples int
 }
 
 type Generator interface {
 	Generate(opts *GenerateOpts) error
+	Clean() error
 }
 
 func ConnectToK8s() *appclientset.Clientset {

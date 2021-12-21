@@ -24,6 +24,7 @@ func (pg *ProjectGenerator) Generate(opts *GenerateOpts) error {
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "project-",
 				Namespace:    "argocd",
+				Labels:       labels,
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				Description: "generated-project",
@@ -34,4 +35,11 @@ func (pg *ProjectGenerator) Generate(opts *GenerateOpts) error {
 		}
 	}
 	return nil
+}
+
+func (pg *ProjectGenerator) Clean() error {
+	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects("argocd")
+	return projects.DeleteCollection(context.TODO(), v1.DeleteOptions{}, v1.ListOptions{
+		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
+	})
 }
