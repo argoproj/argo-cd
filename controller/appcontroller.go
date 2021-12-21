@@ -586,13 +586,10 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 			}
 
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithIgnores(app.Spec.IgnoreDifferences).
-				WithOverrides(resourceOverrides).
-				WithAppLabelKey(appLabelKey).
-				WithTrackingMethod(trackingMethod).
-				WithAppName(app.GetName()).
-				WithNoCache(true).
-				WithIgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles).
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+				WithTracking(appLabelKey, trackingMethod).
+				WithNoCache().
+				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
 				Build()
 			if err != nil {
 				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)

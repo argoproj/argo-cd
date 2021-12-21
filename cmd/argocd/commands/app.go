@@ -894,15 +894,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					overrides[k] = *val
 				}
 
+				// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
+				// compareOptions in the protobuf
+				ignoreAggregatedRoles := false
 				diffConfig, err := argodiff.NewDiffConfigBuilder().
-					WithIgnores(app.Spec.IgnoreDifferences).
-					WithOverrides(overrides).
-					WithAppLabelKey(argoSettings.AppLabelKey).
-					WithTrackingMethod(argoSettings.TrackingMethod).
-					WithNoCache(true).
-					// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
-					// compareOptions in the protobuf
-					WithIgnoreAggregatedRoles(false).
+					WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles).
+					WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
+					WithNoCache().
 					Build()
 				errors.CheckError(err)
 

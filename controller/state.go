@@ -441,20 +441,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	revisionChanged := manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision
 	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination})
 	_, refreshRequested := app.IsRefreshRequested()
-	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
 
+	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+		WithTracking(appLabelKey, string(trackingMethod))
+
+	if noCache {
+		diffConfigBuilder.WithNoCache()
+	} else {
+		diffConfigBuilder.WithCache(m.cache, app.GetName())
+	}
 	// it necessary to ignore the error at this point to avoid creating duplicated
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
-	diffConfig, _ := argodiff.NewDiffConfigBuilder().
-		WithIgnores(app.Spec.IgnoreDifferences).
-		WithOverrides(resourceOverrides).
-		WithAppLabelKey(appLabelKey).
-		WithTrackingMethod(string(trackingMethod)).
-		WithAppName(app.GetName()).
-		WithNoCache(noCache || specChanged || revisionChanged).
-		WithStateCache(m.cache).
-		WithIgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles).
-		Build()
+	diffConfig, _ := diffConfigBuilder.Build()
 
 	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {

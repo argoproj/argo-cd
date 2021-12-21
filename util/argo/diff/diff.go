@@ -28,64 +28,42 @@ func NewDiffConfigBuilder() *DiffConfigBuilder {
 	}
 }
 
-// WithIgnores sets the list of ResourceIgnoreDifferences in the diff config. Will set an
-// empty list if the input parameter is nil.
-func (b *DiffConfigBuilder) WithIgnores(i []v1alpha1.ResourceIgnoreDifferences) *DiffConfigBuilder {
-	ignores := i
+// WithDiffSettings will set the diff settings in the builder.
+func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool) *DiffConfigBuilder {
+	ignores := id
 	if ignores == nil {
 		ignores = []v1alpha1.ResourceIgnoreDifferences{}
 	}
 	b.diffConfig.ignores = ignores
-	return b
-}
 
-// WithOverrides sets the map of ResourceOverride in the diff config. Will set an
-// empty map if the input parameter is nil.
-func (b *DiffConfigBuilder) WithOverrides(o map[string]v1alpha1.ResourceOverride) *DiffConfigBuilder {
 	overrides := o
 	if overrides == nil {
 		overrides = make(map[string]appv1.ResourceOverride)
 	}
 	b.diffConfig.overrides = overrides
+	b.diffConfig.ignoreAggregatedRoles = ignoreAggregatedRoles
 	return b
 }
 
-// WithAppLabelKey sets the appLabelKey in the diff config.
-func (b *DiffConfigBuilder) WithAppLabelKey(l string) *DiffConfigBuilder {
-	b.diffConfig.appLabelKey = &l
+// WithTrackingMethod sets the tracking in the diff config.
+func (b *DiffConfigBuilder) WithTracking(appLabelKey, trackingMethod string) *DiffConfigBuilder {
+	b.diffConfig.appLabelKey = appLabelKey
+	b.diffConfig.trackingMethod = trackingMethod
 	return b
 }
 
-// WithTrackingMethod sets the trackingMethod in the diff config.
-func (b *DiffConfigBuilder) WithTrackingMethod(t string) *DiffConfigBuilder {
-	b.diffConfig.trackingMethod = &t
+// WithNoCache sets the nocache in the diff config.
+func (b *DiffConfigBuilder) WithNoCache() *DiffConfigBuilder {
+	b.diffConfig.noCache = true
 	return b
 }
 
-// WithAppName sets the appName in the diff config. The appName is only required
-// if retrieving the diff from the cache (NoCache = false).
-func (b *DiffConfigBuilder) WithAppName(n string) *DiffConfigBuilder {
-	b.diffConfig.appName = &n
-	return b
-}
-
-// WithNoCache sets the nocache in the diff config. Defines if it should retrieve
-// the computed diff from the cache.
-func (b *DiffConfigBuilder) WithNoCache(c bool) *DiffConfigBuilder {
-	b.diffConfig.noCache = &c
-	return b
-}
-
-// WithStateCache sets the appstatecache.Cache in the diff config. Only required if
-// retrieving the diff from the cache (NoCache = false).
-func (b *DiffConfigBuilder) WithStateCache(s *appstatecache.Cache) *DiffConfigBuilder {
+// WithCache sets the appstatecache.Cache and the appName in the diff config. Those the
+// are two objects necessary to retrieve a cached diff.
+func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *DiffConfigBuilder {
+	b.diffConfig.noCache = false
 	b.diffConfig.stateCache = s
-	return b
-}
-
-// WithIgnoreAggregatedRoles sets the ignoreAggregatedRoles in the diff config.
-func (b *DiffConfigBuilder) WithIgnoreAggregatedRoles(i bool) *DiffConfigBuilder {
-	b.diffConfig.ignoreAggregatedRoles = &i
+	b.diffConfig.appName = appName
 	return b
 }
 
@@ -135,12 +113,12 @@ type DiffConfig interface {
 type diffConfig struct {
 	ignores               []v1alpha1.ResourceIgnoreDifferences
 	overrides             map[string]v1alpha1.ResourceOverride
-	appLabelKey           *string
-	trackingMethod        *string
-	appName               *string
-	noCache               *bool
+	appLabelKey           string
+	trackingMethod        string
+	appName               string
+	noCache               bool
 	stateCache            *appstatecache.Cache
-	ignoreAggregatedRoles *bool
+	ignoreAggregatedRoles bool
 	logger                logr.Logger
 }
 
@@ -151,37 +129,22 @@ func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
 func (c *diffConfig) AppLabelKey() string {
-	if c.appLabelKey == nil {
-		return ""
-	}
-	return *c.appLabelKey
+	return c.appLabelKey
 }
 func (c *diffConfig) TrackingMethod() string {
-	if c.trackingMethod == nil {
-		return ""
-	}
-	return *c.trackingMethod
+	return c.trackingMethod
 }
 func (c *diffConfig) AppName() string {
-	if c.appName == nil {
-		return ""
-	}
-	return *c.appName
+	return c.appName
 }
 func (c *diffConfig) NoCache() bool {
-	if c.noCache == nil {
-		return false
-	}
-	return *c.noCache
+	return c.noCache
 }
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
-	if c.ignoreAggregatedRoles == nil {
-		return false
-	}
-	return *c.ignoreAggregatedRoles
+	return c.ignoreAggregatedRoles
 }
 func (c *diffConfig) Logger() logr.Logger {
 	return c.logger
@@ -197,25 +160,13 @@ func (c *diffConfig) Validate() error {
 	if c.overrides == nil {
 		return fmt.Errorf("%s: ResourceOverride can not be nil", msg)
 	}
-	if c.appLabelKey == nil {
-		return fmt.Errorf("%s: AppLabelKey can not be nil", msg)
-	}
-	if c.trackingMethod == nil {
-		return fmt.Errorf("%s: TrackingMethod can not be nil", msg)
-	}
-	if c.noCache == nil {
-		return fmt.Errorf("%s: NoCache can not be nil", msg)
-	}
-	if !*c.noCache {
-		if c.appName == nil {
+	if !c.noCache {
+		if c.appName == "" {
 			return fmt.Errorf("%s: AppName must be set when retrieving from cache", msg)
 		}
 		if c.stateCache == nil {
 			return fmt.Errorf("%s: StateCache must be set when retrieving from cache", msg)
 		}
-	}
-	if c.ignoreAggregatedRoles == nil {
-		return fmt.Errorf("%s: IgnoreAggregatedRoles can not be nil", msg)
 	}
 	return nil
 }
@@ -330,7 +281,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
 func (c *diffConfig) DiffFromCache(appName string) (bool, []*appv1.ResourceDiff) {
-	if *c.noCache || c.stateCache == nil || appName == "" {
+	if c.noCache || c.stateCache == nil || appName == "" {
 		return false, nil
 	}
 	cachedDiff := make([]*appv1.ResourceDiff, 0)

@@ -40,12 +40,9 @@ func TestStateDiff(t *testing.T) {
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
 		t.Helper()
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(params.ignores).
-			WithOverrides(params.overrides).
-			WithAppLabelKey(params.label).
-			WithTrackingMethod(params.trackingMethod).
-			WithNoCache(params.noCache).
-			WithIgnoreAggregatedRoles(params.ignoreRoles).
+			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles).
+			WithTracking(params.label, params.trackingMethod).
+			WithNoCache().
 			Build()
 		require.NoError(t, err)
 		return diffConfig
@@ -188,12 +185,9 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(f.ignores).
-			WithOverrides(f.overrides).
-			WithAppLabelKey(f.label).
-			WithTrackingMethod(f.trackingMethod).
-			WithNoCache(f.noCache).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithTracking(f.label, f.trackingMethod).
+			WithNoCache().
 			Build()
 
 		// then
@@ -215,12 +209,9 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(nil).
-			WithOverrides(nil).
-			WithAppLabelKey(f.label).
-			WithTrackingMethod(f.trackingMethod).
-			WithNoCache(f.noCache).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
+			WithDiffSettings(nil, nil, f.ignoreRoles).
+			WithTracking(f.label, f.trackingMethod).
+			WithNoCache().
 			Build()
 
 		// then
@@ -234,70 +225,15 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
 	})
-	t.Run("will return error if no app label key is configured", func(t *testing.T) {
-		// given
-		f := setup()
-
-		// when
-		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(nil).
-			WithOverrides(nil).
-			WithTrackingMethod(f.trackingMethod).
-			WithNoCache(f.noCache).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
-			Build()
-
-		// then
-		require.Error(t, err)
-		require.Nil(t, diffConfig)
-	})
-	t.Run("will return error if no tracking method is configured", func(t *testing.T) {
-		// given
-		f := setup()
-
-		// when
-		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(f.ignores).
-			WithOverrides(f.overrides).
-			WithAppLabelKey(f.label).
-			WithNoCache(f.noCache).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
-			Build()
-
-		// then
-		require.Error(t, err)
-		require.Nil(t, diffConfig)
-	})
-	t.Run("will return error if no ignore aggregated roles is configured", func(t *testing.T) {
-		// given
-		f := setup()
-
-		// when
-		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(f.ignores).
-			WithOverrides(f.overrides).
-			WithAppLabelKey(f.label).
-			WithTrackingMethod(f.trackingMethod).
-			WithNoCache(f.noCache).
-			Build()
-
-		// then
-		require.Error(t, err)
-		require.Nil(t, diffConfig)
-	})
 	t.Run("will return error if retrieving diff from cache an no appName configured", func(t *testing.T) {
 		// given
 		f := setup()
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(f.ignores).
-			WithOverrides(f.overrides).
-			WithAppLabelKey(f.label).
-			WithTrackingMethod(f.trackingMethod).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
-			WithNoCache(false).
-			WithStateCache(&appstatecache.Cache{}).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithTracking(f.label, f.trackingMethod).
+			WithCache(&appstatecache.Cache{}, "").
 			Build()
 
 		// then
@@ -310,13 +246,9 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithIgnores(f.ignores).
-			WithOverrides(f.overrides).
-			WithAppLabelKey(f.label).
-			WithTrackingMethod(f.trackingMethod).
-			WithIgnoreAggregatedRoles(f.ignoreRoles).
-			WithNoCache(false).
-			WithAppName(f.appName).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithTracking(f.label, f.trackingMethod).
+			WithCache(nil, f.appName).
 			Build()
 
 		// then
