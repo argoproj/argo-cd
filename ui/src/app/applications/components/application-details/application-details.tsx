@@ -24,12 +24,15 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
+import {ResourceStatus} from '../../../shared/models';
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+    groupedResources?: ResourceStatus[];
+    showCompactNodes?: boolean;
 }
 
 interface FilterInput {
@@ -64,7 +67,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0};
+        this.state = {page: 0, groupedResources: [], showCompactNodes: false};
     }
 
     private get showOperationState() {
@@ -86,6 +89,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private get selectedNodeKey() {
         const nodeContainer = this.selectedNodeInfo;
         return nodeContainer.key;
+    }
+
+    private closeGroupedNodesPanel() {
+        this.setState({groupedResources: []});
+    }
+
+    private toggleCompactView() {
+        this.setState({showCompactNodes: !this.state.showCompactNodes});
     }
 
     public render() {
@@ -135,18 +146,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
-                                ? (tree.orphanedNodes || []).map(node => ({
-                                      ...node,
-                                      status: null,
-                                      health: null
-                                  }))
-                                : [];
-                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                            const resourceNodes = (): any[] => {
+                                const statusByKey = new Map<string, models.ResourceStatus>();
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                const resources = new Map<string, any>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resource: any = {...node};
+                                        resource.uid = node.uid;
+                                        const status = statusByKey.get(AppUtils.nodeKey(node));
+                                        if (status) {
+                                            resource.health = status.health;
+                                            resource.status = status.status;
+                                            resource.hook = status.hook;
+                                            resource.requiresPruning = status.requiresPruning;
+                                        }
+                                        resources.set(node.uid, resource);
+                                    });
+                                const resourcesRef = Array.from(resources.values());
+                                return resourcesRef;
+                            };
+
+                            const filteredRes = resourceNodes().filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
+                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
+                                const resources = resourceNodes();
+                                this.setState({
+                                    groupedResources: groupdedNodeIds
+                                        ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
+                                        : []
+                                });
+                            };
 
                             const renderCommitMessage = (message: string) =>
                                 message.split(/\s/).map(part =>
@@ -217,6 +252,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                    {pref.view === 'tree' && (
+                                                        <button
+                                                            className={`argo-button argo-button--base${!this.state.showCompactNodes ? '-o' : ''}`}
+                                                            style={{border: 'none', width: '160px'}}
+                                                            onClick={() => this.toggleCompactView()}>
+                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
+                                                            Group Nodes
+                                                        </button>
+                                                    )}
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -226,11 +270,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        showCompactNodes={this.state.showCompactNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
+                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -244,6 +290,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
                                                     <div>
@@ -281,6 +328,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     </div>
                                                 )}
                                         </div>
+                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
+                                            <ApplicationResourceList
+                                                onNodeClick={fullName => this.selectNode(fullName)}
+                                                resources={this.state.groupedResources}
+                                                nodeMenu={node =>
+                                                    AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                        this.getApplicationActionMenu(application, false)
+                                                    )
+                                                }
+                                            />
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
                                                 tree={tree}

@@ -1,4 +1,5 @@
-import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
+import * as deepMerge from 'deepmerge';
 import * as moment from 'moment';
 import * as React from 'react';
 
@@ -93,11 +94,38 @@ export const ApplicationNodeInfo = (props: {
             key: 'manifest',
             title: 'Live Manifest',
             content: (
-                <YamlEditor
-                    input={props.live}
-                    hideModeButtons={!props.live}
-                    onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
-                />
+                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                    {pref => {
+                        const live = deepMerge(props.live, {}) as any;
+                        if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
+                            delete live.metadata.managedFields;
+                        }
+                        return (
+                            <>
+                                <div className='application-node-info__checkboxes'>
+                                    <Checkbox
+                                        id='hideManagedFields'
+                                        checked={!!pref.appDetails.hideManagedFields}
+                                        onChange={() =>
+                                            services.viewPreferences.updatePreferences({
+                                                appDetails: {
+                                                    ...pref.appDetails,
+                                                    hideManagedFields: !pref.appDetails.hideManagedFields
+                                                }
+                                            })
+                                        }
+                                    />
+                                    <label htmlFor='hideManagedFields'>Hide Managed Fields</label>
+                                </div>
+                                <YamlEditor
+                                    input={live}
+                                    hideModeButtons={!live}
+                                    onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
+                                />
+                            </>
+                        );
+                    }}
+                </DataLoader>
             )
         }
     ];

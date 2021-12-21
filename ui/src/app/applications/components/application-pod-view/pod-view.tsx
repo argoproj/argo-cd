@@ -20,6 +20,7 @@ interface PodViewProps {
     onItemClick: (fullName: string) => void;
     app: Application;
     nodeMenu?: (node: ResourceNode) => React.ReactNode;
+    quickStarts?: (node: ResourceNode) => React.ReactNode;
 }
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
@@ -31,6 +32,7 @@ interface PodGroup extends Partial<ResourceNode> {
     hostResourcesInfo?: HostResourceInfo[];
     resourceStatus?: Partial<ResourceStatus>;
     renderMenu?: () => React.ReactNode;
+    renderQuickStarts?: () => React.ReactNode;
     fullName?: string;
 }
 
@@ -41,6 +43,34 @@ export class PodView extends React.Component<PodViewProps> {
 
     public static contextTypes = {
         apis: PropTypes.object
+    };
+
+    deleteAction = async (pod: Pod) => {
+        this.appContext.apis.popup.prompt(
+            'Delete pod',
+            () => (
+                <div>
+                    <p>Are you sure you want to delete Pod '{pod.name}'?</p>
+                    <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                        <CheckboxField id='force-delete-checkbox' field='force' />
+                        <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    </div>
+                </div>
+            ),
+            {
+                submit: async (vals, _, close) => {
+                    try {
+                        await services.applications.deleteResource(this.props.app.metadata.name, pod, !!vals.force, false);
+                        close();
+                    } catch (e) {
+                        this.appContext.apis.notifications.show({
+                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                            type: NotificationType.Error
+                        });
+                    }
+                }
+            }
+        );
     };
 
     public render() {
@@ -205,40 +235,11 @@ export class PodView extends React.Component<PodViewProps> {
                                                                         {
                                                                             title: (
                                                                                 <React.Fragment>
-                                                                                    <i className='fa fa-trash' /> Delete
+                                                                                    <i className='fa fa-times-circle' /> Delete
                                                                                 </React.Fragment>
                                                                             ),
-                                                                            action: async () => {
-                                                                                this.appContext.apis.popup.prompt(
-                                                                                    'Delete pod',
-                                                                                    () => (
-                                                                                        <div>
-                                                                                            <p>Are your sure you want to delete Pod '{pod.name}'?</p>
-                                                                                            <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                                                                                                <CheckboxField id='force-delete-checkbox' field='force' />
-                                                                                                <label htmlFor='force-delete-checkbox'>Force delete</label>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ),
-                                                                                    {
-                                                                                        submit: async (vals, _, close) => {
-                                                                                            try {
-                                                                                                await services.applications.deleteResource(
-                                                                                                    this.props.app.metadata.name,
-                                                                                                    pod,
-                                                                                                    !!vals.force,
-                                                                                                    false
-                                                                                                );
-                                                                                                close();
-                                                                                            } catch (e) {
-                                                                                                this.appContext.apis.notifications.show({
-                                                                                                    content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                                                                                                    type: NotificationType.Error
-                                                                                                });
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                );
+                                                                            action: () => {
+                                                                                this.deleteAction(pod);
                                                                             }
                                                                         }
                                                                     ]}
@@ -246,6 +247,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                             ))}
                                                         </div>
                                                         <div className='pod-view__node__label'>PODS</div>
+                                                        {(podPrefs.sortMode === 'parentResource' || podPrefs.sortMode === 'topLevelResource') && (
+                                                            <div key={group.uid}>{group.renderQuickStarts()}</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -326,7 +330,8 @@ export class PodView extends React.Component<PodViewProps> {
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
                     resourceStatus: {health: rnode.health, status: status ? status.status : null},
-                    renderMenu: () => this.props.nodeMenu(rnode)
+                    renderMenu: () => this.props.nodeMenu(rnode),
+                    renderQuickStarts: () => this.props.quickStarts(rnode)
                 };
             }
         });
@@ -411,7 +416,7 @@ const labelForSortMode = {
     topLevelResource: 'Top Level Resource'
 };
 
-const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
 function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';

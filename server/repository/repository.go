@@ -318,8 +318,8 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	var repo *appsv1.Repository
 	var err error
 
-	// check we can connect to the repo, copying any existing creds
-	{
+	// check we can connect to the repo, copying any existing creds (not supported for project scoped repositories)
+	if q.Repo.Project == "" {
 		repo := q.Repo.DeepCopy()
 		if !repo.HasCredentials() {
 			creds, err := s.db.GetRepositoryCredentials(ctx, repo.Repo)

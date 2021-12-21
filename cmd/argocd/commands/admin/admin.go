@@ -55,6 +55,7 @@ func NewAdminCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewDashboardCommand())
+	command.AddCommand(NewNotificationsCommand())
 
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")

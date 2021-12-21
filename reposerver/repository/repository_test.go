@@ -132,7 +132,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 34
+	const countOfManifests = 41
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -156,7 +156,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -178,7 +178,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -310,7 +310,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
 		assert.Nil(t, err)
 		return cachedManifestResponse
 	}
@@ -1547,8 +1547,8 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	assert.Error(t, err)
-	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {

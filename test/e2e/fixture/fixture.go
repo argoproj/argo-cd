@@ -54,6 +54,9 @@ const (
 	GuestbookPath = "guestbook"
 
 	ProjectName = "argo-project"
+
+	// cmp plugin sock file path
+	PluginSockFilePath = "/app/config/plugin"
 )
 
 const (
@@ -566,6 +569,8 @@ func EnsureCleanState(t *testing.T) {
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
 		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
 	}
 
 	// set-up tmp repo, must have unique name

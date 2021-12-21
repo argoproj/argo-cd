@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -124,6 +126,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
 	visited := 0
+	if flags == nil {
+		return visited
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 		switch f.Name {
@@ -526,39 +531,99 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	}
 }
 
-func readAppFromStdin(app *argoappv1.Application) error {
+func readApps(yml []byte, apps *[]*argoappv1.Application) error {
+	yamls, _ := kube.SplitYAMLToString(yml)
+
+	var err error
+
+	for _, yml := range yamls {
+		var app argoappv1.Application
+		err = config.Unmarshal([]byte(yml), &app)
+		*apps = append(*apps, &app)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	err := config.UnmarshalReader(reader, &app)
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	err = readApps(data, apps)
 	if err != nil {
 		return fmt.Errorf("unable to read manifest from stdin: %v", err)
 	}
 	return nil
 }
 
-func readAppFromURI(fileURL string, app *argoappv1.Application) error {
-	parsedURL, err := url.ParseRequestURI(fileURL)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		err = config.UnmarshalLocalFile(fileURL, &app)
-	} else {
-		err = config.UnmarshalRemoteFile(fileURL, &app)
+func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
+
+	readFilePayload := func() ([]byte, error) {
+		parsedURL, err := url.ParseRequestURI(fileURL)
+		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			return ioutil.ReadFile(fileURL)
+		}
+		return config.ReadRemoteFile(fileURL)
 	}
-	return err
+
+	yml, err := readFilePayload()
+	if err != nil {
+		return err
+	}
+
+	return readApps(yml, apps)
 }
 
-func ConstructApp(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
-	var app argoappv1.Application
-	if fileURL == "-" {
-		// read stdin
-		err := readAppFromStdin(&app)
-		if err != nil {
-			return nil, err
+func constructAppsFromStdin() ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read stdin
+	err := readAppsFromStdin(&apps)
+	if err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	var app *argoappv1.Application
+	// read arguments
+	if len(args) == 1 {
+		if appName != "" && appName != args[0] {
+			return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
 		}
-	} else if fileURL != "" {
-		// read uri
-		err := readAppFromURI(fileURL, &app)
-		if err != nil {
-			return nil, err
-		}
+		appName = args[0]
+	}
+	app = &argoappv1.Application{
+		TypeMeta: v1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: application.Group + "/v1alpha1",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name: appName,
+		},
+	}
+	SetAppSpecOptions(flags, &app.Spec, &appOpts)
+	SetParameterOverrides(app, appOpts.Parameters)
+	mergeLabels(app, labels)
+	setAnnotations(app, annotations)
+	return []*argoappv1.Application{
+		app,
+	}, nil
+}
+
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read uri
+	err := readAppsFromURI(fileURL, &apps)
+	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
 		if len(args) == 1 && args[0] != app.Name {
 			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 		}
@@ -569,32 +634,20 @@ func ConstructApp(fileURL, appName string, labels, annotations, args []string, a
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
-	} else {
-		// read arguments
-		if len(args) == 1 {
-			if appName != "" && appName != args[0] {
-				return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
-			}
-			appName = args[0]
-		}
-		app = argoappv1.Application{
-			TypeMeta: v1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: application.Group + "/v1alpha1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: appName,
-			},
-		}
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-		setAnnotations(&app, annotations)
+		SetParameterOverrides(app, appOpts.Parameters)
+		mergeLabels(app, labels)
+		setAnnotations(app, annotations)
 	}
-	return &app, nil
+	return apps, nil
+}
+
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	if fileURL == "-" {
+		return constructAppsFromStdin()
+	} else if fileURL != "" {
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+	}
+	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {

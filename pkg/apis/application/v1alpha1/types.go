@@ -19,6 +19,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -84,6 +85,9 @@ type ResourceIgnoreDifferences struct {
 	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
 	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
+	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+	// desired state defined in the SCM and won't be displayed in diffs
+	ManagedFieldsManagers []string `json:"managedFieldsManagers,omitempty" protobuf:"bytes,7,opt,name=managedFieldsManagers"`
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -1440,10 +1444,16 @@ type KnownTypeField struct {
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
-// TODO: describe this type
+// OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
+// the desired state and live state
 type OverrideIgnoreDiff struct {
-	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	//JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	//JQPathExpressions is a JQ path list that will be evaludated during the diff process
 	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
+	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+	// desired state defined in the SCM and won't be displayed in diffs
+	ManagedFieldsManagers []string `json:"managedFieldsManagers" protobuf:"bytes,3,opt,name=managedFieldsManagers"`
 }
 
 type rawResourceOverride struct {
@@ -1578,7 +1588,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, proj))
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, regexp.QuoteMeta(proj)))
 	if err != nil || !objectRegexp.MatchString(object) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
 	}
@@ -1682,9 +1692,11 @@ type SyncWindow struct {
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+	//TimeZone of the sync that will be applied to the schedule
+	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 }
 
-// HasWindows returns true if any window is defined
+// HasWindows returns true if SyncWindows has one or more SyncWindow
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
@@ -1706,8 +1718,11 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			nextWindow := schedule.Next(currentTime.Add(-duration))
-			if nextWindow.Before(currentTime) {
+
+			// Offset the nextWindow time to consider the timeZone of the sync window
+			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 				active = append(active, w)
 			}
 		}
@@ -1718,7 +1733,9 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
-// TODO: document this method
+// InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
+// for the current time. If the current time is in an inactive allow window, syncs will
+// be denied.
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return s.inactiveAllows(time.Now())
 }
@@ -1736,8 +1753,11 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				nextWindow := schedule.Next(currentTime.Add(-duration))
-				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
+				// Offset the nextWindow time to consider the timeZone of the sync window
+				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -1749,17 +1769,29 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
+func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
+	loc, err := time.LoadLocation(w.TimeZone)
+	if err != nil {
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
+		loc = time.Now().UTC().Location()
+	}
+	_, tzOffset := time.Now().In(loc).Zone()
+	return time.Duration(tzOffset) * time.Second
+}
+
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 
 	}
+
 	window := &SyncWindow{
 		Kind:       knd,
 		Schedule:   sch,
 		Duration:   dur,
 		ManualSync: ms,
+		TimeZone:   timeZone,
 	}
 
 	if len(app) > 0 {
@@ -1814,7 +1846,10 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
-					if globMatch(c, app.Spec.Destination.Server) {
+					dst := app.Spec.Destination
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1842,50 +1877,55 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		return true
 	}
 
-	var allowActive, denyActive, manualEnabled bool
 	active := w.Active()
-	denyActive, manualEnabled = active.hasDeny()
-	allowActive = active.hasAllow()
+	hasActiveDeny, manualEnabled := active.hasDeny()
 
-	if !denyActive {
-		if !allowActive {
-			if isManual && w.InactiveAllows().manualEnabled() {
-				return true
-			}
-		} else {
-			return true
-		}
-	} else {
+	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true
+		} else {
+			return false
 		}
 	}
 
-	return false
+	inactiveAllows := w.InactiveAllows()
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
 
+// hasDeny will iterate over the SyncWindows and return if a deny window is found and if
+// manual sync is enabled. It returns true in the first return boolean value if it finds
+// any deny window. Will return true in the second return boolean value if all deny windows
+// have manual sync enabled. If one deny window has manual sync disabled it returns false in
+// the second return value.
 func (w *SyncWindows) hasDeny() (bool, bool) {
 	if !w.HasWindows() {
 		return false, false
 	}
-	var denyActive, manualEnabled bool
+	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyActive {
+			if !denyFound {
 				manualEnabled = a.ManualSync
 			} else {
 				if manualEnabled {
-					if !a.ManualSync {
-						manualEnabled = a.ManualSync
-					}
+					manualEnabled = a.ManualSync
 				}
 			}
-			denyActive = true
+			denyFound = true
 		}
 	}
-	return denyActive, manualEnabled
+	return denyFound, manualEnabled
 }
 
+// hasAllow will iterate over the SyncWindows and returns true if it find any allow window.
 func (w *SyncWindows) hasAllow() bool {
 	if !w.HasWindows() {
 		return false
@@ -1898,16 +1938,19 @@ func (w *SyncWindows) hasAllow() bool {
 	return false
 }
 
+// manualEnabled will iterate over the SyncWindows and return true if all windows have
+// ManualSync set to true. Returns false if it finds at least one entry with ManualSync
+// set to false
 func (w *SyncWindows) manualEnabled() bool {
 	if !w.HasWindows() {
 		return false
 	}
 	for _, s := range *w {
-		if s.ManualSync {
-			return true
+		if !s.ManualSync {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // Active returns true if the sync window is currently active
@@ -1925,12 +1968,16 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
 
-	nextWindow := schedule.Next(currentTime.Add(-duration))
-	return nextWindow.Before(currentTime)
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
+
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -1952,12 +1999,25 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-
+	if tz == "" {
+		tz = "UTC"
+	}
+	w.TimeZone = tz
 	return nil
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
+
+	// Default timeZone to UTC if timeZone is not specified
+	if w.TimeZone == "" {
+		w.TimeZone = "UTC"
+	}
+	if _, err := time.LoadLocation(w.TimeZone); err != nil {
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
+		w.TimeZone = "UTC"
+	}
+
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}

@@ -6,10 +6,30 @@ import * as models from '../../models';
 
 require('./events-list.scss');
 
-export const EventsList = (props: {events: models.Event[]}) => {
-    const events = props.events.sort((first, second) => moment(second.lastTimestamp).diff(first.lastTimestamp));
+function timestampSort(first: models.Event, second: models.Event): number {
+    if (first.lastTimestamp && !second.lastTimestamp) {
+        return moment(second.eventTime).diff(first.lastTimestamp);
+    } else if (!first.lastTimestamp && second.lastTimestamp) {
+        return moment(second.lastTimestamp).diff(first.eventTime);
+    } else if (!first.lastTimestamp && !second.lastTimestamp) {
+        return moment(second.eventTime).diff(first.eventTime);
+    }
+    return moment(second.lastTimestamp).diff(first.lastTimestamp);
+}
 
+function getTimeElements(timestamp: string) {
     const readableFormat = (d: Date) => moment(d).calendar();
+    const dateOfEvent = new Date(timestamp);
+    return (
+        <>
+            <div className='events-list__event__ago'>{ago(dateOfEvent)}</div>
+            <div className='events-list__event__time'>{readableFormat(dateOfEvent)}</div>
+        </>
+    );
+}
+
+export const EventsList = (props: {events: models.Event[]}) => {
+    const events = props.events.sort((first, second) => timestampSort(first, second));
 
     return (
         <div className='events-list'>
@@ -30,14 +50,8 @@ export const EventsList = (props: {events: models.Event[]}) => {
                                 <div className='columns small-2 xxlarge-2'>{event.reason}</div>
                                 <div className='columns small-4 xxlarge-5'>{event.message}</div>
                                 <div className='columns small-2 xxlarge-1'>{event.count}</div>
-                                <div className='columns small-2 xxlarge-2'>
-                                    <div className='events-list__event__ago'>{ago(new Date(event.firstTimestamp))}</div>
-                                    <div className='events-list__event__time'>{readableFormat(new Date(event.firstTimestamp))}</div>
-                                </div>
-                                <div className='columns small-2 xxlarge-2'>
-                                    <div className='events-list__event__ago'>{ago(new Date(event.lastTimestamp))}</div>
-                                    <div className='events-list__event__time'>{readableFormat(new Date(event.lastTimestamp))}</div>
-                                </div>
+                                <div className='columns small-2 xxlarge-2'>{event.firstTimestamp ? getTimeElements(event.firstTimestamp) : getTimeElements(event.eventTime)}</div>
+                                <div className='columns small-2 xxlarge-2'>{event.lastTimestamp ? getTimeElements(event.lastTimestamp) : getTimeElements(event.eventTime)}</div>
                             </div>
                         </div>
                     ))}

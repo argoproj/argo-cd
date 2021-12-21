@@ -6,9 +6,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -16,14 +23,11 @@ import (
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
-	clientset := getClientset(map[string]string{})
-	testee := &secretsRepositoryBackend{db: &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
-	}}
-
-	input := &appsv1.Repository{
+	type fixture struct {
+		clientSet   *fake.Clientset
+		repoBackend *secretsRepositoryBackend
+	}
+	repo := &appsv1.Repository{
 		Name:                  "ArgoCD",
 		Repo:                  "git@github.com:argoproj/argo-cd.git",
 		Username:              "someUsername",
@@ -31,28 +35,117 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		InsecureIgnoreHostKey: false,
 		EnableLFS:             true,
 	}
+	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
 
-	output, err := testee.CreateRepository(context.TODO(), input)
-	assert.NoError(t, err)
-	assert.Same(t, input, output)
+		clientset := getClientset(map[string]string{}, objects...)
+		settingsMgr := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		repoBackend := &secretsRepositoryBackend{db: &db{
+			ns:            testNamespace,
+			kubeclientset: clientset,
+			settingsMgr:   settingsMgr,
+		}}
+		return &fixture{
+			clientSet:   clientset,
+			repoBackend: repoBackend,
+		}
+	}
+	t.Run("will create repository successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setupWithK8sObjects()
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
-		context.TODO(),
-		RepoURLToSecretName(repoSecretPrefix, input.Repo),
-		metav1.GetOptions{},
-	)
-	assert.NotNil(t, secret)
-	assert.NoError(t, err)
+		// when
+		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
 
-	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, common.LabelValueSecretTypeRepository, secret.Labels[common.LabelKeySecretType])
+		// then
+		assert.NoError(t, err)
+		assert.Same(t, repo, output)
 
-	assert.Equal(t, input.Name, string(secret.Data["name"]))
-	assert.Equal(t, input.Repo, string(secret.Data["url"]))
-	assert.Equal(t, input.Username, string(secret.Data["username"]))
-	assert.Equal(t, input.Password, string(secret.Data["password"]))
-	assert.Equal(t, "", string(secret.Data["insecureIgnoreHostKey"]))
-	assert.Equal(t, strconv.FormatBool(input.EnableLFS), string(secret.Data["enableLfs"]))
+		secret, err := f.clientSet.CoreV1().Secrets(testNamespace).Get(
+			context.TODO(),
+			RepoURLToSecretName(repoSecretPrefix, repo.Repo),
+			metav1.GetOptions{},
+		)
+		assert.NotNil(t, secret)
+		assert.NoError(t, err)
+
+		assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
+		assert.Equal(t, common.LabelValueSecretTypeRepository, secret.Labels[common.LabelKeySecretType])
+
+		assert.Equal(t, repo.Name, string(secret.Data["name"]))
+		assert.Equal(t, repo.Repo, string(secret.Data["url"]))
+		assert.Equal(t, repo.Username, string(secret.Data["username"]))
+		assert.Equal(t, repo.Password, string(secret.Data["password"]))
+		assert.Equal(t, "", string(secret.Data["insecureIgnoreHostKey"]))
+		assert.Equal(t, strconv.FormatBool(repo.EnableLFS), string(secret.Data["enableLfs"]))
+	})
+	t.Run("will return proper error if secret does not have expected label", func(t *testing.T) {
+		// given
+		t.Parallel()
+		secret := &corev1.Secret{}
+		repositoryToSecret(repo, secret)
+		delete(secret.Labels, common.LabelKeySecretType)
+		f := setupWithK8sObjects(secret)
+		f.clientSet.ReactionChain = nil
+		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			gr := schema.GroupResource{
+				Group:    "v1",
+				Resource: "secrets",
+			}
+			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+		})
+
+		// when
+		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, output)
+		status, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, status.Code())
+	})
+	t.Run("will return proper error if secret already exists", func(t *testing.T) {
+		// given
+		t.Parallel()
+		secName := RepoURLToSecretName(repoSecretPrefix, repo.Repo)
+		secret := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secName,
+				Namespace: "default",
+			},
+		}
+		repositoryToSecret(repo, secret)
+		f := setupWithK8sObjects(secret)
+		f.clientSet.ReactionChain = nil
+		f.clientSet.WatchReactionChain = nil
+		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			gr := schema.GroupResource{
+				Group:    "v1",
+				Resource: "secrets",
+			}
+			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+		})
+		watcher := watch.NewFakeWithChanSize(1, true)
+		watcher.Add(secret)
+		f.clientSet.AddWatchReactor("secrets", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
+			return true, watcher, nil
+		})
+
+		// when
+		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, output)
+		status, ok := status.FromError(err)
+		assert.True(t, ok)
+		assert.Equal(t, codes.AlreadyExists, status.Code())
+	})
 }
 
 func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
