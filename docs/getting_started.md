@@ -18,7 +18,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
 !!! warning
-    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you installing Argo CD into a different
+    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
 If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:

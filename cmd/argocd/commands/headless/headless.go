@@ -27,6 +27,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+
+	flag "github.com/spf13/pflag"
 )
 
 func testAPI(clientOpts *argoapi.ClientOptions) error {
@@ -41,6 +43,13 @@ func testAPI(clientOpts *argoapi.ClientOptions) error {
 	defer io.Close(closer)
 	_, err = versionClient.Version(context.Background(), &empty.Empty{})
 	return err
+}
+
+func retrieveContextIfChanged(contextFlag *flag.Flag) string {
+	if contextFlag != nil && contextFlag.Changed {
+		return contextFlag.Value.String()
+	}
+	return ""
 }
 
 // InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
@@ -108,10 +117,7 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return err
 		}
 
-		var context string
-		if cmd.Flag("context").Changed {
-			context = cmd.Flag("context").Value.String()
-		}
+		context := retrieveContextIfChanged(cmd.Flag("context"))
 
 		mr, err := miniredis.Run()
 		if err != nil {

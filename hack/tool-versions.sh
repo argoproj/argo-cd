@@ -8,12 +8,11 @@
 # downloaded binary with a ".sha256" suffix appended, containing the proper
 # SHA256 sum of the binary.
 ###############################################################################
+awscliv2_version=2.4.6
 helm2_version=2.17.0
 helm3_version=3.7.1
-jq_version=1.6
 ksonnet_version=0.13.1
 kubectl_version=1.17.8
 kubectx_version=0.6.3
 kustomize4_version=4.2.0
 protoc_version=3.7.1
-swagger_version=0.19.0

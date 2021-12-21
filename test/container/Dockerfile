@@ -18,6 +18,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         git \
         git-lfs \
         gpg \
+        jq \
         make \
         wget \
         gcc \
@@ -29,7 +30,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
@@ -37,9 +38,10 @@ ENV GOPATH /go
 ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
+ADD go.mod go.mod
+ADD go.sum go.sum
 
-RUN ./install.sh dep-linux && \
-    ./install.sh ksonnet-linux && \
+RUN ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \

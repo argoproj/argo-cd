@@ -32,6 +32,7 @@ RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
+RUN ./install.sh awscli-linux
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -49,9 +50,8 @@ RUN groupadd -g 999 argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y git git-lfs python3-pip tini gpg tzdata && \
+    apt-get install -y git git-lfs tini gpg tzdata && \
     apt-get clean && \
-    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
@@ -61,9 +61,11 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/aws-cli/v2/current/dist /usr/local/aws-cli/v2/current/dist
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+RUN ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
@@ -127,5 +129,6 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications
 
 USER 999

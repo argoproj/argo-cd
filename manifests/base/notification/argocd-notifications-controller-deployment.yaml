@@ -30,13 +30,12 @@ spec:
               path: ca.crt
       containers:
         - command:
-            - /app/argocd-notifications-backend
-            - controller
+            - argocd-notifications
           workingDir: /app
           livenessProbe:
             tcpSocket:
               port: 9001
-          image: argoprojlabs/argocd-notifications:latest
+          image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always
           name: argocd-notifications-controller
           volumeMounts:

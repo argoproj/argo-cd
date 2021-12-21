@@ -121,6 +121,7 @@ type OIDCConfig struct {
 	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 	LogoutURL              string                 `json:"logoutURL,omitempty"`
+	RootCA                 string                 `json:"rootCA,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -1528,6 +1529,27 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) OIDCTLSConfig() *tls.Config {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		if oidcConfig.RootCA != "" {
+			certPool := x509.NewCertPool()
+			ok := certPool.AppendCertsFromPEM([]byte(oidcConfig.RootCA))
+			if !ok {
+				log.Warn("invalid oidc root ca cert - returning default tls.Config instead")
+				return &tls.Config{}
+			}
+			return &tls.Config{
+				RootCAs: certPool,
+			}
+		}
+	}
+	tlsConfig := a.TLSConfig()
+	if tlsConfig != nil {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }
 
 func appendURLPath(inputURL string, inputPath string) (string, error) {

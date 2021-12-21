@@ -154,13 +154,15 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case bitbucketserver.RepositoryReferenceChangedPayload:
 
 		// Webhook module does not parse the inner links
-		for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-			link := l.(map[string]interface{})
-			if link["name"] == "http" {
-				webURLs = append(webURLs, link["href"].(string))
-			}
-			if link["name"] == "ssh" {
-				webURLs = append(webURLs, link["href"].(string))
+		if payload.Repository.Links != nil {
+			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+				link := l.(map[string]interface{})
+				if link["name"] == "http" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
+				if link["name"] == "ssh" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
 			}
 		}
 
@@ -227,19 +229,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 
 	for _, webURL := range webURLs {
-		urlObj, err := url.Parse(webURL)
+		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
-			log.Warnf("Failed to parse repoURL '%s'", webURL)
+			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
-		repoRegexp, err := regexp.Compile(regexpStr)
-		if err != nil {
-			log.Warnf("Failed to compile regexp for repoURL '%s'", webURL)
-			continue
-		}
-
 		for _, app := range apps.Items {
 			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
 				if appFilesHaveChanged(&app, changedFiles) {
@@ -256,6 +250,25 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			}
 		}
 	}
+}
+
+// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
+func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+	urlObj, err := url.Parse(webURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
+	}
+
+	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
+	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|\w+@|ssh://(\w+@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`, regexEscapedHostname, regexEscapedPath)
+	repoRegexp, err := regexp.Compile(regexpStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
+	}
+
+	return repoRegexp, nil
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
@@ -342,8 +355,14 @@ func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHe
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
+	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
+	for _, prefix := range targetRevisionHasPrefixList {
+		if strings.HasPrefix(app.Spec.Source.TargetRevision, prefix) {
+			return revision == targetRev
+		}
+	}
 
-	return targetRev == revision
+	return app.Spec.Source.TargetRevision == revision
 }
 
 func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {
