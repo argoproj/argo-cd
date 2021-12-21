@@ -143,4 +143,18 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	assert.Equal(t, updated.Name, "minikube")
 	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
 	assert.Equal(t, updated.Annotations, annotationEnv)
+
+	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		Cluster: &v1alpha1.Cluster{
+			Server:  "https://127.0.0.1",
+			Project: "new-project",
+		},
+		UpdatedFields: []string{"project"},
+	})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, updated.Name, "minikube")
+	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, updated.Project, "new-project")
 }
