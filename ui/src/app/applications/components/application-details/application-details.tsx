@@ -32,8 +32,8 @@ interface ApplicationDetailsState {
     page: number;
     revision?: string;
     groupedResources?: ResourceStatus[];
-    showCompactNodes?: boolean;
     slidingPanelPage?: number;
+    showCompactNodes?: boolean;
 }
 
 interface FilterInput {
@@ -68,7 +68,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], showCompactNodes: false, slidingPanelPage: 0};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, showCompactNodes: false};
     }
 
     private get showOperationState() {
