@@ -66,4 +66,4 @@ ghe.example.com
 192.168.99.100:8443
 github.com/yourghuser/argo-cd
 github.com/argoproj/argo-cd/releases/download/
-github.com/argoproj/argo-helm/tree/master/charts/argo-cd
+https://github.com/hayorov/helm-gcs.git;
