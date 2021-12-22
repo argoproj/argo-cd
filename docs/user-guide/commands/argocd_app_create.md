@@ -50,6 +50,7 @@ argocd app create APPNAME [flags]
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
+      --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for create
       --jsonnet-ext-var-code stringArray           Jsonnet ext var

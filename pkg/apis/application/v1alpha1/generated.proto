@@ -210,6 +210,9 @@ message ApplicationSourceHelm {
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
   optional bool passCredentials = 7;
+
+  // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
+  optional bool skipCrds = 8;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet

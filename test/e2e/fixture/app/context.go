@@ -38,6 +38,7 @@ type Context struct {
 	directoryRecurse       bool
 	replace                bool
 	helmPassCredentials    bool
+	helmSkipCrds           bool
 }
 
 func Given(t *testing.T) *Context {
@@ -294,5 +295,10 @@ func (c *Context) Force() *Context {
 
 func (c *Context) HelmPassCredentials() *Context {
 	c.helmPassCredentials = true
+	return c
+}
+
+func (c *Context) HelmSkipCrds() *Context {
+	c.helmSkipCrds = true
 	return c
 }

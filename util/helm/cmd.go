@@ -288,6 +288,7 @@ type TemplateOpts struct {
 	SetString   map[string]string
 	SetFile     map[string]string
 	Values      []string
+	SkipCrds    bool
 }
 
 var (
@@ -330,8 +331,8 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
 	}
-	if c.HelmVer.additionalTemplateArgs != nil {
-		args = append(args, c.HelmVer.additionalTemplateArgs...)
+	if !opts.SkipCrds {
+		args = append(args, "--include-crds")
 	}
 
 	return c.run(args...)

@@ -54,6 +54,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{passCredentials: true})
 		assert.Equal(t, true, src.Helm.PassCredentials)
 	})
+	t.Run("HelmSkipCrds", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipCrds: true})
+		assert.Equal(t, true, src.Helm.SkipCrds)
+	})
 }
 
 func Test_setKustomizeOpt(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/go-jsonnet"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
-	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -635,6 +635,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.SetFile[p.Name] = p.Path
 		}
 		passCredentials = appHelm.PassCredentials
+		templateOpts.SkipCrds = appHelm.SkipCrds
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName

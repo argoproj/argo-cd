@@ -4914,6 +4914,10 @@
           "type": "string",
           "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
         },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",

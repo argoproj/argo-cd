@@ -203,6 +203,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
 	}
+	if a.context.helmSkipCrds {
+		args = append(args, "--helm-skip-crds")
+	}
 	return args
 }
 

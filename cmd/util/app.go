@@ -43,6 +43,7 @@ type AppOptions struct {
 	helmSetFiles                    []string
 	helmVersion                     string
 	helmPassCredentials             bool
+	helmSkipCrds                    bool
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -93,6 +94,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
+	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
@@ -171,6 +173,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "helm-set-file":
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
+		case "helm-skip-crds":
+			setHelmOpt(&spec.Source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
 			if spec.Source.Directory != nil {
 				spec.Source.Directory.Recurse = appOpts.directoryRecurse
@@ -389,6 +393,7 @@ type helmOpts struct {
 	helmSetStrings  []string
 	helmSetFiles    []string
 	passCredentials bool
+	skipCrds        bool
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -409,6 +414,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.passCredentials {
 		src.Helm.PassCredentials = opts.passCredentials
+	}
+	if opts.skipCrds {
+		src.Helm.SkipCrds = opts.skipCrds
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
