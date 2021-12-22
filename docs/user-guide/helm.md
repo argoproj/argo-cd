@@ -19,7 +19,7 @@ spec:
     helm:
       releaseName: sealed-secrets
   destination:
-    server: https://kubernetes.default.svc
+    server: "https://kubernetes.default.svc"
     namespace: kubeseal
 ```
 

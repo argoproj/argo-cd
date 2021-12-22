@@ -1,4 +1,4 @@
-package argo_test
+package diff_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/diff"
 )
 
 func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
@@ -39,7 +39,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, override)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, override)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -58,7 +58,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, override)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, override)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -75,7 +75,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -91,7 +91,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -107,7 +107,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -123,7 +123,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "default")
@@ -139,7 +139,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "app-name", "another-namespace")
@@ -152,7 +152,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Deployment", "another-app", "default")
@@ -165,7 +165,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("apps", "Service", "app-name", "default")
@@ -178,7 +178,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// give
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
-		ignoreConfig := argo.NewIgnoreDiffConfig(ignoreDiffs, nil)
+		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
 
 		// when
 		ok, actual := ignoreConfig.HasIgnoreDifference("another-group", "Deployment", "app-name", "default")
