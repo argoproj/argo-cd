@@ -17,7 +17,7 @@ const retryOptionsView: Array<(initData: models.RetryStrategy) => React.ReactNod
     initData => buildRetryOptionView('Limit', initData?.limit),
     initData => buildRetryOptionView('Duration', initData?.backoff?.duration),
     initData => buildRetryOptionView('Max Duration', initData?.backoff?.maxDuration),
-    initData => buildRetryOptionView('Factor', initData?.backoff.factor)
+    initData => buildRetryOptionView('Factor', initData?.backoff?.factor)
 ];
 
 export const ApplicationRetryView = ({initValues}: {initValues?: models.RetryStrategy}) => {
