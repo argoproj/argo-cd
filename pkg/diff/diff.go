@@ -304,8 +304,8 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 			if annotationsIf == nil {
 				shouldDelete = true
 			} else {
-				annotation := annotationsIf.(map[string]interface{})
-				if len(annotation) == 0 {
+				annotation, ok := annotationsIf.(map[string]interface{})
+				if ok && len(annotation) == 0 {
 					shouldDelete = true
 				}
 			}

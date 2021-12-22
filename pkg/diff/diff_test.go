@@ -547,6 +547,17 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 	}})
 	assert.Equal(t, "", obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
+
+	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name":        "test",
+			"namespace":   "default",
+			"annotations": "wrong value",
+		},
+	}})
+	assert.Equal(t, "", obj.GetNamespace())
+	val, _, _ := unstructured.NestedString(obj.Object, "metadata", "annotations")
+	assert.Equal(t, "wrong value", val)
 }
 
 const customObjConfig = `
