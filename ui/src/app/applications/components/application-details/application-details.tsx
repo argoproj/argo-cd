@@ -163,7 +163,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             resource.hook = status.hook;
                                             resource.requiresPruning = status.requiresPruning;
                                         }
-                                        resources.set(node.uid, resource);
+                                        resources.set(node.uid || AppUtils.nodeKey(node), resource);
                                     });
                                 const resourcesRef = Array.from(resources.values());
                                 return resourcesRef;
