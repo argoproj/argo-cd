@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-jsonnet"
+
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/Masterminds/semver"
