@@ -3,8 +3,10 @@ package generator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/argoproj/argo-cd/v2/performance-test/tools"
@@ -41,22 +43,25 @@ func fetchRepos(token string, page int) ([]Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(string(body))
 	var repos []Repo
 	err = json.Unmarshal(body, &repos)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to retrieve repos, reason: " + string(body))
 	}
 	return repos, nil
 }
 
 func FetchRepos(token string) ([]Repo, error) {
+	log.Print("Fetch repos started")
 	var (
 		repos []Repo
 		page  = 1
 	)
 
 	for {
+		if page%10 == 0 {
+			log.Printf("Fetch repos, page: %v", page)
+		}
 		fetchedRepos, err := fetchRepos(token, page)
 		if err != nil {
 			return nil, err
