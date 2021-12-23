@@ -39,13 +39,14 @@ $header: 120px;
     }
 
     &__refreshing-label {
+        color: $white-color;
         position: fixed;
         top: $header + 100px;
-        left: 310px;
-        background-color: $argo-color-gray-4;
+        left: 50%;
+        background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
-        padding: 0 5px;
+        padding: 5px 5px;
         font-size: 0.6em;
     }
 
