@@ -39,6 +39,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewProjectCommand(&generateOpts))
 	command.AddCommand(NewApplicationCommand(&generateOpts))
 	command.AddCommand(NewAllResourcesCommand(&generateOpts))
+	command.AddCommand(NewReposCommand(&generateOpts))
 
 	command.PersistentFlags().IntVar(&generateOpts.Samples, "samples", 0, "Amount of samples")
 
