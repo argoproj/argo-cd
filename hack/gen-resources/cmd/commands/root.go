@@ -33,7 +33,6 @@ func NewCommand() *cobra.Command {
 		},
 		DisableAutoGenTag: true,
 	}
-
 	command.AddCommand(NewProjectCommand(&generateOpts))
 	command.AddCommand(NewApplicationCommand(&generateOpts))
 	command.AddCommand(NewAllResourcesCommand(&generateOpts))
