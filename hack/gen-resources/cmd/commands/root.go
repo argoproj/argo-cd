@@ -25,7 +25,6 @@ func initConfig() {
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var generateOpts generator.GenerateOpts
-
 	var command = &cobra.Command{
 		Use:   cliName,
 		Short: "Generator for argocd resources",
