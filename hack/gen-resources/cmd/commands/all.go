@@ -4,9 +4,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/spf13/cobra"
+	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
 
-	generator "github.com/argoproj/argo-cd/v2/performance-test/generators"
+	"github.com/spf13/cobra"
 )
 
 func NewAllResourcesCommand(opts *generator.GenerateOpts) *cobra.Command {
@@ -30,7 +31,7 @@ func NewAllResourcesGenerationCommand(opts *generator.GenerateOpts) *cobra.Comma
 		Short: "Generate all resources",
 		Long:  "Generate all resources",
 		Run: func(c *cobra.Command, args []string) {
-			clientSet := generator.ConnectToK8s()
+			clientSet := tools.ConnectToK8sArgoClientSet()
 			pg := generator.NewProjectGenerator(clientSet)
 			ag := generator.NewApplicationGenerator(clientSet)
 			err := pg.Generate(opts)
@@ -52,7 +53,7 @@ func NewAllResourcesCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Short: "Clean all resources",
 		Long:  "Clean all resources",
 		Run: func(c *cobra.Command, args []string) {
-			clientSet := generator.ConnectToK8s()
+			clientSet := tools.ConnectToK8sArgoClientSet()
 			pg := generator.NewProjectGenerator(clientSet)
 			ag := generator.NewApplicationGenerator(clientSet)
 			err := pg.Clean()

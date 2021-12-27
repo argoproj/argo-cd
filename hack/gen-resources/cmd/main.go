@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/performance-test/cmd/commands"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/cmd/commands"
 )
 
 func main() {

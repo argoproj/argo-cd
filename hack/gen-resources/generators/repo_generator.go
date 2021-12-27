@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/v2/performance-test/tools"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
 
 	v1 "k8s.io/api/core/v1"
 	v1meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,13 +81,13 @@ func (rg *RepoGenerator) Generate(opts *GenerateOpts) error {
 		return err
 	}
 
-	secrets := rg.clientSet.CoreV1().Secrets("argocd")
+	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
 		_, err = secrets.Create(context.TODO(), &v1.Secret{
 			ObjectMeta: v1meta.ObjectMeta{
 				GenerateName: "repo-",
-				Namespace:    "argocd",
+				Namespace:    opts.Namespace,
 				Labels: map[string]string{
 					"app.kubernetes.io/generated-by": "argocd-generator",
 					"argocd.argoproj.io/secret-type": "repository",
@@ -112,8 +112,8 @@ func (rg *RepoGenerator) Generate(opts *GenerateOpts) error {
 	return nil
 }
 
-func (rg *RepoGenerator) Clean() error {
-	secrets := rg.clientSet.CoreV1().Secrets("argocd")
+func (rg *RepoGenerator) Clean(opts *GenerateOpts) error {
+	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	return secrets.DeleteCollection(context.TODO(), v1meta.DeleteOptions{}, v1meta.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})

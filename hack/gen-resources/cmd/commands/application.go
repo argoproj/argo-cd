@@ -4,50 +4,50 @@ import (
 	"log"
 	"os"
 
-	"github.com/spf13/cobra"
+	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
 
-	generator "github.com/argoproj/argo-cd/v2/performance-test/generators"
+	"github.com/spf13/cobra"
 )
 
-func NewReposCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewApplicationCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "repos",
-		Short: "Manage repos",
-		Long:  "Manage repos",
+		Use:   "application",
+		Short: "Manage applications",
+		Long:  "Manage applications",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
 	}
-	command.AddCommand(NewReposGenerationCommand(opts))
-	command.AddCommand(NewReposCleanCommand(opts))
+	command.AddCommand(NewApplicationGenerationCommand(opts))
+	command.AddCommand(NewApplicationCleanCommand(opts))
 	return command
 }
 
-func NewReposGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewApplicationGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate",
 		Short: "Generate applications",
 		Long:  "Generate applications",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewRepoGenerator(generator.ConnectToK8s2())
+			pg := generator.NewApplicationGenerator(tools.ConnectToK8sArgoClientSet())
 			err := pg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
 		},
 	}
-	command.PersistentFlags().StringVar(&opts.GithubToken, "token", "", "Github token")
 	return command
 }
 
-func NewReposCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewApplicationCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "clean",
 		Short: "Clean applications",
 		Long:  "Clean applications",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewRepoGenerator(generator.ConnectToK8s2())
+			pg := generator.NewApplicationGenerator(tools.ConnectToK8sArgoClientSet())
 			err := pg.Clean()
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())

@@ -4,9 +4,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/spf13/cobra"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
 
-	generator "github.com/argoproj/argo-cd/v2/performance-test/generators"
+	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+
+	"github.com/spf13/cobra"
 )
 
 func NewProjectCommand(opts *generator.GenerateOpts) *cobra.Command {
@@ -30,7 +32,7 @@ func NewProjectGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Short: "Generate project",
 		Long:  "Generate project",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewProjectGenerator(generator.ConnectToK8s())
+			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
 			err := pg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
@@ -46,7 +48,7 @@ func NewProjectCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Short: "Clean projects",
 		Long:  "Clean projects",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewProjectGenerator(generator.ConnectToK8s())
+			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
 			err := pg.Clean()
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
