@@ -49,7 +49,7 @@ func NewProjectCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Long:  "Clean projects",
 		Run: func(c *cobra.Command, args []string) {
 			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
-			err := pg.Clean()
+			err := pg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}

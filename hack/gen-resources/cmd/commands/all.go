@@ -56,11 +56,11 @@ func NewAllResourcesCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 			clientSet := tools.ConnectToK8sArgoClientSet()
 			pg := generator.NewProjectGenerator(clientSet)
 			ag := generator.NewApplicationGenerator(clientSet)
-			err := pg.Clean()
+			err := pg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
-			err = ag.Clean()
+			err = ag.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}

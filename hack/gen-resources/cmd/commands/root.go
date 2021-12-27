@@ -2,7 +2,6 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
 
@@ -43,8 +42,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewReposCommand(&generateOpts))
 
 	command.PersistentFlags().IntVar(&generateOpts.Samples, "samples", 0, "Amount of samples")
-	command.PersistentFlags().StringVar(&installCmdOptions.Kube.Namespace, "kube-namespace", viper.GetString("kube-namespace"), "Name of the namespace on which Argo agent should be installed [$KUBE_NAMESPACE]")
-	command.PersistentFlags().StringVar(&installCmdOptions.Kube.Context, "kube-context-name", viper.GetString("kube-context"), "Name of the kubernetes context on which Argo agent should be installed (default is current-context) [$KUBE_CONTEXT]")
-
+	command.PersistentFlags().StringVar(&generateOpts.Namespace, "kube-namespace", "argocd", "Name of the namespace on which Argo agent should be installed [$KUBE_NAMESPACE]")
 	return command
 }

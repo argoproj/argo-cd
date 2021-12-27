@@ -48,7 +48,7 @@ func NewApplicationCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Long:  "Clean applications",
 		Run: func(c *cobra.Command, args []string) {
 			pg := generator.NewApplicationGenerator(tools.ConnectToK8sArgoClientSet())
-			err := pg.Clean()
+			err := pg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
