@@ -1,16 +1,12 @@
 package generator
 
+import "github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+
 var labels = map[string]string{
 	"app.kubernetes.io/generated-by": "argocd-generator",
 }
 
-type GenerateOpts struct {
-	Samples     int
-	GithubToken string
-	Namespace   string
-}
-
 type Generator interface {
-	Generate(opts *GenerateOpts) error
-	Clean(opts *GenerateOpts) error
+	Generate(opts *util.GenerateOpts) error
+	Clean(opts *util.GenerateOpts) error
 }

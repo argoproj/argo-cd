@@ -4,14 +4,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
-
 	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 
 	"github.com/spf13/cobra"
 )
 
-func NewProjectCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewProjectCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "project",
 		Short: "Manage applications",
@@ -26,13 +25,13 @@ func NewProjectCommand(opts *generator.GenerateOpts) *cobra.Command {
 	return command
 }
 
-func NewProjectGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewProjectGenerationCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate",
 		Short: "Generate project",
 		Long:  "Generate project",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
+			pg := generator.NewProjectGenerator(util.ConnectToK8sArgoClientSet())
 			err := pg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
@@ -42,13 +41,13 @@ func NewProjectGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 	return command
 }
 
-func NewProjectCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
+func NewProjectCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "clean",
 		Short: "Clean projects",
 		Long:  "Clean projects",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
+			pg := generator.NewProjectGenerator(util.ConnectToK8sArgoClientSet())
 			err := pg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
