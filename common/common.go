@@ -20,6 +20,7 @@ const (
 	ArgoCDConfigMapName     = "argocd-cm"
 	ArgoCDSecretName        = "argocd-secret"
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
@@ -191,10 +192,6 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
-	// EnvServerRBACLogEnforce allows to control whether RBAC on pod logs is enforced or not
-	// This is a temporary param, introduced in order to mitigate the breaking change while introducing logs RBAC
-	// It will be removed as soon as the logs will be treated as a first-class RBAC resource
-	EnvServerRBACLogEnforce = "ARGOCD_SERVER_RBAC_LOG_ENFORCE"
 )
 
 const (

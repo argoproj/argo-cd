@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -126,6 +127,17 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	if !slice.ContainsString(rbacpolicy.Resources, r.Resource, nil) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
 	}
+
+	// Temporarily, logs RBAC will be enforced only if an intermediate env var logsRBACEnforce is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes")
+	// In the future, logs RBAC will be always enforced and the parameter will be removed
+	if r.Resource == "logs" {
+		logsRBACEnforceEnable := env.ParseBoolFromEnv("ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE", false)
+		if !logsRBACEnforceEnable {
+			return &account.CanIResponse{Value: "yes"}, nil
+		}
+	}
+
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil

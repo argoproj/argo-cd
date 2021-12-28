@@ -1190,8 +1190,14 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	}
 
 	// Make sure access to the logs is permitted
-	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return err
+	// Temporarily, logs RBAC will be enforced only if an intermediate env var ARGOCD_SERVER_RBAC_LOG_ENFORCE is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place
+	// In the future, logs RBAC will be always enforced and the parameter will be removed
+	logsRBACEnforceEnable := env.ParseBoolFromEnv("ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE", false)
+	if logsRBACEnforceEnable {
+		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return err
+		}
 	}
 
 	tree, err := s.getAppResources(ws.Context(), a)

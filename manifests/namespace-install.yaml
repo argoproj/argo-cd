@@ -995,6 +995,12 @@ spec:
               key: server.staticassets
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE
+          valueFrom:
+            configMapKeyRef:
+              key: server.rbac.log.enforce.enable
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
