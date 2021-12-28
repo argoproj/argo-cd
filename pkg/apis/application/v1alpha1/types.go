@@ -1588,7 +1588,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, proj))
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, regexp.QuoteMeta(proj)))
 	if err != nil || !objectRegexp.MatchString(object) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
 	}

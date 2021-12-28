@@ -10,7 +10,7 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 VERSION="v1alpha1"
 
 [ -e ./v2 ] || ln -s . v2
-./dist/openapi-gen \
+openapi-gen \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
   --input-dirs github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
   --output-package github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
