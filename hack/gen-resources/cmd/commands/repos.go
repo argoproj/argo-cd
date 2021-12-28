@@ -21,7 +21,6 @@ func NewReposCommand(opts *generator.GenerateOpts) *cobra.Command {
 			os.Exit(1)
 		},
 	}
-
 	command.AddCommand(NewReposGenerationCommand(opts))
 	command.AddCommand(NewReposCleanCommand(opts))
 	return command
