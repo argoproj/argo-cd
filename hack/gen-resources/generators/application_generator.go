@@ -41,12 +41,29 @@ func (pg *ApplicationGenerator) buildRandomSource(opts *util.GenerateOpts, repos
 	}, nil
 }
 
-func (pg *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
+func (ag *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
 	switch opts.ApplicationOpts.SourceOpts.Strategy {
 	case "Random":
-		return pg.buildRandomSource(opts, repositories)
+		return ag.buildRandomSource(opts, repositories)
 	}
-	return pg.buildRandomSource(opts, repositories)
+	return ag.buildRandomSource(opts, repositories)
+}
+
+func (pg *ApplicationGenerator) buildRandomDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
+	rand.Seed(time.Now().Unix())
+	clusterNumber := rand.Int() % len(clusters)
+	return &v1alpha1.ApplicationDestination{
+		Namespace: opts.Namespace,
+		Name:      clusters[clusterNumber].Name,
+	}, nil
+}
+
+func (ag *ApplicationGenerator) buildDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
+	switch opts.ApplicationOpts.DestinationOpts.Strategy {
+	case "Random":
+		return ag.buildRandomDestination(opts, clusters)
+	}
+	return ag.buildRandomDestination(opts, clusters)
 }
 
 func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
@@ -55,10 +72,17 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 	if err != nil {
 		return err
 	}
-
+	clusters, err := db.NewDB(opts.Namespace, settingsMgr, pg.clientSet).ListClusters(context.TODO())
+	if err != nil {
+		return err
+	}
 	applications := pg.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
 		source, err := pg.buildSource(opts, repositories)
+		if err != nil {
+			return err
+		}
+		destination, err := pg.buildDestination(opts, clusters.Items)
 		if err != nil {
 			return err
 		}
@@ -69,12 +93,9 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 				Labels:       labels,
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Project: "default",
-				Destination: v1alpha1.ApplicationDestination{
-					Namespace: opts.Namespace,
-					Name:      "in-cluster",
-				},
-				Source: *source,
+				Project:     "default",
+				Destination: *destination,
+				Source:      *source,
 			},
 		}, v1.CreateOptions{})
 		if err != nil {

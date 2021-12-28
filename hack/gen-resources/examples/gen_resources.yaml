@@ -1,6 +1,8 @@
 application:
-  samples: 10
+  samples: 100
   source:
+    strategy: Random
+  destination:
     strategy: Random
 
 

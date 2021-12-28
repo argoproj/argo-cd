@@ -10,9 +10,14 @@ type SourceOpts struct {
 	Strategy string `yaml:"strategy"`
 }
 
+type DestinationOpts struct {
+	Strategy string `yaml:"strategy"`
+}
+
 type ApplicationOpts struct {
-	Samples    int        `yaml:"samples"`
-	SourceOpts SourceOpts `yaml:"source"`
+	Samples         int             `yaml:"samples"`
+	SourceOpts      SourceOpts      `yaml:"source"`
+	DestinationOpts DestinationOpts `yaml:"destination"`
 }
 
 type GenerateOpts struct {
