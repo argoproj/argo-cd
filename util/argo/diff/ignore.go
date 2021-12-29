@@ -1,4 +1,4 @@
-package argo
+package diff
 
 import (
 	"fmt"

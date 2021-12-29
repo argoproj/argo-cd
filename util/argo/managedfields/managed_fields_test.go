@@ -50,7 +50,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		assert.NoError(t, err)
-		validateNestedFloat64(t, float64(1), desiredResult, "spec", "replicas")
+		validateNestedFloat64(t, float64(3), desiredResult, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredResult, "spec", "revisionHistoryLimit")
 		validateNestedFloat64(t, float64(2), liveResult, "spec", "replicas")
 		validateNestedFloat64(t, float64(3), liveResult, "spec", "revisionHistoryLimit")
@@ -67,7 +67,7 @@ func TestNormalize(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
-		validateNestedFloat64(t, float64(1), desiredState, "spec", "replicas")
+		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
 
 	})
@@ -98,7 +98,7 @@ func TestNormalize(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
-		validateNestedFloat64(t, float64(1), desiredState, "spec", "replicas")
+		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
 		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
 		validateNestedFloat64(t, float64(3), liveState, "spec", "revisionHistoryLimit")
