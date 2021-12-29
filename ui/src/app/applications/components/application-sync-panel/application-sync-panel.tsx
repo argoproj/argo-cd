@@ -176,8 +176,10 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
                                                     // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
                                                     // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
-                                                    const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
-                                                    contentEnd = contentEnd.slice(indexOfFirstLetter);
+                                                    const firstLetter = /[a-z]/i.exec(contentEnd);
+                                                    if (firstLetter) {
+                                                        contentEnd = contentEnd.slice(firstLetter.index);
+                                                    }
                                                     const isLongLabel = resKey.length > 68;
                                                     return (
                                                         <div key={resKey} className='application-sync-panel__resource'>
