@@ -361,7 +361,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </Tooltip>
                                                                 <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                                     <i
-                                                                        className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                                                                        className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'}, 'menu_icon')}
                                                                         title='Tiles'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'tiles'}, {replace: true});
@@ -369,7 +369,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }}
                                                                     />
                                                                     <i
-                                                                        className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
+                                                                        className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'}, 'menu_icon')}
                                                                         title='List'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'list'}, {replace: true});
@@ -377,7 +377,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }}
                                                                     />
                                                                     <i
-                                                                        className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
+                                                                        className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'}, 'menu_icon')}
                                                                         title='Summary'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'summary'}, {replace: true});
