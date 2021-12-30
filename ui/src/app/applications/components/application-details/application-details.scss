@@ -33,19 +33,24 @@ $header: 120px;
         }
     }
 
+    &__sliding-panel-pagination-wrap {
+        margin-top: 1.25em;
+    }
+
     &__warning {
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
     }
 
     &__refreshing-label {
+        color: $white-color;
         position: fixed;
         top: $header + 100px;
-        left: 310px;
-        background-color: $argo-color-gray-4;
+        left: 50%;
+        background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
-        padding: 0 5px;
+        padding: 5px 5px;
         font-size: 0.6em;
     }
 

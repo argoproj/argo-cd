@@ -13,7 +13,6 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -311,65 +310,12 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 	return conditions
 }
 
-func (m *appStateManager) diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
-	numItems := len(configArray)
-	if len(liveArray) != numItems {
-		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
-	}
-
-	diffByKey := map[kube.ResourceKey]*appv1.ResourceDiff{}
-	for i := range cachedDiff {
-		res := cachedDiff[i]
-		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = cachedDiff[i]
-	}
-
-	diffResultList := diff.DiffResultList{
-		Diffs: make([]diff.DiffResult, numItems),
-	}
-
-	for i := 0; i < numItems; i++ {
-		config := configArray[i]
-		live := liveArray[i]
-		resourceVersion := ""
-		var key kube.ResourceKey
-		if live != nil {
-			key = kube.GetResourceKey(live)
-			resourceVersion = live.GetResourceVersion()
-		} else {
-			key = kube.GetResourceKey(config)
-		}
-		var dr *diff.DiffResult
-		if cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
-			dr = &diff.DiffResult{
-				NormalizedLive: []byte(cachedDiff.NormalizedLiveState),
-				PredictedLive:  []byte(cachedDiff.PredictedLiveState),
-				Modified:       cachedDiff.Modified,
-			}
-		} else {
-			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
-			if err != nil {
-				return nil, err
-			}
-			dr = res
-		}
-		if dr != nil {
-			diffResultList.Diffs[i] = *dr
-			if dr.Modified {
-				diffResultList.Modified = true
-			}
-		}
-	}
-
-	return &diffResultList, nil
-}
-
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
-	ignoreDiffConfig := argo.NewIgnoreDiffConfig(app.Spec.IgnoreDifferences, resourceOverrides)
 
 	ts.AddCheckpoint("settings_ms")
 
@@ -491,40 +437,26 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
-	logCtx.Debugf("built managed objects list")
-	var diffResults *diff.DiffResultList
-
-	diffOpts := []diff.Option{
-		diff.WithNormalizer(diffNormalizer),
-		diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles),
-	}
-	cachedDiff := make([]*appv1.ResourceDiff, 0)
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := manifestInfo == nil || app.Status.Sync.Revision != manifestInfo.Revision
 	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination})
-
 	_, refreshRequested := app.IsRefreshRequested()
-	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout)
+	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
 
-	params := &preDiffNormalizeParams{
-		targets:          reconciliation.Target,
-		lives:            reconciliation.Live,
-		ignoreDiffConfig: ignoreDiffConfig,
-		appLabel:         appLabelKey,
-		trackingMethod:   string(trackingMethod),
-	}
-	normResults := m.preDiffNormalize(params)
-	if len(normResults.conditions) > 0 {
-		conditions = append(conditions, normResults.conditions...)
-	}
+	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+		WithTracking(appLabelKey, string(trackingMethod))
 
-	if noCache || specChanged || revisionChanged || m.cache.GetAppManagedResources(app.Name, &cachedDiff) != nil {
-		// (rare) cache miss
-		diffResults, err = diff.DiffArray(normResults.targets, normResults.lives, diffOpts...)
+	if noCache {
+		diffConfigBuilder.WithNoCache()
 	} else {
-		diffResults, err = m.diffArrayCached(normResults.targets, normResults.lives, cachedDiff, diffOpts...)
+		diffConfigBuilder.WithCache(m.cache, app.GetName())
 	}
+	// it necessary to ignore the error at this point to avoid creating duplicated
+	// application conditions as argo.StateDiffs will validate this diffConfig again.
+	diffConfig, _ := diffConfigBuilder.Build()
 
+	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -660,65 +592,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes
-}
-
-type normalizeResults struct {
-	lives      []*unstructured.Unstructured
-	targets    []*unstructured.Unstructured
-	conditions []v1alpha1.ApplicationCondition
-}
-
-type preDiffNormalizeParams struct {
-	targets          []*unstructured.Unstructured
-	lives            []*unstructured.Unstructured
-	ignoreDiffConfig *argo.IgnoreDiffConfig
-	appLabel         string
-	trackingMethod   string
-}
-
-// preDiffNormalize applies the normalization of live and target resources before invoking
-// the diff. None of the attributes in the preDiffNormalizeParams will be modified. The
-// normalizeResults will return a list of ApplicationConditions in case something goes
-// wrong during the normalization.
-func (m *appStateManager) preDiffNormalize(p *preDiffNormalizeParams) *normalizeResults {
-	results := &normalizeResults{}
-	for i := range p.targets {
-		target := safeDeepCopy(p.targets[i])
-		live := safeDeepCopy(p.lives[i])
-		_ = m.resourceTracking.Normalize(target, live, p.appLabel, p.trackingMethod)
-		// just normalize on managed fields if live and target aren't nil as we just care
-		// about conflicting fields
-		if live != nil && target != nil {
-			gvk := target.GetObjectKind().GroupVersionKind()
-			ok, ignoreDiff := p.ignoreDiffConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
-			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
-				var err error
-				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)
-				if err != nil {
-					condition := appCondition(v1alpha1.ApplicationConditionComparisonError, err)
-					results.conditions = append(results.conditions, condition)
-				}
-			}
-		}
-		results.lives = append(results.lives, live)
-		results.targets = append(results.targets, target)
-	}
-	return results
-}
-
-// safeDeepCopy will return nil if given obj is nil.
-func safeDeepCopy(obj *unstructured.Unstructured) *unstructured.Unstructured {
-	if obj == nil {
-		return nil
-	}
-	return obj.DeepCopy()
-}
-
-func appCondition(t v1alpha1.ApplicationConditionType, err error) v1alpha1.ApplicationCondition {
-	return v1alpha1.ApplicationCondition{
-		Type:    t,
-		Message: err.Error(),
-	}
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, startedAt metav1.Time) error {
