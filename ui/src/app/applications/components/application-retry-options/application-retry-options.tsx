@@ -27,11 +27,11 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
 ];
 
 const defaultInitialValues = {
-    limit: '',
+    limit: 2,
     backoff: {
-        duration: '',
-        maxDuration: '',
-        factor: ''
+        duration: '5s',
+        maxDuration: '3m0s',
+        factor: 2
     }
 };
 
