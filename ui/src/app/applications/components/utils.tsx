@@ -977,10 +977,10 @@ export function isYoungerThanXMinutes(pod: any, x: number): boolean {
 
 export const BASE_COLORS = [
     '#0DADEA', // blue
-    '#F2F757', // yellow
-    '#F4C030', // orange
     '#DE7EAE', // pink
+    '#FF9500', // orange
     '#4B0082', // purple
+    '#F5d905', // yellow
     '#964B00' // brown
 ];
 
