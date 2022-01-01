@@ -662,6 +662,32 @@ func TestGenerateHelmWithValues(t *testing.T) {
 
 }
 
+func TestHelmWithMissingValueFiles(t *testing.T) {
+	service := newService("../..")
+	missingValuesFile := "values-prod-overrides.yaml"
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml", missingValuesFile},
+			},
+		},
+	}
+
+	// Should fail since we're passing a non-existent values file, and error should indicate that
+	_, err := service.GenerateManifest(context.Background(), req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
+
+	// Should template without error even if defining a non-existent values file
+	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
+	_, err = service.GenerateManifest(context.Background(), req)
+	assert.NoError(t, err)
+}
+
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
 // since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
