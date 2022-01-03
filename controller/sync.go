@@ -11,6 +11,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	Crejsonpatch "github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/diff"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -172,13 +175,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	// mutate normalize logic
-	// compareResult.diffNormalizer.Normalize(target)
-	// normalize from managedFields
+	reconciliationResult := compareResult.reconciliationResult
+
+	// if RespectIgnoreDifferences is enabled, it should normalize the target
+	// resource removing the configured fields from the current state.
+	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
+		reconciliationResult, err = normalizeIgnoreDifferences(reconciliationResult)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("Failed to normalize resources: %s", err)
+			return
+		}
+
+	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
-		compareResult.reconciliationResult,
+		reconciliationResult,
 		restConfig,
 		rawConfig,
 		m.kubectl,
@@ -257,6 +270,50 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
 	}
+}
+
+// normalizeIgnoreDifferences will apply the diff normalization in all live and target resources.
+// Then it calculates the merge patch between the normalized live and the current live resources.
+// Finally it applies the merge patch in the target resources.
+func normalizeIgnoreDifferences(cr comparisonResult) (*diff.NormalizationResult, error) {
+	// normalize live
+	result, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// calculate patch between normalize live and real live
+	for idx, live := range cr.reconciliationResult.Live {
+		if cr.reconciliationResult.Target[idx] == nil {
+			continue
+		}
+		originalLive, err := live.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		modifiedLive, err := result.Lives[idx].MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		patch, err := jsonpatch.CreateMergePatch(originalLive, modifiedLive)
+		if err != nil {
+			return nil, err
+		}
+
+		originalTarget, err := cr.reconciliationResult.Target[idx].MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		patchedTargetJson, err := jsonpatch.MergePatch(originalTarget, patch)
+		if err != nil {
+			return nil, err
+		}
+		patchedTarget := &unstructured.Unstructured{}
+		unstructured.UnstructuredJSONScheme.Decode(patchedTargetJson, nil, patchedTarget)
+
+	}
+
+	return result, nil
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already

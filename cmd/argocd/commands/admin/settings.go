@@ -406,6 +406,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 					return
 				}
 
+				// TODO validate if this IgnoreNormalizer needs to ignore managed fields as well.
 				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
 				errors.CheckError(err)
 
