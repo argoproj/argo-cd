@@ -210,6 +210,9 @@ message ApplicationSourceHelm {
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
   optional bool passCredentials = 7;
+
+  // IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
+  optional bool ignoreMissingValueFiles = 8;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet

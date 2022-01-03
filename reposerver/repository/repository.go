@@ -583,6 +583,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		for _, val := range appHelm.ValueFiles {
 			// If val is not a URL, run it against the directory enforcer. If it is a URL, use it without checking
+			// If val does not exist, warn. If IgnoreMissingValueFiles, do not append, else let Helm handle it.
 			if _, err := url.ParseRequestURI(val); err != nil {
 
 				// Ensure that the repo root provided is absolute
@@ -604,6 +605,14 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				_, err = security.EnforceToCurrentRoot(absRepoPath, path)
 				if err != nil {
 					return nil, err
+				}
+
+				_, err = os.Stat(path)
+				if os.IsNotExist(err) {
+					if appHelm.IgnoreMissingValueFiles {
+						log.Debugf(" %s values file does not exist", path)
+						continue
+					}
 				}
 			}
 			templateOpts.Values = append(templateOpts.Values, val)

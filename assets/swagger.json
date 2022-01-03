@@ -4899,6 +4899,10 @@
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
         },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
         "parameters": {
           "type": "array",
           "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
