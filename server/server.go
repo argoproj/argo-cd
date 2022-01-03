@@ -1065,17 +1065,21 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		}
 		rk.Url = pattern
 	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
-		server, err := url.QueryUnescape(cq.Server)
-		if err != nil {
-			return nil, err
+		if cq.Id != nil {
+			val, err := url.QueryUnescape(cq.Id.Value)
+			if err != nil {
+				return nil, err
+			}
+			cq.Id.Value = val
 		}
-		cq.Server = server
 	} else if cu, ok := req.(*clusterpkg.ClusterUpdateRequest); ok {
-		server, err := url.QueryUnescape(cu.Cluster.Server)
-		if err != nil {
-			return nil, err
+		if cu.Id != nil {
+			val, err := url.QueryUnescape(cu.Id.Value)
+			if err != nil {
+				return nil, err
+			}
+			cu.Id.Value = val
 		}
-		cu.Cluster.Server = server
 	}
 	return handler(ctx, req)
 }

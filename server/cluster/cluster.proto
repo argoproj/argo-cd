@@ -11,11 +11,19 @@ import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
+// ClusterID holds a cluster server URL or cluster name
+message ClusterID {
+	// type is the type of the specified cluster identifier ( "server" - default, "name" )
+	string type = 1;
+	// value holds the cluster server URL or cluster name
+	string value = 2;
+}
 
 // ClusterQuery is a query for cluster resources
 message ClusterQuery {
 	string server = 1;
 	string name = 2;
+	ClusterID id = 3;
 }
 
 message ClusterResponse {}
@@ -28,6 +36,7 @@ message ClusterCreateRequest {
 message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	repeated string updatedFields = 2;
+	ClusterID id = 3;
 }
 
 // ClusterService 
@@ -48,30 +57,30 @@ service ClusterService {
 
 	// Get returns a cluster by server address
 	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
-		option (google.api.http).get = "/api/v1/clusters/{server}";
+		option (google.api.http).get = "/api/v1/clusters/{id.value}";
 	}
 
 	// Update updates a cluster
 	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
-			put: "/api/v1/clusters/{cluster.server}"
+			put: "/api/v1/clusters/{id.value}"
 			body: "cluster"
 		};
 	}
 
 	// Delete deletes a cluster
 	rpc Delete(ClusterQuery) returns (ClusterResponse) {
-		option (google.api.http).delete = "/api/v1/clusters/{server}";
+		option (google.api.http).delete = "/api/v1/clusters/{id.value}";
 	}
 
 	// RotateAuth rotates the bearer token used for a cluster
 	rpc RotateAuth(ClusterQuery) returns (ClusterResponse) {
-		option (google.api.http).post = "/api/v1/clusters/{server}/rotate-auth";
+		option (google.api.http).post = "/api/v1/clusters/{id.value}/rotate-auth";
 	}
 
 	// InvalidateCache invalidates cluster cache
 	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
-		option (google.api.http).post = "/api/v1/clusters/{server}/invalidate-cache";
+		option (google.api.http).post = "/api/v1/clusters/{id.value}/invalidate-cache";
 	}
 	
 }
