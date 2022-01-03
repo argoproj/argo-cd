@@ -100,6 +100,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
 1. [Octadesk](https://octadesk.com)
+1. [omegaUp](https://omegaUp.com)
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [openLooKeng](https://openlookeng.io)
