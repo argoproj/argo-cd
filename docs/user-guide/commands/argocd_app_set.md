@@ -27,6 +27,7 @@ argocd app set APPNAME [flags]
       --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for set
+      --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)

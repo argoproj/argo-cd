@@ -127,6 +127,41 @@ func TestHelmValues(t *testing.T) {
 		})
 }
 
+func TestHelmIgnoreMissingValueFiles(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("declarative-apps/invalid-helm.yaml").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.Source.Helm.ValueFiles)
+			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		AppSet("--ignore-missing-value-files").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, true, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		AppUnSet("--ignore-missing-value-files").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(Error("Error: open does-not-exist-values.yaml: no such file or directory", ""))
+}
+
 func TestHelmValuesMultipleUnset(t *testing.T) {
 	Given(t).
 		Path("helm").
