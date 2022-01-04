@@ -398,5 +398,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#repositories)
 
