@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/go-jsonnet"
 	"io/ioutil"
 	"net/url"
 	"os"
