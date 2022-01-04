@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	Crejsonpatch "github.com/evanphx/json-patch"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -180,13 +179,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
 	// resource removing the configured fields from the current state.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		reconciliationResult, err = normalizeIgnoreDifferences(reconciliationResult)
+		patchedTargets, err := normalizeTargetResources(compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("Failed to normalize resources: %s", err)
+			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
 			return
 		}
-
+		reconciliationResult.Target = patchedTargets
 	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(
@@ -272,48 +271,67 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 }
 
-// normalizeIgnoreDifferences will apply the diff normalization in all live and target resources.
+// normalizeTargetResources will apply the diff normalization in all live and target resources.
 // Then it calculates the merge patch between the normalized live and the current live resources.
 // Finally it applies the merge patch in the target resources.
-func normalizeIgnoreDifferences(cr comparisonResult) (*diff.NormalizationResult, error) {
-	// normalize live
-	result, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
+func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// normalize live and target resources
+	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	// calculate patch between normalize live and real live
+	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
 		if cr.reconciliationResult.Target[idx] == nil {
+			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
-		originalLive, err := live.MarshalJSON()
+		// calculate patch between live and normalized resources
+		patch, err := getMergePatch(live, normalized.Lives[idx])
 		if err != nil {
 			return nil, err
 		}
-		modifiedLive, err := result.Lives[idx].MarshalJSON()
+		// apply patch in original target
+		patchedTarget, err := applyMergePatch(cr.reconciliationResult.Target[idx], patch)
 		if err != nil {
 			return nil, err
 		}
-		patch, err := jsonpatch.CreateMergePatch(originalLive, modifiedLive)
-		if err != nil {
-			return nil, err
-		}
-
-		originalTarget, err := cr.reconciliationResult.Target[idx].MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		patchedTargetJson, err := jsonpatch.MergePatch(originalTarget, patch)
-		if err != nil {
-			return nil, err
-		}
-		patchedTarget := &unstructured.Unstructured{}
-		unstructured.UnstructuredJSONScheme.Decode(patchedTargetJson, nil, patchedTarget)
-
+		patchedTargets = append(patchedTargets, patchedTarget)
 	}
+	return patchedTargets, nil
+}
 
-	return result, nil
+// getMergePatch calculates and returns the patch between the original and the
+// modified unstructures.
+func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error) {
+	originalJSON, err := original.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	modifiedJSON, err := modified.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
+}
+
+// applyMergePatch will apply the given patch in the obj and return the patched
+// unstructure.
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte) (*unstructured.Unstructured, error) {
+	originalJSON, err := obj.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	patchedJSON, err := jsonpatch.MergePatch(originalJSON, patch)
+	if err != nil {
+		return nil, err
+	}
+	patchedObj := &unstructured.Unstructured{}
+	_, _, err = unstructured.UnstructuredJSONScheme.Decode(patchedJSON, nil, patchedObj)
+	if err != nil {
+		return nil, err
+	}
+	return patchedObj, nil
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already
