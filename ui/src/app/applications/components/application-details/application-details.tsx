@@ -247,6 +247,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 </React.Fragment>
                                                             )
                                                         }}>
+                                                        <div className='application-details__application-search-bar'>
+                                                            <DataLoader key='applications' load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications())}>
+                                                                {(applications: models.Application[]) => (
+                                                                    <Query>
+                                                                        {query => (
+                                                                            <SearchBar
+                                                                                content={query.get('search')}
+                                                                                apps={applications}
+                                                                                ctx={ctx}
+                                                                                currentApp={application.metadata.name}
+                                                                            />
+                                                                        )}
+                                                                    </Query>
+                                                                )}
+                                                            </DataLoader>
+                                                        </div>
                                                         <div className='application-details__status-panel'>
                                                             <ApplicationStatusPanel
                                                                 application={application}
