@@ -149,3 +149,13 @@ func TestGetScopes_CustomScopes(t *testing.T) {
 	scopes := rbacEnforcer.GetScopes()
 	assert.Equal(t, scopes, customScopes)
 }
+
+func Test_getProjectFromRequest(t *testing.T) {
+	fp := newFakeProj()
+	projLister := test.NewFakeProjLister(fp)
+
+	rbacEnforcer := NewRBACPolicyEnforcer(nil, projLister)
+	project := rbacEnforcer.getProjectFromRequest("", "repositories", "create", fp.Name+"/https://github.com/argoproj/argocd-example-apps")
+
+	assert.Equal(t, project.Name, fp.Name)
+}

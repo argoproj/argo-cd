@@ -4,8 +4,9 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
+import * as moment from 'moment';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -968,12 +969,18 @@ export function getContainerName(pod: any, containerIndex: number): string {
     return container.name;
 }
 
+export function isYoungerThanXMinutes(pod: any, x: number): boolean {
+    const createdAt = moment(pod.createdAt, 'YYYY-MM-DDTHH:mm:ssZ');
+    const xMinutesAgo = moment().subtract(x, 'minutes');
+    return createdAt.isAfter(xMinutesAgo);
+}
+
 export const BASE_COLORS = [
     '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
+    '#DE7EAE', // pink
+    '#FF9500', // orange
     '#4B0082', // purple
+    '#F5d905', // yellow
     '#964B00' // brown
 ];
 
@@ -984,3 +991,62 @@ export const urlPattern = new RegExp(
         'gi'
     )
 );
+
+export const loadApplications = () => {
+    const EVENTS_BUFFER_TIMEOUT = 500;
+    const WATCH_RETRY_TIMEOUT = 500;
+    const APP_FIELDS = [
+        'metadata.name',
+        'metadata.annotations',
+        'metadata.labels',
+        'metadata.creationTimestamp',
+        'metadata.deletionTimestamp',
+        'spec',
+        'operation.sync',
+        'status.sync.status',
+        'status.health',
+        'status.operationState.phase',
+        'status.operationState.operation.sync',
+        'status.summary'
+    ];
+    const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
+    const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
+    return from(services.applications.list([], {fields: APP_LIST_FIELDS})).pipe(
+        mergeMap(applicationsList => {
+            const applications = applicationsList.items;
+            return merge(
+                from([applications]),
+                services.applications
+                    .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .pipe(repeat())
+                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
+                    // batch events to avoid constant re-rendering and improve UI performance
+                    .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
+                    .pipe(
+                        map(appChanges => {
+                            appChanges.forEach(appChange => {
+                                const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                                switch (appChange.type) {
+                                    case 'DELETED':
+                                        if (index > -1) {
+                                            applications.splice(index, 1);
+                                        }
+                                        break;
+                                    default:
+                                        if (index > -1) {
+                                            applications[index] = appChange.application;
+                                        } else {
+                                            applications.unshift(appChange.application);
+                                        }
+                                        break;
+                                }
+                            });
+                            return {applications, updated: appChanges.length > 0};
+                        })
+                    )
+                    .pipe(filter(item => item.updated))
+                    .pipe(map(item => item.applications))
+            );
+        })
+    );
+};

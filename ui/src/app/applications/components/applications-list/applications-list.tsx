@@ -1,10 +1,10 @@
-import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar, Tooltip} from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {combineLatest, from, Observable} from 'rxjs';
+import {map, mergeMap} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -18,70 +18,11 @@ import {ApplicationsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
+import {SearchBar} from '../../../shared/components/search-bar';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 
 require('./applications-list.scss');
 require('./flex-top-bar.scss');
-
-const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
-const APP_FIELDS = [
-    'metadata.name',
-    'metadata.annotations',
-    'metadata.labels',
-    'metadata.creationTimestamp',
-    'metadata.deletionTimestamp',
-    'spec',
-    'operation.sync',
-    'status.sync.status',
-    'status.health',
-    'status.operationState.phase',
-    'status.operationState.operation.sync',
-    'status.summary'
-];
-const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
-const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
-
-function loadApplications(): Observable<models.Application[]> {
-    return from(services.applications.list([], {fields: APP_LIST_FIELDS})).pipe(
-        mergeMap(applicationsList => {
-            const applications = applicationsList.items;
-            return merge(
-                from([applications]),
-                services.applications
-                    .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
-                    // batch events to avoid constant re-rendering and improve UI performance
-                    .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
-                    .pipe(
-                        map(appChanges => {
-                            appChanges.forEach(appChange => {
-                                const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
-                                switch (appChange.type) {
-                                    case 'DELETED':
-                                        if (index > -1) {
-                                            applications.splice(index, 1);
-                                        }
-                                        break;
-                                    default:
-                                        if (index > -1) {
-                                            applications[index] = appChange.application;
-                                        } else {
-                                            applications.unshift(appChange.application);
-                                        }
-                                        break;
-                                }
-                            });
-                            return {applications, updated: appChanges.length > 0};
-                        })
-                    )
-                    .pipe(filter(item => item.updated))
-                    .pipe(map(item => item.applications))
-            );
-        })
-    );
-}
 
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
     <ObservableQuery>
@@ -157,89 +98,6 @@ function tryJsonParse(input: string) {
         return null;
     }
 }
-
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, ctx, apps} = {...props};
-
-    const searchBar = React.useRef<HTMLDivElement>(null);
-
-    const query = new URLSearchParams(window.location.search);
-    const appInput = tryJsonParse(query.get('new'));
-
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
-
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    return (
-        <Autocomplete
-            filterSuggestions={true}
-            renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
-                    <i
-                        className='fa fa-search'
-                        style={{marginRight: '9px', cursor: 'pointer'}}
-                        onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
-                            }
-                        }}
-                    />
-                    <input
-                        {...inputProps}
-                        onFocus={e => {
-                            e.target.select();
-                            if (inputProps.onFocus) {
-                                inputProps.onFocus(e);
-                            }
-                        }}
-                        style={{fontSize: '14px'}}
-                        className='argo-field'
-                        placeholder='Search applications...'
-                    />
-                    <div className='keyboard-hint'>/</div>
-                    {content && (
-                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    )}
-                </div>
-            )}
-            wrapperProps={{className: 'applications-list__search-wrapper'}}
-            renderItem={item => (
-                <React.Fragment>
-                    <i className='icon argo-icon-application' /> {item.label}
-                </React.Fragment>
-            )}
-            onSelect={val => {
-                ctx.navigation.goto(`./${val}`);
-            }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
-            value={content || ''}
-            items={apps.map(app => app.metadata.name)}
-        />
-    );
-};
 
 const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     const ctx = React.useContext(Context);
@@ -326,7 +184,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                         <Page title='Applications' toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}} hideAuth={true}>
                             <DataLoader
                                 ref={loaderRef}
-                                load={() => AppUtils.handlePageVisibility(() => loadApplications())}
+                                load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications())}
                                 loadingRenderer={() => (
                                     <div className='argo-container'>
                                         <MockupList height={100} marginTop={30} />
@@ -361,7 +219,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </Tooltip>
                                                                 <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
                                                                     <i
-                                                                        className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                                                                        className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'}, 'menu_icon')}
                                                                         title='Tiles'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'tiles'}, {replace: true});
@@ -369,7 +227,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }}
                                                                     />
                                                                     <i
-                                                                        className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
+                                                                        className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'}, 'menu_icon')}
                                                                         title='List'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'list'}, {replace: true});
@@ -377,7 +235,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }}
                                                                     />
                                                                     <i
-                                                                        className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})}
+                                                                        className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'}, 'menu_icon')}
                                                                         title='Summary'
                                                                         onClick={() => {
                                                                             ctx.navigation.goto('.', {view: 'summary'}, {replace: true});

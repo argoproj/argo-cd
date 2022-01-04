@@ -7,8 +7,8 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, ContextApis} from '../../../shared/context';
+import {ClusterCtx, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Query, Revision, Timestamp} from '../../../shared/components';
+import {AppContext, Consumer, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -23,7 +23,8 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {KeybindingProvider} from 'argo-ui/v2';
+import {SearchBar} from '../../../shared/components/search-bar';
 import {ResourceStatus} from '../../../shared/models';
 
 require('./application-details.scss');
@@ -32,7 +33,7 @@ interface ApplicationDetailsState {
     page: number;
     revision?: string;
     groupedResources?: ResourceStatus[];
-    showCompactNodes?: boolean;
+    slidingPanelPage?: number;
 }
 
 interface FilterInput {
@@ -67,7 +68,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], showCompactNodes: false};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0};
     }
 
     private get showOperationState() {
@@ -93,10 +94,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
+        this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView() {
-        this.setState({showCompactNodes: !this.state.showCompactNodes});
+    private toggleCompactView(pref: AppDetailsPreferences) {
+        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
     public render() {
@@ -163,7 +165,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             resource.hook = status.hook;
                                             resource.requiresPruning = status.requiresPruning;
                                         }
-                                        resources.set(node.uid, resource);
+                                        resources.set(node.uid || AppUtils.nodeKey(node), resource);
                                     });
                                 const resourcesRef = Array.from(resources.values());
                                 return resourcesRef;
@@ -185,7 +187,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
                             const renderCommitMessage = (message: string) =>
                                 message.split(/\s/).map(part =>
-                                    urlPattern.test(part) ? (
+                                    AppUtils.urlPattern.test(part) ? (
                                         <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
                                             {part}{' '}
                                         </a>
@@ -193,114 +195,171 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         part + ' '
                                     )
                                 );
+                            const clustersPromise = services.clusters.list();
 
                             return (
                                 <div className='application-details'>
-                                    <Page
-                                        title='Application Details'
-                                        toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
-                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
-                                            tools: (
-                                                <React.Fragment key='app-list-tools'>
-                                                    <div className='application-details__view-type'>
-                                                        <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
-                                                            title='Tree'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
-                                                            title='Pods'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
-                                                            title='Network'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
-                                                            title='List'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </React.Fragment>
-                                            )
-                                        }}>
-                                        <div className='application-details__status-panel'>
-                                            <ApplicationStatusPanel
-                                                application={application}
-                                                showOperation={() => this.setOperationStatusVisible(true)}
-                                                showConditions={() => this.setConditionsStatusVisible(true)}
-                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
-                                            />
-                                        </div>
-                                        <div className='application-details__tree'>
-                                            {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    {pref.view === 'tree' && (
-                                                        <button
-                                                            className={`argo-button argo-button--base${!this.state.showCompactNodes ? '-o' : ''}`}
-                                                            style={{border: 'none', width: '160px'}}
-                                                            onClick={() => this.toggleCompactView()}>
-                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
-                                                            Group Nodes
-                                                        </button>
-                                                    )}
-                                                    <ApplicationResourceTree
-                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                        selectedNodeFullName={this.selectedNodeKey}
-                                                        onNodeClick={fullName => this.selectNode(fullName)}
-                                                        nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application, false)
+                                    <ClusterCtx.Provider value={clustersPromise}>
+                                        <KeybindingProvider>
+                                            <Consumer>
+                                                {ctx => (
+                                                    <Page
+                                                        title='Application Details'
+                                                        toolbar={{
+                                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
+                                                            tools: (
+                                                                <React.Fragment key='app-list-tools'>
+                                                                    <div className='application-details__view-type'>
+                                                                        <i
+                                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                                            title='Tree'
+                                                                            onClick={() => {
+                                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
+                                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                                            }}
+                                                                        />
+                                                                        <i
+                                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                                            title='Pods'
+                                                                            onClick={() => {
+                                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
+                                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                                            }}
+                                                                        />
+                                                                        <i
+                                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                                            title='Network'
+                                                                            onClick={() => {
+                                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
+                                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
+                                                                            }}
+                                                                        />
+                                                                        <i
+                                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                                            title='List'
+                                                                            onClick={() => {
+                                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
+                                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </React.Fragment>
                                                             )
-                                                        }
-                                                        showCompactNodes={this.state.showCompactNodes}
-                                                        tree={tree}
-                                                        app={application}
-                                                        showOrphanedResources={pref.orphanedResources}
-                                                        useNetworkingHierarchy={pref.view === 'network'}
-                                                        onClearFilter={clearFilter}
-                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                    />
-                                                </Filters>
-                                            )) ||
-                                                (pref.view === 'pods' && (
-                                                    <PodView
-                                                        tree={tree}
-                                                        app={application}
-                                                        onItemClick={fullName => this.selectNode(fullName)}
-                                                        nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application, false)
-                                                            )
-                                                        }
-                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
-                                                    />
-                                                )) || (
-                                                    <div>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                            {(filteredRes.length > 0 && (
+                                                        }}>
+                                                        <div className='application-details__application-search-bar'>
+                                                            <DataLoader key='applications' load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications())}>
+                                                                {(applications: models.Application[]) => (
+                                                                    <Query>
+                                                                        {query => (
+                                                                            <SearchBar
+                                                                                content={query.get('search')}
+                                                                                apps={applications}
+                                                                                ctx={ctx}
+                                                                                currentApp={application.metadata.name}
+                                                                            />
+                                                                        )}
+                                                                    </Query>
+                                                                )}
+                                                            </DataLoader>
+                                                        </div>
+                                                        <div className='application-details__status-panel'>
+                                                            <ApplicationStatusPanel
+                                                                application={application}
+                                                                showOperation={() => this.setOperationStatusVisible(true)}
+                                                                showConditions={() => this.setConditionsStatusVisible(true)}
+                                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                            />
+                                                        </div>
+                                                        <div className='application-details__tree'>
+                                                            {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                                            {((pref.view === 'tree' || pref.view === 'network') && (
+                                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                                    {pref.view === 'tree' && (
+                                                                        <button
+                                                                            className={`argo-button argo-button--base${!pref.groupNodes ? '-o' : ''}`}
+                                                                            style={{border: 'none', width: '160px'}}
+                                                                            onClick={() => this.toggleCompactView(pref)}>
+                                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
+                                                                            Group Nodes
+                                                                        </button>
+                                                                    )}
+                                                                    <ApplicationResourceTree
+                                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                                        selectedNodeFullName={this.selectedNodeKey}
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                                this.getApplicationActionMenu(application, false)
+                                                                            )
+                                                                        }
+                                                                        showCompactNodes={pref.groupNodes}
+                                                                        tree={tree}
+                                                                        app={application}
+                                                                        showOrphanedResources={pref.orphanedResources}
+                                                                        useNetworkingHierarchy={pref.view === 'network'}
+                                                                        onClearFilter={clearFilter}
+                                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                                    />
+                                                                </Filters>
+                                                            )) ||
+                                                                (pref.view === 'pods' && (
+                                                                    <PodView
+                                                                        tree={tree}
+                                                                        app={application}
+                                                                        onItemClick={fullName => this.selectNode(fullName)}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
+                                                                                this.getApplicationActionMenu(application, false)
+                                                                            )
+                                                                        }
+                                                                        quickStarts={node =>
+                                                                            AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)
+                                                                        }
+                                                                    />
+                                                                )) || (
+                                                                    <div>
+                                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                                            {(filteredRes.length > 0 && (
+                                                                                <Paginate
+                                                                                    page={this.state.page}
+                                                                                    data={filteredRes}
+                                                                                    onPageChange={page => this.setState({page})}
+                                                                                    preferencesKey='application-details'>
+                                                                                    {data => (
+                                                                                        <ApplicationResourceList
+                                                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                                                            resources={data}
+                                                                                            nodeMenu={node =>
+                                                                                                AppUtils.renderResourceMenu(
+                                                                                                    {...node, root: node},
+                                                                                                    application,
+                                                                                                    tree,
+                                                                                                    this.appContext,
+                                                                                                    this.appChanged,
+                                                                                                    () => this.getApplicationActionMenu(application, false)
+                                                                                                )
+                                                                                            }
+                                                                                        />
+                                                                                    )}
+                                                                                </Paginate>
+                                                                            )) || (
+                                                                                <EmptyState icon='fa fa-search'>
+                                                                                    <h4>No resources found</h4>
+                                                                                    <h5>Try to change filter criteria</h5>
+                                                                                </EmptyState>
+                                                                            )}
+                                                                        </Filters>
+                                                                    </div>
+                                                                )}
+                                                        </div>
+                                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
+                                                            <div className='application-details__sliding-panel-pagination-wrap'>
                                                                 <Paginate
-                                                                    page={this.state.page}
-                                                                    data={filteredRes}
-                                                                    onPageChange={page => this.setState({page})}
-                                                                    preferencesKey='application-details'>
+                                                                    page={this.state.slidingPanelPage}
+                                                                    data={this.state.groupedResources}
+                                                                    onPageChange={page => this.setState({slidingPanelPage: page})}
+                                                                    preferencesKey='grouped-nodes-details'>
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             onNodeClick={fullName => this.selectNode(fullName)}
@@ -318,107 +377,94 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         />
                                                                     )}
                                                                 </Paginate>
-                                                            )) || (
-                                                                <EmptyState icon='fa fa-search'>
-                                                                    <h4>No resources found</h4>
-                                                                    <h5>Try to change filter criteria</h5>
-                                                                </EmptyState>
+                                                            </div>
+                                                        </SlidingPanel>
+                                                        <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
+                                                            <ResourceDetails
+                                                                tree={tree}
+                                                                application={application}
+                                                                isAppSelected={isAppSelected}
+                                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
+                                                                selectedNode={selectedNode}
+                                                                tab={tab}
+                                                            />
+                                                        </SlidingPanel>
+                                                        <ApplicationSyncPanel
+                                                            application={application}
+                                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
+                                                            selectedResource={syncResourceKey}
+                                                        />
+                                                        <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
+                                                            {this.selectedRollbackDeploymentIndex > -1 && (
+                                                                <ApplicationDeploymentHistory
+                                                                    app={application}
+                                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
+                                                                    rollbackApp={info => this.rollbackApplication(info, application)}
+                                                                    selectDeployment={i => this.setRollbackPanelVisible(i)}
+                                                                />
                                                             )}
-                                                        </Filters>
-                                                    </div>
+                                                        </SlidingPanel>
+                                                        <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
+                                                            {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
+                                                        </SlidingPanel>
+                                                        <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
+                                                            {conditions && <ApplicationConditions conditions={conditions} />}
+                                                        </SlidingPanel>
+                                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
+                                                            {this.state.revision && (
+                                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
+                                                                    {metadata => (
+                                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                                            <div className='white-box__details'>
+                                                                                <div className='row white-box__details-row'>
+                                                                                    <div className='columns small-3'>SHA:</div>
+                                                                                    <div className='columns small-9'>
+                                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className='white-box__details'>
+                                                                                <div className='row white-box__details-row'>
+                                                                                    <div className='columns small-3'>Date:</div>
+                                                                                    <div className='columns small-9'>
+                                                                                        <Timestamp date={metadata.date} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className='white-box__details'>
+                                                                                <div className='row white-box__details-row'>
+                                                                                    <div className='columns small-3'>Tags:</div>
+                                                                                    <div className='columns small-9'>
+                                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className='white-box__details'>
+                                                                                <div className='row white-box__details-row'>
+                                                                                    <div className='columns small-3'>Author:</div>
+                                                                                    <div className='columns small-9'>{metadata.author}</div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className='white-box__details'>
+                                                                                <div className='row white-box__details-row'>
+                                                                                    <div className='columns small-3'>Message:</div>
+                                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                                        <div className='application-details__commit-message'>
+                                                                                            {renderCommitMessage(metadata.message)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </DataLoader>
+                                                            )}
+                                                        </SlidingPanel>
+                                                    </Page>
                                                 )}
-                                        </div>
-                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
-                                            <ApplicationResourceList
-                                                onNodeClick={fullName => this.selectNode(fullName)}
-                                                resources={this.state.groupedResources}
-                                                nodeMenu={node =>
-                                                    AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
-                                                        this.getApplicationActionMenu(application, false)
-                                                    )
-                                                }
-                                            />
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
-                                            <ResourceDetails
-                                                tree={tree}
-                                                application={application}
-                                                isAppSelected={isAppSelected}
-                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
-                                                selectedNode={selectedNode}
-                                                tab={tab}
-                                            />
-                                        </SlidingPanel>
-                                        <ApplicationSyncPanel
-                                            application={application}
-                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
-                                            selectedResource={syncResourceKey}
-                                        />
-                                        <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
-                                            {this.selectedRollbackDeploymentIndex > -1 && (
-                                                <ApplicationDeploymentHistory
-                                                    app={application}
-                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
-                                                    rollbackApp={info => this.rollbackApplication(info, application)}
-                                                    selectDeployment={i => this.setRollbackPanelVisible(i)}
-                                                />
-                                            )}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
-                                            {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
-                                            {conditions && <ApplicationConditions conditions={conditions} />}
-                                        </SlidingPanel>
-                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
-                                            {this.state.revision && (
-                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
-                                                    {metadata => (
-                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>SHA:</div>
-                                                                    <div className='columns small-9'>
-                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Date:</div>
-                                                                    <div className='columns small-9'>
-                                                                        <Timestamp date={metadata.date} />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Tags:</div>
-                                                                    <div className='columns small-9'>
-                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Author:</div>
-                                                                    <div className='columns small-9'>{metadata.author}</div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Message:</div>
-                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </DataLoader>
-                                            )}
-                                        </SlidingPanel>
-                                    </Page>
+                                            </Consumer>
+                                        </KeybindingProvider>
+                                    </ClusterCtx.Provider>
                                 </div>
                             );
                         }}
