@@ -122,7 +122,7 @@ func local_request_ClusterService_Create_0(ctx context.Context, marshaler runtim
 }
 
 var (
-	filter_ClusterService_Get_0 = &utilities.DoubleArray{Encoding: map[string]int{"server": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ClusterService_Get_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0, "value": 1}, Base: []int{1, 1, 1, 0}, Check: []int{0, 1, 2, 3}}
 )
 
 func request_ClusterService_Get_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -136,15 +136,15 @@ func request_ClusterService_Get_0(ctx context.Context, marshaler runtime.Marshal
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -170,15 +170,15 @@ func local_request_ClusterService_Get_0(ctx context.Context, marshaler runtime.M
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -194,7 +194,7 @@ func local_request_ClusterService_Get_0(ctx context.Context, marshaler runtime.M
 }
 
 var (
-	filter_ClusterService_Update_0 = &utilities.DoubleArray{Encoding: map[string]int{"cluster": 0, "server": 1}, Base: []int{1, 2, 1, 0, 0}, Check: []int{0, 1, 2, 3, 2}}
+	filter_ClusterService_Update_0 = &utilities.DoubleArray{Encoding: map[string]int{"cluster": 0, "id": 1, "value": 2}, Base: []int{1, 1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 3, 2, 4}}
 )
 
 func request_ClusterService_Update_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -216,15 +216,15 @@ func request_ClusterService_Update_0(ctx context.Context, marshaler runtime.Mars
 		_   = err
 	)
 
-	val, ok = pathParams["cluster.server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "cluster.server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	err = runtime.PopulateFieldFromPath(&protoReq, "cluster.server", val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "cluster.server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -258,15 +258,15 @@ func local_request_ClusterService_Update_0(ctx context.Context, marshaler runtim
 		_   = err
 	)
 
-	val, ok = pathParams["cluster.server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "cluster.server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	err = runtime.PopulateFieldFromPath(&protoReq, "cluster.server", val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "cluster.server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -282,7 +282,7 @@ func local_request_ClusterService_Update_0(ctx context.Context, marshaler runtim
 }
 
 var (
-	filter_ClusterService_Delete_0 = &utilities.DoubleArray{Encoding: map[string]int{"server": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ClusterService_Delete_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0, "value": 1}, Base: []int{1, 1, 1, 0}, Check: []int{0, 1, 2, 3}}
 )
 
 func request_ClusterService_Delete_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -296,15 +296,15 @@ func request_ClusterService_Delete_0(ctx context.Context, marshaler runtime.Mars
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -330,15 +330,15 @@ func local_request_ClusterService_Delete_0(ctx context.Context, marshaler runtim
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -354,7 +354,7 @@ func local_request_ClusterService_Delete_0(ctx context.Context, marshaler runtim
 }
 
 var (
-	filter_ClusterService_RotateAuth_0 = &utilities.DoubleArray{Encoding: map[string]int{"server": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ClusterService_RotateAuth_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0, "value": 1}, Base: []int{1, 1, 1, 0}, Check: []int{0, 1, 2, 3}}
 )
 
 func request_ClusterService_RotateAuth_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -368,15 +368,15 @@ func request_ClusterService_RotateAuth_0(ctx context.Context, marshaler runtime.
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -402,15 +402,15 @@ func local_request_ClusterService_RotateAuth_0(ctx context.Context, marshaler ru
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -426,7 +426,7 @@ func local_request_ClusterService_RotateAuth_0(ctx context.Context, marshaler ru
 }
 
 var (
-	filter_ClusterService_InvalidateCache_0 = &utilities.DoubleArray{Encoding: map[string]int{"server": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ClusterService_InvalidateCache_0 = &utilities.DoubleArray{Encoding: map[string]int{"id": 0, "value": 1}, Base: []int{1, 1, 1, 0}, Check: []int{0, 1, 2, 3}}
 )
 
 func request_ClusterService_InvalidateCache_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -440,15 +440,15 @@ func request_ClusterService_InvalidateCache_0(ctx context.Context, marshaler run
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -474,15 +474,15 @@ func local_request_ClusterService_InvalidateCache_0(ctx context.Context, marshal
 		_   = err
 	)
 
-	val, ok = pathParams["server"]
+	val, ok = pathParams["id.value"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "server")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id.value")
 	}
 
-	protoReq.Server, err = runtime.String(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "id.value", val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "server", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id.value", err)
 	}
 
 	if err := req.ParseForm(); err != nil {
@@ -853,15 +853,15 @@ var (
 
 	pattern_ClusterService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "clusters"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ClusterService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "server"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ClusterService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "id.value"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ClusterService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "cluster.server"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ClusterService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "id.value"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ClusterService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "server"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ClusterService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "clusters", "id.value"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ClusterService_RotateAuth_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "clusters", "server", "rotate-auth"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ClusterService_RotateAuth_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "clusters", "id.value", "rotate-auth"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ClusterService_InvalidateCache_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "clusters", "server", "invalidate-cache"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ClusterService_InvalidateCache_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "clusters", "id.value", "invalidate-cache"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

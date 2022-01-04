@@ -233,6 +233,11 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          ignoreMissingValueFiles:
+                            description: IgnoreMissingValueFiles prevents helm template
+                              from failing when valueFiles do not exist locally by
+                              not appending them to helm template --values
+                            type: boolean
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -598,6 +603,11 @@ spec:
                               type: string
                           type: object
                         type: array
+                      ignoreMissingValueFiles:
+                        description: IgnoreMissingValueFiles prevents helm template
+                          from failing when valueFiles do not exist locally by not
+                          appending them to helm template --values
+                        type: boolean
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -966,6 +976,11 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            ignoreMissingValueFiles:
+                              description: IgnoreMissingValueFiles prevents helm template
+                                from failing when valueFiles do not exist locally
+                                by not appending them to helm template --values
+                              type: boolean
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -1349,6 +1364,12 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  ignoreMissingValueFiles:
+                                    description: IgnoreMissingValueFiles prevents
+                                      helm template from failing when valueFiles do
+                                      not exist locally by not appending them to helm
+                                      template --values
+                                    type: boolean
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -1714,6 +1735,11 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingValueFiles:
+                                description: IgnoreMissingValueFiles prevents helm
+                                  template from failing when valueFiles do not exist
+                                  locally by not appending them to helm template --values
+                                type: boolean
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2065,6 +2091,11 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingValueFiles:
+                                description: IgnoreMissingValueFiles prevents helm
+                                  template from failing when valueFiles do not exist
+                                  locally by not appending them to helm template --values
+                                type: boolean
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
