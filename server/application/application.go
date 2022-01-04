@@ -884,8 +884,14 @@ func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) boo
 		return true
 	}
 
-	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore this diff
+	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore those in the diff
 	cachedApp.Spec.Project = ae.Application.Spec.Project               //
+	for i := range cachedApp.Status.Conditions {
+		cachedApp.Status.Conditions[i].LastTransitionTime = nil
+	}
+	for i := range ae.Application.Status.Conditions {
+		ae.Application.Status.Conditions[i].LastTransitionTime = nil
+	}
 
 	cachedAppSpec, err := json.Marshal(&cachedApp.Spec)
 	if err != nil {
