@@ -251,7 +251,9 @@ func DeduplicateTargetObjects(
 	return result, conditions, nil
 }
 
-func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, error) {
+// getComparisonSettings will return the system level settings related to the
+// diff/normalization process.
+func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return "", nil, nil, err
@@ -311,7 +313,7 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
-	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings(app)
+	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
 	ts.AddCheckpoint("settings_ms")
 
