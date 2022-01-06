@@ -26,7 +26,7 @@ metadata:
 During a Sync operation, Argo CD will apply the resource during the appropriate phase of the
 deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod,
 [Job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/)
-or [Argo Workflows](https://github.com/argoproj/argo). Multiple hooks can be specified as a comma
+or [Argo Workflows](https://github.com/argoproj/argo-workflows). Multiple hooks can be specified as a comma
 separated list.
 
 The following hooks are defined:
