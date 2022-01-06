@@ -250,10 +250,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         }}>
                                                         <div className='application-details__application-search-bar'>
                                                             <ViewPref>
-                                                                {pref => (
+                                                                {viewPref => (
                                                                     <DataLoader
                                                                         key='applications'
-                                                                        load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications(pref.projectsFilter))}>
+                                                                        load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications(viewPref.projectsFilter))}>
                                                                         {(applications: models.Application[]) => (
                                                                             <Query>
                                                                                 {query => (

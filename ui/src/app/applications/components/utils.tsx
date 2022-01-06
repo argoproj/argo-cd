@@ -1051,4 +1051,4 @@ export const loadApplications = (projects: string[]): Observable<models.Applicat
             );
         })
     );
-}
+};
