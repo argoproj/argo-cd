@@ -312,6 +312,11 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
+// Convenience wrapper for updating argocd-cmd-params-cm
+func updateCmdParamsConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDCmdParamsConfigMapName, updater)
+}
+
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -322,6 +327,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(updater(cm))
 	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
+}
+
+func SetCmdParam(key string, value string) {
+	updateCmdParamsConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
 }
 
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
@@ -508,6 +520,12 @@ func EnsureCleanState(t *testing.T) {
 
 	// reset rbac
 	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// reset cmd params
+	updateCmdParamsConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
 		return nil
 	})

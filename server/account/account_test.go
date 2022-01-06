@@ -313,7 +313,18 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	assert.Len(t, acc.Tokens, 0)
 }
 
-func TestCanI_DenyGetLogs(t *testing.T) {
+func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
 		return false
 	}
@@ -329,15 +340,12 @@ func TestCanI_DenyGetLogs(t *testing.T) {
 	assert.EqualValues(t, "no", resp.Value)
 }
 
-func TestCanI_AllowGetLogsWithSwitch(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
-		return false
-	}
+func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 
-	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 	})
 
-	os.Setenv("ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE", "false")
+	os.Setenv("ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE", "true")
 
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
@@ -345,13 +353,12 @@ func TestCanI_AllowGetLogsWithSwitch(t *testing.T) {
 	assert.EqualValues(t, "yes", resp.Value)
 }
 
-func TestCanI_AllowGetLogsWithoutSwitch(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
-		return false
-	}
+func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
 
-	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 	})
+
+	os.Setenv("ARGOCD_SERVER_RBAC_LOG_ENFORCE_ENABLE", "false")
 
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
