@@ -5,6 +5,7 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
 import * as moment from 'moment';
+import * as models from '../../shared/models';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
@@ -992,32 +993,33 @@ export const urlPattern = new RegExp(
     )
 );
 
-export const loadApplications = () => {
-    const EVENTS_BUFFER_TIMEOUT = 500;
-    const WATCH_RETRY_TIMEOUT = 500;
-    const APP_FIELDS = [
-        'metadata.name',
-        'metadata.annotations',
-        'metadata.labels',
-        'metadata.creationTimestamp',
-        'metadata.deletionTimestamp',
-        'spec',
-        'operation.sync',
-        'status.sync.status',
-        'status.health',
-        'status.operationState.phase',
-        'status.operationState.operation.sync',
-        'status.summary'
-    ];
-    const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
-    const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
-    return from(services.applications.list([], {fields: APP_LIST_FIELDS})).pipe(
+const EVENTS_BUFFER_TIMEOUT = 500;
+const WATCH_RETRY_TIMEOUT = 500;
+const APP_FIELDS = [
+    'metadata.name',
+    'metadata.annotations',
+    'metadata.labels',
+    'metadata.creationTimestamp',
+    'metadata.deletionTimestamp',
+    'spec',
+    'operation.sync',
+    'status.sync.status',
+    'status.health',
+    'status.operationState.phase',
+    'status.operationState.operation.sync',
+    'status.summary'
+];
+const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
+const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
+
+export const loadApplications = (projects: string[]): Observable<models.Application[]> => {
+    return from(services.applications.list(projects, {fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch({resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch({projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -1049,4 +1051,4 @@ export const loadApplications = () => {
             );
         })
     );
-};
+}

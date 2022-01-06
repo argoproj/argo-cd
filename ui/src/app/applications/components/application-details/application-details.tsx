@@ -26,6 +26,7 @@ import {Filters} from './application-resource-filter';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {SearchBar} from '../../../shared/components/search-bar';
 import {ResourceStatus} from '../../../shared/models';
+import {ViewPref} from '../applications-list/applications-list';
 
 require('./application-details.scss');
 
@@ -248,20 +249,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             )
                                                         }}>
                                                         <div className='application-details__application-search-bar'>
-                                                            <DataLoader key='applications' load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications())}>
-                                                                {(applications: models.Application[]) => (
-                                                                    <Query>
-                                                                        {query => (
-                                                                            <SearchBar
-                                                                                content={query.get('search')}
-                                                                                apps={applications}
-                                                                                ctx={ctx}
-                                                                                currentApp={application.metadata.name}
-                                                                            />
+                                                            <ViewPref>
+                                                                {pref => (
+                                                                    <DataLoader
+                                                                        key='applications'
+                                                                        load={() => AppUtils.handlePageVisibility(() => AppUtils.loadApplications(pref.projectsFilter))}>
+                                                                        {(applications: models.Application[]) => (
+                                                                            <Query>
+                                                                                {query => (
+                                                                                    <SearchBar
+                                                                                        content={query.get('search')}
+                                                                                        apps={applications}
+                                                                                        ctx={ctx}
+                                                                                        currentApp={application.metadata.name}
+                                                                                    />
+                                                                                )}
+                                                                            </Query>
                                                                         )}
-                                                                    </Query>
+                                                                    </DataLoader>
                                                                 )}
-                                                            </DataLoader>
+                                                            </ViewPref>
                                                         </div>
                                                         <div className='application-details__status-panel'>
                                                             <ApplicationStatusPanel
