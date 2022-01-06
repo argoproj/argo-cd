@@ -287,7 +287,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			continue
 		}
 		// calculate patch between live and normalized resources
-		patch, err := getMergePatch(live, normalized.Lives[idx])
+		patch, err := getMergePatch(normalized.Lives[idx], live)
 		if err != nil {
 			return nil, err
 		}
