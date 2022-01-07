@@ -188,7 +188,7 @@ jobs:
           set -ue
           git clean -fd
           mkdir -p dist/
-          make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false
+          make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false IMAGE_PLATFORMS=linux/amd64,linux/arm64
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
@@ -245,6 +245,17 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Upload argocd-linux-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-linux-arm64
+          asset_name: argocd-linux-arm64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Upload argocd-darwin-amd64 binary to release assets
         uses: actions/upload-release-asset@v1
         env:
@@ -253,6 +264,17 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/argocd-darwin-amd64
           asset_name: argocd-darwin-amd64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload argocd-darwin-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-darwin-arm64
+          asset_name: argocd-darwin-arm64
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
