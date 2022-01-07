@@ -137,7 +137,7 @@ plugin:
 ```
 
 Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
-JSON might be a surpising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
+JSON might be a surprising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
 sense because 1) it's used for parameter announcements (consistency is good) and 2) JSON tooling is better.
 
 #### Parameter announcement list schema
@@ -213,7 +213,7 @@ spec:
       - sh
       - -c
       - |
-        CM_NAME_SUFFIX=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["trivial-cmp"][] | select(.name == "cm-name-suffix").value')
+        CM_NAME_SUFFIX=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
         cat << EOM
         {
           "kind": "ConfigMap",
