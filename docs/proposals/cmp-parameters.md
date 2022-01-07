@@ -151,13 +151,15 @@ A parameter definition is an object with following schema:
 type ParameterDefinition struct {
 	// Name is the name of a parameter. (required)
 	Name string `json:"name"`
-	// Type is the type of the parameter. This determines the schema of `uiConfig` and how the UI presents the parameter. (default is `string)
+	// Type is the type of the parameter. This determines the schema of `uiConfig` and how the UI presents the 
+	// parameter. (default is `string)
 	Type string `json:"type"`
-	// UiConfig is a stringified JSON object containing information about how the UI should present the parameter. (default is `{}`)
+	// UiConfig is a stringified JSON object containing information about how the UI should present the parameter. 
+	// (default is `{}`)
 	UiConfig string `json:"uiConfig"`
-	// Section is the name of the group of parameters in which this parameter belongs. `main` parameters will be presented 
-	// at the top of the UI. Other parameters will be grouped by section, and the sections will be displayed in alphabetical 
-	// order after the main section.
+	// Section is the name of the group of parameters in which this parameter belongs. `main` parameters will be 
+	// presented at the top of the UI. Other parameters will be grouped by section, and the sections will be 
+	// displayed in alphabetical order after the main section.
 	Section string `json:"section"`
 }
 ```
@@ -165,7 +167,7 @@ type ParameterDefinition struct {
 #### Parameters announcement schema
 
 ```go
-type ParameterAnnouncement []ParameterDefinition
+type ParametersAnnouncement []ParameterDefinition
 ```
 
 Example:
