@@ -296,7 +296,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			return nil, err
 		}
 		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
-		if patch != nil && len(patch) > 2 {
+		if len(patch) > 2 {
 			// apply patch in original target
 			target, err = applyMergePatch(target, patch)
 
