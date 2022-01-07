@@ -176,7 +176,8 @@ The top level is a JSON object. Each key is the name of a parameter "section". E
 is a JSON list of objects representing parameter values. Each parameter value has the following schema:
 
 * `name` (string): The name of the parameter.
-* `value` (string): The value of the parameter.
+* `value` (string): The value of the parameter. It's up to the CMP to interpret this value. It could be a simple string,
+  or it could be some encoding of something more complex.
 
 Example:
 
