@@ -42,8 +42,8 @@ This new feature will allow a plugin to "announce" acceptable parameters for an 
 plugin to consume parameters once the user has defined them.
 
 Parameters definitions may be simple (advertising a simple key/value string pair) or rich (advertising more information 
-about the expected value). An "image" would be an example of a rich parameter description. The plugin would describe the
-parts of an image parameter, and the UI would build the appropriate input.
+about the expected value). An "image" would be an example of a rich parameter description. The plugin would announce 
+that it expects an image parameter, and the UI would build the appropriate input.
 
 ## Motivation
 
