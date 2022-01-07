@@ -41,7 +41,7 @@ The only existing way for users to parameterize manifest generation is with envi
 This new feature will allow a plugin to "announce" acceptable parameters for an Application. It will also allow the
 plugin to consume parameters once the user has defined them.
 
-Parameter announcements may be simple (advertising a simple key/value string pair) or rich (advertising more information 
+Parameters definitions may be simple (advertising a simple key/value string pair) or rich (advertising more information 
 about the expected value). An "image" would be an example of a rich parameter description. The plugin would describe the
 parts of an image parameter, and the UI would build the appropriate input.
 
@@ -57,7 +57,7 @@ Parameterized CMPs must be:
   * An Argo CD admin should be able to write a simple parameterized CMP in just a few lines of code.
   * An Argo CD admin should be able to write an _advanced_ parameterized CMP server relying on thorough docs.
     
-    Writing a custom CMP server might be preferable if the parameter announcement discovery code gets too complex to be 
+    Writing a custom CMP server might be preferable if the parameters announcement code gets too complex to be 
     an inline shell script.
 * Easy to install
   * Installing a simple CMP or even a CMP with a custom server should be intuitive and painless.
@@ -69,7 +69,7 @@ Parameterized CMPs must be:
   * CMPs should be able to announce parameters with more helpful interfaces than a simple text field.
     * For example, image parameters should be presented using the same helpful interface as the one in Kustomize applications.
 * Future-proof
-  * Since the rich parameters UI is an important feature for config management tools, the parameter announcement schema 
+  * Since the rich parameters UI is an important feature for config management tools, the parameter definition schema 
     should be flexible enough to announce new _types_ of parameters so the UI can customize its presentation.
 * Backwards-compatible
   * CMPs written before this enhancement should work fine after this enhancement is released.
@@ -110,16 +110,17 @@ have to ask my Argo CD admin to modify the CMP to accommodate the values as envi
 
 #### Terms
 
-* **Parameter announcement**: an instance of a data structure which describes an individual parameter that may be applied
-  to a specific Application.
+* **Parameter definition**: an instance of a data structure which describes an individual parameter that may be applied
+  to a specific Application. (See the [schema](#parameter-definition-schema) below.)
+* **Parameters announcement**: a list of parameter definitions. (See the [schema](#parameters-announcement-schema) below.)
 * **Parameterized CMP**: a CMP which supports rich parameters (i.e. more than environment variables). A CMP is
   parameterized if either of these is true:
-  1. its configuration includes the sections consumed by the default CMP server to generate parameter announcements
-  2. it is a fully customized CMP server which implements an endpoint to generate parameter announcements
+  1. its configuration includes the sections consumed by the default CMP server to generate parameters announcements
+  2. it is a fully customized CMP server which implements an endpoint to generate parameters announcements
 
-#### Parameter announcement / parameters serialization format
+#### Parameters announcement / parameters serialization format
 
-Parameter announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
+Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
 (native JSON libraries, StackOverflow answers about jq, etc.).
 
 Parameters should be set in the manifest as a map of section names to parameter name/value pairs. YAML is used because
@@ -138,20 +139,32 @@ plugin:
 
 Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
 JSON might be a surprising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
-sense because 1) it's used for parameter announcements (consistency is good) and 2) JSON tooling is better.
+sense because 1) it's used for parameters announcements (consistency is good) and 2) JSON tooling is better.
 
-#### Parameter announcement list schema
+#### Parameter definition schema
 
-The top level is a JSON list. Each item is an object with following schema:
+A parameter definition is an object with following schema:
 
-* `name` (string, required): The name of the parameter.
-* `type` (string, default is `string`): The type of the parameter. Determines the schema of `uiConfig` and how the UI
-  presents this parameter.
-* `uiConfig` (string, default is `{}`): A stringified JSON object containing information about how the UI should 
-  present the parameter.
-* `section` (string, default is `main`): The name of the group of parameters in which this parameter belongs. `main` 
-  parameters will be presented at the top of the UI. Other parameters will be grouped by section, and the sections will
-  be displayed in alphabetical order after the main section.
+```go
+type ParameterDefinition struct {
+	// Name is the name of a parameter. (required)
+	Name string `json:"name"`
+	// Type is the type of the parameter. This determines the schema of `uiConfig` and how the UI presents the parameter. (default is `string)
+	Type string `json:"type"`
+	// UiConfig is a stringified JSON object containing information about how the UI should present the parameter. (default is `{}`)
+	UiConfig string `json:"uiConfig"`
+	// Section is the name of the group of parameters in which this parameter belongs. `main` parameters will be presented 
+	// at the top of the UI. Other parameters will be grouped by section, and the sections will be displayed in alphabetical 
+	// order after the main section.
+	Section string `json:"section"`
+}
+```
+
+#### Parameters announcement schema
+
+```go
+type ParameterAnnouncement []ParameterDefinition
+```
 
 Example:
 
@@ -175,9 +188,15 @@ Example:
 The top level is a JSON object. Each key is the name of a parameter "section". Each value of the top-level JSON object
 is a JSON list of objects representing parameter values. Each parameter value has the following schema:
 
-* `name` (string): The name of the parameter.
-* `value` (string): The value of the parameter. It's up to the CMP to interpret this value. It could be a simple string,
-  or it could be some encoding of something more complex.
+```go
+type Parameter struct {
+	// Name is the name of the parameter.
+  Name string `json:"name"`
+  // Value is the value of the parameter. It's up to the CMP to interpret this value. It could be interpreted as a 
+  // simple string, or it could be some encoding of something more complex (like a JSON object).
+  Value string `json:"value"`
+}
+```
 
 Example:
 
