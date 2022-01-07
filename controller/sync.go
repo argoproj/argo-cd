@@ -177,7 +177,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	reconciliationResult := compareResult.reconciliationResult
 
 	// if RespectIgnoreDifferences is enabled, it should normalize the target
-	// resource removing the configured fields from the current state.
+	// resources which in this case applies the live values in the configured
+	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
 		patchedTargets, err := normalizeTargetResources(compareResult)
 		if err != nil {
@@ -273,7 +274,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 // normalizeTargetResources will apply the diff normalization in all live and target resources.
 // Then it calculates the merge patch between the normalized live and the current live resources.
-// Finally it applies the merge patch in the target resources.
+// Finally it applies the merge patch in the normalized target resources. This is done to ensure
+// that target resources have the same ignored diff fields values from live ones to avoid them to
+// be applied in the cluster. Returns the list of normalized target resources.
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// normalize live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
@@ -282,21 +285,26 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 	}
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
-		if cr.reconciliationResult.Target[idx] == nil {
+		target := normalized.Targets[idx]
+		if target == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
-		// calculate patch between live and normalized resources
+		// calculate patch between normalized and live resources
 		patch, err := getMergePatch(normalized.Lives[idx], live)
 		if err != nil {
 			return nil, err
 		}
-		// apply patch in original target
-		patchedTarget, err := applyMergePatch(cr.reconciliationResult.Target[idx], patch)
-		if err != nil {
-			return nil, err
+		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
+		if patch != nil && len(patch) > 2 {
+			// apply patch in original target
+			target, err = applyMergePatch(target, patch)
+
+			if err != nil {
+				return nil, err
+			}
 		}
-		patchedTargets = append(patchedTargets, patchedTarget)
+		patchedTargets = append(patchedTargets, target)
 	}
 	return patchedTargets, nil
 }
