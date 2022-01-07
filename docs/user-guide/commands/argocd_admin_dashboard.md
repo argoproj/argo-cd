@@ -9,6 +9,7 @@ argocd admin dashboard [flags]
 ### Options
 
 ```
+      --address string                 Listen on given address (default "localhost")
       --as string                      Username to impersonate for the operation
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --certificate-authority string   Path to a cert file for the certificate authority
