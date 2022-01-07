@@ -32,7 +32,6 @@ Announcing parameters allows CMPs to provide a UI experience on par with native 
 This is where to call out areas of the design that require closure before deciding to implement the
 design.
 
-
 ## Summary
 
 Config Management Plugins allow Argo CD administrators to define custom manifest generation tooling.
@@ -67,6 +66,8 @@ Parameterized CMPs must be:
     1. View and set parameters in the Argo CD Application UI
     2. See the parameters reflected in the Application manifest
     3. Easily read/modify the generated parameters in the manifest (they should be structured in a way that's easy to read)
+  * CMPs should be able to announce parameters with more helpful interfaces than a simple text field.
+    * For example, image parameters should be presented using the same helpful interface as the one in Kustomize applications.
 * Future-proof
   * Since the rich parameters UI is an important feature for config management tools, the parameter announcement schema 
     should be flexible enough to announce new _types_ of parameters so the UI can customize its presentation.
@@ -84,13 +85,11 @@ Parameterized CMPs must be:
 
 ### Non-Goals
 
-* Re-implementing other config management tools as CMPs (Kustomize, Jsonnet)
+* Re-implementing config management tools as CMPs (besides Helm)
 
 ## Proposal
 
 ### Use cases
-
-Add a list of detailed use cases this enhancement intends to take care of.
 
 ## Use case 1:
 
@@ -107,7 +106,7 @@ repo, I would like to be able to pass values to the Helm chart without having to
 (in other worse, they should show up in the Application UI just like with a native Helm Application). I also shouldn't 
 have to ask my Argo CD admin to modify the CMP to accommodate the values as environment variables.
 
-### Implementation Details/Notes/Constraints 
+### Implementation Details/Notes/Constraints
 
 #### Terms
 
@@ -117,6 +116,80 @@ have to ask my Argo CD admin to modify the CMP to accommodate the values as envi
   parameterized if either of these is true:
   1. its configuration includes the sections consumed by the default CMP server to generate parameter announcements
   2. it is a fully customized CMP server which implements an endpoint to generate parameter announcements
+
+#### Parameter announcement / parameters serialization format
+
+Parameter announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
+(native JSON libraries, StackOverflow answers about jq, etc.).
+
+Parameters should be set in the manifest as a map of section names to parameter name/value pairs. YAML is used because
+it's easy to read/manipulate in an editor when modifying an Application manifest.
+
+```yaml
+plugin:
+  parameters:
+    main:
+      - name: values-files
+        value: '["values.yaml"]'
+    Helm Parameters:
+      - name: image
+        values: some.repo:tag
+```
+
+Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
+JSON might be a surpising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
+sense because 1) it's used for parameter announcements (consistency is good) and 2) JSON tooling is better.
+
+#### Parameter announcement list schema
+
+The top level is a JSON list. Each item is an object with following schema:
+
+* `name` (string, required): The name of the parameter.
+* `type` (string, default is `string`): The type of the parameter. Determines the schema of `description` and how the UI
+  presents this parameter.
+* `description` (string, default is `{}`): A stringified JSON object containing information about how the UI should 
+  present the parameter.
+* `section` (string, default is `main`): The name of the group of parameters in which this parameter belongs. `main` 
+  parameters will be presented at the top of the UI. Other parameters will be grouped by section, and the sections will
+  be displayed in alphabetical order after the main section.
+
+Example:
+
+```json
+[
+  {
+    "name": "values-files",
+    "type": "enum",
+    "description": "{\"values\": [\"values.yaml\"]}"
+  },
+  {
+    "name": "image",
+    "type": "image",
+    "section": "Helm Parameters"
+  }
+]
+```
+
+#### Parameter list schema
+
+The top level is a JSON object. Each key is the name of a parameter "section". Each value of the top-level JSON object
+is a JSON list of objects representing parameter values. Each parameter value has the following schema:
+
+* `name` (string): The name of the parameter.
+* `value` (string): The value of the parameter.
+
+Example:
+
+```json
+{
+  "main": [
+    {"name": "values-files", "value": "values.yaml"}
+  ],
+  "Helm Parameters": [
+    {"name": "image", "value": "some.repo:tag"}
+  ]
+}
+```
 
 ### Detailed examples
 
