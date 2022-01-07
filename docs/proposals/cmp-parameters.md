@@ -145,9 +145,9 @@ sense because 1) it's used for parameter announcements (consistency is good) and
 The top level is a JSON list. Each item is an object with following schema:
 
 * `name` (string, required): The name of the parameter.
-* `type` (string, default is `string`): The type of the parameter. Determines the schema of `metadata` and how the UI
+* `type` (string, default is `string`): The type of the parameter. Determines the schema of `uiConfig` and how the UI
   presents this parameter.
-* `metadata` (string, default is `{}`): A stringified JSON object containing information about how the UI should 
+* `uiConfig` (string, default is `{}`): A stringified JSON object containing information about how the UI should 
   present the parameter.
 * `section` (string, default is `main`): The name of the group of parameters in which this parameter belongs. `main` 
   parameters will be presented at the top of the UI. Other parameters will be grouped by section, and the sections will
@@ -160,7 +160,7 @@ Example:
   {
     "name": "values-files",
     "type": "enum",
-    "metadata": "{\"values\": [\"values.yaml\"]}"
+    "uiConfig": "{\"values\": [\"values.yaml\"]}"
   },
   {
     "name": "image",
