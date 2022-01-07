@@ -233,6 +233,7 @@ spec:
       - sh
       - -c
       - |
+        # Pull one parameter value from the "main" section of the given parameters.
         CM_NAME_SUFFIX=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
         cat << EOM
         {
