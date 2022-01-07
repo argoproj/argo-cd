@@ -113,6 +113,8 @@ have to ask my Argo CD admin to modify the CMP to accommodate the values as envi
 * **Parameter definition**: an instance of a data structure which describes an individual parameter that may be applied
   to a specific Application. (See the [schema](#parameter-definition-schema) below.)
 * **Parameters announcement**: a list of parameter definitions. (See the [schema](#parameters-announcement-schema) below.)
+
+  "Parameters" is plural because each "announcement" will be a list of multiple parameter definitions.
 * **Parameterized CMP**: a CMP which supports rich parameters (i.e. more than environment variables). A CMP is
   parameterized if either of these is true:
   1. its configuration includes the sections consumed by the default CMP server to generate parameters announcements
