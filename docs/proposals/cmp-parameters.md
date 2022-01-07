@@ -191,6 +191,12 @@ Example:
 }
 ```
 
+When the CMP receives parameters, they should be in JSON. But the parameters should be represented as YAML in the 
+Application manifest.
+
+**Note:** I'm not sure whether CRDs allow Map<string, list> types. If not, we should consider flattening the schema to
+a list of objects, each object having a `section` field.
+
 ### Detailed examples
 
 #### Example 1: trivial parameterized CMP
