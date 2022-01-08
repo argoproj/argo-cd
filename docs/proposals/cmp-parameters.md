@@ -91,13 +91,13 @@ Parameterized CMPs must be:
 
 ### Use cases
 
-## Use case 1:
+#### Use case 1:
 
 As an Argo CD developer, I would like to be able to build Argo CD without including the Helm SDK as a dependency.
 
 The Helm SDK includes the Kubernetes code base. That's a lot of code, and it will make builds unacceptably slow.
 
-## Use case 2:
+#### Use case 2:
 
 As an Argo CD user, I would like to be able to parameterize manifests built by a CMP.
 
