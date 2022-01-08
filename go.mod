@@ -94,6 +94,8 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/sathieu/gitops-engine v0.4.1-0.20220108164648-711967650f3c
+
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 

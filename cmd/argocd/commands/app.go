@@ -1295,6 +1295,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		strategy                string
 		force                   bool
 		replace                 bool
+		serverSide              bool
 		async                   bool
 		retryLimit              int64
 		retryBackoffDuration    time.Duration
@@ -1411,6 +1412,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if replace {
 						items = append(items, common.SyncOptionReplace)
 					}
+					if serverSide {
+						items = append(items, common.SyncOptionServerSide)
+					}
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
@@ -1488,6 +1492,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
+	command.Flags().BoolVar(&serverSide, "server-side", false, "Use a kubectl server-side instead of client-side")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
