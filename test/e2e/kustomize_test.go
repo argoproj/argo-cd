@@ -32,7 +32,7 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
@@ -69,7 +69,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 	Given(t).
 		Path("kustomize-cm-gen").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -120,7 +120,7 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path(fixture.LocalOrRemotePath("ssh-kustomize-base")).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -151,7 +151,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		}).
 		When().
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -170,7 +170,7 @@ func TestKustomizeImages(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		// pass two flags to check the multi flag logic works
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
@@ -184,7 +184,7 @@ func TestKustomizeNameSuffix(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
@@ -197,7 +197,7 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {

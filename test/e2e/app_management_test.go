@@ -57,7 +57,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
@@ -73,7 +73,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
@@ -91,7 +91,7 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -105,7 +105,7 @@ func TestAppCreation(t *testing.T) {
 	ctx.
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
@@ -124,7 +124,7 @@ func TestAppCreation(t *testing.T) {
 		}).
 		When().
 		// ensure that create is idempotent
-		Create().
+		CreateApp().
 		Then().
 		Given().
 		Revision("master").
@@ -134,7 +134,7 @@ func TestAppCreation(t *testing.T) {
 			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
 				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
-		Create("--upsert").
+		CreateApp("--upsert").
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
@@ -149,7 +149,7 @@ func TestDeleteAppResource(t *testing.T) {
 	ctx.
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -174,7 +174,7 @@ func TestImmutableChange(t *testing.T) {
 	Given(t).
 		Path("service").
 		When().
-		Create().
+		CreateApp().
 		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
 		Sync().
 		Then().
@@ -217,7 +217,7 @@ func TestInvalidAppProject(t *testing.T) {
 		Project("does-not-exist").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Error("", "application references project does-not-exist which does not exist"))
 }
@@ -226,7 +226,7 @@ func TestAppDeletion(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
@@ -244,7 +244,7 @@ func TestAppLabels(t *testing.T) {
 	Given(t).
 		Path("config-map").
 		When().
-		Create("-l", "foo=bar").
+		CreateApp("-l", "foo=bar").
 		Then().
 		And(func(app *Application) {
 			assert.Contains(t, FailOnErr(RunCli("app", "list")), Name())
@@ -270,7 +270,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -288,7 +288,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -336,7 +336,7 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		DestServer("https://not-registered-cluster/api").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
 		Expect(DoesNotExist())
 }
@@ -345,7 +345,7 @@ func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		IgnoreErrors().
 		AppSet("--path", "garbage").
 		Then().
@@ -356,7 +356,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -426,7 +426,7 @@ func TestAppWithSecrets(t *testing.T) {
 	Given(t).
 		Path("secrets").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -516,7 +516,7 @@ func TestResourceDiffing(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -559,7 +559,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 
 	Given(t).
 		Path("crd-creation").
-		When().Create().Sync().Then().
+		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		And(func() {
@@ -608,7 +608,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect := Given(t).
 		Path(appPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -634,7 +634,7 @@ func TestKsonnetApp(t *testing.T) {
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
 		DestServer("").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -669,7 +669,7 @@ func TestResourceAction(t *testing.T) {
 		Path(guestbookPath).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -710,7 +710,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -728,7 +728,7 @@ func TestLocalManifestSync(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -765,7 +765,7 @@ func TestLocalSync(t *testing.T) {
 		// we've got to use Helm as this uses kubeVersion
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		And(func(app *Application) {
 			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
@@ -776,7 +776,7 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -792,7 +792,7 @@ func TestLocalSyncDryRunWithAutosyncEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
@@ -813,7 +813,7 @@ func TestSyncAsync(t *testing.T) {
 		Path(guestbookPath).
 		Async(true).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -902,7 +902,7 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -939,7 +939,7 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Error("", "is not permitted in project"))
 
@@ -951,7 +951,7 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -978,7 +978,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 	Given(t).
 		Path("crd-validation").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Success("")).
 		When().
@@ -1002,7 +1002,7 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/compare-options": "IgnoreExtraneous"}}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -1034,7 +1034,7 @@ func TestSelfManagedApps(t *testing.T) {
 		Path("self-managed-app").
 		When().
 		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, RepoURL(RepoURLTypeFile))).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -1068,7 +1068,7 @@ func TestExcludedResource(t *testing.T) {
 			ResourceExclusions: []settings.FilteredResource{{Kinds: []string{kube.DeploymentKind}}},
 		}).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -1079,7 +1079,7 @@ func TestRevisionHistoryLimit(t *testing.T) {
 	Given(t).
 		Path("config-map").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -1108,7 +1108,7 @@ func TestOrphanedResource(t *testing.T) {
 		}).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1250,7 +1250,7 @@ func TestNotPermittedResources(t *testing.T) {
 		}).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
@@ -1283,7 +1283,7 @@ func TestSyncWithInfos(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name,
@@ -1367,7 +1367,7 @@ func TestListResource(t *testing.T) {
 		}).
 		Path(guestbookPath).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1432,7 +1432,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Timeout(30).
 		Path("guestbook").
 		When().
-		Create("--sync-option", "CreateNamespace=true").
+		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
 		And(func(app *Application) {
 			//Make sure the namespace we are about to update to does not exist
@@ -1468,7 +1468,7 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
 		// make hook fail
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
-		Create().
+		CreateApp().
 		IgnoreErrors().
 		Sync("--retry-limit=1", "--retry-backoff-duration=1s").
 		Then().
@@ -1480,7 +1480,7 @@ func TestCreateDisableValidation(t *testing.T) {
 	Given(t).
 		Path("baddir").
 		When().
-		Create("--validate=false").
+		CreateApp("--validate=false").
 		Then().
 		And(func(app *Application) {
 			_, err := RunCli("app", "create", app.Name, "--upsert", "--validate=false", "--repo", RepoURL(RepoURLTypeFile),
@@ -1566,7 +1566,7 @@ definitions:
 				},
 			})
 		}).
-		When().Create().Sync().Then().
+		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1616,7 +1616,7 @@ func TestAppLogs(t *testing.T) {
 	Given(t).
 		Path("guestbook-logs").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
@@ -1652,7 +1652,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Async(true).
 		Path("hook-and-deployment").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		// stuck in running state
@@ -1669,7 +1669,7 @@ func TestSyncOptionReplace(t *testing.T) {
 		Path("config-map").
 		When().
 		PatchFile("config-map.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Replace=true"}}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1690,7 +1690,7 @@ func TestSyncOptionReplaceFromCLI(t *testing.T) {
 		Path("config-map").
 		Replace().
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1711,7 +1711,7 @@ func TestDiscoverNewCommit(t *testing.T) {
 	Given(t).
 		Path("config-map").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
