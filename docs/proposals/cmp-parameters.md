@@ -47,8 +47,23 @@ that it expects an image parameter, and the UI would build the appropriate input
 
 ## Motivation
 
-This section is for explicitly listing the motivation, goals and non-goals of this proposal.
-Describe why the change is important and the benefits to users.
+### 1. CMPs are under-utilized
+
+CMPs, especially the sidecar type, are under-utilized. Making them more robust will increase adoption. Increased
+adoption will help us find bugs and then make CMPs more robust. In other words, we need to reach a critical mass of 
+CMP users.
+
+More robust CMPs will make it easier to start supporting tools like [Tanka](https://tanka.dev/).
+
+### 2. Decisions about config management tools are limited by the core code
+
+For example, there's a [Helm bug](https://github.com/argoproj/argo-cd/issues/7291) affecting Argo CD users. The fix 
+would involve importing the Helm SDK (a very large dependency) into Argo CD. 
+
+### 3. Ksonnet is deprecated, and CMPs are a good place to maintain support
+
+Offloading Ksonnet to a plugin would allow us to support existing users without maintaining Ksonnet code in the more
+actively-developed base. But we need CMP parameters to provide Ksonnet support on-par with native support.
 
 ### Goals
 
@@ -85,7 +100,8 @@ Parameterized CMPs must be:
 
 ### Non-Goals
 
-* Re-implementing config management tools as CMPs (besides Helm)
+We should not:
+* Re-implement config management tools as CMPs (besides Helm)
 
 ## Proposal
 
@@ -103,7 +119,7 @@ As an Argo CD user, I would like to be able to parameterize manifests built by a
 
 For example, if the Argo CD administrator has installed a CMP which applies a last-mile kustomize overlay to a Helm
 repo, I would like to be able to pass values to the Helm chart without having to manually discover those parameter names
-(in other worse, they should show up in the Application UI just like with a native Helm Application). I also shouldn't 
+(in other words, they should show up in the Application UI just like with a native Helm Application). I also shouldn't 
 have to ask my Argo CD admin to modify the CMP to accommodate the values as environment variables.
 
 ### Implementation Details/Notes/Constraints
@@ -126,7 +142,8 @@ Parameters announcements should be produced by the CMP as JSON. Use JSON instead
 (native JSON libraries, StackOverflow answers about jq, etc.).
 
 Parameters should be set in the manifest as a map of section names to parameter name/value pairs. YAML is used because
-it's easy to read/manipulate in an editor when modifying an Application manifest.
+it's easy to read/manipulate in an editor when modifying an Application manifest. We partition by section name so that
+the manifest, to the extent possible, is laid out similarly to the UI.
 
 ```yaml
 plugin:
@@ -138,6 +155,9 @@ plugin:
       - name: image
         values: some.repo:tag
 ```
+
+**Note:** I'm not sure whether CRDs allow Map<string, list> types. If not, we should consider flattening the schema to
+a list of objects, each object having a `section` field.
 
 Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
 JSON might be a surprising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
@@ -216,10 +236,7 @@ Example:
 ```
 
 When the CMP receives parameters, they should be in JSON. But the parameters should be represented as YAML in the 
-Application manifest.
-
-**Note:** I'm not sure whether CRDs allow Map<string, list> types. If not, we should consider flattening the schema to
-a list of objects, each object having a `section` field.
+Application manifest for better readability.
 
 ### Detailed examples
 
