@@ -607,15 +607,9 @@ func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository
 }
 
 func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
-	clusterList, err := db.ListClusters(ctx)
+	servers, err := db.GetClusterServersByName(ctx, clusterName)
 	if err != nil {
 		return "", err
-	}
-	var servers []string
-	for _, c := range clusterList.Items {
-		if c.Name == clusterName {
-			servers = append(servers, c.Server)
-		}
 	}
 	if len(servers) > 1 {
 		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)

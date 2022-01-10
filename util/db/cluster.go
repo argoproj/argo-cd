@@ -232,6 +232,34 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	return res, nil
 }
 
+func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]string, error) {
+	informer, err := db.settingsMgr.GetSecretsInformer()
+	if err != nil {
+		return nil, err
+	}
+
+	// if local cluster name is not overridden and specified name is local cluster name, return local cluster server
+	localClusterSecrets, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, appv1.KubernetesInternalAPIServerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name {
+		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
+	}
+
+	secrets, err := informer.GetIndexer().ByIndex(settings.ByClusterNameIndexer, name)
+	if err != nil {
+		return nil, err
+	}
+	var res []string
+	for i := range secrets {
+		s := secrets[i].(*apiv1.Secret)
+		res = append(res, strings.TrimRight(string(s.Data["server"]), "/"))
+	}
+	return res, nil
+}
+
 // UpdateCluster updates a cluster
 func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 	clusterSecret, err := db.getClusterSecret(c.Server)
