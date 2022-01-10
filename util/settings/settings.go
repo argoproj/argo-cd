@@ -168,6 +168,23 @@ var (
 		}
 		return nil, nil
 	}
+	ByClusterNameIndexer     = "byClusterName"
+	byClusterNameIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
+		if !ok {
+			return nil, nil
+		}
+		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+			return nil, nil
+		}
+		if s.Data == nil {
+			return nil, nil
+		}
+		if name, ok := s.Data["name"]; ok {
+			return []string{string(name)}, nil
+		}
+		return nil, nil
+	}
 	ByProjectClusterIndexer = "byProjectCluster"
 	ByProjectRepoIndexer    = "byProjectRepo"
 	byProjectIndexerFunc    = func(secretType string) func(obj interface{}) ([]string, error) {
@@ -1052,6 +1069,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
 		ByClusterURLIndexer:     byClusterURLIndexerFunc,
+		ByClusterNameIndexer:    byClusterNameIndexerFunc,
 		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 	}
