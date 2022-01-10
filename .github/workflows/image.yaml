@@ -54,7 +54,6 @@ jobs:
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
-            -t argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
 
