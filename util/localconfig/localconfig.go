@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )

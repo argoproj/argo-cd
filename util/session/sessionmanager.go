@@ -14,7 +14,7 @@ import (
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -199,7 +199,7 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	// workaround for https://github.com/argoproj/argo-cd/issues/5217
 	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
 	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
-	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
+	// The https://github.com/golang-jwt/jwt marshals time as non integer.
 	return token.SignedString(settings.ServerSignature, jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
 		if std, ok := v.(jwt.StandardClaims); ok {
 			return json.Marshal(standardClaims{
