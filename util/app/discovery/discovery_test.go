@@ -7,7 +7,7 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	apps, err := Discover("./testdata")
+	apps, err := Discover("./testdata", 0)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"foo": "Kustomize",
@@ -17,19 +17,19 @@ func TestDiscover(t *testing.T) {
 }
 
 func TestAppType(t *testing.T) {
-	appType, err := AppType("./testdata/foo")
+	appType, err := AppType("./testdata/foo", 0)
 	assert.NoError(t, err)
 	assert.Equal(t, "Kustomize", appType)
 
-	appType, err = AppType("./testdata/bar")
+	appType, err = AppType("./testdata/bar", 0)
 	assert.NoError(t, err)
 	assert.Equal(t, "Ksonnet", appType)
 
-	appType, err = AppType("./testdata/baz")
+	appType, err = AppType("./testdata/baz", 0)
 	assert.NoError(t, err)
 	assert.Equal(t, "Helm", appType)
 
-	appType, err = AppType("./testdata")
+	appType, err = AppType("./testdata", 0)
 	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 }

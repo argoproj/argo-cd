@@ -759,9 +759,13 @@ func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelK
 	return objs
 }
 
+// getLocalObjectsString gets manifests based ona local directory.
 func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
 
+	// Pass cmpTimeoutSeconds=0 since this runs on the client's computer which won't have sidecar CMPs installed.
+	// https://github.com/argoproj/argo-cd/issues/8145
+	cmpTimeoutSeconds := 0
 	res, err := repository.GenerateManifests(local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
@@ -772,7 +776,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true)
+	}, true, cmpTimeoutSeconds)
 	errors.CheckError(err)
 
 	return res.Manifests

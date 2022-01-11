@@ -63,14 +63,15 @@ func getPauseGenerationOnFailureForRequests() int {
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit       int64
-		listenPort             int
-		metricsPort            int
-		cacheSrc               func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer    tls.ConfigCustomizer
-		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
-		redisClient            *redis.Client
-		disableTLS             bool
+		parallelismLimit         int64
+		listenPort               int
+		metricsPort              int
+		defaultCMPTimeoutSeconds int
+		cacheSrc                 func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer      tls.ConfigCustomizer
+		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
+		redisClient              *redis.Client
+		disableTLS               bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -97,6 +98,7 @@ func NewCommand() *cobra.Command {
 				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
 				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
+				DefaultCMPTimeoutSeconds:                     defaultCMPTimeoutSeconds,
 			})
 			errors.CheckError(err)
 
@@ -159,6 +161,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
+	command.Flags().IntVar(&defaultCMPTimeoutSeconds, "default-cmp-timeout-seconds", env.ParseNumFromEnv("ARGOCD_REPO_SERVER_DEFAULT_CMP_TIMEOUT_SECONDS", 5, 0, math.MaxInt32), "Default number of seconds to wait for a CMP to generate manifests")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)

@@ -84,6 +84,7 @@ type RepoServerInitConstants struct {
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int
+	DefaultCMPTimeoutSeconds                     int
 }
 
 // NewService returns a new instance of the Manifest service
@@ -154,7 +155,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(gitClient.Root())
+	apps, err := discovery.Discover(gitClient.Root(), s.initConstants.DefaultCMPTimeoutSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +329,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	var manifestGenResult *apiclient.ManifestResponse
 	ctx, err := ctxSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false)
+		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false, s.initConstants.DefaultCMPTimeoutSeconds)
 	}
 	if err != nil {
 
@@ -729,12 +730,12 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, cmpTimeoutSeconds int) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
+	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName, cmpTimeoutSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -762,7 +763,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		} else {
 			var cmpManifests []string
 			var cmpErr error
-			cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+			cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds(), cmpTimeoutSeconds)
 			if cmpErr == nil {
 				return &apiclient.ManifestResponse{
 					Manifests:  cmpManifests,
@@ -900,7 +901,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string, cmpTimeoutSeconds int) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -913,7 +914,7 @@ func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) 
 	if appSourceType != nil {
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(path)
+	appType, err := discovery.AppType(path, cmpTimeoutSeconds)
 	if err != nil {
 		return "", err
 	}
@@ -1197,9 +1198,9 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	}
 	return env, nil
 }
-func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, cmpTimeoutSeconds int) ([]string, error) {
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(appPath, cmpTimeoutSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -1255,7 +1256,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(q.Source, ctx.appPath, q.AppName)
+		appSourceType, err := GetAppSourceType(q.Source, ctx.appPath, q.AppName, s.initConstants.DefaultCMPTimeoutSeconds)
 		if err != nil {
 			return err
 		}
