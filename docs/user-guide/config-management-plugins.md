@@ -205,3 +205,9 @@ spec:
         - name: FOO
           value: bar
 ```
+
+If you don't need to set any environment variables, you can set an empty plugin section.
+
+```yaml
+    plugin: {}
+```
