@@ -27,8 +27,10 @@ type ArgoDB interface {
 		handleAddEvent func(cluster *appv1.Cluster),
 		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error
-	// GetCluster get returns a cluster by given server url
+	// GetCluster returns a cluster by given server url
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
+	// GetClusterServersByName returns a cluster server urls by given cluster name
+	GetClusterServersByName(ctx context.Context, name string) ([]string, error)
 	// GetProjectClusters return project scoped clusters by given project name
 	GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error)
 	// UpdateCluster updates a cluster

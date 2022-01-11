@@ -121,7 +121,6 @@ PATH:=$(PATH):$(PWD)/hack
 # docker image publishing options
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
-IMAGE_PLATFORMS?=linux/amd64
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -282,7 +281,7 @@ image:
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	docker buildx build --platform $(IMAGE_PLATFORMS) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
+	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
