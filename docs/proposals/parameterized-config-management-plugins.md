@@ -1,5 +1,5 @@
 ---
-title: Config-Management-Plugin-Parameters
+title: Parameterized-Config-Management-Plugins
 
 authors:
 - "@alexmt"
@@ -21,11 +21,11 @@ last-updated: 2022-01-05
 
 ---
 
-# Config Management Plugin Parameters
+# Parameterized Config Management Plugins
 
-CMP Parameters defines a way for plugins to "announce" and then consume acceptable parameters for an Application.
-Announcing parameters allows CMPs to provide a UI experience on par with native config management tools 
-(Helm, Kustomize, etc.).
+Config Management Plugin (CMP) parameterization defines a way for plugins to "announce" and then consume acceptable 
+parameters for an Application. Announcing parameters allows CMPs to provide a UI experience on par with native config 
+management tools (Helm, Kustomize, etc.).
 
 ## Open Questions [optional]
 
@@ -93,10 +93,13 @@ Parameterized CMPs must be:
     mechanism in a later release.
 * Proven with a rich demonstration
   * The initial release of this feature should include a CMP implementation of the Helm config tool. This will
-    1) Serve as a rich example for others CMP developers to mimic
-    2) Allow us to decouple the Helm config management release cycle from the Argo release cycle
-    3) Allow us to work around [this bug](https://github.com/argoproj/argo-cd/issues/7291) without including the Helm 
+    1. Serve as a rich example for others CMP developers to mimic
+    2. Allow us to decouple the Helm config management release cycle from the Argo release cycle
+    3. Allow us to work around [this bug](https://github.com/argoproj/argo-cd/issues/7291) without including the Helm 
        SDK in the core Argo CD code
+  * The Helm CMP must be on-par with the native implementation.
+    1. It must present an equivalent parameters UI.
+    2. It must communicate errors back to the repo-server (and then the UI) the same as the native implementation.
 
 ### Non-Goals
 
@@ -123,6 +126,14 @@ repo, I would like to be able to pass values to the Helm chart without having to
 have to ask my Argo CD admin to modify the CMP to accommodate the values as environment variables.
 
 ### Implementation Details/Notes/Constraints
+
+#### Prerequisites
+
+Since this proposal is designed to increase CMP adoption, we need to make sure there aren't any bugs that make CMPs
+less robust than native tools.
+
+Bugs to fix:
+1. [#8145](https://github.com/argoproj/argo-cd/issues/8145) - `argocd app sync/diff --local` doesn't account for sidecar CMPs
 
 #### Terms
 
