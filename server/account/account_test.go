@@ -87,16 +87,16 @@ func adminContext(ctx context.Context) context.Context {
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
-		IssuedAt: jwt.At(iat),
+		IssuedAt: jwt.NewNumericDate(iat),
 	})
 }
 
 func projTokenContext(ctx context.Context) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
 		Subject: "proj:demo:deployer",
 		Issuer:  sessionutil.SessionManagerClaimsIssuer,
 	})

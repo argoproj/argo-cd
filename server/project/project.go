@@ -109,10 +109,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	claims := jwt.StandardClaims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.RegisteredClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

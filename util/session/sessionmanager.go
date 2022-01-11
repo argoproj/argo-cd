@@ -171,16 +171,6 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	return mgr.signClaims(claims)
 }
 
-type standardClaims struct {
-	Audience  jwt.ClaimStrings `json:"aud,omitempty"`
-	ExpiresAt int64            `json:"exp,omitempty"`
-	ID        string           `json:"jti,omitempty"`
-	IssuedAt  int64            `json:"iat,omitempty"`
-	Issuer    string           `json:"iss,omitempty"`
-	NotBefore int64            `json:"nbf,omitempty"`
-	Subject   string           `json:"sub,omitempty"`
-}
-
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
