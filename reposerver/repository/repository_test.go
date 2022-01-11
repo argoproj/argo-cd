@@ -1596,10 +1596,38 @@ func TestResolveRevision(t *testing.T) {
 	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
-		AmbiguousRevision: "HEAD",
+		AmbiguousRevision: "v2.2.2",
 	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
+		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
 	assert.Nil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
+
+}
+
+func TestResolveRevisionNegativeScenarios(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "v2.a.2",
+	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "",
+		AmbiguousRevision: "",
+	}
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
 
 }

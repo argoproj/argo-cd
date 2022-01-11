@@ -1646,6 +1646,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	return apiResp, nil
 }
 
+// ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
 func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
 
 	repo := q.Repo
@@ -1679,13 +1680,6 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
 		}, nil
 	} else {
-		if git.IsCommitSHA(ambiguousRevision) {
-			// If it's already a commit SHA, then no need to look it up
-			return &apiclient.ResolveRevisionResponse{
-				Revision:          ambiguousRevision,
-				AmbiguousRevision: ambiguousRevision,
-			}, nil
-		}
 		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
