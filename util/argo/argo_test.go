@@ -604,14 +604,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
-			Items: []argoappv1.Cluster{
-				{
-					Name:   "dind",
-					Server: "https://127.0.0.1:6443",
-				},
-			},
-		}, nil)
+		db.On("GetClusterServersByName", context.Background(), "does-not-exist").Return(nil, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -677,9 +670,7 @@ func TestValidatePermissions(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("ListClusters", context.Background()).Return(&argoappv1.ClusterList{
-			Items: []argoappv1.Cluster{cluster},
-		}, nil)
+		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
 		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
