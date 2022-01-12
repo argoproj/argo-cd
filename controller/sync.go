@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -285,28 +286,85 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 	}
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
-		target := normalized.Targets[idx]
-		if target == nil {
+		normalizedTarget := normalized.Targets[idx]
+		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
-		// calculate patch between normalized and live resources
-		patch, err := getMergePatch(normalized.Lives[idx], live)
+		// calculate targetPatch between normalized and target resources
+		targetPatch, err := getMergePatch(normalizedTarget, cr.reconciliationResult.Target[idx])
 		if err != nil {
 			return nil, err
 		}
-		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
-		if len(patch) > 2 {
-			// apply patch in normalized target
-			target, err = applyMergePatch(target, patch)
 
+		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
+		if len(targetPatch) > 2 {
+			livePatch, err := getMergePatch(normalized.Lives[idx], live)
 			if err != nil {
 				return nil, err
 			}
+			patch, err := compilePatch(targetPatch, livePatch)
+			if err != nil {
+				return nil, err
+			}
+			normalizedTarget, err = applyMergePatch(normalizedTarget, patch)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			normalizedTarget = cr.reconciliationResult.Target[idx]
 		}
-		patchedTargets = append(patchedTargets, target)
+		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 	return patchedTargets, nil
+}
+
+func compilePatch(targetPatch, livePatch []byte) ([]byte, error) {
+	targetMap := make(map[string]interface{})
+	err := json.Unmarshal(targetPatch, &targetMap)
+	if err != nil {
+		return nil, err
+	}
+	liveMap := make(map[string]interface{})
+	err = json.Unmarshal(livePatch, &liveMap)
+	if err != nil {
+		return nil, err
+	}
+	resultMap := intersectMap(targetMap, liveMap)
+	return json.Marshal(resultMap)
+}
+
+func intersectMap(templateMap, valueMap map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range templateMap {
+		if innerTMap, ok := v.(map[string]interface{}); ok {
+			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
+				result[k] = intersectMap(innerTMap, innerVMap)
+			}
+		} else if innerTSlice, ok := v.([]interface{}); ok {
+			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
+				items := []interface{}{}
+				for idx, innerTSliceValue := range innerTSlice {
+					if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+						if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
+							item := intersectMap(tSliceValueMap, vSliceValueMap)
+							items = append(items, item)
+						}
+					} else {
+						items = append(items, innerVSlice[idx])
+					}
+				}
+				if len(items) > 0 {
+					result[k] = items
+				}
+			}
+		} else {
+			if _, ok := valueMap[k]; ok {
+				result[k] = valueMap[k]
+			}
+		}
+	}
+	return result
 }
 
 // getMergePatch calculates and returns the patch between the original and the

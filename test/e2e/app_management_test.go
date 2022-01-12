@@ -37,6 +37,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -547,6 +548,60 @@ func TestResourceDiffing(t *testing.T) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
+		}).
+		Given().
+		When().
+		And(func() {
+			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "serverside-applied")
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Given().
+		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
+			IgnoreDifferences: OverrideIgnoreDiff{
+				ManagedFieldsManagers: []string{"revision-history-manager"},
+				JSONPointers:          []string{"/spec/template/spec/containers/0/image"},
+			},
+		}}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		When().
+		Sync().
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["RespectIgnoreDifferences=true"] }
+			}]`).
+		And(func() {
+			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			assert.NoError(t, err)
+			assert.Equal(t, int32(3), *deployment.Spec.RevisionHistoryLimit)
+		}).
+		And(func() {
+			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
+			assert.NoError(t, err)
+			assert.Contains(t, output, "serverside-applied")
+		}).
+		Then().
+		When().Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			assert.NoError(t, err)
+			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
+		}).
+		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			assert.NoError(t, err)
+			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		})
 }
 
