@@ -246,15 +246,46 @@ func (l *LocalConfig) IsEmpty() bool {
 
 // DefaultConfigDir returns the local configuration path for settings such as cached authentication tokens.
 func DefaultConfigDir() (string, error) {
+	// Manually defined config directory
+	configDir := os.Getenv("ARGOCD_CONFIG_DIR")
+	if configDir != "" {
+		return configDir, nil
+	}
+
+	homeDir, err := getHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Legacy config directory
+	// Use it if it already exists
+	legacyConfigDir := path.Join(homeDir, ".argocd")
+
+	if _, err := os.Stat(legacyConfigDir); err == nil {
+		return legacyConfigDir, nil
+	}
+
+	// Manually configured XDG config home
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return path.Join(xdgConfigHome, "argocd"), nil
+	}
+
+	// XDG config home fallback
+	return path.Join(homeDir, ".config", "argocd"), nil
+}
+
+func getHomeDir() (string, error) {
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {
 		usr, err := user.Current()
 		if err != nil {
 			return "", err
 		}
+
 		homeDir = usr.HomeDir
 	}
-	return path.Join(homeDir, ".argocd"), nil
+
+	return homeDir, nil
 }
 
 // DefaultLocalConfigPath returns the local configuration path for settings such as cached authentication tokens.
