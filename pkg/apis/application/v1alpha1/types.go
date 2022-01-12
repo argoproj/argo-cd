@@ -141,7 +141,12 @@ func (e Env) Envsubst(s string) string {
 		valByEnv[item.Name] = item.Value
 	}
 	return os.Expand(s, func(s string) string {
-		return valByEnv[s]
+		// allow escaping $ with $$
+		if s == "$" {
+			return "$"
+		} else {
+			return valByEnv[s]
+		}
 	})
 }
 
