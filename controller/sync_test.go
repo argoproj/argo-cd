@@ -322,4 +322,29 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, int64(4), replicas)
 	})
+	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
+		t.Skip("limitation in the current implementation")
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[] | select(.name == \"guestbook-ui\")"},
+			},
+		}
+		f := setup(t, ignores)
+		target := test.YamlToUnstructured(testdata.TargetDeploymentNewEntries)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 2, len(containers))
+	})
 }

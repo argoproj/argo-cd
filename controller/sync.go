@@ -303,6 +303,8 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			if err != nil {
 				return nil, err
 			}
+			// generate a minimal patch that uses the fields from targetPatch (template)
+			// with livePatch values
 			patch, err := compilePatch(targetPatch, livePatch)
 			if err != nil {
 				return nil, err
@@ -319,21 +321,25 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 	return patchedTargets, nil
 }
 
-func compilePatch(targetPatch, livePatch []byte) ([]byte, error) {
-	targetMap := make(map[string]interface{})
-	err := json.Unmarshal(targetPatch, &targetMap)
+// compilePatch will generate a patch using the fields from templatePatch with
+// the values from valuePatch.
+func compilePatch(templatePatch, valuePatch []byte) ([]byte, error) {
+	templateMap := make(map[string]interface{})
+	err := json.Unmarshal(templatePatch, &templateMap)
 	if err != nil {
 		return nil, err
 	}
-	liveMap := make(map[string]interface{})
-	err = json.Unmarshal(livePatch, &liveMap)
+	valueMap := make(map[string]interface{})
+	err = json.Unmarshal(valuePatch, &valueMap)
 	if err != nil {
 		return nil, err
 	}
-	resultMap := intersectMap(targetMap, liveMap)
+	resultMap := intersectMap(templateMap, valueMap)
 	return json.Marshal(resultMap)
 }
 
+// intersectMap will return map with the fields intersection from the 2 provided
+// maps populated with the valueMap values.
 func intersectMap(templateMap, valueMap map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range templateMap {
@@ -345,13 +351,15 @@ func intersectMap(templateMap, valueMap map[string]interface{}) map[string]inter
 			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
 				items := []interface{}{}
 				for idx, innerTSliceValue := range innerTSlice {
-					if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
-						if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
-							item := intersectMap(tSliceValueMap, vSliceValueMap)
-							items = append(items, item)
+					if idx < len(innerVSlice) {
+						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+							if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
+								item := intersectMap(tSliceValueMap, vSliceValueMap)
+								items = append(items, item)
+							}
+						} else {
+							items = append(items, innerVSlice[idx])
 						}
-					} else {
-						items = append(items, innerVSlice[idx])
 					}
 				}
 				if len(items) > 0 {

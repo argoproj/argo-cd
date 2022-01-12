@@ -8,4 +8,7 @@ var (
 
 	//go:embed target-deployment.yaml
 	TargetDeploymentYaml string
+
+	//go:embed target-deployment-new-entries.yaml
+	TargetDeploymentNewEntries string
 )
