@@ -27,6 +27,11 @@ spec:
         value: "true"
         forceString: true # ensures that value is treated as a string
 
+      # Use the contents of files as parameters (uses Helm's --set-file)
+      fileParameters:
+      - name: config
+        path: files/config.json
+
       # Release name override (defaults to application name)
       releaseName: guestbook
 
