@@ -71,8 +71,8 @@ that is.)
       vars. Is limiting the param namespace worth it for the usability win?
     * Option 2: Only translate to an env var if the param name happens to be in the safely-translatable
       namespace. For example, `set-file` becomes `SET_FILE`, but `omg!!!param` doesn't get translated to an env var.
-    * Option 3: Add an 'envVar' field to the [parameter definition schema](#parameter-definition-schema) to specify
-      a target env var (prefixed with `ARGOCD_PARAM_`.
+    * Option 3: Add an `envVar` field to the [parameter definition schema](#parameter-definition-schema) to specify
+      a target env var (prefixed with `ARGOCD_PARAM_`).
 * We could add a field to the  [parameter definition schema](#parameter-definition-schema) to indicate whether the 
   parameter is intended as an argument to the `generate.command` command. For example, if the `set-file` parameter's 
   `asArg` field is `true`, then we could pass `--set-file {value}` to `generate.command`.
