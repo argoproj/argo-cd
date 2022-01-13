@@ -193,3 +193,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
 1. [Skyscanner](https://www.skyscanner.net/)
 1. [Casavo](https://casavo.com)
+1. [Majid Al Futtaim](https://www.majidalfuttaim.com/)
