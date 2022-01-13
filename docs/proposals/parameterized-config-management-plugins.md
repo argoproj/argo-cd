@@ -44,7 +44,7 @@ management tools (Helm, Kustomize, etc.).
       - [Prerequisites](#prerequisites)
       - [Terms](#terms)
       - [CMP config schema](#cmp-config-schema)
-      - [Parameters announcement / parameters serialization format](#parameters-announcement--parameters-serialization-format)
+      - [Parameters manifest / parameters serialization format](#parameters-manifest--parameters-serialization-format)
       - [Parameter definition schema](#parameter-definition-schema)
       - [Parameters announcement schema](#parameters-announcement-schema)
       - [Parameter list schema](#parameter-list-schema)
@@ -59,10 +59,23 @@ management tools (Helm, Kustomize, etc.).
   * [Drawbacks](#drawbacks)
   * [Alternatives](#alternatives)
 
-## Open Questions [optional]
+## Open Questions
 
-This is where to call out areas of the design that require closure before deciding to implement the
-design.
+Is there a way to make it easier for the generate command to consume parameters? (Easier than parsing a JSON object, 
+that is.)
+* We could translate all parameters to env vars, like `ARGOCD_PARAM_{section}_{param name}`.
+  * Advantage: no need to pull the param from JSON.
+  * Disadvantage: we'd need an easy-to-predict and collision-resistant way to translate arbitrary parameter names
+    to env vars. 
+    * Option 1: Enforce some parameter name convention which allows a 1:1 translation to env
+      vars. Is limiting the param namespace worth it for the usability win?
+    * Option 2: Only translate to an env var if the param name happens to be in the safely-translatable
+      namespace. For example, `set-file` becomes `SET_FILE`, but `omg!!!param` doesn't get translated to an env var.
+    * Option 3: Add an 'envVar' field to the [parameter definition schema](#parameter-definition-schema) to specify
+      a target env var (prefixed with `ARGOCD_PARAM_`.
+* We could add a field to the  [parameter definition schema](#parameter-definition-schema) to indicate whether the 
+  parameter is intended as an argument to the `generate.command` command. For example, if the `set-file` parameter's 
+  `asArg` field is `true`, then we could pass `--set-file {value}` to `generate.command`.
 
 ## Summary
 
@@ -196,12 +209,17 @@ spec:
     fileName: "./subdir/s*.yaml"
   # NEW KEY
   parameters:
+    # The declarative announcement follows the parameters announcement schema. This is where a parameter description
+    # should go if it applies to all apps for this CMP.
+    announcement:
+      - name: example
+    # The (optional) generated announcement is combined with the declarative announcement (if present).
     command: ["example-params.sh"]
 ```
 
 The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
 `parameters.command` via an `ARGOCD_PARAMETERS` environment variable. The parameters will be encoded according to the 
-[parameters serialization format](#parameters-announcement--parameters-serialization-format) defined below.
+[parameters serialization format](#parameters-manifest--parameters-serialization-format) defined below.
 
 Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
 
@@ -213,7 +231,7 @@ plugin:
         value: '["chart-a", "chart-b"]'
 ```
 
-#### Parameters announcement / parameters serialization format
+#### Parameters manifest / parameters serialization format
 
 Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
 (native JSON libraries, StackOverflow answers about jq, etc.).
@@ -365,6 +383,7 @@ metadata:
 spec:
   version: v1.0
   generate:
+    
     command: [kustomize, build, ".", --enable-helm]
   discover:
     fileName: "./kustomization.yaml"
@@ -416,6 +435,10 @@ spec:
   discover:
     fileName: "./values.yaml"
   parameters:
+    announcement:
+      - name: values files
+      - name: values
+        uiConfig: '{"multiline": true}'
     command: [/home/argocd/get-parameters.sh]
 
 ```
@@ -436,8 +459,7 @@ helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "
 
 ```shell
 # Pull params from values.yaml and then append the default ("main") parameters announcements.
-yq e -o=p values.yaml | jq -nR 'inputs | sub(" .*"; "") | {name: ., section: "Properties"}' |
-jq --slurp '[{"name": "values files", "uiConfig": "{\"multiline\": true}"}, {"name": "values"}] + .'
+yq e -o=p values.yaml | jq -nR '[inputs | sub(" .*"; "") | {name: ., section: "Properties"}]'
 ```
 
 ### Security Considerations
