@@ -287,38 +287,83 @@ spec:
         echo '[{"name": "cm-name-suffix"}]'
 ```
 
+#### Example 2: Helm parameters from Kustomize dependency
+
+**Plugin config**
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize-helm-proxy-cmp
+spec:
+  version: v1.0
+  generate:
+    command: [kustomize, build, ".", --enable-helm]
+  discover:
+    fileName: "./kustomization.yaml"
+  parameters:
+    command: ["get-parameters.sh"]
+```
+
+**get-parameters.sh**
+
+```shell
+kustomize build . --enable-helm > /dev/null
+
+get_parameters() {
+while read -r chart; do  
+  yq e -o=p "charts/$chart/values.yaml" | jq --arg chart "$chart" -nR 'inputs | sub(" .*"; "") | {name: ., section: "\($chart) Helm chart properties"}'
+done << EOF
+$(yq e '.helmCharts[].name' kustomization.yaml)
+EOF
+}
+
+get_parameters | jq --slurp
+```
+
+**Dockerfile**
+
+```dockerfile
+FROM ubuntu:20.04
+
+RUN apt install jq yq helm kustomize -y
+
+ADD get-parameters.sh /home/argocd/get-parameters.sh
+```
+
 ### Security Considerations
 
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?
+#### Increased scripting
+
+Our examples will have shell scripts, and users will write shell scripts. Scripts are difficult
+to write securely - this is especially true when the scripts are embedded in YAML, and developers don't get helpful 
+warnings from the IDE.
+
+Our docs should emphasize the importance of handling input carefully in any scripts (or other programs) which will be
+executed as part of CMPs.
+
+The docs should also warn against embedding large scripts in YAML and recommend plugin authors instead build custom
+images with the script invoked as its own file. The docs should also recommend taking advantage of IDE plugins as
+well as image and source code scanning tools in CI/CD.
 
 ### Risks and Mitigations
 
-What are the risks of this proposal and how do we mitigate. Think broadly.
+1. Risk: encouraging CMP adoption while missing critical features from native tools.
 
-For example, consider
-both security and how this will impact the larger Kubernetes ecosystem.
-
-Consider including folks that also work outside your immediate sub-project.
-
+   Mitigation: rewrite the Helm config management tool as a CMP and test as many common use cases as possible. Write a
+   document before starting on the Helm CMP documenting all majore features which must be tested.
 
 ### Upgrade / Downgrade Strategy
 
-If applicable, how will the component be upgraded and downgraded? Make sure this is in the test
-plan.
+Upgrading will only require using a new version of Argo CD and adding the `parameters` settings to the plugin config.
 
-Consider the following in developing an upgrade/downgrade strategy for this enhancement:
-
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to make use of the enhancement?
+Downgrading will only require using an older version of Argo CD. The `parameters` section of the plugin config will 
+simply be ignored.
 
 ## Drawbacks
 
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
+Sidecar CMPs aren't really battle-tested. If there are major issues we've missed, then moving more users towards CMPs
+could involve a lot of growing pains.
 
 ## Alternatives
-
-Similar to the `Drawbacks` section the `Alternatives` section is used to highlight and record other
-possible approaches to delivering the value proposed by an enhancement.
