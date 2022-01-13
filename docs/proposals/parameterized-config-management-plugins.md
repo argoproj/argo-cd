@@ -167,6 +167,20 @@ spec:
     command: ["example-params.sh"]
 ```
 
+The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
+`parameters.command` via an `ARGOCD_PARAMETERS` environment variable. The parameters will be encoded according to the 
+[parameters serialization format](#parameters-announcement--parameters-serialization-format) defined below.
+
+Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
+
+```yaml
+plugin:
+  parameters:
+    main:
+      - name: ignore-helm-charts
+        value: '["chart-a", "chart-b"]'
+```
+
 #### Parameters announcement / parameters serialization format
 
 Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
