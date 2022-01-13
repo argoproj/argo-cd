@@ -147,6 +147,26 @@ Bugs to fix:
   1. its configuration includes the sections consumed by the default CMP server to generate parameters announcements
   2. it is a fully customized CMP server which implements an endpoint to generate parameters announcements
 
+#### CMP config schema
+
+This proposal adds a new `parameters` key to the ConfigManagementPlugin config spec.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-plugin
+spec:
+  version: v1.0
+  generate:
+    command: ["example.sh"]
+  discover:
+    fileName: "./subdir/s*.yaml"
+  # NEW KEY
+  parameters:
+    command: ["example-params.sh"]
+```
+
 #### Parameters announcement / parameters serialization format
 
 Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
