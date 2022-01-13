@@ -71,7 +71,7 @@ type comparisonResult struct {
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
-	diffNormalizer       diff.Normalizer
+	diffConfig           argodiff.DiffConfig
 	appSourceType        v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
 	timings        map[string]time.Duration
@@ -251,24 +251,22 @@ func DeduplicateTargetObjects(
 	return result, conditions, nil
 }
 
-func (m *appStateManager) getComparisonSettings(app *appv1.Application) (string, map[string]v1alpha1.ResourceOverride, diff.Normalizer, *settings.ResourcesFilter, error) {
+// getComparisonSettings will return the system level settings related to the
+// diff/normalization process.
+func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, nil, err
+		return "", nil, nil, err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, nil, err
-	}
-	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, resourceOverrides)
-	if err != nil {
-		return "", nil, nil, nil, err
+		return "", nil, nil, err
 	}
 	resFilter, err := m.settingsMgr.GetResourcesFilter()
 	if err != nil {
-		return "", nil, nil, nil, err
+		return "", nil, nil, err
 	}
-	return appLabelKey, resourceOverrides, diffNormalizer, resFilter, nil
+	return appLabelKey, resourceOverrides, resFilter, nil
 }
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
@@ -315,7 +313,7 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
 	ts := stats.NewTimingStats()
-	appLabelKey, resourceOverrides, diffNormalizer, resFilter, err := m.getComparisonSettings(app)
+	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
 	ts.AddCheckpoint("settings_ms")
 
@@ -577,7 +575,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		resources:            resourceSummaries,
 		managedResources:     managedResources,
 		reconciliationResult: reconciliation,
-		diffNormalizer:       diffNormalizer,
+		diffConfig:           diffConfig,
 		diffResultList:       diffResults,
 	}
 	if manifestInfo != nil {

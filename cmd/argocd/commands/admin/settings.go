@@ -406,6 +406,10 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 					return
 				}
 
+				// This normalizer won't verify 'managedFieldsManagers' ignore difference
+				// configurations. This requires access to live resources which is not the
+				// purpose of this command. This will just apply jsonPointers and
+				// jqPathExpressions configurations.
 				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
 				errors.CheckError(err)
 

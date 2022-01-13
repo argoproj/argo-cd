@@ -24,7 +24,7 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		Async(true).
 		Path("hook-custom-health").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		// stuck in running state
