@@ -27,6 +27,11 @@ spec:
         value: "true"
         forceString: true # ensures that value is treated as a string
 
+      # Use the contents of files as parameters (uses Helm's --set-file)
+      fileParameters:
+      - name: config
+        path: files/config.json
+
       # Release name override (defaults to application name)
       releaseName: guestbook
 
@@ -51,7 +56,7 @@ spec:
               hosts:
                 - mydomain.example.com
 
-      # Optional Helm version to template with. If omitted it will fallback to look at the 'apiVersion' in Chart.yaml
+      # Optional Helm version to template with. If omitted it will fall back to look at the 'apiVersion' in Chart.yaml
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.
       version: v2
 
@@ -85,6 +90,9 @@ spec:
 
     # plugin specific config
     plugin:
+      # Only set the plugin name if the plugin is defined in argocd-cm.
+      # If the plugin is defined as a sidecar, omit the name. The plugin will be automatically matched with the
+      # Application according to the plugin's discovery rules.
       name: mypluginname
       # environment variables passed to the plugin
       env:
@@ -115,9 +123,16 @@ spec:
         factor: 2 # a factor to multiply the base duration after each failed retry
         maxDuration: 3m # the maximum amount of time allowed for the backoff strategy
 
-  # Ignore differences at the specified json pointers
+  # Will ignore differences between live and desired states during the diff. Note that these configurations are not
+  # used during the sync process.
   ignoreDifferences:
+  # for the specified json pointers
   - group: apps
     kind: Deployment
     jsonPointers:
     - /spec/replicas
+  # for the specified managedFields managers
+  - group: "*"
+    kind: "*"
+    managedFieldsManagers:
+    - kube-controller-manager

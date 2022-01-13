@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 var (
@@ -46,7 +47,7 @@ type indexCache interface {
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string) (string, io.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
 	TestHelmOCI() (bool, error)
 }
@@ -59,17 +60,18 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:   repoURL,
 		creds:     creds,
 		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
 		repoLock:  repoLock,
 		enableOci: enableOci,
+		proxy:     proxy,
 	}
 	for i := range opts {
 		opts[i](c)
@@ -86,6 +88,7 @@ type nativeHelmChart struct {
 	repoLock   sync.KeyLock
 	enableOci  bool
 	indexCache indexCache
+	proxy      string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -114,14 +117,14 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(c.getCachedChartPath(chart, version))
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	err := c.ensureHelmChartRepoPath()
 	if err != nil {
 		return "", nil, err
 	}
 
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci, c.proxy)
 
 	if err != nil {
 		return "", nil, err
@@ -160,55 +163,40 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string) (string, io
 
 		if c.enableOci {
 			if c.creds.Password != "" && c.creds.Username != "" {
-				_, err = helmCmd.Login(c.repoURL, c.creds)
+				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
 					return "", nil, err
 				}
 
 				defer func() {
-					_, _ = helmCmd.Logout(c.repoURL, c.creds)
+					_, _ = helmCmd.RegistryLogout(c.repoURL, c.creds)
 				}()
 			}
 
-			// 'helm chart pull' ensures that chart is downloaded into local repository cache
-			_, err = helmCmd.ChartPull(c.repoURL, chart, version)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// 'helm chart export' copies cached chart into temp directory
-			_, err = helmCmd.ChartExport(c.repoURL, chart, version, tempDest)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// use downloaded chart content to produce tar file in expected cache location
-			cmd := exec.Command("tar", "-zcvf", cachedChartPath, normalizeChartName(chart))
-			cmd.Dir = tempDest
-			_, err = executil.Run(cmd)
+			// 'helm pull' ensures that chart is downloaded into temp directory
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest)
 			if err != nil {
 				return "", nil, err
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds)
-			if err != nil {
-				return "", nil, err
-			}
-
-			// 'helm fetch' file downloads chart into the tgz file and we move that to where we want it
-			infos, err := ioutil.ReadDir(tempDest)
-			if err != nil {
-				return "", nil, err
-			}
-			if len(infos) != 1 {
-				return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
-			}
-			err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
 				return "", nil, err
 			}
 		}
 
+		// 'helm pull/fetch' file downloads chart into the tgz file and we move that to where we want it
+		infos, err := ioutil.ReadDir(tempDest)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(infos) != 1 {
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		}
+		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	cmd := exec.Command("tar", "-zxvf", cachedChartPath)
@@ -268,7 +256,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
 	if err != nil {
 		return false, err
 	}
@@ -277,12 +265,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
 	if c.creds.Username != "" && c.creds.Password != "" {
-		_, err = helmCmd.Login(c.repoURL, c.creds)
+		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 		if err != nil {
 			return false, err
 		}
 		defer func() {
-			_, _ = helmCmd.Logout(c.repoURL, c.creds)
+			_, _ = helmCmd.RegistryLogout(c.repoURL, c.creds)
 		}()
 
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to test helm oci repository")
@@ -310,8 +298,9 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
+		Proxy:           proxy.GetCallback(c.proxy),
 		TLSClientConfig: tlsConf,
 	}
 	client := http.Client{Transport: tr}

@@ -38,7 +38,7 @@ and might fail. To avoid failed syncs use `ARGOCD_GIT_ATTEMPTS_COUNT` environmen
 
 * `argocd_git_request_total` - Number of git requests. The metric provides two tags: `repo` - Git repo URL; `request_type` - `ls-remote` or `fetch`.
 
-* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` (v1.8+) - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
+* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
 
 ### argocd-application-controller
 
@@ -60,7 +60,7 @@ number of allowed concurrent kubectl fork/execs.
 
 * The controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
-preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported than controller fallback to Kubernetes API query which slows down
+preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported then controller falls back to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
 * The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap.
@@ -86,7 +86,7 @@ spec:
           value: "2"
 ```
 
-* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM`  (v1.8+)- environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
+* `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issue. Note: metric is expensive to both query and store!
 
 **metrics**
 
@@ -119,7 +119,7 @@ If the manifest generation has no side effects then requests are processed in pa
   * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have conditional
 [dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
 
-  * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and and create `.argocd-allow-concurrency` file in app directory.
+  * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in app directory.
 
   * **Multiple Kustomize or Ksonnet applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 

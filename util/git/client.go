@@ -24,10 +24,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 type RevisionMetadata struct {
@@ -87,10 +91,15 @@ type nativeGitClient struct {
 	gitRefCache gitRefCache
 	// indicates if client allowed to load refs from cache
 	loadRefFromCache bool
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
 var (
 	maxAttemptsCount = 1
+	maxRetryDuration time.Duration
+	retryDuration    time.Duration
+	factor           int64
 )
 
 func init() {
@@ -101,6 +110,11 @@ func init() {
 			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
 	}
+
+	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
+	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
+	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -120,22 +134,23 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, opts...)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
+		proxy:     proxy,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -151,7 +166,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
 		// 15 second timeout
@@ -161,6 +176,8 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 			return http.ErrUseLastResponse
 		},
 	}
+
+	proxyFunc := proxy.GetCallback(proxyURL)
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -189,7 +206,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 
 	if insecure {
 		customHTTPClient.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
+			Proxy: proxyFunc,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify:   true,
 				GetClientCertificate: clientCertFunc,
@@ -207,7 +224,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
 			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
+				Proxy: proxyFunc,
 				TLSClientConfig: &tls.Config{
 					RootCAs:              certPool,
 					GetClientCertificate: clientCertFunc,
@@ -217,7 +234,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		} else {
 			// else no custom certificate stored.
 			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
+				Proxy: proxyFunc,
 				TLSClientConfig: &tls.Config{
 					GetClientCertificate: clientCertFunc,
 				},
@@ -256,6 +273,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		return auth, nil
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
+		if auth.Username == "" {
+			auth.Username = "x-access-token"
+		}
 		return &auth, nil
 	case GitHubAppCreds:
 		token, err := creds.getAccessToken()
@@ -415,7 +435,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
@@ -461,8 +481,19 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		if res, err = m.lsRemote(revision); err == nil {
+		res, err = m.lsRemote(revision)
+		if err == nil {
 			return
+		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
+			// Formula: timeToWait = duration * factor^retry_number
+			// Note that timeToWait should equal to duration for the first retry attempt.
+			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			if maxRetryDuration > 0 {
+				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
+			}
+			time.Sleep(time.Duration(timeToWait))
 		}
 	}
 	return
@@ -619,5 +650,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
+
 	return executil.Run(cmd)
 }

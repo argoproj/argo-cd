@@ -236,9 +236,9 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 }
 
 // TestClaimsEnforcerFuncWithRuntimePolicy tests the ability for claims enforcer function to still
@@ -252,11 +252,11 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	claims := jwt.StandardClaims{
 		Subject: "foo",
 	}
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 }
 
 // TestInvalidRuntimePolicy tests when an invalid policy is supplied, it falls back to normal enforcement
@@ -267,11 +267,11 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy("", "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", "", "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", "", "role:readonly", "applications", "update", "foo/bar"))
 	badPolicy := "this, is, not, a, good, policy"
-	assert.True(t, enf.EnforceRuntimePolicy(badPolicy, "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy(badPolicy, "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", badPolicy, "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", badPolicy, "role:readonly", "applications", "update", "foo/bar"))
 }
 
 func TestValidatePolicy(t *testing.T) {
@@ -335,4 +335,67 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
+}
+
+func TestDefaultGlobMatchMode(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
+
+}
+
+func TestGlobMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = GlobMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
+
+}
+
+func TestRegexMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
+
+}
+
+func TestGlobMatchFunc(t *testing.T) {
+	ok, _ := globMatchFunc("arg1")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc(time.Now(), "arg2")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg1", time.Now())
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg/123", "arg/*")
+	assert.True(t, ok.(bool))
 }

@@ -10,17 +10,11 @@ on:
     branches:
       - 'master'
 
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.16.11'
+
 jobs:
-  build-docker:
-    name: Build Docker image
-    runs-on: ubuntu-latest
-    if: github.head_ref != ''
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build Docker image
-        run: |
-          make image
   check-go:
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-latest
@@ -30,7 +24,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
         run: |
           go mod download
@@ -48,7 +42,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
         uses: actions/cache@v1
         with:
@@ -70,7 +64,7 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.38.0
-          args: --timeout 5m --exclude SA5011
+          args: --timeout 10m --exclude SA5011
 
   test-go:
     name: Run unit tests for Go packages
@@ -87,7 +81,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -147,7 +141,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
         run: |
           sudo apt-get install git -y
@@ -196,7 +190,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
@@ -260,6 +254,7 @@ jobs:
         env:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
+          HOST_ARCH: amd64
         working-directory: ui/
       - name: Run ESLint
         run: yarn lint
@@ -336,7 +331,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k3s-version: [v1.20.2, v1.19.2, v1.18.9, v1.17.11, v1.16.15]
+        k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
     needs: 
       - build-go
     env:
@@ -355,7 +350,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: '1.16.2'
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
@@ -396,7 +391,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.1-alpine
+          docker pull redis:6.2.6-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
@@ -429,3 +424,20 @@ jobs:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
+
+  lint-docs:
+    name: Lint docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install -r docs/requirements.txt
+      - name: Lint docs
+        run: |
+          make lint-docs

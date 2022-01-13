@@ -10,6 +10,7 @@ ARCHITECTURE=""
 case $(uname -m) in
     x86_64)                     ARCHITECTURE="amd64" ;;
     ppc64le)                    ARCHITECTURE="ppc64le" ;;
+    arm64)                      ARCHITECTURE="arm64" ;;
     arm|armv7l|armv8l|aarch64)  dpkg --print-architecture | grep -q "arm64" && ARCHITECTURE="arm64" || ARCHITECTURE="arm" ;;
 esac
 

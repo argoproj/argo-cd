@@ -148,7 +148,7 @@ func NewFakeProjListerFromInterface(appProjects appclient.AppProjectInterface) a
 
 func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceLister {
 	fakeAppClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppClientset, 0, "", func(options *metav1.ListOptions) {})
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	cancel := StartInformer(projInformer)
 	defer cancel()

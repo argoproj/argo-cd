@@ -11,6 +11,7 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -20,26 +21,27 @@ type Cmd struct {
 	WorkDir   string
 	IsLocal   bool
 	IsHelmOci bool
+	proxy     string
 }
 
-func NewCmd(workDir string, version string) (*Cmd, error) {
+func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
 
 	switch version {
 	case "v2":
-		return NewCmdWithVersion(workDir, HelmV2, false)
+		return NewCmdWithVersion(workDir, HelmV2, false, proxy)
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
-		return NewCmdWithVersion(workDir, HelmV3, false)
+		return NewCmdWithVersion(workDir, HelmV3, false, proxy)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
-func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool, proxy string) (*Cmd, error) {
 	tmpDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci, proxy: proxy}, err
 }
 
 var redactor = func(text string) string {
@@ -61,6 +63,9 @@ func (c Cmd) run(args ...string) (string, error) {
 	if c.IsHelmOci {
 		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
 	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
+
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
@@ -71,7 +76,7 @@ func (c *Cmd) Init() (string, error) {
 	return "", nil
 }
 
-func (c *Cmd) Login(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -109,7 +114,7 @@ func (c *Cmd) Login(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 
@@ -136,7 +141,7 @@ func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", err
@@ -187,6 +192,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		args = append(args, "--key-file", keyFile.Name())
 	}
 
+	if c.helmPassCredentialsSupported && passCredentials {
+		args = append(args, "--pass-credentials")
+	}
+
 	args = append(args, name, url)
 
 	return c.run(args...)
@@ -208,7 +217,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{c.pullCommand, "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -218,6 +227,9 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 	}
 	if creds.Password != "" {
 		args = append(args, "--password", creds.Password)
+	}
+	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
 	}
 
 	args = append(args, "--repo", repo, chartName)
@@ -241,20 +253,22 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		defer io.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
+	if passCredentials && c.helmPassCredentialsSupported {
+		args = append(args, "--pass-credentials")
+	}
 
 	return c.run(args...)
 }
 
-func (c *Cmd) ChartPull(repo string, chart string, version string) (string, error) {
-	return c.run("chart", "pull", fmt.Sprintf("%s/%s:%s", repo, chart, version))
-}
-
-func (c *Cmd) ChartExport(repo string, chartName string, version string, destination string) (string, error) {
-	args := []string{"chart", "export"}
-	chartURL := fmt.Sprintf(repo + "/" + chartName + ":" + version)
-	args = append(args, chartURL, "--destination", destination)
-
-	return c.run(args...)
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string) (string, error) {
+	return c.run(
+		"pull",
+		fmt.Sprintf("oci://%s/%s", repo, chart),
+		"--version",
+		version,
+		"--destination",
+		destination,
+	)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {

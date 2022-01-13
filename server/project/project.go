@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/google/uuid"
@@ -48,14 +50,15 @@ type Server struct {
 	sessionMgr    *session.SessionManager
 	projInformer  cache.SharedIndexInformer
 	settingsMgr   *settings.SettingsManager
+	db            db.ArgoDB
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager) *Server {
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr}
+		projInformer: projInformer, settingsMgr: settingsMgr, db: db}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -208,7 +211,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
-				return nil, status.Errorf(codes.InvalidArgument, "existing project spec is different, use upsert flag to force update")
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
 			}
 			return existing, nil
 		}
@@ -233,6 +236,26 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 		list.Items = newItems
 	}
 	return list, err
+}
+
+// GetDetailedProject returns a project with scoped resources
+func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery) (*project.DetailedProjectsResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
+	}
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		return nil, err
+	}
+	proj.NormalizeJWTTokens()
+	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+
+	return &project.DetailedProjectsResponse{
+		GlobalProjects: globalProjects,
+		Project:        proj,
+		Repositories:   repositories,
+		Clusters:       clusters,
+	}, err
 }
 
 // Get returns a project by name

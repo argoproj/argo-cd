@@ -198,7 +198,7 @@ spec:
                       description: Name is a name for this role
                       type: string
                     policies:
-                      description: Policies Stores a list of casbin formated strings
+                      description: Policies Stores a list of casbin formatted strings
                         that define access policies for the role in the project
                       items:
                         type: string
@@ -266,6 +266,10 @@ spec:
                     schedule:
                       description: Schedule is the time the window will begin, specified
                         in cron format
+                      type: string
+                    timeZone:
+                      description: TimeZone of the sync that will be applied to the
+                        schedule
                       type: string
                   type: object
                 type: array

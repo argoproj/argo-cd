@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -68,4 +70,13 @@ func MustLoadFileToString(path string) string {
 		panic(err.Error())
 	}
 	return string(o)
+}
+
+func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	if err != nil {
+		panic(err)
+	}
+	return &unstructured.Unstructured{Object: obj}
 }

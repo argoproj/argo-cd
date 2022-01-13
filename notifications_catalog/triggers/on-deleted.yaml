@@ -1,0 +1,4 @@
+- when: app.metadata.deletionTimestamp != nil
+  description: Application is deleted.
+  send: [app-deleted]
+  oncePer: app.metadata.name

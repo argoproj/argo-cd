@@ -15,6 +15,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -34,6 +35,14 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
+func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetOpenAPISchema(), nil
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -51,6 +60,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	syncOp = *state.Operation.Sync
+
+	// validates if it should fail the sync if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+		hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = fmt.Sprintf("Shared resouce found: %s", sharedResourceMessage)
+		return
+	}
+
 	if syncOp.Source == nil {
 		// normal sync case (where source is taken from app.spec.source)
 		source = app.Spec.Source
@@ -78,7 +97,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr)
+	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -146,6 +165,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
+	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+		return
+	}
+
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		compareResult.reconciliationResult,
@@ -153,13 +179,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		rawConfig,
 		m.kubectl,
 		app.Spec.Destination.Namespace,
+		openAPISchema,
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
 				return fmt.Errorf("Resource %s:%s is not permitted in project %s.", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
-			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server}) {
+			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}) {
 				return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
 			}
 			return nil
@@ -226,6 +253,18 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
 	}
+}
+
+// hasSharedResourceCondition will check if the Application has any resource that has already
+// been synced by another Application. If the resource is found in another Application it returns
+// true along with a human readable message of which specific resource has this condition.
+func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == v1alpha1.ApplicationConditionSharedResourceWarning {
+			return true, condition.Message
+		}
+	}
+	return false, ""
 }
 
 // delayBetweenSyncWaves is a gitops-engine SyncWaveHook which introduces an artificial delay

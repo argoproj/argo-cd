@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	coreerrors "errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -69,8 +72,46 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
+func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
+		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
+	}
+}
+
+func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          "0.7.*",
+		AmbiguousRevision: "0.7.* (0.7.2)",
+	}
+}
+
+func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+
+	if isHelm {
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
+	} else {
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
+	}
+
+	return &mockRepoServiceClient
+}
+
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer(objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	return newTestAppServerWithEnforcerConfigure(f, objects...)
+}
+
+func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -96,13 +137,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	errors.CheckError(err)
 
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -137,12 +172,11 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppsClientset, 0, "", func(options *metav1.ListOptions) {})
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	enforcer.SetDefaultRole("role:admin")
+	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
@@ -276,6 +310,49 @@ func TestListApps(t *testing.T) {
 		names = append(names, res.Items[i].Name)
 	}
 	assert.Equal(t, []string{"abc", "bcd", "def"}, names)
+}
+
+func TestCoupleAppsListApps(t *testing.T) {
+	var objects []runtime.Object
+	ctx := context.Background()
+
+	var groups []string
+	for i := 0; i < 50; i++ {
+		groups = append(groups, fmt.Sprintf("group-%d", i))
+	}
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
+	for projectId := 0; projectId < 100; projectId++ {
+		projectName := fmt.Sprintf("proj-%d", projectId)
+		for appId := 0; appId < 100; appId++ {
+			objects = append(objects, newTestApp(func(app *appsv1.Application) {
+				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
+				app.Spec.Project = projectName
+			}))
+		}
+	}
+
+	f := func(enf *rbac.Enforcer) {
+		policy := `
+p, role:test, applications, *, proj-10/*, allow
+g, group-45, role:test
+p, role:test2, applications, *, proj-15/*, allow
+g, group-47, role:test2
+p, role:test3, applications, *, proj-20/*, allow
+g, group-49, role:test3
+`
+		_ = enf.SetUserPolicy(policy)
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(f, objects...)
+
+	res, err := appServer.List(ctx, &application.ApplicationQuery{})
+
+	assert.NoError(t, err)
+	var names []string
+	for i := range res.Items {
+		names = append(names, res.Items[i].Name)
+	}
+	assert.Equal(t, 300, len(names))
 }
 
 func TestCreateApp(t *testing.T) {
@@ -438,7 +515,6 @@ func TestSyncAndTerminate(t *testing.T) {
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
-
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
@@ -477,6 +553,8 @@ func TestSyncHelm(t *testing.T) {
 	testApp.Spec.Source.Path = ""
 	testApp.Spec.Source.Chart = "argo-cd"
 	testApp.Spec.Source.TargetRevision = "0.7.*"
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(true)}
 
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
 	assert.NoError(t, err)
@@ -668,16 +746,13 @@ func TestGetCachedAppState(t *testing.T) {
 	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "none"
 	appServer := newTestAppServer(testApp)
-
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			return nil
 		})
 		assert.NoError(t, err)
 	})
-
 	t.Run("CacheMissErrorTriggersRefresh", func(t *testing.T) {
 		retryCount := 0
 		patched := false
@@ -695,10 +770,10 @@ func TestGetCachedAppState(t *testing.T) {
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
 			})
+			fakeClientSet.Unlock()
 			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 				return true, watcher, nil
 			})
-			fakeClientSet.Unlock()
 		}
 
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
@@ -816,4 +891,90 @@ func TestLogsGetSelectedPod(t *testing.T) {
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 0, len(pods))
 	})
+}
+
+// refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
+func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
+	for ctx.Err() == nil {
+		a, err := appServer.appLister.Get(appName)
+		require.NoError(t, err)
+		a = a.DeepCopy()
+		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
+			a.SetAnnotations(map[string]string{})
+			a.SetResourceVersion("999")
+			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
+				context.Background(), a, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			atomic.AddInt32(patched, 1)
+			ch <- ""
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func TestGetAppRefresh_NormalRefresh(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
+	appServer := newTestAppServer(testApp)
+
+	var patched int32
+
+	ch := make(chan string, 1)
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+		Name:    &testApp.Name,
+		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
+	})
+	assert.NoError(t, err)
+
+	select {
+	case <-ch:
+		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Out of time ( 10 seconds )")
+	}
+
+}
+
+func TestGetAppRefresh_HardRefresh(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
+	appServer := newTestAppServer(testApp)
+
+	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+		getAppDetailsQuery = q
+		return true
+	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	var patched int32
+
+	ch := make(chan string, 1)
+
+	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+		Name:    &testApp.Name,
+		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
+	})
+	assert.NoError(t, err)
+	require.NotNil(t, getAppDetailsQuery)
+	assert.True(t, getAppDetailsQuery.NoCache)
+	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
+
+	assert.NoError(t, err)
+	select {
+	case <-ch:
+		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Out of time ( 10 seconds )")
+	}
 }

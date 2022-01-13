@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -49,7 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -212,7 +212,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
-		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
+		return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("application", existing.Spec, a.Spec))
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 		return nil, err
@@ -224,6 +224,59 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	return updated, nil
 }
 
+func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, action func(
+	client apiclient.RepoServerServiceClient,
+	repo *appv1.Repository,
+	helmRepos []*appv1.Repository,
+	helmCreds []*v1alpha1.RepoCreds,
+	kustomizeOptions *v1alpha1.KustomizeOptions,
+) error) error {
+
+	closer, client, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return err
+	}
+	defer ioutil.Close(closer)
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return err
+	}
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return err
+	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
+	if err != nil {
+		return err
+	}
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+		}
+		return err
+	}
+
+	helmRepos, err := s.db.ListHelmRepositories(ctx)
+	if err != nil {
+		return err
+	}
+
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	if err != nil {
+		return err
+	}
+	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	if err != nil {
+		return err
+	}
+	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, kustomizeOptions)
+}
+
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	a, err := s.appLister.Get(*q.Name)
@@ -233,95 +286,60 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
-	if err != nil {
-		return nil, err
-	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return nil, err
-	}
-	defer ioutil.Close(conn)
-	revision := a.Spec.Source.TargetRevision
-	if q.Revision != "" {
-		revision = q.Revision
-	}
-	appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
-	if err != nil {
-		return nil, err
-	}
-	helmRepos, err := s.db.ListHelmRepositories(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
+	var manifestInfo *apiclient.ManifestResponse
+	err = s.queryRepoServer(ctx, a, func(
+		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, kustomizeOptions *appv1.KustomizeOptions) error {
+		revision := a.Spec.Source.TargetRevision
+		if q.Revision != "" {
+			revision = q.Revision
 		}
-		return nil, err
-	}
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			return err
+		}
 
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
-	if err != nil {
-		return nil, err
-	}
+		plugins, err := s.plugins()
+		if err != nil {
+			return err
+		}
+		config, err := s.getApplicationClusterConfig(ctx, a)
+		if err != nil {
+			return err
+		}
 
-	plugins, err := s.plugins()
-	if err != nil {
-		return nil, err
-	}
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return nil, err
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
-	if err != nil {
-		return nil, err
-	}
-	config, err := s.getApplicationClusterConfig(ctx, a)
-	if err != nil {
-		return nil, err
-	}
+		serverVersion, err := s.kubectl.GetServerVersion(config)
+		if err != nil {
+			return err
+		}
 
-	serverVersion, err := s.kubectl.GetServerVersion(config)
-	if err != nil {
-		return nil, err
-	}
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+		if err != nil {
+			return err
+		}
 
-	apiGroups, err := s.kubectl.GetAPIGroups(config)
-	if err != nil {
-		return nil, err
-	}
-
-	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
-	if err != nil {
-		return nil, err
-	}
-
-	manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
-		Repo:              repo,
-		Revision:          revision,
-		AppLabelKey:       appInstanceLabelKey,
-		AppName:           a.Name,
-		Namespace:         a.Spec.Destination.Namespace,
-		ApplicationSource: &a.Spec.Source,
-		Repos:             permittedHelmRepos,
-		Plugins:           plugins,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
-		HelmRepoCreds:     permittedHelmCredentials,
+		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
+			Repo:              repo,
+			Revision:          revision,
+			AppLabelKey:       appInstanceLabelKey,
+			AppName:           a.Name,
+			Namespace:         a.Spec.Destination.Namespace,
+			ApplicationSource: &a.Spec.Source,
+			Repos:             helmRepos,
+			Plugins:           plugins,
+			KustomizeOptions:  kustomizeOptions,
+			KubeVersion:       serverVersion,
+			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:     helmCreds,
+			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
+		})
+		return err
 	})
+
 	if err != nil {
 		return nil, err
 	}
+
 	for i, manifest := range manifestInfo.Manifests {
 		obj := &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(manifest), obj)
@@ -379,6 +397,30 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	app, err := argoutil.RefreshApp(appIf, *q.Name, refreshType)
 	if err != nil {
 		return nil, err
+	}
+
+	if refreshType == appv1.RefreshTypeHard {
+		// force refresh cached application details
+		if err := s.queryRepoServer(ctx, a, func(
+			client apiclient.RepoServerServiceClient,
+			repo *appv1.Repository,
+			helmRepos []*appv1.Repository,
+			_ []*appv1.RepoCreds,
+			kustomizeOptions *appv1.KustomizeOptions,
+		) error {
+			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+				Repo:             repo,
+				Source:           &app.Spec.Source,
+				AppName:          app.Name,
+				KustomizeOptions: kustomizeOptions,
+				Repos:            helmRepos,
+				NoCache:          true,
+				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			})
+			return err
+		}); err != nil {
+			log.Warnf("Failed to force refresh application details: %v", err)
+		}
 	}
 
 	minVersion := 0
@@ -446,7 +488,6 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": namespace,
 		}).String()
 	}
-
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
 	return kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
@@ -497,7 +538,7 @@ func (s *Server) waitSync(app *appv1.Application) {
 	minVersion, err := strconv.Atoi(app.ResourceVersion)
 	if err != nil {
 		logCtx.Warnf("waitSync failed: could not parse resource version %s", app.ResourceVersion)
-		time.Sleep(50 * time.Millisecond) // sleep anyways
+		time.Sleep(50 * time.Millisecond) // sleep anyway
 		return
 	}
 	for {
@@ -693,6 +734,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
+	projects := map[string]bool{}
+	for i := range q.Projects {
+		projects[q.Projects[i]] = true
+	}
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.Selector)
 	if err != nil {
@@ -708,10 +753,14 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
+		if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+			return
+		}
+
 		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
 			return
 		}
-		matchedEvent := q.GetName() == "" || a.Name == q.GetName() && selector.Matches(labels.Set(a.Labels))
+		matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
 		if !matchedEvent {
 			return
 		}
@@ -760,7 +809,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
-	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr)
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
@@ -803,17 +852,17 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		return status.Errorf(codes.InvalidArgument, "application destination spec is invalid: %s", err.Error())
+		return status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
 	}
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return err
 		}
 		if len(conditions) > 0 {
-			return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 		}
 	}
 
@@ -822,7 +871,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return err
 	}
 	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 	}
 
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
@@ -1055,7 +1104,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	// We need to get some information with the project associated to the app,
 	// so we'll know whether GPG signatures are enforced.
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1081,17 +1130,17 @@ func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) boo
 func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
 	a, err := s.appLister.Get(*q.ApplicationName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting application: %s", err)
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error verifying rbac: %s", err)
 	}
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.Name, &items)
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cached app state: %s", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
@@ -1182,6 +1231,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceSeconds: sinceSeconds,
 			SinceTime:    q.SinceTime,
 			TailLines:    tailLines,
+			Previous:     q.Previous,
 		}).Stream(ws.Context())
 		podName := pod.Name
 		logStream := make(chan logEntry)
@@ -1310,7 +1360,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return a, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -1461,52 +1511,32 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	var revision string
-	if app.Spec.Source.IsHelm() {
-		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-		if err != nil {
-			return "", "", err
-		}
-		if helm.IsVersion(ambiguousRevision) {
-			return ambiguousRevision, ambiguousRevision, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci())
-		index, err := client.GetIndex(false)
-		if err != nil {
-			return "", "", err
-		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
-		if err != nil {
-			return "", "", err
-		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return "", "", err
-		}
-		version, err := entries.MaxVersion(constraints)
-		if err != nil {
-			return "", "", err
-		}
-		return version.String(), fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()), nil
-	} else {
+	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+	if err != nil {
+		return "", "", err
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return "", "", err
+	}
+	defer io.Close(conn)
+
+	if !app.Spec.Source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-		if err != nil {
-			return "", "", err
-		}
-		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled())
-		if err != nil {
-			return "", "", err
-		}
-		revision, err = gitClient.LsRemote(ambiguousRevision)
-		if err != nil {
-			return "", "", err
-		}
-		return revision, fmt.Sprintf("%s (%s)", ambiguousRevision, revision), nil
 	}
+
+	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: ambiguousRevision,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
@@ -1753,7 +1783,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr)
+	proj, err := argo.GetAppProject(&a.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), a.Namespace, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -85,6 +85,59 @@ connectors:
     orgs:
     - name: your-github-org
 `
+
+var goodDexConfigWithOauthOverrides = `
+oauth2:
+  passwordConnector: ldap
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+var goodDexConfigWithEnabledApprovalScreen = `
+oauth2:
+  passwordConnector: ldap
+  skipApprovalScreen: false
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -266,6 +319,52 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
+	})
+	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithOauthOverrides,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.True(t, skipApprScr)
+	})
+	t.Run("Override dex oauth2 with enabled ApprovalScreen", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithEnabledApprovalScreen,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.False(t, skipApprScr)
 	})
 }
 

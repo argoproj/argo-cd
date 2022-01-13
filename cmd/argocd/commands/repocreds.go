@@ -60,6 +60,9 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
   # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
   argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
+
+  # Add credentials with helm oci registry so that these oci registry urls do not need to be added as repos individually.
+  argocd repocreds add localhost:5000/myrepo --enable-oci --type helm 
 `
 
 	var command = &cobra.Command{

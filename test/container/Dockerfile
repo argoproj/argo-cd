@@ -1,12 +1,12 @@
-FROM redis:6.2.1 as redis
+FROM redis:6.2.6-alpine as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.16.4 as golang
+FROM golang:1.16.11 as golang
 
 FROM registry:2.7.1 as registry
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -18,17 +18,19 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         git \
         git-lfs \
         gpg \
+        jq \
         make \
         wget \
         gcc \
         sudo \
+        tini \
         zip && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
@@ -36,9 +38,10 @@ ENV GOPATH /go
 ADD ./hack/tool-versions.sh .
 ADD ./hack/install.sh .
 ADD ./hack/installers installers
+ADD go.mod go.mod
+ADD go.sum go.sum
 
-RUN ./install.sh dep-linux && \
-    ./install.sh ksonnet-linux && \
+RUN ./install.sh ksonnet-linux && \
     ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
@@ -73,7 +76,7 @@ COPY --from=node /usr/local/bin/node /usr/local/bin
 COPY --from=node /opt/yarn-v1.22.4 /opt/yarn-v1.22.4
 
 # Entrypoint is required for container's user management
-COPY ./test/container/uid_entrypoint.sh /usr/local/bin
+COPY ./test/container/entrypoint.sh /usr/local/bin
 
 ARG UID
 
@@ -100,6 +103,7 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
     ln -s /opt/yarn-v1.22.4/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg
+    ln -s /opt/yarn-v1.22.4/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    mkdir -p /var/lib/registry && chmod -R 777 /var/lib/registry
 
-ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

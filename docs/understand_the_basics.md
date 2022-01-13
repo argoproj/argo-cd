@@ -12,6 +12,5 @@ Before effectively using Argo CD, it is necessary to understand the underlying t
 * Depending on how you plan to template your applications:
     * [Kustomize](https://kustomize.io) 
     * [Helm](https://helm.sh)
-    * [Ksonnet](https://ksonnet.io) 
 * If you're integrating with Jenkins:
 	* [Jenkins User Guide](https://jenkins.io)

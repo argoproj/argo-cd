@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,13 +39,28 @@ func newServerInMemoryCache() *servercache.Cache {
 
 func newNoopEnforcer() *rbac.Enforcer {
 	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.Enforcer.EnableEnforce(false)
+	enf.EnableEnforce(false)
 	return enf
 }
 
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	var updated *v1alpha1.Cluster
+
+	clusters := []v1alpha1.Cluster{
+		{
+			Name:       "minikube",
+			Server:     "https://127.0.0.1",
+			Namespaces: []string{"default", "kube-system"},
+		},
+	}
+
+	clusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items:    clusters,
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&clusterList, nil)
 	db.On("UpdateCluster", mock.Anything, mock.MatchedBy(func(c *v1alpha1.Cluster) bool {
 		updated = c
 		return true
@@ -92,4 +109,52 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	assert.Equal(t, updated.Name, "minikube")
 	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
 	assert.Equal(t, *updated.Shard, int64(1))
+
+	labelEnv := map[string]string{
+		"env": "qa",
+	}
+	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		Cluster: &v1alpha1.Cluster{
+			Server: "https://127.0.0.1",
+			Labels: labelEnv,
+		},
+		UpdatedFields: []string{"labels"},
+	})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, updated.Name, "minikube")
+	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, updated.Labels, labelEnv)
+
+	annotationEnv := map[string]string{
+		"env": "qa",
+	}
+	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		Cluster: &v1alpha1.Cluster{
+			Server:      "https://127.0.0.1",
+			Annotations: annotationEnv,
+		},
+		UpdatedFields: []string{"annotations"},
+	})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, updated.Name, "minikube")
+	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, updated.Annotations, annotationEnv)
+
+	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		Cluster: &v1alpha1.Cluster{
+			Server:  "https://127.0.0.1",
+			Project: "new-project",
+		},
+		UpdatedFields: []string{"project"},
+	})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, updated.Name, "minikube")
+	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, updated.Project, "new-project")
 }

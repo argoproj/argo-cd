@@ -1,7 +1,7 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+export type AppsDetailsViewType = 'tree' | 'compact' | 'network' | 'list' | 'pods';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -9,15 +9,22 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
+    hideFilters: boolean;
+    groupNodes?: boolean;
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+}
+
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -53,6 +60,8 @@ export class AppsListPreferences {
     public namespacesFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
+    public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
 }
 
 export interface ViewPreferences {
@@ -61,6 +70,7 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    position: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -71,7 +81,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        resourceFilter: ['kind:Deployment', 'kind:Service', 'kind:Pod', 'kind:StatefulSet', 'kind:Ingress', 'kind:ConfigMap', 'kind:Job', 'kind:DaemonSet', 'kind:Workflow'],
+        hideFilters: false,
+        resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
         resourceView: 'manifest',
@@ -91,10 +102,15 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
-        healthFilter: new Array<string>()
+        healthFilter: new Array<string>(),
+        hideFilters: false,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
-    hideBannerContent: ''
+    hideBannerContent: '',
+    position: ''
 };
 
 export class ViewPreferencesService {
