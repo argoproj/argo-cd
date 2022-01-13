@@ -337,7 +337,7 @@ spec:
   discover:
     fileName: "./kustomization.yaml"
   parameters:
-    command: ["get-parameters.sh"]
+    command: [/home/argocd/get-parameters.sh]
 ```
 
 **get-parameters.sh**
@@ -364,6 +364,44 @@ FROM ubuntu:20.04
 RUN apt install jq yq helm kustomize -y
 
 ADD get-parameters.sh /home/argocd/get-parameters.sh
+```
+
+#### Example 3: simple Helm CMP
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: simple-helm-cmp
+spec:
+  version: v1.0
+  generate:
+    command: [/home/argocd/generate.sh]
+  discover:
+    fileName: "./values.yaml"
+  parameters:
+    command: [/home/argocd/get-parameters.sh]
+
+```
+
+**generate.sh**
+
+```shell
+VALUES_FILES=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
+# Put the extra values at a random filename to avoid conflicting with existing files.
+EXTRA_VALUES_FILENAME="values-$(openssl rand -base64 12).yaml"
+echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
+# Convert JSON parameters to comma-delimited k=v pairs.
+PARAMETERS=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
+helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "$PARAMETERS"
+```
+
+**get-parameters.sh**
+
+```shell
+# Pull params from values.yaml and then append the default ("main") parameters announcements.
+yq e -o=p values.yaml | jq -nR 'inputs | sub(" .*"; "") | {name: ., section: "Properties"}' |
+jq --slurp '[{"name": "values files"}, {"name": "values"}] + .'
 ```
 
 ### Security Considerations
