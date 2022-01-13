@@ -27,6 +27,38 @@ Config Management Plugin (CMP) parameterization defines a way for plugins to "an
 parameters for an Application. Announcing parameters allows CMPs to provide a UI experience on par with native config 
 management tools (Helm, Kustomize, etc.).
 
+- [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
+  * [Open Questions [optional]](#open-questions-optional)
+  * [Summary](#summary)
+  * [Motivation](#motivation)
+    + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
+    + [2. Decisions about config management tools are limited by the core code](#2-decisions-about-config-management-tools-are-limited-by-the-core-code)
+    + [3. Ksonnet is deprecated, and CMPs are a good place to maintain support](#3-ksonnet-is-deprecated-and-cmps-are-a-good-place-to-maintain-support)
+    + [Goals](#goals)
+    + [Non-Goals](#non-goals)
+  * [Proposal](#proposal)
+    + [Use cases](#use-cases)
+      - [Use case 1: building Argo CD without config management dependencies](#use-case-1-building-argo-cd-without-config-management-dependencies)
+      - [Use case 2: writing CMPs with rich UI experiences](#use-case-2-writing-cmps-with-rich-ui-experiences)
+    + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
+      - [Prerequisites](#prerequisites)
+      - [Terms](#terms)
+      - [CMP config schema](#cmp-config-schema)
+      - [Parameters announcement / parameters serialization format](#parameters-announcement--parameters-serialization-format)
+      - [Parameter definition schema](#parameter-definition-schema)
+      - [Parameters announcement schema](#parameters-announcement-schema)
+      - [Parameter list schema](#parameter-list-schema)
+    + [Detailed examples](#detailed-examples)
+      - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
+      - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
+      - [Example 3: simple Helm CMP](#example-3-simple-helm-cmp)
+    + [Security Considerations](#security-considerations)
+      - [Increased scripting](#increased-scripting)
+    + [Risks and Mitigations](#risks-and-mitigations)
+    + [Upgrade / Downgrade Strategy](#upgrade--downgrade-strategy)
+  * [Drawbacks](#drawbacks)
+  * [Alternatives](#alternatives)
+
 ## Open Questions [optional]
 
 This is where to call out areas of the design that require closure before deciding to implement the
@@ -110,13 +142,13 @@ We should not:
 
 ### Use cases
 
-#### Use case 1:
+#### Use case 1: building Argo CD without config management dependencies
 
 As an Argo CD developer, I would like to be able to build Argo CD without including the Helm SDK as a dependency.
 
 The Helm SDK includes the Kubernetes code base. That's a lot of code, and it will make builds unacceptably slow.
 
-#### Use case 2:
+#### Use case 2: writing CMPs with rich UI experiences
 
 As an Argo CD user, I would like to be able to parameterize manifests built by a CMP.
 
