@@ -383,13 +383,17 @@ metadata:
 spec:
   version: v1.0
   generate:
-    
-    command: [kustomize, build, ".", --enable-helm]
+    command: [/home/argocd/generate.sh]
   discover:
     fileName: "./kustomization.yaml"
   parameters:
     command: [/home/argocd/get-parameters.sh]
 ```
+
+**generate.sh**
+
+This script would be non-trivial. Kustomize only accepts YAML-formatted values for Helm charts. The script would have to
+convert the dot-notated parameters to a YAML file.
 
 **get-parameters.sh**
 
@@ -440,7 +444,6 @@ spec:
       - name: values
         uiConfig: '{"multiline": true}'
     command: [/home/argocd/get-parameters.sh]
-
 ```
 
 **generate.sh**
