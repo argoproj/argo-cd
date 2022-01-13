@@ -368,6 +368,10 @@ ADD get-parameters.sh /home/argocd/get-parameters.sh
 
 #### Example 3: simple Helm CMP
 
+This example demonstrates how the Helm parameters interface could be achieved with a parameterized CMP.
+
+![Helm parameters interface](images/helm-parameters.png)
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
@@ -401,7 +405,7 @@ helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "
 ```shell
 # Pull params from values.yaml and then append the default ("main") parameters announcements.
 yq e -o=p values.yaml | jq -nR 'inputs | sub(" .*"; "") | {name: ., section: "Properties"}' |
-jq --slurp '[{"name": "values files"}, {"name": "values"}] + .'
+jq --slurp '[{"name": "values files", "uiConfig": "{\"multiline\": true}"}, {"name": "values"}] + .'
 ```
 
 ### Security Considerations
