@@ -28,7 +28,7 @@ parameters for an Application. Announcing parameters allows CMPs to provide a UI
 management tools (Helm, Kustomize, etc.).
 
 - [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
-  * [Open Questions [optional]](#open-questions-optional)
+  * [Open Questions](#open-questions)
   * [Summary](#summary)
   * [Motivation](#motivation)
     + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
