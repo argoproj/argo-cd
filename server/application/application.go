@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -50,7 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/io"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -1512,52 +1511,32 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	var revision string
-	if app.Spec.Source.IsHelm() {
-		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-		if err != nil {
-			return "", "", err
-		}
-		if helm.IsVersion(ambiguousRevision) {
-			return ambiguousRevision, ambiguousRevision, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy)
-		index, err := client.GetIndex(false)
-		if err != nil {
-			return "", "", err
-		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
-		if err != nil {
-			return "", "", err
-		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return "", "", err
-		}
-		version, err := entries.MaxVersion(constraints)
-		if err != nil {
-			return "", "", err
-		}
-		return version.String(), fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()), nil
-	} else {
+	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+	if err != nil {
+		return "", "", err
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return "", "", err
+	}
+	defer io.Close(conn)
+
+	if !app.Spec.Source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
 			return ambiguousRevision, ambiguousRevision, nil
 		}
-		repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
-		if err != nil {
-			return "", "", err
-		}
-		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
-		if err != nil {
-			return "", "", err
-		}
-		revision, err = gitClient.LsRemote(ambiguousRevision)
-		if err != nil {
-			return "", "", err
-		}
-		return revision, fmt.Sprintf("%s (%s)", ambiguousRevision, revision), nil
 	}
+
+	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: ambiguousRevision,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {

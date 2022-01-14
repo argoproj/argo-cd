@@ -1645,3 +1645,52 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	}
 	return apiResp, nil
 }
+
+// ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
+func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
+
+	repo := q.Repo
+	app := q.App
+	ambiguousRevision := q.AmbiguousRevision
+	var revision string
+	if app.Spec.Source.IsHelm() {
+
+		if helm.IsVersion(ambiguousRevision) {
+			return &apiclient.ResolveRevisionResponse{Revision: ambiguousRevision, AmbiguousRevision: ambiguousRevision}, nil
+		}
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy)
+		index, err := client.GetIndex(false)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		entries, err := index.GetEntries(app.Spec.Source.Chart)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		constraints, err := semver.NewConstraint(ambiguousRevision)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		version, err := entries.MaxVersion(constraints)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          version.String(),
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
+		}, nil
+	} else {
+		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		revision, err = gitClient.LsRemote(ambiguousRevision)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
+		}, nil
+	}
+}
