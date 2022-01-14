@@ -49,16 +49,21 @@ func (i *IgnoreDiffConfig) HasIgnoreDifference(group, kind, name, namespace stri
 		return ok, overrideToIgnoreDifference(wildOverride)
 	}
 
+	ignoresFound := []v1alpha1.ResourceIgnoreDifferences{}
 	for _, ignore := range i.ignores {
 		if glob.Match(ignore.Group, group) &&
 			glob.Match(ignore.Kind, kind) &&
 			(ignore.Name == "" || ignore.Name == name) &&
 			(ignore.Namespace == "" || ignore.Namespace == namespace) {
 
-			return true, resourceToIgnoreDifference(ignore)
+			ignoresFound = append(ignoresFound, ignore)
+
 		}
 	}
-	return false, nil
+	if len(ignoresFound) == 0 {
+		return false, nil
+	}
+	return true, mergeIgnoreDifferences(ignoresFound)
 }
 
 func overrideToIgnoreDifference(override v1alpha1.ResourceOverride) *IgnoreDifference {
@@ -69,10 +74,14 @@ func overrideToIgnoreDifference(override v1alpha1.ResourceOverride) *IgnoreDiffe
 	}
 }
 
-func resourceToIgnoreDifference(resource v1alpha1.ResourceIgnoreDifferences) *IgnoreDifference {
-	return &IgnoreDifference{
-		JSONPointers:          resource.JSONPointers,
-		JQPathExpressions:     resource.JQPathExpressions,
-		ManagedFieldsManagers: resource.ManagedFieldsManagers,
+// mergeIgnoreDifferences will merge all ignore differences configurations found for
+// a specific resource.
+func mergeIgnoreDifferences(ignores []v1alpha1.ResourceIgnoreDifferences) *IgnoreDifference {
+	result := &IgnoreDifference{}
+	for _, ignore := range ignores {
+		result.JQPathExpressions = append(result.JQPathExpressions, ignore.JQPathExpressions...)
+		result.JSONPointers = append(result.JSONPointers, ignore.JSONPointers...)
+		result.ManagedFieldsManagers = append(result.ManagedFieldsManagers, ignore.ManagedFieldsManagers...)
 	}
+	return result
 }

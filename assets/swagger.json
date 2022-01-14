@@ -256,7 +256,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -520,7 +520,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -1605,6 +1605,18 @@
             "type": "string",
             "name": "name",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name.",
+            "name": "id.value",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1659,7 +1671,53 @@
         }
       }
     },
-    "/api/v1/clusters/{cluster.server}": {
+    "/api/v1/clusters/{id.value}": {
+      "get": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "Get returns a cluster by server address",
+        "operationId": "ClusterService_Get",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "ClusterService"
@@ -1669,8 +1727,8 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Server is the API server URL of the Kubernetes cluster",
-            "name": "cluster.server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
@@ -1690,41 +1748,11 @@
             "collectionFormat": "multi",
             "name": "updatedFields",
             "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Cluster"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/clusters/{server}": {
-      "get": {
-        "tags": [
-          "ClusterService"
-        ],
-        "summary": "Get returns a cluster by server address",
-        "operationId": "ClusterService_Get",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "server",
-            "in": "path",
-            "required": true
           },
           {
             "type": "string",
-            "name": "name",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1752,13 +1780,25 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1778,7 +1818,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/invalidate-cache": {
+    "/api/v1/clusters/{id.value}/invalidate-cache": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1788,7 +1828,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -1809,7 +1850,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/rotate-auth": {
+    "/api/v1/clusters/{id.value}/rotate-auth": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1819,7 +1860,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -3106,7 +3148,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -3527,6 +3569,20 @@
         "value": {
           "type": "string",
           "title": "Value is the value of the variable"
+        }
+      }
+    },
+    "clusterClusterID": {
+      "type": "object",
+      "title": "ClusterID holds a cluster server URL or cluster name",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" )"
+        },
+        "value": {
+          "type": "string",
+          "title": "value holds the cluster server URL or cluster name"
         }
       }
     },
@@ -4898,6 +4954,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
+        },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
         },
         "parameters": {
           "type": "array",

@@ -16,7 +16,7 @@ func TestCannotAddAppFromPrivateRepoWithoutCfg(t *testing.T) {
 		Path(fixture.GuestbookPath).
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Error("", "repository not accessible"))
 }
@@ -28,7 +28,7 @@ func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 		Path(fixture.GuestbookPath).
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Error("", "repository not accessible"))
 }
@@ -43,7 +43,7 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 			FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 		}).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Success(""))
 }
@@ -66,7 +66,7 @@ func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 				)))
 		}).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Success(""))
 }
@@ -92,7 +92,7 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 				)))
 		}).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Success(""))
 }
@@ -117,7 +117,7 @@ func TestCanAddAppFromClientCertRepoWithCredCfg(t *testing.T) {
 				)))
 		}).
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(Success(""))
 }
