@@ -1,7 +1,14 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
-export type AppsDetailsViewType = 'tree' | 'compact' | 'network' | 'list' | 'pods';
+export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+
+export enum AppsDetailsViewKey {
+    Tree = 'tree',
+    Network = 'network',
+    List = 'list',
+    Pods = 'pods'
+}
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -28,6 +35,12 @@ export interface HealthStatusBarPreferences {
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
+
+export enum AppsListViewKey {
+    List = 'list',
+    Summary = 'summary',
+    Tiles = 'tiles'
+}
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
