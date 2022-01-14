@@ -38,6 +38,7 @@ func NewApplicationGenerationCommand(opts *generator.GenerateOpts) *cobra.Comman
 			}
 		},
 	}
+	command.PersistentFlags().IntVar(&opts.Samples, "samples", 1, "Amount of samples")
 	return command
 }
 

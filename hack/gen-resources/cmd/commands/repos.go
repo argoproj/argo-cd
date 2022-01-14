@@ -29,8 +29,8 @@ func NewReposCommand(opts *generator.GenerateOpts) *cobra.Command {
 func NewReposGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate",
-		Short: "Generate applications",
-		Long:  "Generate applications",
+		Short: "Generate repos",
+		Long:  "Generate repos",
 		Run: func(c *cobra.Command, args []string) {
 			pg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
 			err := pg.Generate(opts)
@@ -40,14 +40,15 @@ func NewReposGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 		},
 	}
 	command.PersistentFlags().StringVar(&opts.GithubToken, "token", "", "Github token")
+	command.PersistentFlags().IntVar(&opts.Samples, "samples", 1, "Amount of samples")
 	return command
 }
 
 func NewReposCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "clean",
-		Short: "Clean applications",
-		Long:  "Clean applications",
+		Short: "Clean repos",
+		Long:  "Clean repos",
 		Run: func(c *cobra.Command, args []string) {
 			pg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
 			err := pg.Clean(opts)

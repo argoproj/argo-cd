@@ -37,7 +37,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewApplicationCommand(&generateOpts))
 	command.AddCommand(NewAllResourcesCommand(&generateOpts))
 	command.AddCommand(NewReposCommand(&generateOpts))
-	command.PersistentFlags().IntVar(&generateOpts.Samples, "samples", 0, "Amount of samples")
 	command.PersistentFlags().StringVar(&generateOpts.Namespace, "kube-namespace", "argocd", "Name of the namespace on which Argo agent should be installed [$KUBE_NAMESPACE]")
 	return command
 }

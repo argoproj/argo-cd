@@ -14,8 +14,8 @@ import (
 func NewProjectCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "project",
-		Short: "Manage applications",
-		Long:  "Manage applications",
+		Short: "Manage projects",
+		Long:  "Manage projects",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -29,8 +29,8 @@ func NewProjectCommand(opts *generator.GenerateOpts) *cobra.Command {
 func NewProjectGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate",
-		Short: "Generate project",
-		Long:  "Generate project",
+		Short: "Generate projects",
+		Long:  "Generate projects",
 		Run: func(c *cobra.Command, args []string) {
 			pg := generator.NewProjectGenerator(tools.ConnectToK8sArgoClientSet())
 			err := pg.Generate(opts)
@@ -39,6 +39,7 @@ func NewProjectGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 			}
 		},
 	}
+	command.PersistentFlags().IntVar(&opts.Samples, "samples", 1, "Amount of samples")
 	return command
 }
 
