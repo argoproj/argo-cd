@@ -32,8 +32,8 @@ func NewReposGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 		Short: "Generate repos",
 		Long:  "Generate repos",
 		Run: func(c *cobra.Command, args []string) {
-			pg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
-			err := pg.Generate(opts)
+			rg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
+			err := rg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}

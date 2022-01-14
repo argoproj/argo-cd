@@ -34,6 +34,7 @@ func NewAllResourcesGenerationCommand(opts *generator.GenerateOpts) *cobra.Comma
 			clientSet := tools.ConnectToK8sArgoClientSet()
 			pg := generator.NewProjectGenerator(clientSet)
 			ag := generator.NewApplicationGenerator(clientSet)
+			rg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
 			err := pg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
@@ -42,8 +43,13 @@ func NewAllResourcesGenerationCommand(opts *generator.GenerateOpts) *cobra.Comma
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
+			err = rg.Generate(opts)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
 		},
 	}
+	command.PersistentFlags().IntVar(&opts.Samples, "samples", 1, "Amount of samples")
 	return command
 }
 

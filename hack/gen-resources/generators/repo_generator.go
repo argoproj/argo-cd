@@ -51,7 +51,7 @@ func fetchRepos(token string, page int) ([]Repo, error) {
 	return repos, nil
 }
 
-func FetchRepos(token string) ([]Repo, error) {
+func FetchRepos(token string, samples int) ([]Repo, error) {
 	log.Print("Fetch repos started")
 	var (
 		repos []Repo
@@ -69,6 +69,10 @@ func FetchRepos(token string) ([]Repo, error) {
 		if len(fetchedRepos) == 0 {
 			break
 		}
+		if len(repos)+len(fetchedRepos) > samples {
+			repos = append(repos, fetchedRepos[0:samples-len(repos)]...)
+			break
+		}
 		repos = append(repos, fetchedRepos...)
 		page++
 	}
@@ -76,7 +80,7 @@ func FetchRepos(token string) ([]Repo, error) {
 }
 
 func (rg *RepoGenerator) Generate(opts *GenerateOpts) error {
-	repos, err := FetchRepos(opts.GithubToken)
+	repos, err := FetchRepos(opts.GithubToken, opts.Samples)
 	if err != nil {
 		return err
 	}
