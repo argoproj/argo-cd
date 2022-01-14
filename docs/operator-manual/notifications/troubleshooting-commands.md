@@ -3,7 +3,7 @@
 Prints information about configured templates
 
 ```
-argocd admin notifications template get [flags]
+notifications template get [flags]
 ```
 
 ### Examples
@@ -11,9 +11,9 @@ argocd admin notifications template get [flags]
 ```
 
 # prints all templates
-argocd admin notifications template get
+notifications template get
 # print YAML formatted app-sync-succeeded template definition
-argocd admin notifications template get app-sync-succeeded -o=yaml
+notifications template get app-sync-succeeded -o=yaml
 
 ```
 
@@ -56,7 +56,7 @@ argocd admin notifications template get app-sync-succeeded -o=yaml
 Generates notification using the specified template and send it to specified recipients
 
 ```
-argocd admin notifications template notify NAME RESOURCE_NAME [flags]
+notifications template notify NAME RESOURCE_NAME [flags]
 ```
 
 ### Examples
@@ -64,10 +64,10 @@ argocd admin notifications template notify NAME RESOURCE_NAME [flags]
 ```
 
 # Trigger notification using in-cluster config map and secret
-argocd admin notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
+notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
 
 # Render notification render generated notification in console
-argocd admin notifications template notify app-sync-succeeded guestbook
+notifications template notify app-sync-succeeded guestbook
 
 ```
 
@@ -105,12 +105,12 @@ argocd admin notifications template notify app-sync-succeeded guestbook
       --username string                 Username for basic authentication to the API server
 ```
 
-## argocd-notifications trigger get
+## notifications trigger get
 
 Prints information about configured triggers
 
 ```
-argocd admin notifications trigger get [flags]
+notifications trigger get [flags]
 ```
 
 ### Examples
@@ -118,9 +118,9 @@ argocd admin notifications trigger get [flags]
 ```
 
 # prints all triggers
-argocd admin notifications trigger get
+notifications trigger get
 # print YAML formatted on-sync-failed trigger definition
-argocd admin notifications trigger get on-sync-failed -o=yaml
+notifications trigger get on-sync-failed -o=yaml
 
 ```
 
@@ -158,12 +158,12 @@ argocd admin notifications trigger get on-sync-failed -o=yaml
       --username string                 Username for basic authentication to the API server
 ```
 
-## argocd-notifications trigger run
+## notifications trigger run
 
 Evaluates specified trigger condition and prints the result
 
 ```
-argocd admin notifications trigger run NAME RESOURCE_NAME [flags]
+notifications trigger run NAME RESOURCE_NAME [flags]
 ```
 
 ### Examples
@@ -171,10 +171,10 @@ argocd admin notifications trigger run NAME RESOURCE_NAME [flags]
 ```
 
 # Execute trigger configured in 'argocd-notification-cm' ConfigMap
-argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml
+notifications trigger run on-sync-status-unknown ./sample-app.yaml
 
 # Execute trigger using my-config-map.yaml instead of 'argocd-notifications-cm' ConfigMap
-argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml \
+notifications trigger run on-sync-status-unknown ./sample-app.yaml \
     --config-map ./my-config-map.yaml
 ```
 
