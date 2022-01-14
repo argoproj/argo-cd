@@ -232,7 +232,7 @@ const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
 
 var (
 	unknownVersion = semver.MustParse("v99.99.99")
-	semverRegex    = regexp.MustCompile("^" + semVerRegex + "$")
+	semverRegex    = regexp.MustCompile(semVerRegex)
 	semVer         *semver.Version
 	semVerLock     sync.Mutex
 )
