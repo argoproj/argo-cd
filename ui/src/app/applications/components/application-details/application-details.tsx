@@ -33,7 +33,6 @@ interface ApplicationDetailsState {
     revision?: string;
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
-    showCompactNodes?: boolean;
 }
 
 interface FilterInput {
@@ -68,7 +67,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, showCompactNodes: false};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0};
     }
 
     private get showOperationState() {
@@ -97,8 +96,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView() {
-        this.setState({showCompactNodes: !this.state.showCompactNodes});
+    private toggleCompactView(pref: AppDetailsPreferences) {
+        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
     public render() {
@@ -256,9 +255,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     {pref.view === 'tree' && (
                                                         <button
-                                                            className={`argo-button argo-button--base${!this.state.showCompactNodes ? '-o' : ''}`}
+                                                            className={`argo-button argo-button--base${!pref.groupNodes ? '-o' : ''}`}
                                                             style={{border: 'none', width: '160px'}}
-                                                            onClick={() => this.toggleCompactView()}>
+                                                            onClick={() => this.toggleCompactView(pref)}>
                                                             <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
                                                             Group Nodes
                                                         </button>
@@ -272,7 +271,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
-                                                        showCompactNodes={this.state.showCompactNodes}
+                                                        showCompactNodes={pref.groupNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}

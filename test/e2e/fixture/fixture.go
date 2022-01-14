@@ -358,7 +358,9 @@ func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverrid
 			if v.Actions != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "actions")] = v.Actions
 			}
-			if len(v.IgnoreDifferences.JSONPointers) > 0 || len(v.IgnoreDifferences.JQPathExpressions) > 0 {
+			if len(v.IgnoreDifferences.JSONPointers) > 0 ||
+				len(v.IgnoreDifferences.JQPathExpressions) > 0 ||
+				len(v.IgnoreDifferences.ManagedFieldsManagers) > 0 {
 				yamlBytes, err := yaml.Marshal(v.IgnoreDifferences)
 				if err != nil {
 					return err

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
@@ -175,7 +175,7 @@ g, bob, role:admin
 	_ = enf.SetUserPolicy(policy)
 	allowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
-		jwt.StandardClaims{Subject: "admin"},
+		jwt.RegisteredClaims{Subject: "admin"},
 	}
 	for _, c := range allowed {
 		if !assert.True(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
@@ -185,7 +185,7 @@ g, bob, role:admin
 
 	disallowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org3:team3"}},
-		jwt.StandardClaims{Subject: "nobody"},
+		jwt.RegisteredClaims{Subject: "nobody"},
 	}
 	for _, c := range disallowed {
 		if !assert.False(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {

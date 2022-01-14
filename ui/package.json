@@ -101,7 +101,7 @@
     "identity-obj-proxy": "^3.0.0",
     "jest": "^24.9.0",
     "jest-transform-css": "^2.0.0",
-    "postcss": "^8.2.10",
+    "postcss": "^8.2.13",
     "prettier": "1.19",
     "react-test-renderer": "16.8.3",
     "ts-jest": "^24.1.0",

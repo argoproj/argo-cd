@@ -42,6 +42,11 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default listener address for ArgoCD components
+const (
+	DefaultAddressAPIServer = "localhost"
+)
+
 // Default paths on the pod's file system
 const (
 	// The default path where TLS certificates for repositories are located

@@ -2,10 +2,10 @@ health_status = {}
 if obj.status ~= nil then
   if obj.status.ingress ~= nil then
     numIngressRules = 0
+    numTrue = 0
+    numFalse = 0
     for _, ingressRules in pairs(obj.status.ingress) do
         numIngressRules = numIngressRules + 1
-        numTrue = 0
-        numFalse = 0
         if obj.status.ingress ~= nil then
           for _, condition in pairs(ingressRules.conditions) do
               if condition.type == "Admitted" and condition.status == "True" then

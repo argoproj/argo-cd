@@ -21,7 +21,7 @@ func TestSyncOptionsValidateFalse(t *testing.T) {
 	Given(t).
 		Path("sync-options-validate-false").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded))
@@ -41,7 +41,7 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 		Path("sync-options-validate-false").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		PatchFile("invalid-cm.yaml", `[{"op": "remove", "path": "/metadata/annotations"}]`).
 		Sync().
 		Then().

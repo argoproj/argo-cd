@@ -143,14 +143,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 }
 
 func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+	args = a.prepareCreateAppArgs(args)
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+func (a *Actions) CreateApp(args ...string) *Actions {
+	args = a.prepareCreateAppArgs(args)
 	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
@@ -159,7 +159,7 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) prepareCreateArgs(args []string) []string {
+func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.name,
