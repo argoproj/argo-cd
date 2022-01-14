@@ -1,5 +1,5 @@
 application:
-  samples: 100
+  samples: 5
   source:
     strategy: Random
   destination:
