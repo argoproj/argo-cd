@@ -1,28 +1,27 @@
-## argocd admin argocd-notifications template notify
+## argocd admin notifications template get
 
-Generates notification using the specified template and send it to specified recipients
+Prints information about configured templates
 
 ```
-argocd admin argocd-notifications template notify NAME RESOURCE_NAME [flags]
+argocd admin notifications template get [flags]
 ```
 
 ### Examples
 
 ```
 
-# Trigger notification using in-cluster config map and secret
-argocd-notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
-
-# Render notification render generated notification in console
-argocd-notifications template notify app-sync-succeeded guestbook
+# prints all templates
+notifications template get
+# print YAML formatted app-sync-succeeded template definition
+notifications template get app-sync-succeeded -o=yaml
 
 ```
 
 ### Options
 
 ```
-  -h, --help                    help for notify
-      --recipient stringArray   List of recipients (default [console:stdout])
+  -h, --help            help for get
+  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
 ```
 
 ### Options inherited from parent commands
@@ -70,5 +69,5 @@ argocd-notifications template notify app-sync-succeeded guestbook
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications template](argocd_admin_argocd-notifications_template.md)	 - Notification templates related commands
+* [argocd admin notifications template](argocd_admin_notifications_template.md)	 - Notification templates related commands
 

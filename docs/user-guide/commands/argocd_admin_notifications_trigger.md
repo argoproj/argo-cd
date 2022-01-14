@@ -1,9 +1,9 @@
-## argocd admin argocd-notifications trigger
+## argocd admin notifications trigger
 
 Notification triggers related commands
 
 ```
-argocd admin argocd-notifications trigger [flags]
+argocd admin notifications trigger [flags]
 ```
 
 ### Options
@@ -57,7 +57,7 @@ argocd admin argocd-notifications trigger [flags]
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications](argocd_admin_argocd-notifications.md)	 - Set of CLI commands that helps manage notifications settings
-* [argocd admin argocd-notifications trigger get](argocd_admin_argocd-notifications_trigger_get.md)	 - Prints information about configured triggers
-* [argocd admin argocd-notifications trigger run](argocd_admin_argocd-notifications_trigger_run.md)	 - Evaluates specified trigger condition and prints the result
+* [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
+* [argocd admin notifications trigger get](argocd_admin_notifications_trigger_get.md)	 - Prints information about configured triggers
+* [argocd admin notifications trigger run](argocd_admin_notifications_trigger_run.md)	 - Evaluates specified trigger condition and prints the result
 

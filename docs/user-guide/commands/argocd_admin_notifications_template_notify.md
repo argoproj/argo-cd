@@ -1,27 +1,28 @@
-## argocd admin argocd-notifications trigger run
+## argocd admin notifications template notify
 
-Evaluates specified trigger condition and prints the result
+Generates notification using the specified template and send it to specified recipients
 
 ```
-argocd admin argocd-notifications trigger run NAME RESOURCE_NAME [flags]
+argocd admin notifications template notify NAME RESOURCE_NAME [flags]
 ```
 
 ### Examples
 
 ```
 
-# Execute trigger configured in 'argocd-notification-cm' ConfigMap
-argocd-notifications trigger run on-sync-status-unknown ./sample-app.yaml
+# Trigger notification using in-cluster config map and secret
+notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
 
-# Execute trigger using my-config-map.yaml instead of 'argocd-notifications-cm' ConfigMap
-argocd-notifications trigger run on-sync-status-unknown ./sample-app.yaml \
-    --config-map ./my-config-map.yaml
+# Render notification render generated notification in console
+notifications template notify app-sync-succeeded guestbook
+
 ```
 
 ### Options
 
 ```
-  -h, --help   help for run
+  -h, --help                    help for notify
+      --recipient stringArray   List of recipients (default [console:stdout])
 ```
 
 ### Options inherited from parent commands
@@ -69,5 +70,5 @@ argocd-notifications trigger run on-sync-status-unknown ./sample-app.yaml \
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications trigger](argocd_admin_argocd-notifications_trigger.md)	 - Notification triggers related commands
+* [argocd admin notifications template](argocd_admin_notifications_template.md)	 - Notification templates related commands
 

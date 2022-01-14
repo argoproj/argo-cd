@@ -1,27 +1,27 @@
-## argocd admin argocd-notifications trigger get
+## argocd admin notifications trigger run
 
-Prints information about configured triggers
+Evaluates specified trigger condition and prints the result
 
 ```
-argocd admin argocd-notifications trigger get [flags]
+argocd admin notifications trigger run NAME RESOURCE_NAME [flags]
 ```
 
 ### Examples
 
 ```
 
-# prints all triggers
-argocd-notifications trigger get
-# print YAML formatted on-sync-failed trigger definition
-argocd-notifications trigger get on-sync-failed -o=yaml
+# Execute trigger configured in 'argocd-notification-cm' ConfigMap
+notifications trigger run on-sync-status-unknown ./sample-app.yaml
 
+# Execute trigger using my-config-map.yaml instead of 'argocd-notifications-cm' ConfigMap
+notifications trigger run on-sync-status-unknown ./sample-app.yaml \
+    --config-map ./my-config-map.yaml
 ```
 
 ### Options
 
 ```
-  -h, --help            help for get
-  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
+  -h, --help   help for run
 ```
 
 ### Options inherited from parent commands
@@ -69,5 +69,5 @@ argocd-notifications trigger get on-sync-failed -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications trigger](argocd_admin_argocd-notifications_trigger.md)	 - Notification triggers related commands
+* [argocd admin notifications trigger](argocd_admin_notifications_trigger.md)	 - Notification triggers related commands
 
