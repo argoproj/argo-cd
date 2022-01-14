@@ -792,6 +792,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+					"skipCrds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
