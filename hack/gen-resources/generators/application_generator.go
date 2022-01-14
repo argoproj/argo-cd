@@ -18,7 +18,7 @@ func NewApplicationGenerator(clientSet *appclientset.Clientset) Generator {
 }
 
 func (pg *ApplicationGenerator) Generate(opts *GenerateOpts) error {
-	applications := pg.clientSet.ArgoprojV1alpha1().Applications("argocd")
+	applications := pg.clientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	for i := 0; i < opts.Samples; i++ {
 		_, err := applications.Create(context.TODO(), &v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{
