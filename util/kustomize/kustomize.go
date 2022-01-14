@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
@@ -223,9 +223,16 @@ func IsKustomization(path string) bool {
 	return false
 }
 
+// semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
+// here.
+// https://github.com/Masterminds/semver/blob/49c09bfed6adcffa16482ddc5e5588cffff9883a/version.go#L42
+const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+
 var (
 	unknownVersion = semver.MustParse("v99.99.99")
-	semverRegex    = regexp.MustCompile(semver.SemVerRegex)
+	semverRegex    = regexp.MustCompile(semVerRegex)
 	semVer         *semver.Version
 	semVerLock     sync.Mutex
 )
