@@ -468,6 +468,10 @@ func loadPolicyLine(line string, model model.Model) error {
 		return err
 	}
 
+	if len(tokens) < 2 || len(tokens[0]) < 1 {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
+
 	key := tokens[0]
 	sec := key[:1]
 	if _, ok := model[sec]; !ok {

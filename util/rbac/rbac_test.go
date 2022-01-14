@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -398,4 +399,43 @@ func TestGlobMatchFunc(t *testing.T) {
 
 	ok, _ = globMatchFunc("arg/123", "arg/*")
 	assert.True(t, ok.(bool))
+}
+
+func TestLoadPolicyLine(t *testing.T) {
+	t.Run("Valid policy line", func(t *testing.T) {
+		policy := `p, foo, bar, baz`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Empty policy line", func(t *testing.T) {
+		policy := ""
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Comment policy line", func(t *testing.T) {
+		policy := "# Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Invalid policy line: single token", func(t *testing.T) {
+		policy := "p"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line: plain text", func(t *testing.T) {
+		policy := "Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line", func(t *testing.T) {
+		policy := "agh, foo, bar"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
 }
