@@ -163,7 +163,6 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
 		And(func(_ *Application) {
-			// app should be listed
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
