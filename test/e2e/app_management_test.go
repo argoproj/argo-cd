@@ -169,17 +169,6 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 			assert.Contains(t, output, Name())
 		}).
 		When().
-		// ensure that create is idempotent
-		CreateApp().
-		Then().
-		Given().
-		Revision("master").
-		When().
-		// ensure that update replaces spec and merge labels and annotations
-		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
-				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
-		}).
 		IgnoreErrors().
 		CreateApp().
 		Then().
