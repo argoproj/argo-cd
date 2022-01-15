@@ -171,7 +171,6 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	} else {
 		args = append(args, "--dest-server", a.context.destServer)
 	}
-
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
 	}
