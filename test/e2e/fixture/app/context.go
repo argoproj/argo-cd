@@ -23,6 +23,7 @@ type Context struct {
 	timeout                int
 	name                   string
 	destServer             string
+	destName               string
 	env                    string
 	parameters             []string
 	namePrefix             string
@@ -206,6 +207,11 @@ func (c *Context) Timeout(timeout int) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
+	return c
+}
+
+func (c *Context) DestName(destName string) *Context {
+	c.destName = destName
 	return c
 }
 
