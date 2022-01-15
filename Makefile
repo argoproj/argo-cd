@@ -4,6 +4,8 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+GEN_RESOURCES_CLI_NAME=argocd-resources-gen
+
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
@@ -221,6 +223,10 @@ cli: test-tools-image
 .PHONY: cli-local
 cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+
+.PHONY: gen-resources-cli-local
+gen-resources-cli-local: clean-debug
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
 
 .PHONY: release-cli
 release-cli: clean-debug

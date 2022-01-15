@@ -1,27 +1,15 @@
-## argocd admin argocd-notifications template get
+## argocd admin notifications template
 
-Prints information about configured templates
-
-```
-argocd admin argocd-notifications template get [flags]
-```
-
-### Examples
+Notification templates related commands
 
 ```
-
-# prints all templates
-argocd-notifications template get
-# print YAML formatted app-sync-succeeded template definition
-argocd-notifications template get app-sync-succeeded -o=yaml
-
+argocd admin notifications template [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help            help for get
-  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
+  -h, --help   help for template
 ```
 
 ### Options inherited from parent commands
@@ -69,5 +57,7 @@ argocd-notifications template get app-sync-succeeded -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications template](argocd_admin_argocd-notifications_template.md)	 - Notification templates related commands
+* [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
+* [argocd admin notifications template get](argocd_admin_notifications_template_get.md)	 - Prints information about configured templates
+* [argocd admin notifications template notify](argocd_admin_notifications_template_notify.md)	 - Generates notification using the specified template and send it to specified recipients
 

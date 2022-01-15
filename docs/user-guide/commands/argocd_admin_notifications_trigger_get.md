@@ -1,9 +1,9 @@
-## argocd admin argocd-notifications trigger get
+## argocd admin notifications trigger get
 
 Prints information about configured triggers
 
 ```
-argocd admin argocd-notifications trigger get [flags]
+argocd admin notifications trigger get [flags]
 ```
 
 ### Examples
@@ -11,9 +11,9 @@ argocd admin argocd-notifications trigger get [flags]
 ```
 
 # prints all triggers
-argocd-notifications trigger get
+notifications trigger get
 # print YAML formatted on-sync-failed trigger definition
-argocd-notifications trigger get on-sync-failed -o=yaml
+notifications trigger get on-sync-failed -o=yaml
 
 ```
 
@@ -69,5 +69,5 @@ argocd-notifications trigger get on-sync-failed -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications trigger](argocd_admin_argocd-notifications_trigger.md)	 - Notification triggers related commands
+* [argocd admin notifications trigger](argocd_admin_notifications_trigger.md)	 - Notification triggers related commands
 

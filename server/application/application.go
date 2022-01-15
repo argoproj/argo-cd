@@ -212,7 +212,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
-		return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("application", existing.Spec, a.Spec))
+		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
 		return nil, err

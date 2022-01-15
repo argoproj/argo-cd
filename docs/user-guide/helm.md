@@ -296,3 +296,23 @@ spec:
     helm:
       passCredentials: true
 ```
+
+## Helm `--skip-crds`
+
+Helm installs custom resource definitions in the `crds` folder by default if they are not existing. 
+See the [CRD best practices](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/) for details.
+
+If needed, it is possible to skip the CRD installation step with the `helm-skip-crds` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-crds
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipCrds: true
+```
