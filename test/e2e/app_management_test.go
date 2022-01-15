@@ -144,6 +144,37 @@ func TestAppCreation(t *testing.T) {
 		})
 }
 
+func TestAppCreationWithoutForceUpdate(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		DestName("in-cluster").
+		When().
+		CreateApp().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			assert.Equal(t, Name(), app.Name)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, "in-cluster", app.Spec.Destination.Name)
+		}).
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list")
+			assert.NoError(t, err)
+			assert.Contains(t, output, Name())
+		}).
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
