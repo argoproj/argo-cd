@@ -323,7 +323,13 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		// Additional check for debug level so we don't need to evaluate the
 		// format string in case of non-debug scenarios
 		if log.GetLevel() >= log.DebugLevel {
-			log.Debugf("Refreshing app %s for change in cluster of object %s/%s of type %s/%s", appName, ref.Namespace, ref.Name, ref.APIVersion, ref.Kind)
+			var resKey string
+			if ref.Namespace != "" {
+				resKey = ref.Namespace + "/" + ref.Name
+			} else {
+				resKey = "(cluster-scoped)/" + ref.Name
+			}
+			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appName, resKey, ref.APIVersion, ref.Kind)
 		}
 
 		ctrl.requestAppRefresh(appName, &level, nil)
