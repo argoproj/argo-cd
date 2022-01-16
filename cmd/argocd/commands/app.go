@@ -558,15 +558,16 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		parameters       []string
-		valuesLiteral    bool
-		valuesFiles      []string
-		nameSuffix       bool
-		namePrefix       bool
-		kustomizeVersion bool
-		kustomizeImages  []string
-		pluginEnvs       []string
-		appOpts          cmdutil.AppOptions
+		parameters              []string
+		valuesLiteral           bool
+		valuesFiles             []string
+		ignoreMissingValueFiles bool
+		nameSuffix              bool
+		namePrefix              bool
+		kustomizeVersion        bool
+		kustomizeImages         []string
+		pluginEnvs              []string
+		appOpts                 cmdutil.AppOptions
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME parameters",
@@ -643,7 +644,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 			if app.Spec.Source.Helm != nil {
-				if len(parameters) == 0 && len(valuesFiles) == 0 && !valuesLiteral {
+				if len(parameters) == 0 && len(valuesFiles) == 0 && !valuesLiteral && !ignoreMissingValueFiles {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
@@ -670,6 +671,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 							break
 						}
 					}
+				}
+				if ignoreMissingValueFiles {
+					app.Spec.Source.Helm.IgnoreMissingValueFiles = false
+					updated = true
 				}
 				if app.Spec.Source.Helm.PassCredentials {
 					app.Spec.Source.Helm.PassCredentials = false
@@ -706,6 +711,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "Unset a parameter override (e.g. -p guestbook=image)")
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "Unset one or more Helm values files")
 	command.Flags().BoolVar(&valuesLiteral, "values-literal", false, "Unset literal Helm values block")
+	command.Flags().BoolVar(&ignoreMissingValueFiles, "ignore-missing-value-files", false, "Unset the helm ignore-missing-value-files option (revert to false)")
 	command.Flags().BoolVar(&nameSuffix, "namesuffix", false, "Kustomize namesuffix")
 	command.Flags().BoolVar(&namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")

@@ -2580,3 +2580,10 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
 	assert.NoError(t, err)
 }
+
+func Test_validatePolicy_ValidResource(t *testing.T) {
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
+	assert.NoError(t, err)
+}

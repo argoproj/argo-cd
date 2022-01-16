@@ -139,6 +139,15 @@ func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.Clu
 }
 
 func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+	if q.Id != nil {
+		q.Server = ""
+		q.Name = ""
+		if q.Id.Type == "name" {
+			q.Name = q.Id.Value
+		} else {
+			q.Server = q.Id.Value
+		}
+	}
 
 	if q.Server != "" {
 		c, err := s.db.GetCluster(ctx, q.Server)
@@ -197,6 +206,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	c, err := s.getClusterWith403IfNotExist(ctx, &cluster.ClusterQuery{
 		Server: q.Cluster.Server,
 		Name:   q.Cluster.Name,
+		Id:     q.Id,
 	})
 	if err != nil {
 		return nil, err
@@ -215,17 +225,12 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	}
 
 	if len(q.UpdatedFields) != 0 {
-		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
-		if err != nil {
-			return nil, err
-		}
-
 		for _, path := range q.UpdatedFields {
 			if updater, ok := clusterFieldsByPath[path]; ok {
-				updater(existing, q.Cluster)
+				updater(c, q.Cluster)
 			}
 		}
-		q.Cluster = existing
+		q.Cluster = c
 	}
 
 	// Test the token we just created before persisting it

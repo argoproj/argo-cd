@@ -73,7 +73,7 @@ containers:
  
  * Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
  * Make sure that sidecar container is running as user 999
- * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/pluging.yaml`. It can either be volume mapped via configmap or baked into image
+ * Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image
 
 ### Plugin configuration file
 
