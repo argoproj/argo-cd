@@ -21,8 +21,8 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -772,7 +772,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
-	if !a.settings.IsSSOConfigured() {
+	if !a.settings.IsDexConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)

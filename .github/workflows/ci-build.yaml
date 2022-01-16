@@ -15,16 +15,6 @@ env:
   GOLANG_VERSION: '1.16.11'
 
 jobs:
-  build-docker:
-    name: Build Docker image
-    runs-on: ubuntu-latest
-    if: github.head_ref != ''
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build Docker image
-        run: |
-          make image
   check-go:
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-latest
@@ -401,7 +391,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.4-alpine
+          docker pull redis:6.2.6-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

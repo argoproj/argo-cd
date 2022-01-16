@@ -152,6 +152,9 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
+	if un == nil {
+		return fmt.Errorf("invalid argument: unstructured is nil")
+	}
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
 		groupKind := un.GroupVersionKind().GroupKind()

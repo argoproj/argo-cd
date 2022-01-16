@@ -3,14 +3,18 @@
 - [Roadmap](#roadmap)
   - [v2.3](#v23)
     - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
-    - [Input Forms UI Refresh](#input-forms-ui-refresh)
+    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
     - [Compact resources tree](#compact-resources-tree)
     - [Maintain difference in cluster and git values for specific fields](#maintain-difference-in-cluster-and-git-values-for-specific-fields)
+    - [ARM images and CLI binary](#arm-images-and-cli-binary)
+    - [Server side apply](#server-side-apply)
+  - [v2.4 and beyond](#v24-and-beyond)
+    - [First class support for ApplicationSet resources](#first-class-support-for-applicationset-resources)
+    - [Input Forms UI Refresh](#input-forms-ui-refresh)
+    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
     - [Web Shell](#web-shell)
     - [Helm values from external repo](#helm-values-from-external-repo)
-  - [v2.4 and beyond](#v24-and-beyond)
-    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
-    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
+    - [Add support for secrets in Application parameters](#add-support-for-secrets-in-application-parameters)
     - [Config Management Tools Integrations UI/CLI](#config-management-tools-integrations-uicli)
     - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
     - [Dependencies between applications](#dependencies-between-applications)
@@ -32,13 +36,15 @@
 
 ## v2.3
 
+> ETA: Feb 2021
+
 ### Merge Argo CD Notifications into Argo CD
 
 The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
 
-### Input Forms UI Refresh
+### Merge ApplicationSet controller into Argo CD
 
-Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
+The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
 
 ### Compact resources tree
 
@@ -48,6 +54,29 @@ An ability to collaps leaf resources tree to improve visualization of very large
 
 The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
 
+### ARM images and CLI binary
+
+The release workflow should build and publish ARM images and CLI binaries: ([#4211](https://github.com/argoproj/argo-cd/issues/4211))
+
+### Server side apply
+
+Support using [server side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) during application syncing
+[#2267](https://github.com/argoproj/argo-cd/issues/2267)
+
+## v2.4 and beyond
+
+### First class support for ApplicationSet resources
+
+The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+
+### Input Forms UI Refresh
+
+Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
+
+### Merge Argo CD Image Updater into Argo CD
+
+The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+
 ### Web Shell
 
 Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.com/argoproj/argo-cd/issues/4351)
@@ -56,20 +85,9 @@ Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.c
 
 The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
 
+### Add support for secrets in Application parameters
 
-## v2.4 and beyond
-
-
-### Merge ApplicationSet controller into Argo CD
-
-The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
-The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
-
-
-### Merge Argo CD Image Updater into Argo CD
-
-The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
-
+The feature allows referencing secrets in Application parameters. [#1786](https://github.com/argoproj/argo-cd/issues/1786).
 
 ### Config Management Tools Integrations UI/CLI
 

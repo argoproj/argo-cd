@@ -267,6 +267,10 @@ spec:
                             description: ReleaseName is the Helm release name to use.
                               If omitted it will use the application name
                             type: string
+                          skipCrds:
+                            description: SkipCrds skips custom resource definition
+                              installation step (Helm's --skip-crds)
+                            type: boolean
                           valueFiles:
                             description: ValuesFiles is a list of Helm value files
                               to use when generating a template
@@ -636,6 +640,10 @@ spec:
                         description: ReleaseName is the Helm release name to use.
                           If omitted it will use the application name
                         type: string
+                      skipCrds:
+                        description: SkipCrds skips custom resource definition installation
+                          step (Helm's --skip-crds)
+                        type: boolean
                       valueFiles:
                         description: ValuesFiles is a list of Helm value files to
                           use when generating a template
@@ -1011,6 +1019,10 @@ spec:
                               description: ReleaseName is the Helm release name to
                                 use. If omitted it will use the application name
                               type: string
+                            skipCrds:
+                              description: SkipCrds skips custom resource definition
+                                installation step (Helm's --skip-crds)
+                              type: boolean
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
@@ -1403,6 +1415,10 @@ spec:
                                       to use. If omitted it will use the application
                                       name
                                     type: string
+                                  skipCrds:
+                                    description: SkipCrds skips custom resource definition
+                                      installation step (Helm's --skip-crds)
+                                    type: boolean
                                   valueFiles:
                                     description: ValuesFiles is a list of Helm value
                                       files to use when generating a template
@@ -1771,6 +1787,10 @@ spec:
                                 description: ReleaseName is the Helm release name
                                   to use. If omitted it will use the application name
                                 type: string
+                              skipCrds:
+                                description: SkipCrds skips custom resource definition
+                                  installation step (Helm's --skip-crds)
+                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -2127,6 +2147,10 @@ spec:
                                 description: ReleaseName is the Helm release name
                                   to use. If omitted it will use the application name
                                 type: string
+                              skipCrds:
+                                description: SkipCrds skips custom resource definition
+                                  installation step (Helm's --skip-crds)
+                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -3305,7 +3329,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:6.2.4-alpine
+        image: redis:6.2.6-alpine
         imagePullPolicy: Always
         name: redis
         ports:

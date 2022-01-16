@@ -16,16 +16,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-jsonnet"
+
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
-	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -644,6 +645,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.SetFile[p.Name] = p.Path
 		}
 		passCredentials = appHelm.PassCredentials
+		templateOpts.SkipCrds = appHelm.SkipCrds
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName
@@ -1644,4 +1646,53 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
 	}
 	return apiResp, nil
+}
+
+// ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
+func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
+
+	repo := q.Repo
+	app := q.App
+	ambiguousRevision := q.AmbiguousRevision
+	var revision string
+	if app.Spec.Source.IsHelm() {
+
+		if helm.IsVersion(ambiguousRevision) {
+			return &apiclient.ResolveRevisionResponse{Revision: ambiguousRevision, AmbiguousRevision: ambiguousRevision}, nil
+		}
+		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy)
+		index, err := client.GetIndex(false)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		entries, err := index.GetEntries(app.Spec.Source.Chart)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		constraints, err := semver.NewConstraint(ambiguousRevision)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		version, err := entries.MaxVersion(constraints)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          version.String(),
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
+		}, nil
+	} else {
+		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		revision, err = gitClient.LsRemote(ambiguousRevision)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
+		}, nil
+	}
 }
