@@ -25,6 +25,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
+func Test_GetRBACObject(t *testing.T) {
+	object := GetRBACObject("test-prj", "test-cluster")
+	assert.Equal(t, "test-prj/test-cluster", object)
+	objectWithoutPrj := GetRBACObject("", "test-cluster")
+	assert.Equal(t, "test-cluster", objectWithoutPrj)
+}
+
 func newServerInMemoryCache() *servercache.Cache {
 	return servercache.NewCache(
 		appstatecache.NewCache(

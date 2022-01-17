@@ -43,10 +43,10 @@ import (
 
 const testNamespace = "default"
 
-func Test_createRBACObject(t *testing.T) {
-	object := createRBACObject("test-prj", "test-repo")
+func Test_GetRBACObject(t *testing.T) {
+	object := GetRBACObject("test-prj", "test-repo")
 	assert.Equal(t, "test-prj/test-repo", object)
-	objectWithoutPrj := createRBACObject("", "test-repo")
+	objectWithoutPrj := GetRBACObject("", "test-repo")
 	assert.Equal(t, "test-repo", objectWithoutPrj)
 }
 
