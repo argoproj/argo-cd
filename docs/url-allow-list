@@ -67,3 +67,4 @@ ghe.example.com
 github.com/yourghuser/argo-cd
 github.com/argoproj/argo-cd/releases/download/
 https://github.com/hayorov/helm-gcs.git;
+grafana.apps.argoproj.io
