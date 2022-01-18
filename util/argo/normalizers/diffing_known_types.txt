@@ -58,18 +58,19 @@ core/v1/FlexPersistentVolumeSource
 core/v1/FlexVolumeSource
 core/v1/FlockerVolumeSource
 core/v1/GCEPersistentDiskVolumeSource
+core/v1/GRPCAction
 core/v1/GitRepoVolumeSource
 core/v1/GlusterfsPersistentVolumeSource
 core/v1/GlusterfsVolumeSource
 core/v1/HTTPGetAction
 core/v1/HTTPHeader
-core/v1/Handler
 core/v1/HostAlias
 core/v1/HostPathVolumeSource
 core/v1/ISCSIPersistentVolumeSource
 core/v1/ISCSIVolumeSource
 core/v1/KeyToPath
 core/v1/Lifecycle
+core/v1/LifecycleHandler
 core/v1/LimitRange
 core/v1/LimitRangeItem
 core/v1/LimitRangeList
@@ -128,6 +129,7 @@ core/v1/PodExecOptions
 core/v1/PodIP
 core/v1/PodList
 core/v1/PodLogOptions
+core/v1/PodOS
 core/v1/PodPortForwardOptions
 core/v1/PodProxyOptions
 core/v1/PodReadinessGate
@@ -145,6 +147,7 @@ core/v1/Preconditions
 core/v1/PreferAvoidPodsEntry
 core/v1/PreferredSchedulingTerm
 core/v1/Probe
+core/v1/ProbeHandler
 core/v1/ProjectedVolumeSource
 core/v1/QuobyteVolumeSource
 core/v1/RBDPersistentVolumeSource

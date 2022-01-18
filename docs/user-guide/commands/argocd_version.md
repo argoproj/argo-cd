@@ -28,6 +28,7 @@ argocd version [flags]
 ```
       --as string                      Username to impersonate for the operation
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
       --certificate-authority string   Path to a cert file for the certificate authority
       --client                         client version only (no server required)
       --client-certificate string      Path to a client certificate file for TLS
