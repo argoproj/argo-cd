@@ -114,7 +114,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})}>
                                             <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                                 <div className='applications-list__external-link'>
-                                                    <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                    <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns small-12'>
