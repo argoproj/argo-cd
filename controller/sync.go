@@ -291,8 +291,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
-		// calculate targetPatch between normalized and target resources
-		targetPatch, err := getMergePatch(normalizedTarget, cr.reconciliationResult.Target[idx])
+		originalTarget := cr.reconciliationResult.Target[idx]
+		if live == nil {
+			patchedTargets = append(patchedTargets, originalTarget)
+			continue
+		}
+		// calculate targetPatch between normalized and target resource
+		targetPatch, err := getMergePatch(normalizedTarget, originalTarget)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +319,8 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 				return nil, err
 			}
 		} else {
-			normalizedTarget = cr.reconciliationResult.Target[idx]
+			// if there is no patch just use the original target
+			normalizedTarget = originalTarget
 		}
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
