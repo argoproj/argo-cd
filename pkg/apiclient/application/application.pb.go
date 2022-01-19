@@ -47,7 +47,7 @@ type ApplicationQuery struct {
 	Projects []string `protobuf:"bytes,3,rep,name=project" json:"project,omitempty"`
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	ResourceVersion string `protobuf:"bytes,4,opt,name=resourceVersion" json:"resourceVersion"`
-	// the selector to to restrict returned list to applications only with matched labels
+	// the selector to restrict returned list to applications only with matched labels
 	Selector string `protobuf:"bytes,5,opt,name=selector" json:"selector"`
 	// the repoURL to restrict returned list applications
 	Repo                 string   `protobuf:"bytes,6,opt,name=repo" json:"repo"`
