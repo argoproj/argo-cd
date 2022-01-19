@@ -17,9 +17,11 @@ const (
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
 const (
-	ArgoCDConfigMapName     = "argocd-cm"
-	ArgoCDSecretName        = "argocd-secret"
-	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+	ArgoCDConfigMapName          = "argocd-cm"
+	ArgoCDSecretName             = "argocd-secret"
+	ArgoCDRBACConfigMapName      = "argocd-rbac-cm"
+	ArgoCDCmdParamsConfigMapName = "argocd-cmd-params-cm"
+
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods

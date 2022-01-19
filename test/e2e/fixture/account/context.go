@@ -14,6 +14,7 @@ type Context struct {
 	// seconds
 	timeout int
 	name    string
+	project string
 }
 
 func Given(t *testing.T) *Context {
@@ -30,6 +31,11 @@ func (c *Context) GetName() string {
 
 func (c *Context) Name(name string) *Context {
 	c.name = name
+	return c
+}
+
+func (c *Context) Project(project string) *Context {
+	c.project = project
 	return c
 }
 

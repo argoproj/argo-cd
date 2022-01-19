@@ -10,6 +10,8 @@ import (
 // using the Then()
 type Actions struct {
 	context      *Context
+	lastOutput   string
+	lastError    error
 	ignoreErrors bool
 }
 
@@ -30,6 +32,19 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 	}
 }
 
+func (a *Actions) prepareCanIGetLogsArgs() []string {
+	a.context.t.Helper()
+	return []string{
+		"account", "can-i", "get", "logs", a.context.project + "/*",
+	}
+}
+
+func (a *Actions) CanIGetLogs() *Actions {
+	a.context.t.Helper()
+	a.runCli(a.prepareCanIGetLogsArgs()...)
+	return a
+}
+
 func (a *Actions) Create() *Actions {
 	fixture.SetAccounts(map[string][]string{
 		a.context.name: {"login"},
@@ -48,7 +63,17 @@ func (a *Actions) Login() *Actions {
 	return a
 }
 
+func (a *Actions) SetCmdParam(paramKey string, paramValue string) *Actions {
+	fixture.SetCmdParam(paramKey, paramValue)
+	return a
+}
+
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
 	return &Consequences{a.context, a}
+}
+
+func (a *Actions) runCli(args ...string) {
+	a.context.t.Helper()
+	a.lastOutput, a.lastError = fixture.RunCli(args...)
 }
