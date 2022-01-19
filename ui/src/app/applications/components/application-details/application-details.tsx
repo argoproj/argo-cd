@@ -25,6 +25,7 @@ import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
+import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
 
@@ -217,7 +218,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         useTitleOnly={true}
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                            breadcrumbs: [
+                                                {title: 'Applications', path: '/applications'},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                            ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>

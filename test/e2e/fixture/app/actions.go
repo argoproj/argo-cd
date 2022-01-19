@@ -164,9 +164,13 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
-		"--dest-server", a.context.destServer,
 	}, args...)
 
+	if a.context.destName != "" {
+		args = append(args, "--dest-name", a.context.destName)
+	} else {
+		args = append(args, "--dest-server", a.context.destServer)
+	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
 	}
