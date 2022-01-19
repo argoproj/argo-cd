@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
+	"k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -242,13 +244,22 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 }
 
 func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*apply.ApplyOptions, error) {
-	o := apply.NewApplyOptions(ioStreams)
+	flags := apply.NewApplyFlags(k.fact, ioStreams)
+	o := &apply.ApplyOptions{
+		IOStreams:         ioStreams,
+		VisitedUids:       sets.NewString(),
+		VisitedNamespaces: sets.NewString(),
+		Recorder:          genericclioptions.NoopRecorder{},
+		PrintFlags:        flags.PrintFlags,
+		Overwrite:         true,
+		OpenAPIPatch:      true,
+	}
 	dynamicClient, err := dynamic.NewForConfig(k.config)
 	if err != nil {
 		return nil, err
 	}
 	o.DynamicClient = dynamicClient
-	o.DeleteOptions, err = o.DeleteFlags.ToOptions(dynamicClient, o.IOStreams)
+	o.DeleteOptions, err = delete.NewDeleteFlags("").ToOptions(dynamicClient, ioStreams)
 	if err != nil {
 		return nil, err
 	}
