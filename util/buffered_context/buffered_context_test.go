@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/go-playground/assert.v1"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 )
@@ -19,7 +19,7 @@ func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
 	assert.Equal(t, ctx, bufferedCtx)
 
 	_, hasDeadline := bufferedCtx.Deadline()
-	assert.IsEqual(hasDeadline, false)
+	assert.Equal(t, false, hasDeadline)
 }
 
 func TestWithEarlierDeadline_WithDeadline(t *testing.T) {
@@ -33,5 +33,5 @@ func TestWithEarlierDeadline_WithDeadline(t *testing.T) {
 	assert.NotEqual(t, ctx, bufferedCtx)
 	originalDeadline, _ := ctx.Deadline()
 	newDeadline, _ := bufferedCtx.Deadline()
-	assert.Equal(t, newDeadline, originalDeadline.Add(-1*buffer))
+	assert.Equal(t, originalDeadline.Add(-1*buffer), newDeadline)
 }
