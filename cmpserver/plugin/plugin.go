@@ -71,7 +71,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	defer cancel()
 
 	if deadline, ok := bufferedCtx.Deadline(); ok {
-		log.Infof("generating manifests with deadline %v from now", deadline.Sub(time.Now()))
+		log.Infof("generating manifests with deadline %v from now", time.Until(deadline))
 	} else {
 		log.Info("generating manifests with no request-level timeout")
 	}
