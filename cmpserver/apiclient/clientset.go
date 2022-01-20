@@ -24,7 +24,7 @@ type Clientset interface {
 }
 
 type clientSet struct {
-	address        string
+	address string
 }
 
 func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {

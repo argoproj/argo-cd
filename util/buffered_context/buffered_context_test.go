@@ -31,5 +31,5 @@ func TestWithEarlierDeadline_WithDeadline(t *testing.T) {
 	assert.NotEqual(t, ctx, bufferedCtx)
 	originalDeadline, _ := ctx.Deadline()
 	newDeadline, _ := bufferedCtx.Deadline()
-	assert.Equal(t, newDeadline, originalDeadline.Add(-1 * buffer))
+	assert.Equal(t, newDeadline, originalDeadline.Add(-1*buffer))
 }

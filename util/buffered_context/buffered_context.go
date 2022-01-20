@@ -11,10 +11,10 @@ import (
 //
 // If the given context doesn't have a deadline, return the original context unchanged and a do-nothing cancel function.
 func WithEarlierDeadline(originalCtx context.Context, buffer time.Duration) (context.Context, context.CancelFunc) {
-	var cancelFunc context.CancelFunc = func(){}
+	var cancelFunc context.CancelFunc = func() {}
 	bufferedCtx := originalCtx
 	if deadline, ok := originalCtx.Deadline(); ok {
-		newCtx, newCancelFunc := context.WithDeadline(originalCtx, deadline.Add(-1 * buffer))
+		newCtx, newCancelFunc := context.WithDeadline(originalCtx, deadline.Add(-1*buffer))
 		bufferedCtx = newCtx
 		cancelFunc = newCancelFunc
 	}
