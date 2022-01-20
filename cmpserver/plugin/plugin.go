@@ -3,13 +3,14 @@ package plugin
 import (
 	"context"
 	"fmt"
-	buffered_context "github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	buffered_context "github.com/argoproj/argo-cd/v2/util/buffered_context"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"

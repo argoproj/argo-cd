@@ -2,10 +2,12 @@ package buffered_context_test
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/util/buffered_context"
-	"gopkg.in/go-playground/assert.v1"
 	"testing"
 	"time"
+
+	"gopkg.in/go-playground/assert.v1"
+
+	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 )
 
 func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
