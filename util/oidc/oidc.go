@@ -1,10 +1,16 @@
 package oidc
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/md5"
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,7 +26,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -45,16 +50,6 @@ type ClaimsRequest struct {
 	IDToken map[string]*oidc.Claim `json:"id_token"`
 }
 
-type OIDCState struct {
-	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
-	ReturnURL string `json:"returnURL"`
-}
-
-type OIDCStateStorage interface {
-	GetOIDCState(key string) (*OIDCState, error)
-	SetOIDCState(key string, state *OIDCState) error
-}
-
 type ClientApp struct {
 	// OAuth2 client ID of this application (e.g. argo-cd)
 	clientID string
@@ -75,9 +70,6 @@ type ClientApp struct {
 	settings *settings.ArgoCDSettings
 	// provider is the OIDC provider
 	provider Provider
-	// cache holds temporary nonce tokens to which hold application state values
-	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	cache OIDCStateStorage
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -89,7 +81,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -100,7 +92,6 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dex
 		redirectURI:  redirectURL,
 		issuerURL:    settings.IssuerURL(),
 		baseHRef:     baseHRef,
-		cache:        cache,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -148,32 +139,99 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 	}, nil
 }
 
+func encrypt(data []byte, passphrase string) ([]byte, error) {
+	hasher := md5.New()
+	hasher.Write([]byte(passphrase))
+
+	block, _ := aes.NewCipher([]byte(hex.EncodeToString(hasher.Sum(nil))))
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(cryptorand.Reader, nonce); err != nil {
+		panic(err.Error())
+	}
+	ciphertext := gcm.Seal(nonce, nonce, data, nil)
+	return ciphertext, nil
+}
+
+func decrypt(data []byte, passphrase string) ([]byte, error) {
+	hasher := md5.New()
+	hasher.Write([]byte(passphrase))
+
+	key := []byte(hex.EncodeToString(hasher.Sum(nil)))
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonceSize := gcm.NonceSize()
+	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+	return plaintext, nil
+}
+
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string) string {
+func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
 	randStr := rand.RandString(10)
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	err := a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
-	if err != nil {
-		// This should never happen with the in-memory cache
-		log.Errorf("Failed to set app state: %v", err)
+	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
+	if encrypted, err := encrypt([]byte(cookieValue), string(a.settings.ServerSignature)); err != nil {
+		return "", err
+	} else {
+		cookieValue = hex.EncodeToString(encrypted)
 	}
-	return randStr
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     common.StateCookieName,
+		Value:    cookieValue,
+		Expires:  time.Now().Add(3 * time.Minute),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookie,
+	})
+	return randStr, nil
 }
 
-func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
-	res, err := a.cache.GetOIDCState(state)
+func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
-		if err == appstatecache.ErrCacheMiss {
-			return nil, fmt.Errorf("unknown app state %s", state)
-		} else {
-			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
-		}
+		return "", err
 	}
-
-	_ = a.cache.SetOIDCState(state, nil)
-	return res, nil
+	val, err := hex.DecodeString(c.Value)
+	if err != nil {
+		return "", err
+	}
+	val, err = decrypt(val, string(a.settings.ServerSignature))
+	if err != nil {
+		return "", err
+	}
+	cookieVal := string(val)
+	returnURL := ""
+	parts := strings.SplitN(cookieVal, ":", 2)
+	if len(parts) > 1 {
+		returnURL = parts[1]
+	}
+	if parts[0] != state {
+		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     common.StateCookieName,
+		Value:    "",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookie,
+	})
+	return returnURL, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -248,7 +306,12 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
-	stateNonce := a.generateAppState(returnURL)
+	stateNonce, err := a.generateAppState(returnURL, w)
+	if err != nil {
+		log.Errorf("Failed to initiate login flow: %v", err)
+		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
+		return
+	}
 	grantType := InferGrantType(oidcConf)
 	var url string
 	switch grantType {
@@ -281,10 +344,10 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if code == "" {
 		// If code was not given, it implies implicit flow
-		a.handleImplicitFlow(w, state)
+		a.handleImplicitFlow(r, w, state)
 		return
 	}
-	appState, err := a.verifyAppState(state)
+	returnURL, err := a.verifyAppState(r, w, state)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -339,7 +402,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
 	} else {
-		http.Redirect(w, r, appState.ReturnURL, http.StatusSeeOther)
+		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}
 }
 
@@ -366,7 +429,7 @@ if (state != "" && returnURL == "") {
 // state nonce for verification, as well as looking up the return URL. Once verified, the client
 // stores the id_token from the fragment as a cookie. Finally it performs the final redirect back to
 // the return URL.
-func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
+func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) {
 	type implicitFlowValues struct {
 		CookieName string
 		ReturnURL  string
@@ -375,12 +438,12 @@ func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
 		CookieName: common.AuthCookieName,
 	}
 	if state != "" {
-		appState, err := a.verifyAppState(state)
+		returnURL, err := a.verifyAppState(r, w, state)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		vals.ReturnURL = appState.ReturnURL
+		vals.ReturnURL = returnURL
 	}
 	renderTemplate(w, implicitFlowTmpl, vals)
 }

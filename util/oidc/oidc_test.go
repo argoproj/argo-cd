@@ -9,9 +9,11 @@ import (
 
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestInferGrantType(t *testing.T) {
@@ -178,4 +180,35 @@ func TestIsValidRedirect(t *testing.T) {
 			assert.Equal(t, res, tt.valid)
 		})
 	}
+}
+
+func TestGenerateAppState(t *testing.T) {
+	pass := "test-server-signature"
+	expectedReturnURL := "http://argocd.example.com/"
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: []byte(pass)}, "", "")
+	require.NoError(t, err)
+	generateResponse := httptest.NewRecorder()
+	state, err := app.generateAppState(expectedReturnURL, generateResponse)
+	require.NoError(t, err)
+
+	t.Run("VerifyAppState_Successful", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedReturnURL, returnURL)
+	})
+
+	t.Run("VerifyAppState_Failed", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
+		assert.Error(t, err)
+	})
 }
