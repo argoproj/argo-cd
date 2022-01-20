@@ -184,6 +184,9 @@ func init() {
 	knownTypes["core/v1/GCEPersistentDiskVolumeSource"] = func() interface{} {
 		return &corev1.GCEPersistentDiskVolumeSource{}
 	}
+	knownTypes["core/v1/GRPCAction"] = func() interface{} {
+		return &corev1.GRPCAction{}
+	}
 	knownTypes["core/v1/GitRepoVolumeSource"] = func() interface{} {
 		return &corev1.GitRepoVolumeSource{}
 	}
@@ -198,9 +201,6 @@ func init() {
 	}
 	knownTypes["core/v1/HTTPHeader"] = func() interface{} {
 		return &corev1.HTTPHeader{}
-	}
-	knownTypes["core/v1/Handler"] = func() interface{} {
-		return &corev1.Handler{}
 	}
 	knownTypes["core/v1/HostAlias"] = func() interface{} {
 		return &corev1.HostAlias{}
@@ -219,6 +219,9 @@ func init() {
 	}
 	knownTypes["core/v1/Lifecycle"] = func() interface{} {
 		return &corev1.Lifecycle{}
+	}
+	knownTypes["core/v1/LifecycleHandler"] = func() interface{} {
+		return &corev1.LifecycleHandler{}
 	}
 	knownTypes["core/v1/LimitRange"] = func() interface{} {
 		return &corev1.LimitRange{}
@@ -394,6 +397,9 @@ func init() {
 	knownTypes["core/v1/PodLogOptions"] = func() interface{} {
 		return &corev1.PodLogOptions{}
 	}
+	knownTypes["core/v1/PodOS"] = func() interface{} {
+		return &corev1.PodOS{}
+	}
 	knownTypes["core/v1/PodPortForwardOptions"] = func() interface{} {
 		return &corev1.PodPortForwardOptions{}
 	}
@@ -444,6 +450,9 @@ func init() {
 	}
 	knownTypes["core/v1/Probe"] = func() interface{} {
 		return &corev1.Probe{}
+	}
+	knownTypes["core/v1/ProbeHandler"] = func() interface{} {
+		return &corev1.ProbeHandler{}
 	}
 	knownTypes["core/v1/ProjectedVolumeSource"] = func() interface{} {
 		return &corev1.ProjectedVolumeSource{}

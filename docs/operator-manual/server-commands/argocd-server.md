@@ -16,6 +16,7 @@ argocd-server [flags]
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
       --as string                                     Username to impersonate for the operation
       --as-group stringArray                          Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                                 UID to impersonate for the operation
       --basehref string                               Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                  Path to a cert file for the certificate authority
       --client-certificate string                     Path to a client certificate file for TLS

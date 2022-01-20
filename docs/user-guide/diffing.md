@@ -89,6 +89,17 @@ data:
     - kube-controller-manager
 ```
 
+It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an ArgoCD instance. In order to do so, resource customizations can be configured like in the example bellow:
+
+```yaml
+data:
+  resource.customizations.ignoreDifferences.all: |
+    managedFieldsManagers:
+    - kube-controller-manager
+    jsonPointers:
+    - /spec/replicas
+```
+
 The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
 handling that edge case:
 
