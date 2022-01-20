@@ -6,7 +6,7 @@ FROM golang:1.17.6 as golang
 
 FROM registry:2.7.1 as registry
 
-FROM ubuntu:21.04
+FROM ubuntu:21.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
