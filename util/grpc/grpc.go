@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"
@@ -157,6 +158,7 @@ func WithTimeout(duration time.Duration) grpc.UnaryClientInterceptor {
 		clientDeadline := time.Now().Add(duration)
 		ctx, cancel := context.WithDeadline(ctx, clientDeadline)
 		defer cancel()
+		fmt.Printf("calling %s with timeout %v from now\n", method, duration)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

@@ -3,10 +3,13 @@ package plugin
 import (
 	"context"
 	"fmt"
+	buffered_context "github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
@@ -32,11 +35,19 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 	}
 }
 
-func runCommand(command Command, path string, env []string) (string, error) {
+func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
 	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
+	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
+
+	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/29552044/684776
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	go func() {
+		<- ctx.Done()
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}()
+
 	cmd.Env = env
 	cmd.Dir = path
 	return executil.Run(cmd)
@@ -55,17 +66,26 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
+	defer cancel()
+
+	if deadline, ok := bufferedCtx.Deadline(); ok {
+		log.Infof("generating manifests with deadline %v from now", deadline.Sub(time.Now()))
+	} else {
+		log.Info("generating manifests with no request-level timeout")
+	}
+
 	config := s.initConstants.PluginConfig
 
 	env := append(os.Environ(), environ(q.Env)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(config.Spec.Init, q.AppPath, env)
+		_, err := runCommand(bufferedCtx, config.Spec.Init, q.AppPath, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(config.Spec.Generate, q.AppPath, env)
+	out, err := runCommand(bufferedCtx, config.Spec.Generate, q.AppPath, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -82,6 +102,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 // MatchRepository checks whether the application repository type is supported by config management plugin server
 func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
+	defer cancel()
+
 	var repoResponse apiclient.RepositoryResponse
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
@@ -113,7 +136,7 @@ func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRe
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(config.Spec.Discover.Find.Command, q.Path, os.Environ())
+	find, err := runCommand(bufferedCtx, config.Spec.Discover.Find.Command, q.Path, os.Environ())
 	if err != nil {
 		return &repoResponse, err
 	}
