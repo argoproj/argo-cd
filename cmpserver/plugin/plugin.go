@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	buffered_context "github.com/argoproj/argo-cd/v2/util/buffered_context"
+	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
@@ -19,6 +19,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
+
+// cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
+// enough time before the client times out to send a meaningful error message.
+const cmpTimeoutBuffer = 100 * time.Millisecond
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -67,7 +71,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
 	defer cancel()
 
 	if deadline, ok := bufferedCtx.Deadline(); ok {
@@ -103,7 +107,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 // MatchRepository checks whether the application repository type is supported by config management plugin server
 func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
-	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
 	defer cancel()
 
 	var repoResponse apiclient.RepositoryResponse
