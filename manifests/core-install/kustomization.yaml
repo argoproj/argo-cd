@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
 - ../crds
-- ../cluster-rbac
+- ../cluster-rbac/application-controller
 - ../base/config
 - ../base/application-controller
 - ../base/repo-server
