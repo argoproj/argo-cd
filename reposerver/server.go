@@ -34,15 +34,24 @@ type ArgoCDRepoServer struct {
 	log           *log.Entry
 	metricsServer *metrics.MetricsServer
 	cache         *reposervercache.Cache
-	opts          []grpc.ServerOption
 	initConstants repository.RepoServerInitConstants
 }
 
 // The hostnames to generate self-signed issues with
-var tlsHostList []string = []string{"localhost", "reposerver"}
+var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, initConstants repository.RepoServerInitConstants) *ArgoCDRepoServer {
+	return &ArgoCDRepoServer{
+		log:           log.NewEntry(log.StandardLogger()),
+		metricsServer: metricsServer,
+		cache:         cache,
+		initConstants: initConstants,
+	}
+}
+
+// CreateGRPC creates new configured grpc server
+func (a *ArgoCDRepoServer) CreateGRPC(tlsConfCustomizer tlsutil.ConfigCustomizer) (*grpc.Server, error) {
 	var tlsConfig *tls.Config
 
 	// Generate or load TLS server certificates to use with this instance of
@@ -62,9 +71,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
 
-	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(a.log), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(a.log)}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(a.log), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(a.log)}
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
@@ -79,18 +87,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
 
-	return &ArgoCDRepoServer{
-		log:           serverLog,
-		metricsServer: metricsServer,
-		cache:         cache,
-		initConstants: initConstants,
-		opts:          serverOpts,
-	}, nil
-}
-
-// CreateGRPC creates new configured grpc server
-func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
-	server := grpc.NewServer(a.opts...)
+	server := grpc.NewServer(serverOpts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
@@ -102,6 +99,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
+	grpc_prometheus.Register(server)
 
-	return server
+	return server, nil
 }

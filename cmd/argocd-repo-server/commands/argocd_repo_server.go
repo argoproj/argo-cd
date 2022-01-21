@@ -92,15 +92,15 @@ func NewCommand() *cobra.Command {
 
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
-			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
+			server := reposerver.NewServer(metricsServer, cache, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
 				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
 			})
-			errors.CheckError(err)
 
-			grpc := server.CreateGRPC()
+			grpc, err := server.CreateGRPC(tlsConfigCustomizer)
+			errors.CheckError(err)
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
 			errors.CheckError(err)
 

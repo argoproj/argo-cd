@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -29,63 +29,51 @@ const (
 // NewMetricsServer returns a new prometheus server which collects application metrics.
 func NewMetricsServer() *MetricsServer {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	registry.MustRegister(collectors.NewGoCollector())
-
-	gitRequestCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_git_request_total",
-			Help: "Number of git requests performed by repo server",
-		},
-		[]string{"repo", "request_type"},
-	)
-	registry.MustRegister(gitRequestCounter)
-
-	gitRequestHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_git_request_duration_seconds",
-			Help:    "Git requests duration seconds.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
-		},
-		[]string{"repo", "request_type"},
-	)
-	registry.MustRegister(gitRequestHistogram)
-
-	repoPendingRequestsGauge := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "argocd_repo_pending_request_total",
-			Help: "Number of pending requests requiring repository lock",
-		},
-		[]string{"repo"},
-	)
-	registry.MustRegister(repoPendingRequestsGauge)
-
-	redisRequestCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_redis_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
-		},
-		[]string{"initiator", "failed"},
-	)
-	registry.MustRegister(redisRequestCounter)
-
-	redisRequestHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration_seconds",
-			Help:    "Redis requests duration seconds.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2},
-		},
-		[]string{"initiator"},
-	)
-	registry.MustRegister(redisRequestHistogram)
+	handler := promhttp.HandlerFor(prometheus.Gatherers{
+		registry,
+		// contains process, golang and grpc server metrics
+		prometheus.DefaultGatherer,
+	}, promhttp.HandlerOpts{})
 
 	return &MetricsServer{
-		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitRequestCounter:        gitRequestCounter,
-		gitRequestHistogram:      gitRequestHistogram,
-		repoPendingRequestsGauge: repoPendingRequestsGauge,
-		redisRequestCounter:      redisRequestCounter,
-		redisRequestHistogram:    redisRequestHistogram,
+		handler: handler,
+		gitRequestCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_git_request_total",
+				Help: "Number of git requests performed by repo server",
+			},
+			[]string{"repo", "request_type"},
+		),
+		gitRequestHistogram: promauto.With(registry).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "argocd_git_request_duration_seconds",
+				Help:    "Git requests duration seconds.",
+				Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
+			},
+			[]string{"repo", "request_type"},
+		),
+		repoPendingRequestsGauge: promauto.With(registry).NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "argocd_repo_pending_request_total",
+				Help: "Number of pending requests requiring repository lock",
+			},
+			[]string{"repo"},
+		),
+		redisRequestCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_redis_request_total",
+				Help: "Number of kubernetes requests executed during application reconciliation.",
+			},
+			[]string{"initiator", "failed"},
+		),
+		redisRequestHistogram: promauto.With(registry).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "argocd_redis_request_duration_seconds",
+				Help:    "Redis requests duration seconds.",
+				Buckets: []float64{0.1, 0.25, .5, 1, 2},
+			},
+			[]string{"initiator"},
+		),
 	}
 }
 

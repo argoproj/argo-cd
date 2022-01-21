@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/argoproj/argo-cd/v2/util/profile"
@@ -18,24 +19,6 @@ type MetricsServer struct {
 	redisRequestHistogram *prometheus.HistogramVec
 }
 
-var (
-	redisRequestCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_redis_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
-		},
-		[]string{"initiator", "failed"},
-	)
-	redisRequestHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration",
-			Help:    "Redis requests duration.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2},
-		},
-		[]string{"initiator"},
-	)
-)
-
 // NewMetricsServer returns a new prometheus server which collects api server metrics
 func NewMetricsServer(host string, port int) *MetricsServer {
 	mux := http.NewServeMux()
@@ -46,16 +29,26 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 
-	registry.MustRegister(redisRequestCounter)
-	registry.MustRegister(redisRequestHistogram)
-
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
-		redisRequestCounter:   redisRequestCounter,
-		redisRequestHistogram: redisRequestHistogram,
+		redisRequestCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_redis_request_total",
+				Help: "Number of kubernetes requests executed during application reconciliation.",
+			},
+			[]string{"initiator", "failed"},
+		),
+		redisRequestHistogram: promauto.With(registry).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "argocd_redis_request_duration",
+				Help:    "Redis requests duration.",
+				Buckets: []float64{0.1, 0.25, .5, 1, 2},
+			},
+			[]string{"initiator"},
+		),
 	}
 }
 

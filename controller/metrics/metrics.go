@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
@@ -80,64 +81,6 @@ var (
 		append(descAppDefaultLabels, "health_status"),
 		nil,
 	)
-
-	syncCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_app_sync_total",
-			Help: "Number of application syncs.",
-		},
-		append(descAppDefaultLabels, "dest_server", "phase"),
-	)
-
-	k8sRequestCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_app_k8s_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
-		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
-	)
-
-	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_kubectl_exec_total",
-		Help: "Number of kubectl executions",
-	}, []string{"hostname", "command"})
-
-	kubectlExecPendingGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending",
-		Help: "Number of pending kubectl executions",
-	}, []string{"hostname", "command"})
-
-	reconcileHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance.",
-			// Buckets chosen after observing a ~2100ms mean reconcile time
-			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
-		},
-		[]string{"namespace", "dest_server"},
-	)
-
-	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_cluster_events_total",
-		Help: "Number of processes k8s resource events.",
-	}, append(descClusterDefaultLabels, "group", "kind"))
-
-	redisRequestCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_redis_request_total",
-			Help: "Number of redis requests executed during application reconciliation.",
-		},
-		[]string{"hostname", "initiator", "failed"},
-	)
-
-	redisRequestHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration",
-			Help:    "Redis requests duration.",
-			Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
-		},
-		[]string{"hostname", "initiator"},
-	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -168,31 +111,64 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	registry.MustRegister(syncCounter)
-	registry.MustRegister(k8sRequestCounter)
-	registry.MustRegister(kubectlExecCounter)
-	registry.MustRegister(kubectlExecPendingGauge)
-	registry.MustRegister(reconcileHistogram)
-	registry.MustRegister(clusterEventsCounter)
-	registry.MustRegister(redisRequestCounter)
-	registry.MustRegister(redisRequestHistogram)
-
 	return &MetricsServer{
 		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:             syncCounter,
-		k8sRequestCounter:       k8sRequestCounter,
-		kubectlExecCounter:      kubectlExecCounter,
-		kubectlExecPendingGauge: kubectlExecPendingGauge,
-		reconcileHistogram:      reconcileHistogram,
-		clusterEventsCounter:    clusterEventsCounter,
-		redisRequestCounter:     redisRequestCounter,
-		redisRequestHistogram:   redisRequestHistogram,
-		hostname:                hostname,
-		cron:                    cron.New(),
+		syncCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_app_sync_total",
+				Help: "Number of application syncs.",
+			},
+			append(descAppDefaultLabels, "dest_server", "phase"),
+		),
+		k8sRequestCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_app_k8s_request_total",
+				Help: "Number of kubernetes requests executed during application reconciliation.",
+			},
+			append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
+		),
+		kubectlExecCounter: promauto.With(registry).NewCounterVec(prometheus.CounterOpts{
+			Name: "argocd_kubectl_exec_total",
+			Help: "Number of kubectl executions",
+		}, []string{"hostname", "command"}),
+		kubectlExecPendingGauge: promauto.With(registry).NewGaugeVec(prometheus.GaugeOpts{
+			Name: "argocd_kubectl_exec_pending",
+			Help: "Number of pending kubectl executions",
+		}, []string{"hostname", "command"}),
+		reconcileHistogram: promauto.With(registry).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name: "argocd_app_reconcile",
+				Help: "Application reconciliation performance.",
+				// Buckets chosen after observing a ~2100ms mean reconcile time
+				Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
+			},
+			[]string{"namespace", "dest_server"},
+		),
+		clusterEventsCounter: promauto.With(registry).NewCounterVec(prometheus.CounterOpts{
+			Name: "argocd_cluster_events_total",
+			Help: "Number of processes k8s resource events.",
+		}, append(descClusterDefaultLabels, "group", "kind")),
+		redisRequestCounter: promauto.With(registry).NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "argocd_redis_request_total",
+				Help: "Number of redis requests executed during application reconciliation.",
+			},
+			[]string{"hostname", "initiator", "failed"},
+		),
+		redisRequestHistogram: promauto.With(registry).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "argocd_redis_request_duration",
+				Help:    "Redis requests duration.",
+				Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
+			},
+			[]string{"hostname", "initiator"},
+		),
+		hostname: hostname,
+		cron:     cron.New(),
 	}, nil
 }
 
