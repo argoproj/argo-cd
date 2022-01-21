@@ -1,10 +1,8 @@
 package git
 
 import (
-	"runtime/debug"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -34,9 +32,21 @@ func TestNewGoogleCloudCreds(t *testing.T) {
 }
 
 func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
-	shouldPanic(t, func() {
-		_ = NewGoogleCloudCreds(invalidJSON)
-	})
+	googleCloudCreds := NewGoogleCloudCreds(invalidJSON)
+	assert.Nil(t, googleCloudCreds.creds)
+
+	token, err := googleCloudCreds.getAccessToken()
+	assert.Equal(t, "", token)
+	assert.NotNil(t, err)
+
+	username, err := googleCloudCreds.getUsername()
+	assert.Equal(t, "", username)
+	assert.NotNil(t, err)
+
+	closer, envStringSlice, err := googleCloudCreds.Environ()
+	assert.Equal(t, NopCloser{}, closer)
+	assert.Equal(t, []string(nil), envStringSlice)
+	assert.NotNil(t, err)
 }
 
 func TestGoogleCloudCreds_Environ(t *testing.T) {
@@ -52,14 +62,4 @@ func TestGoogleCloudCreds_Environ(t *testing.T) {
 	defer func() { _ = closer.Close() }()
 
 	assert.Equal(t, []string{"GIT_ASKPASS=git-ask-pass.sh", "GIT_USERNAME=argocd-service-account@my-google-project.iam.gserviceaccount.com", "GIT_PASSWORD=token"}, env)
-}
-
-func shouldPanic(t *testing.T, f func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-		}
-	}()
-	f()
-	t.Errorf("should have panicked")
 }

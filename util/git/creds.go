@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -396,7 +397,7 @@ func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
 	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
-		panic(err)
+		log.Errorf("Failed reading credentials from JSON: %+v", err)
 	}
 	return GoogleCloudCreds{creds}
 }
@@ -429,6 +430,10 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 		ProjectID    string `json:"project_id"`
 	}
 
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
 	var f googleCredentialsFile
 	if err := json.Unmarshal(c.creds.JSON, &f); err != nil {
 		return "", err
@@ -437,6 +442,10 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 }
 
 func (c GoogleCloudCreds) getAccessToken() (string, error) {
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := h.Write(c.creds.JSON)
