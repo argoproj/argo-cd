@@ -46,7 +46,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
 
-	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/29552044/684776
+	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	go func() {
 		<-ctx.Done()
