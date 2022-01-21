@@ -36,7 +36,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		RepoURLType(RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -80,7 +80,7 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		RepoURLType(RepoURLTypeHTTPS).
 		Path("https-kustomize-base").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -179,7 +179,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		// does not matter what the path is
 		Path("guestbook").
 		When().
-		Create("--config-management-plugin", Name()).
+		CreateApp("--config-management-plugin", Name()).
 		Sync("--local", "testdata/guestbook").
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -219,7 +219,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 		}).
 		Path(pluginName).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -237,7 +237,7 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		}).
 		Path("guestbook").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -256,7 +256,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 		}).
 		Path(pluginName).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

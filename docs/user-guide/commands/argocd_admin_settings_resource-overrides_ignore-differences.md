@@ -30,6 +30,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
@@ -37,7 +38,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.

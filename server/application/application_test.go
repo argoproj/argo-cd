@@ -11,8 +11,8 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/ghodss/yaml"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -72,6 +72,36 @@ func fakeAppList() *apiclient.AppList {
 	}
 }
 
+func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
+		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
+	}
+}
+
+func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          "0.7.*",
+		AmbiguousRevision: "0.7.* (0.7.2)",
+	}
+}
+
+func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+
+	if isHelm {
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
+	} else {
+		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponse(), nil)
+	}
+
+	return &mockRepoServiceClient
+}
+
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer(objects ...runtime.Object) *Server {
 	f := func(enf *rbac.Enforcer) {
@@ -107,13 +137,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	errors.CheckError(err)
 
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -491,7 +515,6 @@ func TestSyncAndTerminate(t *testing.T) {
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
-
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
@@ -530,6 +553,8 @@ func TestSyncHelm(t *testing.T) {
 	testApp.Spec.Source.Path = ""
 	testApp.Spec.Source.Chart = "argo-cd"
 	testApp.Spec.Source.TargetRevision = "0.7.*"
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(true)}
 
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
 	assert.NoError(t, err)

@@ -10,7 +10,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
@@ -25,6 +25,7 @@ import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
+import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
 
@@ -98,6 +99,21 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private toggleCompactView(pref: AppDetailsPreferences) {
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
+    }
+
+    private getPageTitle(view: string) {
+        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+        switch (view) {
+            case Tree:
+                return 'Application Details Tree';
+            case Network:
+                return 'Application Details Network';
+            case Pods:
+                return 'Application Details Pods';
+            case List:
+                return 'Application Details List';
+        }
+        return '';
     }
 
     public render() {
@@ -194,47 +210,52 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         part + ' '
                                     )
                                 );
-
+                            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             return (
                                 <div className='application-details'>
                                     <Page
-                                        title='Application Details'
+                                        title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
+                                        useTitleOnly={true}
+                                        topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                            breadcrumbs: [
+                                                {title: 'Applications', path: '/applications'},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                            ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
                                                             title='Tree'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Tree});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                            className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Pods});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
                                                             title='Network'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Network});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: List});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
                                                     </div>
@@ -575,7 +596,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications', {}, {replace: true});
+        this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {

@@ -69,7 +69,7 @@ func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *D
 
 // WithLogger sets the logger in the diff config.
 func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
-	b.diffConfig.logger = l
+	b.diffConfig.logger = &l
 	return b
 }
 
@@ -84,7 +84,8 @@ func (b *DiffConfigBuilder) Build() (DiffConfig, error) {
 	return b.diffConfig, nil
 }
 
-// DiffConfig defines methods to retrieve the configurations used while applying diffs.
+// DiffConfig defines methods to retrieve the configurations used while applying diffs
+// and normalizing resources.
 type DiffConfig interface {
 	// Validate will check if the current configurations are set properly.
 	Validate() error
@@ -106,7 +107,7 @@ type DiffConfig interface {
 	StateCache() *appstatecache.Cache
 	IgnoreAggregatedRoles() bool
 	// Logger used during the diff
-	Logger() logr.Logger
+	Logger() *logr.Logger
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -119,7 +120,7 @@ type diffConfig struct {
 	noCache               bool
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
-	logger                logr.Logger
+	logger                *logr.Logger
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -146,7 +147,7 @@ func (c *diffConfig) StateCache() *appstatecache.Cache {
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
-func (c *diffConfig) Logger() logr.Logger {
+func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
 
@@ -171,9 +172,10 @@ func (c *diffConfig) Validate() error {
 	return nil
 }
 
-type normalizeResults struct {
-	lives   []*unstructured.Unstructured
-	targets []*unstructured.Unstructured
+// NormalizationResult holds the normalized lives and target resources.
+type NormalizationResult struct {
+	Lives   []*unstructured.Unstructured
+	Targets []*unstructured.Unstructured
 }
 
 // StateDiff will apply all required normalizations and calculate the diffs between
@@ -192,20 +194,12 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
 func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
-	if diffConfig == nil {
-		return nil, fmt.Errorf("stateDiffs error: diffConfig can not be nil")
-	}
-	err := diffConfig.Validate()
-	if err != nil {
-		return nil, fmt.Errorf("stateDiffs error: %s", err)
-	}
-
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	diffNormalizer, err := argo.NewDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
 	if err != nil {
 		return nil, err
 	}
@@ -215,14 +209,14 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	}
 
 	if diffConfig.Logger() != nil {
-		diffOpts = append(diffOpts, diff.WithLogr(diffConfig.Logger()))
+		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
-		return diffArrayCached(normResults.targets, normResults.lives, cachedDiff, diffOpts...)
+		return diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
 	}
-	return diff.DiffArray(normResults.targets, normResults.lives, diffOpts...)
+	return diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
 }
 
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
@@ -292,11 +286,17 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*appv1.ResourceDiff)
 }
 
 // preDiffNormalize applies the normalization of live and target resources before invoking
-// the diff. None of the attributes in the preDiffNormalizeParams will be modified. The
-// normalizeResults will return a list of ApplicationConditions in case something goes
-// wrong during the normalization.
-func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*normalizeResults, error) {
-	results := &normalizeResults{}
+// the diff. None of the attributes in the preDiffNormalizeParams will be modified.
+func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
+	if diffConfig == nil {
+		return nil, fmt.Errorf("preDiffNormalize error: diffConfig can not be nil")
+	}
+	err := diffConfig.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("preDiffNormalize error: %s", err)
+	}
+
+	results := &NormalizationResult{}
 	for i := range targets {
 		target := safeDeepCopy(targets[i])
 		live := safeDeepCopy(lives[i])
@@ -316,8 +316,8 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 				}
 			}
 		}
-		results.lives = append(results.lives, live)
-		results.targets = append(results.targets, target)
+		results.Lives = append(results.Lives, live)
+		results.Targets = append(results.Targets, target)
 	}
 	return results, nil
 }

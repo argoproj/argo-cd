@@ -1,27 +1,28 @@
-## argocd admin argocd-notifications template get
+## argocd admin notifications template notify
 
-Prints information about configured templates
+Generates notification using the specified template and send it to specified recipients
 
 ```
-argocd admin argocd-notifications template get [flags]
+argocd admin notifications template notify NAME RESOURCE_NAME [flags]
 ```
 
 ### Examples
 
 ```
 
-# prints all templates
-argocd-notifications template get
-# print YAML formatted app-sync-succeeded template definition
-argocd-notifications template get app-sync-succeeded -o=yaml
+# Trigger notification using in-cluster config map and secret
+notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
+
+# Render notification render generated notification in console
+notifications template notify app-sync-succeeded guestbook
 
 ```
 
 ### Options
 
 ```
-  -h, --help            help for get
-  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
+  -h, --help                    help for notify
+      --recipient stringArray   List of recipients (default [console:stdout])
 ```
 
 ### Options inherited from parent commands
@@ -32,6 +33,7 @@ argocd-notifications template get app-sync-succeeded -o=yaml
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
@@ -39,7 +41,7 @@ argocd-notifications template get app-sync-succeeded -o=yaml
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -69,5 +71,5 @@ argocd-notifications template get app-sync-succeeded -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications template](argocd_admin_argocd-notifications_template.md)	 - Notification templates related commands
+* [argocd admin notifications template](argocd_admin_notifications_template.md)	 - Notification templates related commands
 

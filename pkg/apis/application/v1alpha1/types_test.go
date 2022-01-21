@@ -2587,3 +2587,12 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
 	assert.NoError(t, err)
 }
+
+func TestEnvsubst(t *testing.T) {
+	env := Env{
+		&EnvEntry{"foo", "bar"},
+	}
+
+	assert.Equal(t, "bar", env.Envsubst("$foo"))
+	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
+}

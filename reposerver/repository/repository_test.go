@@ -1587,3 +1587,47 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 	assert.Equal(t, repos[0].Repo, repo1)
 	assert.Equal(t, repos[1].Repo, repo2)
 }
+
+func TestResolveRevision(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "v2.2.2",
+	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
+		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+	}
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
+
+}
+
+func TestResolveRevisionNegativeScenarios(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "v2.a.2",
+	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "",
+		AmbiguousRevision: "",
+	}
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
+
+}

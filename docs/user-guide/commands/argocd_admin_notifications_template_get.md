@@ -1,15 +1,27 @@
-## argocd admin argocd-notifications template
+## argocd admin notifications template get
 
-Notification templates related commands
+Prints information about configured templates
 
 ```
-argocd admin argocd-notifications template [flags]
+argocd admin notifications template get [flags]
+```
+
+### Examples
+
+```
+
+# prints all templates
+notifications template get
+# print YAML formatted app-sync-succeeded template definition
+notifications template get app-sync-succeeded -o=yaml
+
 ```
 
 ### Options
 
 ```
-  -h, --help   help for template
+  -h, --help            help for get
+  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
 ```
 
 ### Options inherited from parent commands
@@ -20,6 +32,7 @@ argocd admin argocd-notifications template [flags]
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
@@ -27,7 +40,7 @@ argocd admin argocd-notifications template [flags]
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -57,7 +70,5 @@ argocd admin argocd-notifications template [flags]
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications](argocd_admin_argocd-notifications.md)	 - Set of CLI commands that helps manage notifications settings
-* [argocd admin argocd-notifications template get](argocd_admin_argocd-notifications_template_get.md)	 - Prints information about configured templates
-* [argocd admin argocd-notifications template notify](argocd_admin_argocd-notifications_template_notify.md)	 - Generates notification using the specified template and send it to specified recipients
+* [argocd admin notifications template](argocd_admin_notifications_template.md)	 - Notification templates related commands
 

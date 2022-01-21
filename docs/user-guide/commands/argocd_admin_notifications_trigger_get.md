@@ -1,9 +1,9 @@
-## argocd admin argocd-notifications trigger get
+## argocd admin notifications trigger get
 
 Prints information about configured triggers
 
 ```
-argocd admin argocd-notifications trigger get [flags]
+argocd admin notifications trigger get [flags]
 ```
 
 ### Examples
@@ -11,9 +11,9 @@ argocd admin argocd-notifications trigger get [flags]
 ```
 
 # prints all triggers
-argocd-notifications trigger get
+notifications trigger get
 # print YAML formatted on-sync-failed trigger definition
-argocd-notifications trigger get on-sync-failed -o=yaml
+notifications trigger get on-sync-failed -o=yaml
 
 ```
 
@@ -32,6 +32,7 @@ argocd-notifications trigger get on-sync-failed -o=yaml
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
@@ -39,7 +40,7 @@ argocd-notifications trigger get on-sync-failed -o=yaml
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -69,5 +70,5 @@ argocd-notifications trigger get on-sync-failed -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications trigger](argocd_admin_argocd-notifications_trigger.md)	 - Notification triggers related commands
+* [argocd admin notifications trigger](argocd_admin_notifications_trigger.md)	 - Notification triggers related commands
 
