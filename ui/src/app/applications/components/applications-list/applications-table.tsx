@@ -37,7 +37,7 @@ export const ApplicationsTable = (props: {
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        let favList = pref.appList.favoritesAppList || [];
+                        const favList = pref.appList.favoritesAppList || [];
                         return (
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
                                 {props.applications.map((app, i) => (
@@ -57,7 +57,7 @@ export const ApplicationsTable = (props: {
                                                                     onClick={e => {
                                                                         e.stopPropagation();
                                                                         favList?.includes(app.metadata.name)
-                                                                            ? (favList = favList.filter(item => item !== app.metadata.name))
+                                                                            ? favList.splice(favList.indexOf(app.metadata.name), 1)
                                                                             : favList.push(app.metadata.name);
                                                                         services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                     }}>

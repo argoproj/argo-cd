@@ -103,7 +103,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        let favList = pref.appList.favoritesAppList || [];
+                        const favList = pref.appList.favoritesAppList || [];
                         return (
                             <div
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
@@ -124,7 +124,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 onClick={e => {
                                                                     e.stopPropagation();
                                                                     favList?.includes(app.metadata.name)
-                                                                        ? (favList = favList.filter(item => item !== app.metadata.name))
+                                                                        ? favList.splice(favList.indexOf(app.metadata.name), 1)
                                                                         : favList.push(app.metadata.name);
                                                                     services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                 }}>
