@@ -31,7 +31,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            favourite: !pref.showFavourites || pref.favouritesApplist.includes(app.metadata.name),
+            favourite: !pref.showFavorites || pref.favoritesAppList.includes(app.metadata.name),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
@@ -215,19 +215,19 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-const FavouriteFilter = (props: AppFilterProps) => {
+const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     return (
         <div className='filter'>
             <Checkbox
-                checked={!!props.pref.showFavourites}
+                checked={!!props.pref.showFavorites}
                 id='favouriteFilter'
                 onChange={val => {
-                    ctx.navigation.goto('.', {showFavourites: val}, {replace: true});
-                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavourites: val}});
+                    ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
+                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
                 }}
             />{' '}
-            <label htmlFor='favouriteFilter'>SHOW FAVOURITES</label>
+            <label htmlFor='favouriteFilter'>FAVORITES ONLY</label>
         </div>
     );
 };
@@ -239,13 +239,13 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 
     return (
         <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+            <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
-            <FavouriteFilter {...props} />
         </FiltersGroup>
     );
 };

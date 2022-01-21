@@ -63,7 +63,7 @@ export class AppsListPreferences {
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
-        pref.showFavourites = false;
+        pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
@@ -76,8 +76,8 @@ export class AppsListPreferences {
     public view: AppsListViewType;
     public hideFilters: boolean;
     public statusBarView: HealthStatusBarPreferences;
-    public showFavourites: boolean;
-    public favouritesApplist: string[];
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
 }
 
 export interface ViewPreferences {
@@ -120,11 +120,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         hideFilters: false,
-        showFavourites: false,
+        showFavorites: false,
+        favoritesAppList: new Array<string>(),
         statusBarView: {
             showHealthStatusBar: true
-        },
-        favouritesApplist: new Array<string>()
+        }
     },
     pageSizes: {},
     hideBannerContent: '',

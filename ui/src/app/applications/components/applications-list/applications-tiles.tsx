@@ -9,6 +9,7 @@ import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
 import {services} from '../../../shared/services';
+
 require('./applications-tiles.scss');
 
 export interface ApplicationTilesProps {
@@ -52,7 +53,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
+
     const {useKeybinding} = React.useContext(KeybindingContext);
+
     useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
     useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
     useKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
@@ -100,7 +103,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        let favlist = pref.appList.favouritesApplist || [];
+                        let favList = pref.appList.favoritesAppList || [];
                         return (
                             <div
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
@@ -116,28 +119,26 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                                     <div className='applications-list__external-link'>
                                                         <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
+                                                        <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                                            <button
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    favList?.includes(app.metadata.name)
+                                                                        ? (favList = favList.filter(item => item !== app.metadata.name))
+                                                                        : favList.push(app.metadata.name);
+                                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                }}>
+                                                                <i
+                                                                    className={'fas fa-star fa-lg'}
+                                                                    style={{cursor: 'pointer', marginLeft: '7px', color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'}}
+                                                                />
+                                                            </button>
+                                                        </Tooltip>
                                                     </div>
                                                     <div className='row'>
-                                                        <div className='columns small-9'>
+                                                        <div className='columns small-12'>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             <span className='applications-list__title'>{app.metadata.name}</span>
-                                                        </div>
-                                                        <div className='columns small-3'>
-                                                            <Tooltip content={favlist?.includes(app.metadata.name) ? 'Remove Favourite' : 'Add Favourite'}>
-                                                                <button
-                                                                    onClick={e => {
-                                                                        e.stopPropagation();
-                                                                        favlist?.includes(app.metadata.name)
-                                                                            ? (favlist = favlist.filter(item => item !== app.metadata.name))
-                                                                            : favlist.push(app.metadata.name);
-                                                                        services.viewPreferences.updatePreferences({appList: {...pref.appList, favouritesApplist: favlist}});
-                                                                    }}>
-                                                                    <i
-                                                                        className={'fas fa-star'}
-                                                                        style={{cursor: 'pointer', color: favlist?.includes(app.metadata.name) ? '#ffd100' : 'grey'}}
-                                                                    />
-                                                                </button>
-                                                            </Tooltip>
                                                         </div>
                                                     </div>
                                                     <div className='row'>
