@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"

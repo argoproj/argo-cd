@@ -50,6 +50,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	go func() {
 		<-ctx.Done()
+		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
+		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}()
 
