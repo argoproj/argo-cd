@@ -20,18 +20,17 @@ The following changes are required to configure a new plugin:
    using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
 2. Register a new plugin in `argocd-cm` ConfigMap:
 
-    ```yaml
-    data:
-      configManagementPlugins: |
-        - name: pluginName
-          init:                          # Optional command to initialize application source directory
-            command: ["sample command"]
-            args: ["sample args"]
-          generate:                      # Command to generate manifests YAML
-            command: ["sample command"]
-            args: ["sample args"]
-          lockRepo: true                 # Defaults to false. See below.
-    ```
+        :::yaml
+        data:
+          configManagementPlugins: |
+            - name: pluginName
+              init:                          # Optional command to initialize application source directory
+                command: ["sample command"]
+                args: ["sample args"]
+              generate:                      # Command to generate manifests YAML
+                command: ["sample command"]
+                args: ["sample args"]
+              lockRepo: true                 # Defaults to false. See below.
     
     The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
