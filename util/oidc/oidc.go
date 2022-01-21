@@ -1,16 +1,11 @@
 package oidc
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/md5"
-	cryptorand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -139,45 +135,6 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 	}, nil
 }
 
-func encrypt(data []byte, passphrase string) ([]byte, error) {
-	hasher := md5.New()
-	hasher.Write([]byte(passphrase))
-
-	block, _ := aes.NewCipher([]byte(hex.EncodeToString(hasher.Sum(nil))))
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(cryptorand.Reader, nonce); err != nil {
-		panic(err.Error())
-	}
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	return ciphertext, nil
-}
-
-func decrypt(data []byte, passphrase string) ([]byte, error) {
-	hasher := md5.New()
-	hasher.Write([]byte(passphrase))
-
-	key := []byte(hex.EncodeToString(hasher.Sum(nil)))
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonceSize := gcm.NonceSize()
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, err
-	}
-	return plaintext, nil
-}
-
 // generateAppState creates an app state nonce
 func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
 	randStr := rand.RandString(10)
@@ -185,7 +142,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 		returnURL = a.baseHRef
 	}
 	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
-	if encrypted, err := encrypt([]byte(cookieValue), string(a.settings.ServerSignature)); err != nil {
+	if encrypted, err := crypto.Encrypt([]byte(cookieValue), string(a.settings.ServerSignature)); err != nil {
 		return "", err
 	} else {
 		cookieValue = hex.EncodeToString(encrypted)
@@ -211,7 +168,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if err != nil {
 		return "", err
 	}
-	val, err = decrypt(val, string(a.settings.ServerSignature))
+	val, err = crypto.Decrypt(val, string(a.settings.ServerSignature))
 	if err != nil {
 		return "", err
 	}
