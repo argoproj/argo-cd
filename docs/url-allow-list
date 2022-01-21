@@ -68,3 +68,9 @@ github.com/yourghuser/argo-cd
 github.com/argoproj/argo-cd/releases/download/
 https://github.com/hayorov/helm-gcs.git;
 grafana.apps.argoproj.io
+https://source.developers.google.com/p/my-google-cloud-project/r/
+https://source.developers.google.com/p/my-google-project/r/my-repo
+https://www.googleapis.com/robot/v1/metadata/x509/argocd-service-account%40my-google-project.iam.gserviceaccount.com
+https://www.googleapis.com/oauth2/v1/certs
+https://oauth2.googleapis.com/token
+https://accounts.google.com/o/oauth2/auth
