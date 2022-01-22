@@ -6,4 +6,7 @@ application:
     strategy: Random
 
 
+cluster:
+  samples: 1
+
 namespace: argocd

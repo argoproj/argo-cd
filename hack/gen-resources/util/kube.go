@@ -6,6 +6,8 @@ import (
 	"os/user"
 	"path"
 
+	"k8s.io/client-go/rest"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -39,6 +41,14 @@ func ConnectToK8sArgoClientSet() *appclientset.Clientset {
 		log.Panicln("failed to create K8s config")
 	}
 	return appclientset.NewForConfigOrDie(config)
+}
+
+func ConnectToK8sConfig() *rest.Config {
+	config, err := clientcmd.BuildConfigFromFlags("", getKubeConfigPath())
+	if err != nil {
+		log.Panicln("failed to create K8s config")
+	}
+	return config
 }
 
 func ConnectToK8sClientSet() *kubernetes.Clientset {

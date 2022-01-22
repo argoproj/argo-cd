@@ -20,8 +20,13 @@ type ApplicationOpts struct {
 	DestinationOpts DestinationOpts `yaml:"destination"`
 }
 
+type ClusterOpts struct {
+	Samples int `yaml:"samples"`
+}
+
 type GenerateOpts struct {
 	ApplicationOpts ApplicationOpts `yaml:"application"`
+	ClusterOpts     ClusterOpts     `yaml:"cluster"`
 	GithubToken     string
 	Namespace       string `yaml:"namespace"`
 }
