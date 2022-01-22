@@ -17,7 +17,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
-	jwt "github.com/dgrijalva/jwt-go/v4"
+	jwt "github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -468,8 +468,18 @@ func loadPolicyLine(line string, model model.Model) error {
 		return err
 	}
 
+	if len(tokens) < 2 || len(tokens[0]) < 1 {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
+
 	key := tokens[0]
 	sec := key[:1]
+	if _, ok := model[sec]; !ok {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
+	if _, ok := model[sec][key]; !ok {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
 	model[sec][key].Policy = append(model[sec][key].Policy, tokens[1:])
 	return nil
 }

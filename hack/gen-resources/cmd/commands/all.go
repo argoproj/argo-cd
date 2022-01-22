@@ -1,6 +1,11 @@
 package commands
 
 import (
+	"log"
+	"os"
+
+	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
 	"context"
 	"log"
 	"os"
@@ -14,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func NewAllResourcesCommand(opts *generator.GenerateOpts) *cobra.Command {
 func NewAllResourcesCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "all",
@@ -29,12 +35,17 @@ func NewAllResourcesCommand(opts *util.GenerateOpts) *cobra.Command {
 	return command
 }
 
+func NewAllResourcesGenerationCommand(opts *generator.GenerateOpts) *cobra.Command {
 func NewAllResourcesGenerationCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate",
 		Short: "Generate all resources",
 		Long:  "Generate all resources",
 		Run: func(c *cobra.Command, args []string) {
+			clientSet := tools.ConnectToK8sArgoClientSet()
+			pg := generator.NewProjectGenerator(clientSet)
+			ag := generator.NewApplicationGenerator(clientSet)
+			rg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 
@@ -51,6 +62,17 @@ func NewAllResourcesGenerationCommand(opts *util.GenerateOpts) *cobra.Command {
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
+			err = rg.Generate(opts)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
+		},
+	}
+	command.PersistentFlags().IntVar(&opts.Samples, "samples", 1, "Amount of samples")
+	return command
+}
+
+func NewAllResourcesCleanCommand(opts *generator.GenerateOpts) *cobra.Command {
 		},
 	}
 	return command
@@ -62,6 +84,9 @@ func NewAllResourcesCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		Short: "Clean all resources",
 		Long:  "Clean all resources",
 		Run: func(c *cobra.Command, args []string) {
+			clientSet := tools.ConnectToK8sArgoClientSet()
+			pg := generator.NewProjectGenerator(clientSet)
+			ag := generator.NewApplicationGenerator(clientSet)
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 			pg := generator.NewProjectGenerator(argoClientSet)

@@ -1,28 +1,27 @@
-## argocd admin argocd-notifications template notify
+## argocd admin notifications trigger get
 
-Generates notification using the specified template and send it to specified recipients
+Prints information about configured triggers
 
 ```
-argocd admin argocd-notifications template notify NAME RESOURCE_NAME [flags]
+argocd admin notifications trigger get [flags]
 ```
 
 ### Examples
 
 ```
 
-# Trigger notification using in-cluster config map and secret
-argocd-notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
-
-# Render notification render generated notification in console
-argocd-notifications template notify app-sync-succeeded guestbook
+# prints all triggers
+notifications trigger get
+# print YAML formatted on-sync-failed trigger definition
+notifications trigger get on-sync-failed -o=yaml
 
 ```
 
 ### Options
 
 ```
-  -h, --help                    help for notify
-      --recipient stringArray   List of recipients (default [console:stdout])
+  -h, --help            help for get
+  -o, --output string   Output format. One of:json|yaml|wide|name (default "wide")
 ```
 
 ### Options inherited from parent commands
@@ -40,7 +39,7 @@ argocd-notifications template notify app-sync-succeeded guestbook
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -70,5 +69,5 @@ argocd-notifications template notify app-sync-succeeded guestbook
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications template](argocd_admin_argocd-notifications_template.md)	 - Notification templates related commands
+* [argocd admin notifications trigger](argocd_admin_notifications_trigger.md)	 - Notification triggers related commands
 

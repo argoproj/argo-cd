@@ -1,26 +1,30 @@
 # Roadmap
 
 - [Roadmap](#roadmap)
-  - [v2.2](#v22)
-    - [Config Management Tools Integrations (proposal)](#config-management-tools-integrations-proposal)
-    - [Argo CD Extensions (proposal)](#argo-cd-extensions-proposal)
-    - [Project scoped repository and clusters (proposal)](#project-scoped-repository-and-clusters-proposal)
-  - [v2.3 and beyond](#v23-and-beyond)
-    - [Input Forms UI Refresh](#input-forms-ui-refresh)
-    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
+  - [v2.3](#v23)
     - [Merge Argo CD Notifications into Argo CD](#merge-argo-cd-notifications-into-argo-cd)
+    - [Merge ApplicationSet controller into Argo CD](#merge-applicationset-controller-into-argo-cd)
+    - [Compact resources tree](#compact-resources-tree)
+    - [Maintain difference in cluster and git values for specific fields](#maintain-difference-in-cluster-and-git-values-for-specific-fields)
+    - [ARM images and CLI binary](#arm-images-and-cli-binary)
+    - [Server side apply](#server-side-apply)
+  - [v2.4 and beyond](#v24-and-beyond)
+    - [First class support for ApplicationSet resources](#first-class-support-for-applicationset-resources)
+    - [Input Forms UI Refresh](#input-forms-ui-refresh)
     - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
-    - [Compact Resources Tree](#compact-resources-tree)
     - [Web Shell](#web-shell)
     - [Helm values from external repo](#helm-values-from-external-repo)
+    - [Add support for secrets in Application parameters](#add-support-for-secrets-in-application-parameters)
     - [Config Management Tools Integrations UI/CLI](#config-management-tools-integrations-uicli)
     - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
     - [Dependencies between applications](#dependencies-between-applications)
-    - [Maintain difference in cluster and git values for specific fields](#maintain-difference-in-cluster-and-git-values-for-specific-fields)
     - [Multi-tenancy improvements](#multi-tenancy-improvements)
     - [GitOps Engine Enhancements](#gitops-engine-enhancements)
   - [Completed](#completed)
-    - [✅ Core Argo CD (proposal)](#core-argo-cd-aka-gitops-agent-proposal)
+    - [✅ Config Management Tools Integrations (proposal)](#-config-management-tools-integrations-proposal)
+    - [✅ Argo CD Extensions (proposal)](#-argo-cd-extensions-proposal)
+    - [✅ Project scoped repository and clusters (proposal)](#-project-scoped-repository-and-clusters-proposal)
+    - [✅ Core Argo CD (proposal)](#-core-argo-cd-proposal)
     - [✅ Core Functionality Bug Fixes](#-core-functionality-bug-fixes)
     - [✅ Performance](#-performance)
     - [✅ ApplicationSet](#-applicationset)
@@ -30,49 +34,48 @@
     - [✅ Automated Registry Monitoring](#-automated-registry-monitoring)
     - [✅ Projects Enhancements](#-projects-enhancements)
 
-## v2.2
+## v2.3
 
-### Config Management Tools Integrations ([proposal](https://github.com/argoproj/argo-cd/pull/5927))
-
-The community likes the first class support of Helm, Kustomize and keeps requesting support for more tools.
-Argo CD provides a mechanism to integrate with any config management tool. We need to investigate why
-it is not enough and implement missing features.
-
-
-### Argo CD Extensions ([proposal](https://github.com/argoproj/argo-cd/pull/6240))
-
-Argo CD supports customizing handling of Kubernetes resources via diffing customizations,
-health checks, and custom actions. The Argo CD Extensions proposal takes it to next
-level and allows to deliver the resource customizations along with custom visualization in Argo CD
-via Git repository.
-
-### Project scoped repository and clusters ([proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/project-repos-and-clusters.md))
-
-The feature streamlines the process of adding repositories and clusters to the project and makes it self-service.
-Instead of asking an administrator to change Argo CD settings end users can perform the change independently.
-
-## v2.3 and beyond
-
-### Input Forms UI Refresh
-
-Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
-
-### Merge ApplicationSet controller into Argo CD
-
-The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
-The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+> ETA: Feb 2021
 
 ### Merge Argo CD Notifications into Argo CD
 
 The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
 
-### Merge Argo CD Image Updater into Argo CD
+### Merge ApplicationSet controller into Argo CD
 
-The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
 
 ### Compact resources tree
 
 An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
+
+### Maintain difference in cluster and git values for specific fields
+
+The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
+
+### ARM images and CLI binary
+
+The release workflow should build and publish ARM images and CLI binaries: ([#4211](https://github.com/argoproj/argo-cd/issues/4211))
+
+### Server side apply
+
+Support using [server side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) during application syncing
+[#2267](https://github.com/argoproj/argo-cd/issues/2267)
+
+## v2.4 and beyond
+
+### First class support for ApplicationSet resources
+
+The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+
+### Input Forms UI Refresh
+
+Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
+
+### Merge Argo CD Image Updater into Argo CD
+
+The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
 
 ### Web Shell
 
@@ -81,6 +84,10 @@ Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.c
 ### Helm values from external repo
 
 The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
+
+### Add support for secrets in Application parameters
+
+The feature allows referencing secrets in Application parameters. [#1786](https://github.com/argoproj/argo-cd/issues/1786).
 
 ### Config Management Tools Integrations UI/CLI
 
@@ -96,9 +103,6 @@ visualize custom resources that don't have owner references.
 
 The feature allows specifying dependencies between applications that allow orchestrating synchronization of multiple applications. [#3517](https://github.com/argoproj/argo-cd/issues/3517)
 
-### Maintain difference in cluster and git values for specific fields
-
-The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
 
 ### Multi-tenancy improvements
 
@@ -118,6 +122,25 @@ A lot of Argo CD features are still not available in GitOps engine. The followin
 * unified syncing annotations [argoproj/gitops-engine#43](https://github.com/argoproj/gitops-engine/issues/43).
 
 ## Completed
+
+### ✅ Config Management Tools Integrations ([proposal](https://github.com/argoproj/argo-cd/pull/5927))
+
+The community likes the first class support of Helm, Kustomize and keeps requesting support for more tools.
+Argo CD provides a mechanism to integrate with any config management tool. We need to investigate why
+it is not enough and implement missing features.
+
+
+### ✅ Argo CD Extensions ([proposal](https://github.com/argoproj/argo-cd/pull/6240))
+
+Argo CD supports customizing handling of Kubernetes resources via diffing customizations,
+health checks, and custom actions. The Argo CD Extensions proposal takes it to next
+level and allows to deliver the resource customizations along with custom visualization in Argo CD
+via Git repository.
+
+### ✅ Project scoped repository and clusters ([proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/project-repos-and-clusters.md))
+
+The feature streamlines the process of adding repositories and clusters to the project and makes it self-service.
+Instead of asking an administrator to change Argo CD settings end users can perform the change independently.
 
 ### ✅ Core Argo CD ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
 

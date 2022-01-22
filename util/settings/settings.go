@@ -121,6 +121,7 @@ type OIDCConfig struct {
 	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 	LogoutURL              string                 `json:"logoutURL,omitempty"`
+	RootCA                 string                 `json:"rootCA,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -164,6 +165,23 @@ var (
 		}
 		if url, ok := s.Data["server"]; ok {
 			return []string{strings.TrimRight(string(url), "/")}, nil
+		}
+		return nil, nil
+	}
+	ByClusterNameIndexer     = "byClusterName"
+	byClusterNameIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
+		if !ok {
+			return nil, nil
+		}
+		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+			return nil, nil
+		}
+		if s.Data == nil {
+			return nil, nil
+		}
+		if name, ok := s.Data["name"]; ok {
+			return []string{string(name)}, nil
 		}
 		return nil, nil
 	}
@@ -1051,6 +1069,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
 		ByClusterURLIndexer:     byClusterURLIndexerFunc,
+		ByClusterNameIndexer:    byClusterNameIndexerFunc,
 		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 	}
@@ -1528,6 +1547,27 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) OIDCTLSConfig() *tls.Config {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		if oidcConfig.RootCA != "" {
+			certPool := x509.NewCertPool()
+			ok := certPool.AppendCertsFromPEM([]byte(oidcConfig.RootCA))
+			if !ok {
+				log.Warn("invalid oidc root ca cert - returning default tls.Config instead")
+				return &tls.Config{}
+			}
+			return &tls.Config{
+				RootCAs: certPool,
+			}
+		}
+	}
+	tlsConfig := a.TLSConfig()
+	if tlsConfig != nil {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }
 
 func appendURLPath(inputURL string, inputPath string) (string, error) {

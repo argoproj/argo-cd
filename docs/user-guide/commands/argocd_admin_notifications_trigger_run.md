@@ -1,15 +1,27 @@
-## argocd admin argocd-notifications trigger
+## argocd admin notifications trigger run
 
-Notification triggers related commands
+Evaluates specified trigger condition and prints the result
 
 ```
-argocd admin argocd-notifications trigger [flags]
+argocd admin notifications trigger run NAME RESOURCE_NAME [flags]
+```
+
+### Examples
+
+```
+
+# Execute trigger configured in 'argocd-notification-cm' ConfigMap
+notifications trigger run on-sync-status-unknown ./sample-app.yaml
+
+# Execute trigger using my-config-map.yaml instead of 'argocd-notifications-cm' ConfigMap
+notifications trigger run on-sync-status-unknown ./sample-app.yaml \
+    --config-map ./my-config-map.yaml
 ```
 
 ### Options
 
 ```
-  -h, --help   help for trigger
+  -h, --help   help for run
 ```
 
 ### Options inherited from parent commands
@@ -27,7 +39,7 @@ argocd admin argocd-notifications trigger [flags]
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -57,7 +69,5 @@ argocd admin argocd-notifications trigger [flags]
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications](argocd_admin_argocd-notifications.md)	 - Set of CLI commands that helps manage notifications settings
-* [argocd admin argocd-notifications trigger get](argocd_admin_argocd-notifications_trigger_get.md)	 - Prints information about configured triggers
-* [argocd admin argocd-notifications trigger run](argocd_admin_argocd-notifications_trigger_run.md)	 - Evaluates specified trigger condition and prints the result
+* [argocd admin notifications trigger](argocd_admin_notifications_trigger.md)	 - Notification triggers related commands
 

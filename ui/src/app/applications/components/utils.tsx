@@ -4,6 +4,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
+import * as moment from 'moment';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
@@ -968,12 +969,18 @@ export function getContainerName(pod: any, containerIndex: number): string {
     return container.name;
 }
 
+export function isYoungerThanXMinutes(pod: any, x: number): boolean {
+    const createdAt = moment(pod.createdAt, 'YYYY-MM-DDTHH:mm:ssZ');
+    const xMinutesAgo = moment().subtract(x, 'minutes');
+    return createdAt.isAfter(xMinutesAgo);
+}
+
 export const BASE_COLORS = [
     '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
+    '#DE7EAE', // pink
+    '#FF9500', // orange
     '#4B0082', // purple
+    '#F5d905', // yellow
     '#964B00' // brown
 ];
 

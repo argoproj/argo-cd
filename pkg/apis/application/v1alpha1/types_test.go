@@ -2568,3 +2568,31 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings.Warn = pointer.BoolPtr(true)
 	assert.True(t, settings.IsWarn())
 }
+
+func Test_validatePolicy_projIsNotRegex(t *testing.T) {
+	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
+	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
+	assert.Error(t, err)
+
+	err = validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some.project/*, allow")
+	assert.NoError(t, err)
+
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+}
+
+func Test_validatePolicy_ValidResource(t *testing.T) {
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
+	assert.NoError(t, err)
+}
+
+func TestEnvsubst(t *testing.T) {
+	env := Env{
+		&EnvEntry{"foo", "bar"},
+	}
+
+	assert.Equal(t, "bar", env.Envsubst("$foo"))
+	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
+}

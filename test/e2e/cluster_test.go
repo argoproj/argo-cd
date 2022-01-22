@@ -2,14 +2,15 @@ package e2e
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
@@ -146,4 +147,38 @@ func TestClusterGet(t *testing.T) {
     insecure: false`)
 
 	assert.Contains(t, output, `status: Successful`)
+}
+
+func TestClusterNameInRestAPI(t *testing.T) {
+	EnsureCleanState(t)
+
+	var cluster Cluster
+	err := DoHttpJsonRequest("GET", "/api/v1/clusters/in-cluster?id.type=name", &cluster)
+	require.NoError(t, err)
+
+	assert.Equal(t, cluster.Name, "in-cluster")
+	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
+
+	err = DoHttpJsonRequest("PUT",
+		"/api/v1/clusters/in-cluster?id.type=name&updatedFields=labels", &cluster, []byte(`{"labels":{"test": "val"}}`)...)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"test": "val"}, cluster.Labels)
+}
+
+func TestClusterURLInRestAPI(t *testing.T) {
+	EnsureCleanState(t)
+
+	clusterURL := url.QueryEscape(KubernetesInternalAPIServerAddr)
+
+	var cluster Cluster
+	err := DoHttpJsonRequest("GET", fmt.Sprintf("/api/v1/clusters/%s", clusterURL), &cluster)
+	require.NoError(t, err)
+
+	assert.Equal(t, cluster.Name, "in-cluster")
+	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
+
+	err = DoHttpJsonRequest("PUT",
+		fmt.Sprintf("/api/v1/clusters/%s?&updatedFields=labels", clusterURL), &cluster, []byte(`{"labels":{"test": "val"}}`)...)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"test": "val"}, cluster.Labels)
 }

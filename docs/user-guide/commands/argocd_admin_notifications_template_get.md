@@ -1,19 +1,19 @@
-## argocd admin argocd-notifications trigger get
+## argocd admin notifications template get
 
-Prints information about configured triggers
+Prints information about configured templates
 
 ```
-argocd admin argocd-notifications trigger get [flags]
+argocd admin notifications template get [flags]
 ```
 
 ### Examples
 
 ```
 
-# prints all triggers
-argocd-notifications trigger get
-# print YAML formatted on-sync-failed trigger definition
-argocd-notifications trigger get on-sync-failed -o=yaml
+# prints all templates
+notifications template get
+# print YAML formatted app-sync-succeeded template definition
+notifications template get app-sync-succeeded -o=yaml
 
 ```
 
@@ -39,7 +39,7 @@ argocd-notifications trigger get on-sync-failed -o=yaml
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --config-map string               argocd-notifications-cm.yaml file path
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
@@ -69,5 +69,5 @@ argocd-notifications trigger get on-sync-failed -o=yaml
 
 ### SEE ALSO
 
-* [argocd admin argocd-notifications trigger](argocd_admin_argocd-notifications_trigger.md)	 - Notification triggers related commands
+* [argocd admin notifications template](argocd_admin_notifications_template.md)	 - Notification templates related commands
 

@@ -24,7 +24,7 @@ var (
 		pullCommand:                  "pull",
 		initSupported:                false,
 		getPostTemplateCallback:      cleanupChartLockFile,
-		additionalTemplateArgs:       []string{"--include-crds"},
+		includeCrds:                  true,
 		insecureSkipVerifySupported:  true,
 		helmPassCredentialsSupported: true,
 	}
@@ -59,7 +59,7 @@ type HelmVer struct {
 	pullCommand                  string
 	kubeVersionSupported         bool
 	getPostTemplateCallback      func(chartPath string) (func(), error)
-	additionalTemplateArgs       []string
+	includeCrds                  bool
 	insecureSkipVerifySupported  bool
 	helmPassCredentialsSupported bool
 }

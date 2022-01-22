@@ -15,6 +15,6 @@ redis-ha:
       client: 6m
     checkInterval: 3s
   image:
-    tag: 6.2.4-alpine
+    tag: 6.2.6-alpine
   sentinel:
     bind: "0.0.0.0"

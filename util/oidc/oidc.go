@@ -14,7 +14,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -107,10 +107,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache OIDCStateStorage, dex
 	if err != nil {
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+	tlsConfig := settings.OIDCTLSConfig()
 	a.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,

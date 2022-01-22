@@ -70,7 +70,7 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 })
                             }
                         />
-                        <label htmlFor='inlineDiff'>Inline Diff</label>
+                        <label htmlFor='inlineDiff'>Inline diff</label>
                     </div>
                     {files
                         .sort((a: any, b: any) => a.newPath.localeCompare(b.newPath))

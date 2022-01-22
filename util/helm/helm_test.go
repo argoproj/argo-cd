@@ -223,3 +223,25 @@ func TestAPIVersions(t *testing.T) {
 	}
 	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v2")
 }
+
+func TestSkipCrds(t *testing.T) {
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	objs, err := template(h, &TemplateOpts{SkipCrds: false})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	objs, err = template(h, &TemplateOpts{})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	objs, err = template(h, &TemplateOpts{SkipCrds: true})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 0) {
+		return
+	}
+}

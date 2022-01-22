@@ -8,7 +8,6 @@ import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
-    projects: boolean;
     repos: boolean;
     sync: boolean;
     health: boolean;
@@ -25,7 +24,6 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
     return applications.map(app => ({
         ...app,
         filterResult: {
-            projects: pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project),
             repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
