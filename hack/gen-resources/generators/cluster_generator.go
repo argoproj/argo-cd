@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"gopkg.in/yaml.v2"
 
 	"k8s.io/client-go/kubernetes/scheme"
@@ -144,9 +146,14 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 		KeyData:    []byte(key),
 	}
 
+	pod, err := cg.clientSet.CoreV1().Pods("host-namespace-5").Get(context.TODO(), "vcluster-1-0", v12.GetOptions{})
+	if err != nil {
+		return err
+	}
+
 	_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
-		Server: "https://192.168.2.16:8443",
-		Name:   "pasha-test-344",
+		Server: "https://" + pod.Status.PodIP + ":8443",
+		Name:   "pasha-test-6",
 		Config: argoappv1.ClusterConfig{
 			TLSClientConfig: tlsClientConfig,
 		},
