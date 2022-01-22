@@ -151,7 +151,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 	http.SetCookie(w, &http.Cookie{
 		Name:     common.StateCookieName,
 		Value:    cookieValue,
-		Expires:  time.Now().Add(3 * time.Minute),
+		Expires:  time.Now().Add(common.StateCookieMaxAge),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
@@ -173,14 +173,15 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		return "", err
 	}
 	cookieVal := string(val)
-	returnURL := ""
+	returnURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
-	if len(parts) > 1 {
+	if len(parts) == 2 && parts[1] != "" {
 		returnURL = parts[1]
 	}
 	if parts[0] != state {
 		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
 	}
+	// set empty cookie to clear it
 	http.SetCookie(w, &http.Cookie{
 		Name:     common.StateCookieName,
 		Value:    "",

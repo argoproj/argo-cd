@@ -5,10 +5,11 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"io"
 )
 
-func getKey(passphrase string) []byte {
+func passphraseToKey(passphrase string) []byte {
 	hasher := sha256.New()
 	hasher.Write([]byte(passphrase))
 	key := hasher.Sum(nil)
@@ -17,7 +18,7 @@ func getKey(passphrase string) []byte {
 
 // Encrypt encrypts the given data with the given passphrase.
 func Encrypt(data []byte, passphrase string) ([]byte, error) {
-	block, err := aes.NewCipher(getKey(passphrase))
+	block, err := aes.NewCipher(passphraseToKey(passphrase))
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +36,7 @@ func Encrypt(data []byte, passphrase string) ([]byte, error) {
 
 // Decrypt decrypts the given data using the given passphrase.
 func Decrypt(data []byte, passphrase string) ([]byte, error) {
-	block, err := aes.NewCipher(getKey(passphrase))
+	block, err := aes.NewCipher(passphraseToKey(passphrase))
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +45,9 @@ func Decrypt(data []byte, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return nil, errors.New("data length is less than nonce size")
+	}
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {

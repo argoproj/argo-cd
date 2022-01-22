@@ -1,8 +1,10 @@
 package oidc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -12,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -211,4 +215,19 @@ func TestGenerateAppState(t *testing.T) {
 		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
 		assert.Error(t, err)
 	})
+}
+
+func TestGenerateAppState_NoReturnURL(t *testing.T) {
+	pass := "test-server-signature"
+	req := httptest.NewRequest("GET", "/", nil)
+	encrypted, err := crypto.Encrypt([]byte("123"), pass)
+	require.NoError(t, err)
+
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: []byte(pass)}, "", "/argo-cd")
+	require.NoError(t, err)
+
+	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
+	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
+	assert.NoError(t, err)
+	assert.Equal(t, "/argo-cd", returnURL)
 }

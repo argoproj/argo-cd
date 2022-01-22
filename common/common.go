@@ -78,6 +78,8 @@ const (
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
 	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
