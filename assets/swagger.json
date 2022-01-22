@@ -256,7 +256,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -520,7 +520,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -3148,7 +3148,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
