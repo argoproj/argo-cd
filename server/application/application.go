@@ -884,8 +884,14 @@ func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) boo
 		return true
 	}
 
-	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore this diff
+	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore those in the diff
 	cachedApp.Spec.Project = ae.Application.Spec.Project               //
+	for i := range cachedApp.Status.Conditions {
+		cachedApp.Status.Conditions[i].LastTransitionTime = nil
+	}
+	for i := range ae.Application.Status.Conditions {
+		ae.Application.Status.Conditions[i].LastTransitionTime = nil
+	}
 
 	cachedAppSpec, err := json.Marshal(&cachedApp.Spec)
 	if err != nil {
@@ -949,6 +955,11 @@ func (s *Server) streamApplicationEvents(
 	appEvent, err := s.getApplicationEventPayload(ctx, a, es)
 	if err != nil {
 		return fmt.Errorf("failed to get application event: %w", err)
+	}
+
+	if appEvent == nil {
+		// event did not have an OperationState - skip all events
+		return nil
 	}
 
 	if a.Labels != nil {
@@ -1083,16 +1094,11 @@ func getResourceEventPayload(
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
+		SyncStartedAt:   a.Status.OperationState.StartedAt,
+		SyncFinishedAt:  a.Status.OperationState.FinishedAt,
 	}
 
-	if a.Status.OperationState != nil {
-		source.SyncStartedAt = a.Status.OperationState.StartedAt
-		source.SyncFinishedAt = a.Status.OperationState.FinishedAt
-		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
-	} else {
-		source.SyncStartedAt = metav1.Now() // new sync operation
-	}
-
+	errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
 	if rs.Health != nil {
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
@@ -1169,6 +1175,11 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 }
 
 func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource) (*events.Event, error) {
+	// skip all events if there is no OperationState
+	if a.Status.OperationState == nil {
+		return nil, nil
+	}
+
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
 
@@ -1204,6 +1215,7 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		actualManifest = "" // mark as deleted
 	}
 
+	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
 		DesiredManifest: "",
 		GitManifest:     "",
@@ -1216,18 +1228,13 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		AppName:         "",
 		AppLabels:       map[string]string{},
 		SyncStatus:      string(a.Status.Sync.Status),
-	}
-
-	if a.Status.OperationState != nil {
-		source.SyncStartedAt = a.Status.OperationState.StartedAt
-		source.SyncFinishedAt = a.Status.OperationState.FinishedAt
-		hs := string(a.Status.Health.Status)
-		source.HealthStatus = &hs
-		source.HealthMessage = &a.Status.Health.Message
+		SyncStartedAt:   a.Status.OperationState.StartedAt,
+		SyncFinishedAt:  a.Status.OperationState.FinishedAt,
+		HealthStatus:    &hs,
+		HealthMessage:   &a.Status.Health.Message,
 	}
 
 	errs := []*events.ObjectError{}
-
 	for _, cnd := range a.Status.Conditions {
 		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
 			continue
