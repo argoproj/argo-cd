@@ -75,15 +75,15 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
-			err = ag.Generate(opts)
-			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
-			}
 			err = rg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
 			err = cg.Generate(opts)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
+			err = ag.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
@@ -103,13 +103,20 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 			clientSet := util.ConnectToK8sClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
+
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
+			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig())
+
 			err := pg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
 			err = ag.Clean(opts)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
+			err = cg.Clean(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}

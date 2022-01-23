@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"strings"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -186,6 +187,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 			ConnectionState: argoappv1.ConnectionState{},
 			ServerVersion:   "1.18",
 			Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
+			Labels:          labels,
 		})
 		if err != nil {
 			return err
@@ -195,5 +197,22 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
-	return nil
+	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), v12.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, ns := range namespaces.Items {
+		if strings.HasPrefix(ns.Name, "vcluster") {
+			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, v12.DeleteOptions{})
+			if err != nil {
+				//TODO: add warning
+			}
+		}
+	}
+
+	secrets := cg.clientSet.CoreV1().Secrets(opts.Namespace)
+	return secrets.DeleteCollection(context.TODO(), v12.DeleteOptions{}, v12.ListOptions{
+		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
+	})
 }
