@@ -971,10 +971,6 @@ func (s *Server) streamApplicationEvents(
 		}
 	}
 
-	if err := stream.Send(appEvent); err != nil {
-		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
-	}
-
 	// get the desired state manifests of the application
 	desiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:     &a.Name,
