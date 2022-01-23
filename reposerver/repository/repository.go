@@ -1178,7 +1178,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, "KUBE_VERSION="+q.KubeVersion)
+	env = append(env, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
 	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	parsedEnv := make(v1alpha1.Env, len(env))
