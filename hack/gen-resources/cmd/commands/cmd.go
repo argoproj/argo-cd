@@ -1,54 +1,76 @@
 package commands
 
 import (
-	"log"
-	"os"
-
 	"context"
+	"log"
+
+	"github.com/spf13/cobra"
 
 	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
-
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-
-	"github.com/spf13/cobra"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 )
 
-func NewAllResourcesCommand(opts *util.GenerateOpts) *cobra.Command {
+const (
+	cliName = "argocd-generator"
+)
+
+func init() {
+	cobra.OnInitialize(initConfig)
+}
+
+func initConfig() {
+	cli.SetLogFormat(cmdutil.LogFormat)
+	cli.SetLogLevel(cmdutil.LogLevel)
+}
+
+// NewCommand returns a new instance of an argocd command
+func NewCommand() *cobra.Command {
+
+	var generateOpts util.GenerateOpts
+
 	var command = &cobra.Command{
-		Use:   "all",
-		Short: "Manage all resources",
-		Long:  "Manage all resources",
+		Use:   cliName,
+		Short: "Generator for argocd resources",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
-			os.Exit(1)
 		},
+		DisableAutoGenTag: true,
 	}
-	command.AddCommand(NewAllResourcesGenerationCommand(opts))
-	command.AddCommand(NewAllResourcesCleanCommand(opts))
+
+	command.AddCommand(NewGenerateCommand(&generateOpts))
+	command.AddCommand(NewCleanCommand(&generateOpts))
+
+	command.PersistentFlags().StringVar(&generateOpts.Namespace, "kube-namespace", "argocd", "Name of the namespace on which Argo agent should be installed [$KUBE_NAMESPACE]")
 	return command
 }
 
-func NewAllResourcesGenerationCommand(opts *util.GenerateOpts) *cobra.Command {
+func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
+	var file string
 	var command = &cobra.Command{
-		Use:   "generate",
-		Short: "Generate all resources",
-		Long:  "Generate all resources",
+		Use:   "generate [-f file]",
+		Short: "Generate applications",
+		Long:  "Generate applications",
 		Run: func(c *cobra.Command, args []string) {
+			err := util.Parse(opts, file)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
 			argoClientSet := util.ConnectToK8sArgoClientSet()
-			clientSet := tools.ConnectToK8sClientSet()
+			clientSet := util.ConnectToK8sClientSet()
 
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
-			rg := generator.NewRepoGenerator(tools.ConnectToK8sClientSet())
+			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
 
-			err := pg.Generate(opts)
+			err = pg.Generate(opts)
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
@@ -62,17 +84,18 @@ func NewAllResourcesGenerationCommand(opts *util.GenerateOpts) *cobra.Command {
 			}
 		},
 	}
+	command.Flags().StringVarP(&file, "file", "f", "", "")
 	return command
 }
 
-func NewAllResourcesCleanCommand(opts *util.GenerateOpts) *cobra.Command {
+func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "clean",
-		Short: "Clean all resources",
-		Long:  "Clean all resources",
+		Short: "Clean applications",
+		Long:  "Clean applications",
 		Run: func(c *cobra.Command, args []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
-			clientSet := tools.ConnectToK8sClientSet()
+			clientSet := util.ConnectToK8sClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 			pg := generator.NewProjectGenerator(argoClientSet)

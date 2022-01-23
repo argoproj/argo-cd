@@ -1,12 +1,15 @@
-application:
-  samples: 5
-  source:
-    strategy: Random
-  destination:
-    strategy: Random
+#application:
+#  samples: 5
+#  source:
+#    strategy: Random
+#  destination:
+#    strategy: Random
 
 
 cluster:
   samples: 1
+  namespacePrefix: vcluster
+  valuesFilePath: /Users/pashavictorovich/.kube/util/values.yaml
+
 
 namespace: argocd

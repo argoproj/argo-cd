@@ -21,7 +21,9 @@ type ApplicationOpts struct {
 }
 
 type ClusterOpts struct {
-	Samples int `yaml:"samples"`
+	Samples         int    `yaml:"samples"`
+	NamespacePrefix string `yaml:"namespacePrefix"`
+	ValuesFilePath  string `yaml:"valuesFilePath"`
 }
 
 type GenerateOpts struct {
