@@ -63,7 +63,7 @@ func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *
 	return &ClusterGenerator{db, clientSet, config}
 }
 
-func (cg *ClusterGenerator) getClusterCredentials(namespace string) ([]byte, []byte, []byte, error) {
+func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffix string) ([]byte, []byte, []byte, error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -80,7 +80,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string) ([]byte, []b
 		TTY:       true,
 	}
 
-	req := cg.clientSet.CoreV1().RESTClient().Post().Resource("pods").Name("vcluster-1-0").
+	req := cg.clientSet.CoreV1().RESTClient().Post().Resource("pods").Name("vcluster-" + releaseSuffix + "-0").
 		Namespace(namespace).SubResource("exec")
 
 	req.VersionedParams(
@@ -133,15 +133,15 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	if err != nil {
 		return err
 	}
-	_, err = cmd.Freestyle("install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace")
+	_, err = cmd.Freestyle("install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cg *ClusterGenerator) getClusterServerUri(namespace string) (string, error) {
-	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), "vcluster-1-0", v12.GetOptions{})
+func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix string) (string, error) {
+	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), "vcluster-"+releaseSuffix+"-0", v12.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -154,17 +154,19 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
-		err := cg.installVCluster(opts, namespace, "vcluster-"+util.GetRandomString())
+		releaseSuffix := util.GetRandomString()
+
+		err := cg.installVCluster(opts, namespace, "vcluster-"+releaseSuffix)
 		if err != nil {
 			return err
 		}
 
-		caData, cert, key, err := cg.getClusterCredentials(namespace)
+		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
 		if err != nil {
 			return err
 		}
 
-		uri, err := cg.getClusterServerUri(namespace)
+		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
 		if err != nil {
 			return err
 		}

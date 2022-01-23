@@ -53,8 +53,8 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 	var file string
 	var command = &cobra.Command{
 		Use:   "generate [-f file]",
-		Short: "Generate applications",
-		Long:  "Generate applications",
+		Short: "Generate entities",
+		Long:  "Generate entities",
 		Run: func(c *cobra.Command, args []string) {
 			err := util.Parse(opts, file)
 			if err != nil {
@@ -69,6 +69,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
 			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
+			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig())
 
 			err = pg.Generate(opts)
 			if err != nil {
@@ -82,6 +83,10 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			if err != nil {
 				log.Fatalf("Something went wrong, %v", err.Error())
 			}
+			err = cg.Generate(opts)
+			if err != nil {
+				log.Fatalf("Something went wrong, %v", err.Error())
+			}
 		},
 	}
 	command.Flags().StringVarP(&file, "file", "f", "", "")
@@ -91,8 +96,8 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "clean",
-		Short: "Clean applications",
-		Long:  "Clean applications",
+		Short: "Clean entities",
+		Long:  "Clean entities",
 		Run: func(c *cobra.Command, args []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()

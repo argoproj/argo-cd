@@ -13,10 +13,10 @@ cluster:
   destinationNamespace: argocd
   clusterNamePrefix: test
 
-repository:
-  samples: 1
-
-project:
-  samples: 1
+#repository:
+#  samples: 1
+#
+#project:
+#  samples: 1
 
 namespace: argocd
