@@ -962,6 +962,15 @@ func (s *Server) streamApplicationEvents(
 		return nil
 	}
 
+	if a.Labels != nil {
+		parentAppName := a.Labels["app.kubernetes.io/instance"]
+		if parentAppName != "" {
+			if err := stream.Send(appEvent); err != nil {
+				return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+			}
+		}
+	}
+
 	if err := stream.Send(appEvent); err != nil {
 		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 	}
