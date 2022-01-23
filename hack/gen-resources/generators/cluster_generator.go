@@ -63,7 +63,7 @@ func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *
 	return &ClusterGenerator{db, clientSet, config}
 }
 
-func (cg *ClusterGenerator) getClusterCredentials() ([]byte, []byte, []byte, error) {
+func (cg *ClusterGenerator) getClusterCredentials(namespace string) ([]byte, []byte, []byte, error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -81,7 +81,7 @@ func (cg *ClusterGenerator) getClusterCredentials() ([]byte, []byte, []byte, err
 	}
 
 	req := cg.clientSet.CoreV1().RESTClient().Post().Resource("pods").Name("vcluster-1-0").
-		Namespace("host-namespace-5").SubResource("exec")
+		Namespace(namespace).SubResource("exec")
 
 	req.VersionedParams(
 		option,
@@ -128,12 +128,12 @@ func (cg *ClusterGenerator) getClusterCredentials() ([]byte, []byte, []byte, err
 }
 
 //TODO: also should provision service for vcluster pod
-func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string) error {
+func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
 	cmd, err := helm.NewCmd("/tmp", "v3", "")
 	if err != nil {
 		return err
 	}
-	_, err = cmd.Freestyle("install", "vcluster-1", "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace")
+	_, err = cmd.Freestyle("install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace")
 	if err != nil {
 		return err
 	}
@@ -154,12 +154,12 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
-		err := cg.installVCluster(opts, namespace)
+		err := cg.installVCluster(opts, namespace, "vcluster-"+util.GetRandomString())
 		if err != nil {
 			return err
 		}
 
-		caData, cert, key, err := cg.getClusterCredentials()
+		caData, cert, key, err := cg.getClusterCredentials(namespace)
 		if err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
 			Server: uri,
-			Name:   "pasha-test-6",
+			Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
 			Config: argoappv1.ClusterConfig{
 				TLSClientConfig: argoappv1.TLSClientConfig{
 					Insecure:   false,
@@ -183,7 +183,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 			},
 			ConnectionState: argoappv1.ConnectionState{},
 			ServerVersion:   "1.18",
-			Namespaces:      []string{"argocd"},
+			Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
 		})
 		if err != nil {
 			return err

@@ -10,6 +10,13 @@ cluster:
   samples: 1
   namespacePrefix: vcluster
   valuesFilePath: /Users/pashavictorovich/.kube/util/values.yaml
+  destinationNamespace: argocd
+  clusterNamePrefix: test
 
+repository:
+  samples: 1
+
+project:
+  samples: 1
 
 namespace: argocd

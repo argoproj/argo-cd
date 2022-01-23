@@ -20,17 +20,30 @@ type ApplicationOpts struct {
 	DestinationOpts DestinationOpts `yaml:"destination"`
 }
 
+type RepositoryOpts struct {
+	Samples int `yaml:"samples"`
+}
+
+type ProjectOpts struct {
+	Samples int `yaml:"samples"`
+}
+
 type ClusterOpts struct {
-	Samples         int    `yaml:"samples"`
-	NamespacePrefix string `yaml:"namespacePrefix"`
-	ValuesFilePath  string `yaml:"valuesFilePath"`
+	Samples              int    `yaml:"samples"`
+	NamespacePrefix      string `yaml:"namespacePrefix"`
+	ValuesFilePath       string `yaml:"valuesFilePath"`
+	DestinationNamespace string `yaml:"destinationNamespace"`
+	ClusterNamePrefix    string `yaml:"clusterNamePrefix"`
 }
 
 type GenerateOpts struct {
 	ApplicationOpts ApplicationOpts `yaml:"application"`
 	ClusterOpts     ClusterOpts     `yaml:"cluster"`
-	GithubToken     string
-	Namespace       string `yaml:"namespace"`
+	RepositoryOpts  RepositoryOpts  `yaml:"repository"`
+	ProjectOpts     ProjectOpts     `yaml:"project"`
+
+	GithubToken string
+	Namespace   string `yaml:"namespace"`
 }
 
 func Parse(opts *GenerateOpts, file string) error {

@@ -20,7 +20,7 @@ func NewProjectGenerator(clientSet *appclientset.Clientset) Generator {
 
 func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects("argocd")
-	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
+	for i := 0; i < opts.ProjectOpts.Samples; i++ {
 		_, err := projects.Create(context.TODO(), &v1alpha1.AppProject{
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "project-",
