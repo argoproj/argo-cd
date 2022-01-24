@@ -24,6 +24,7 @@ type hpaCondition struct {
 	Type    string
 	Reason  string
 	Message string
+	Status  string
 }
 
 func getHPAHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -65,6 +66,7 @@ func getAutoScalingV2beta2HPAHealth(hpa *autoscalingv2beta2.HorizontalPodAutosca
 			Type:    string(statusCondition.Type),
 			Reason:  statusCondition.Reason,
 			Message: statusCondition.Message,
+			Status:  string(statusCondition.Status),
 		})
 	}
 
@@ -79,6 +81,7 @@ func getAutoScalingV2beta1HPAHealth(hpa *autoscalingv2beta1.HorizontalPodAutosca
 			Type:    string(statusCondition.Type),
 			Reason:  statusCondition.Reason,
 			Message: statusCondition.Message,
+			Status:  string(statusCondition.Status),
 		})
 	}
 
@@ -141,16 +144,9 @@ func isDegraded(condition *hpaCondition) bool {
 }
 
 func isHealthy(condition *hpaCondition) bool {
-	healthy_states := []hpaCondition{
-		{Type: "AbleToScale", Reason: "SucceededRescale"},
-		{Type: "ScalingLimited", Reason: "DesiredWithinRange"},
-		{Type: "ScalingLimited", Reason: "TooFewReplicas"},
-		{Type: "ScalingLimited", Reason: "TooManyReplicas"},
-		{Type: "ScalingLimited", Reason: "ScaleDownLimit"},
-		{Type: "ScalingActive", Reason: "ScalingDisabled"},
-	}
-	for _, healthy_state := range healthy_states {
-		if condition.Type == healthy_state.Type && condition.Reason == healthy_state.Reason {
+	healthyConditionTypes := []string{"AbleToScale", "ScalingLimited"}
+	for _, conditionType := range healthyConditionTypes {
+		if condition.Type == conditionType && condition.Status == "True" {
 			return true
 		}
 	}

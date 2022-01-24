@@ -2,7 +2,7 @@ apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
   annotations:
-    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2020-11-23T19:38:38Z","reason":"SucceededGetScale","message":"the HPA controller was able to get the target''s current scale"}]'
+    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"False","lastTransitionTime":"2020-11-23T19:38:38Z","reason":"SucceededGetScale","message":"the HPA controller was not able to get the target''s current scale"}]'
   name: sample
   namespace: argocd
 spec:
