@@ -734,6 +734,10 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			return err
 		}
 
+		if overrideKey == "all" {
+			overrideKey = "*/*"
+		}
+
 		overrideVal, ok := resourceOverrides[overrideKey]
 		if !ok {
 			overrideVal = v1alpha1.ResourceOverride{}

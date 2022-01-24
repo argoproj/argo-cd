@@ -9,10 +9,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/tools"
-
 	v1 "k8s.io/api/core/v1"
 	v1meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 
 	"k8s.io/client-go/kubernetes"
 )
@@ -24,11 +24,11 @@ type Repo struct {
 
 type RepoGenerator struct {
 	clientSet *kubernetes.Clientset
-	bar       *tools.Bar
+	bar       *util.Bar
 }
 
 func NewRepoGenerator(clientSet *kubernetes.Clientset) Generator {
-	return &RepoGenerator{clientSet: clientSet, bar: &tools.Bar{}}
+	return &RepoGenerator{clientSet: clientSet, bar: &util.Bar{}}
 }
 
 func fetchRepos(token string, page int) ([]Repo, error) {
@@ -79,8 +79,8 @@ func FetchRepos(token string, samples int) ([]Repo, error) {
 	return repos, nil
 }
 
-func (rg *RepoGenerator) Generate(opts *GenerateOpts) error {
-	repos, err := FetchRepos(opts.GithubToken, opts.Samples)
+func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
+	repos, err := FetchRepos(opts.GithubToken, opts.RepositoryOpts.Samples)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,8 @@ func (rg *RepoGenerator) Generate(opts *GenerateOpts) error {
 	return nil
 }
 
-func (rg *RepoGenerator) Clean(opts *GenerateOpts) error {
+func (rg *RepoGenerator) Clean(opts *util.GenerateOpts) error {
+	log.Printf("Clean repos")
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	return secrets.DeleteCollection(context.TODO(), v1meta.DeleteOptions{}, v1meta.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
