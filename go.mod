@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/evanphx/json-patch v4.12.0+incompatible
-	github.com/go-logr/logr v1.2.0
+	github.com/go-logr/logr v1.2.2
 	github.com/golang/mock v1.5.0
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
