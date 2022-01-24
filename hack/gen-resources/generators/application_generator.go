@@ -30,7 +30,7 @@ func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *k
 	return &ApplicationGenerator{argoClientSet, clientSet, db}
 }
 
-func (pg *ApplicationGenerator) buildRandomSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
+func (pg *ApplicationGenerator) buildRandomSource(repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
 	rand.Seed(time.Now().Unix())
 	repoNumber := rand.Int() % len(repositories)
 	return &v1alpha1.ApplicationSource{
@@ -43,9 +43,9 @@ func (pg *ApplicationGenerator) buildRandomSource(opts *util.GenerateOpts, repos
 func (ag *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
 	switch opts.ApplicationOpts.SourceOpts.Strategy {
 	case "Random":
-		return ag.buildRandomSource(opts, repositories)
+		return ag.buildRandomSource(repositories)
 	}
-	return ag.buildRandomSource(opts, repositories)
+	return ag.buildRandomSource(repositories)
 }
 
 func (pg *ApplicationGenerator) buildRandomDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {

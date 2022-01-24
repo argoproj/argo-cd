@@ -108,7 +108,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 
 	var config Config
 
-	err = yaml.Unmarshal([]byte(stdout.String()), &config)
+	err = yaml.Unmarshal(stdout.Bytes(), &config)
 	if err != nil {
 		return nil, nil, nil, err
 	}
