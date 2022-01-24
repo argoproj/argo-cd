@@ -129,6 +129,8 @@ github.com/argoproj/gitops-engine v0.5.1-0.20220119211147-b5600162862f h1:9ZEZZ5
 github.com/argoproj/gitops-engine v0.5.1-0.20220119211147-b5600162862f/go.mod h1:t/X9eVdopmPIYO0LTCqZirEXCQn1tzXxxQpEgMtTwWI=
 github.com/argoproj/notifications-engine v0.3.0 h1:1KMVYwXlg7SGzX00eg/bU0YupXDVdfpm8FlpNbrkUxM=
 github.com/argoproj/notifications-engine v0.3.0/go.mod h1:0TEB4QbOsNN8URcsUJpAFuuG6aw8KS8ZY/YCzsss9JQ=
+github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e h1:px7jeBJNoRF84tcik7Iw7MtXOUiqqNhYLf3UapYhJBM=
+github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e/go.mod h1:fONJdKbHnb3uhczfCXfJhlk87RPKCqt489KX+AaXurA=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -409,6 +411,7 @@ github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/me
 github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0/go.mod h1:fyg7847qk6SyHyPtNmDHnmrv/HOrqktSC+C9fM+CJOE=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible h1:2cauKuaELYAEARXRkq2LrJ0yDDv1rW7+wrTEdVL3uaU=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible/go.mod h1:qf9acutJ8cwBUhm1bqgz6Bei9/C/c93FPDljKWwsOgM=
+github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.4.0/go.mod h1:A2S0CWkNylc2phvKXWBBdD3K0iGnDBGbzRpISP2zBl8=
 github.com/go-test/deep v1.0.4 h1:u2CU3YKy9I2pmu9pX0eq50wCgjfGIt539SqR7FbHiho=
 github.com/go-test/deep v1.0.4/go.mod h1:wGDj63lr65AM2AQyKZd/NYHGb0R+1RLqB8NKt3aSFNA=
 github.com/gobuffalo/envy v1.7.0/go.mod h1:n7DRkBerg/aorDM8kbduw5dN3oXGswK5liaSCx4T5NI=
