@@ -69,7 +69,7 @@ func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *D
 
 // WithLogger sets the logger in the diff config.
 func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
-	b.diffConfig.logger = l
+	b.diffConfig.logger = &l
 	return b
 }
 
@@ -107,7 +107,7 @@ type DiffConfig interface {
 	StateCache() *appstatecache.Cache
 	IgnoreAggregatedRoles() bool
 	// Logger used during the diff
-	Logger() logr.Logger
+	Logger() *logr.Logger
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -120,7 +120,7 @@ type diffConfig struct {
 	noCache               bool
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
-	logger                logr.Logger
+	logger                *logr.Logger
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -147,7 +147,7 @@ func (c *diffConfig) StateCache() *appstatecache.Cache {
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
-func (c *diffConfig) Logger() logr.Logger {
+func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
 
@@ -209,7 +209,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	}
 
 	if diffConfig.Logger() != nil {
-		diffOpts = append(diffOpts, diff.WithLogr(diffConfig.Logger()))
+		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())

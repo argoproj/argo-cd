@@ -32,6 +32,7 @@ notifications template get app-sync-succeeded -o=yaml
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS

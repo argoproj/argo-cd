@@ -2,7 +2,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- argocd-application-controller-clusterrole.yaml
-- argocd-application-controller-clusterrolebinding.yaml
-- argocd-server-clusterrole.yaml
-- argocd-server-clusterrolebinding.yaml
+- ./application-controller
+- ./server

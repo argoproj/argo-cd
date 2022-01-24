@@ -84,6 +84,14 @@ data:
     managedFieldsManagers:
     - kube-controller-manager
 
+  # Configuration to define customizations ignoring differences between live and desired states for
+  # all resources (GK).
+  resource.customizations.ignoreDifferences.all: |
+    managedFieldsManagers:
+    - kube-controller-manager
+    jsonPointers:
+    - /spec/replicas
+
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}
     if obj.status ~= nil then

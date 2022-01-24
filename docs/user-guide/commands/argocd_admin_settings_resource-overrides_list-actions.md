@@ -30,6 +30,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS

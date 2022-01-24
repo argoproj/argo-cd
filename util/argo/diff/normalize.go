@@ -21,15 +21,19 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 	}
 
 	for _, live := range result.Lives {
-		err = diffNormalizer.Normalize(live)
-		if err != nil {
-			return nil, err
+		if live != nil {
+			err = diffNormalizer.Normalize(live)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, target := range result.Targets {
-		err = diffNormalizer.Normalize(target)
-		if err != nil {
-			return nil, err
+		if target != nil {
+			err = diffNormalizer.Normalize(target)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return result, nil
