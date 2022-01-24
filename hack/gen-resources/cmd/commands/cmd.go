@@ -56,9 +56,10 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		Short: "Generate entities",
 		Long:  "Generate entities",
 		Run: func(c *cobra.Command, args []string) {
+			log.Printf("Retrieve configuration from %s", file)
 			err := util.Parse(opts, file)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to retrieve configuration, %v", err.Error())
 			}
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
@@ -73,19 +74,19 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 
 			err = pg.Generate(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to generate projects, %v", err.Error())
 			}
 			err = rg.Generate(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to generate repositories, %v", err.Error())
 			}
 			err = cg.Generate(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to generate clusters, %v", err.Error())
 			}
 			err = ag.Generate(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to generate applications, %v", err.Error())
 			}
 		},
 	}

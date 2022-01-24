@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"log"
 	"strings"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +25,8 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 )
+
+const POD_PREFIX = "vcluster"
 
 type Cluster struct {
 	Server                   string `yaml:"server"`
@@ -81,7 +84,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 		TTY:       true,
 	}
 
-	req := cg.clientSet.CoreV1().RESTClient().Post().Resource("pods").Name("vcluster-" + releaseSuffix + "-0").
+	req := cg.clientSet.CoreV1().RESTClient().Post().Resource("pods").Name(POD_PREFIX + "-" + releaseSuffix + "-0").
 		Namespace(namespace).SubResource("exec")
 
 	req.VersionedParams(
@@ -134,6 +137,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	if err != nil {
 		return err
 	}
+	log.Print("Execute helm install command")
 	_, err = cmd.Freestyle("install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
 	if err != nil {
 		return err
@@ -142,7 +146,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 }
 
 func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix string) (string, error) {
-	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), "vcluster-"+releaseSuffix+"-0", v12.GetOptions{})
+	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", v12.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -152,26 +156,37 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 	for i := 0; i < opts.ClusterOpts.Samples; i++ {
+		log.Printf("Generate cluster #%v", i)
 
 		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
+		log.Printf("Namespace is %s", namespace)
+
 		releaseSuffix := util.GetRandomString()
 
-		err := cg.installVCluster(opts, namespace, "vcluster-"+releaseSuffix)
+		log.Printf("Release suffix is %s", namespace)
+
+		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
 		if err != nil {
-			return err
+			log.Printf("Skip cluster installation due error %v", err.Error())
+			continue
 		}
 
+		log.Print("Get cluster credentials")
 		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
 		if err != nil {
 			return err
 		}
 
+		log.Print("Get cluster server uri")
 		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("Cluster server uri is %s", uri)
+
+		log.Print("Create cluster")
 		_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
 			Server: uri,
 			Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
@@ -203,7 +218,7 @@ func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 	}
 
 	for _, ns := range namespaces.Items {
-		if strings.HasPrefix(ns.Name, "vcluster") {
+		if strings.HasPrefix(ns.Name, POD_PREFIX) {
 			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, v12.DeleteOptions{})
 			if err != nil {
 				//TODO: add warning

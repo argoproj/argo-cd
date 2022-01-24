@@ -38,7 +38,7 @@ func getKubeConfigPath() string {
 func ConnectToK8sArgoClientSet() *appclientset.Clientset {
 	config, err := clientcmd.BuildConfigFromFlags("", getKubeConfigPath())
 	if err != nil {
-		log.Panicln("failed to create K8s config")
+		log.Panicln("failed to create Argocd K8s config")
 	}
 	return appclientset.NewForConfigOrDie(config)
 }

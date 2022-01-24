@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"log"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,8 +20,9 @@ func NewProjectGenerator(clientSet *appclientset.Clientset) Generator {
 }
 
 func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
-	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects("argocd")
+	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects(opts.Namespace)
 	for i := 0; i < opts.ProjectOpts.Samples; i++ {
+		log.Printf("Generate project #%v", i)
 		_, err := projects.Create(context.TODO(), &v1alpha1.AppProject{
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "project-",
@@ -32,6 +34,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 			},
 		}, v1.CreateOptions{})
 		if err != nil {
+			log.Printf("Project #%v failed to generate", i)
 			return err
 		}
 	}

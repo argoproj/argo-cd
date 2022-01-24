@@ -31,7 +31,6 @@ func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *k
 }
 
 func (pg *ApplicationGenerator) buildRandomSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
-	log.Print(len(repositories))
 	rand.Seed(time.Now().Unix())
 	repoNumber := rand.Int() % len(repositories)
 	return &v1alpha1.ApplicationSource{
@@ -78,14 +77,18 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 	}
 	applications := pg.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
+		log.Printf("Generate application #%v", i)
 		source, err := pg.buildSource(opts, repositories)
 		if err != nil {
 			return err
 		}
+		log.Printf("Pick source \"%s\"", source)
 		destination, err := pg.buildDestination(opts, clusters.Items)
 		if err != nil {
 			return err
 		}
+		log.Printf("Pick destination \"%s\"", destination)
+		log.Printf("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "application-",

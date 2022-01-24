@@ -7,16 +7,16 @@ application:
 
 
 cluster:
-  samples: 0
+  samples: 2
   namespacePrefix: vcluster
   valuesFilePath: /Users/pashavictorovich/.kube/util/values.yaml
   destinationNamespace: argocd
   clusterNamePrefix: test
 
 repository:
-  samples: 0
+  samples: 100
 
 project:
-  samples: 0
+  samples: 15
 
 namespace: argocd
