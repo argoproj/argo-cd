@@ -9,7 +9,7 @@ application:
 cluster:
   samples: 2
   namespacePrefix: vcluster
-  valuesFilePath: /Users/pashavictorovich/.kube/util/values.yaml
+  valuesFilePath: /Users/argocd/.kube/util/values.yaml
   destinationNamespace: argocd
   clusterNamePrefix: test
 
