@@ -9,7 +9,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.5.1-0.20220119211147-b5600162862f
-	github.com/argoproj/notifications-engine v0.3.0
+	github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
