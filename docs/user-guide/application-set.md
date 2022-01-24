@@ -1,6 +1,6 @@
 ### Automating the generation of Argo CD Applications with the ApplicationSet Controller
 
-The [ApplicationSet controller](https://github.com/argoproj-labs/applicationset) is a sub-project of Argo CD which adds Application automation, and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list. 
+The [ApplicationSet controller](https://github.com/argoproj/applicationset) is a sub-project of Argo CD which adds Application automation, and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list. 
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
@@ -28,7 +28,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/argoproj-labs/applicationset.git
+        repoURL: https://github.com/argoproj/applicationset.git
         targetRevision: HEAD
         path: examples/list-generator/guestbook/{{cluster}}
       destination:
