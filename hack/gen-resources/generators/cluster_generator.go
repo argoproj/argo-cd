@@ -212,6 +212,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
+	log.Printf("Clean clusters")
 	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), v12.ListOptions{})
 	if err != nil {
 		return err
@@ -219,9 +220,10 @@ func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 
 	for _, ns := range namespaces.Items {
 		if strings.HasPrefix(ns.Name, POD_PREFIX) {
+			log.Printf("Delete namespace %s", ns.Name)
 			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, v12.DeleteOptions{})
 			if err != nil {
-				//TODO: add warning
+				log.Printf("Delete namespace failed due: %s", err.Error())
 			}
 		}
 	}

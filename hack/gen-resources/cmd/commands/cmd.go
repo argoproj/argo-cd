@@ -108,18 +108,23 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
 			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig())
+			rg := generator.NewRepoGenerator(clientSet)
 
 			err := pg.Clean(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to clean projects, %v", err.Error())
 			}
 			err = ag.Clean(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to clean applications, %v", err.Error())
 			}
 			err = cg.Clean(opts)
 			if err != nil {
-				log.Fatalf("Something went wrong, %v", err.Error())
+				log.Fatalf("Failed to clean clusters, %v", err.Error())
+			}
+			err = rg.Clean(opts)
+			if err != nil {
+				log.Fatalf("Failed to clean repositores, %v", err.Error())
 			}
 		},
 	}
