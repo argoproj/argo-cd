@@ -338,6 +338,10 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	return c.run(args...)
 }
 
+func (c *Cmd) Freestyle(args ...string) (string, error) {
+	return c.run(args...)
+}
+
 func (c *Cmd) Close() {
 	_ = os.RemoveAll(c.helmHome)
 }
