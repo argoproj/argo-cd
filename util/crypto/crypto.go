@@ -4,21 +4,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"io"
 )
 
-func passphraseToKey(passphrase string) []byte {
-	hasher := sha256.New()
-	hasher.Write([]byte(passphrase))
-	key := hasher.Sum(nil)
-	return key
-}
-
 // Encrypt encrypts the given data with the given passphrase.
-func Encrypt(data []byte, passphrase string) ([]byte, error) {
-	block, err := aes.NewCipher(passphraseToKey(passphrase))
+func Encrypt(data []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
@@ -28,15 +20,15 @@ func Encrypt(data []byte, passphrase string) ([]byte, error) {
 	}
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	ciphertext := gcm.Seal(nonce, nonce, data, nil)
 	return ciphertext, nil
 }
 
 // Decrypt decrypts the given data using the given passphrase.
-func Decrypt(data []byte, passphrase string) ([]byte, error) {
-	block, err := aes.NewCipher(passphraseToKey(passphrase))
+func Decrypt(data []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}

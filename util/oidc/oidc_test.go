@@ -16,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -187,9 +188,10 @@ func TestIsValidRedirect(t *testing.T) {
 }
 
 func TestGenerateAppState(t *testing.T) {
-	pass := "test-server-signature"
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
 	expectedReturnURL := "http://argocd.example.com/"
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: []byte(pass)}, "", "")
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature}, "", "")
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
 	state, err := app.generateAppState(expectedReturnURL, generateResponse)
@@ -218,12 +220,17 @@ func TestGenerateAppState(t *testing.T) {
 }
 
 func TestGenerateAppState_NoReturnURL(t *testing.T) {
-	pass := "test-server-signature"
-	req := httptest.NewRequest("GET", "/", nil)
-	encrypted, err := crypto.Encrypt([]byte("123"), pass)
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
+	key, err := cdSettings.GetServerSignatureKey()
 	require.NoError(t, err)
 
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: []byte(pass)}, "", "/argo-cd")
+	req := httptest.NewRequest("GET", "/", nil)
+	encrypted, err := crypto.Encrypt([]byte("123"), key)
+	require.NoError(t, err)
+
+	app, err := NewClientApp(cdSettings, "", "/argo-cd")
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})

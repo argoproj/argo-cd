@@ -142,7 +142,11 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 		returnURL = a.baseHRef
 	}
 	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
-	if encrypted, err := crypto.Encrypt([]byte(cookieValue), string(a.settings.ServerSignature)); err != nil {
+	key, err := a.settings.GetServerSignatureKey()
+	if err != nil {
+		return "", err
+	}
+	if encrypted, err := crypto.Encrypt([]byte(cookieValue), key); err != nil {
 		return "", err
 	} else {
 		cookieValue = hex.EncodeToString(encrypted)
@@ -168,7 +172,11 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if err != nil {
 		return "", err
 	}
-	val, err = crypto.Decrypt(val, string(a.settings.ServerSignature))
+	key, err := a.settings.GetServerSignatureKey()
+	if err != nil {
+		return "", err
+	}
+	val, err = crypto.Decrypt(val, key)
 	if err != nil {
 		return "", err
 	}

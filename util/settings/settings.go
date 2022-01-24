@@ -1481,6 +1481,10 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	return len(dexCfg) > 0
 }
 
+func (a *ArgoCDSettings) GetServerSignatureKey() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(string(a.ServerSignature))
+}
+
 func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
 	var dexCfg map[string]interface{}
 	err := yaml.Unmarshal([]byte(config), &dexCfg)
