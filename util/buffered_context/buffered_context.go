@@ -14,9 +14,7 @@ func WithEarlierDeadline(originalCtx context.Context, buffer time.Duration) (con
 	var cancelFunc context.CancelFunc = func() {}
 	bufferedCtx := originalCtx
 	if deadline, ok := originalCtx.Deadline(); ok {
-		newCtx, newCancelFunc := context.WithDeadline(originalCtx, deadline.Add(-1*buffer))
-		bufferedCtx = newCtx
-		cancelFunc = newCancelFunc
+		bufferedCtx, cancelFunc = context.WithDeadline(originalCtx, deadline.Add(-1*buffer))
 	}
 	return bufferedCtx, cancelFunc
 }
