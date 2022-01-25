@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/argoproj/pkg/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/argoproj/pkg/rand"
 
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 
