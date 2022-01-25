@@ -64,6 +64,8 @@ type ClientApp struct {
 	secureCookie bool
 	// settings holds Argo CD settings
 	settings *settings.ArgoCDSettings
+	// encryptionKey holds server encryption key
+	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
 }
@@ -82,12 +84,17 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef str
 	if err != nil {
 		return nil, err
 	}
+	encryptionKey, err := settings.GetServerEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
 	a := ClientApp{
-		clientID:     settings.OAuth2ClientID(),
-		clientSecret: settings.OAuth2ClientSecret(),
-		redirectURI:  redirectURL,
-		issuerURL:    settings.IssuerURL(),
-		baseHRef:     baseHRef,
+		clientID:      settings.OAuth2ClientID(),
+		clientSecret:  settings.OAuth2ClientSecret(),
+		redirectURI:   redirectURL,
+		issuerURL:     settings.IssuerURL(),
+		baseHRef:      baseHRef,
+		encryptionKey: encryptionKey,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -142,11 +149,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 		returnURL = a.baseHRef
 	}
 	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
-	key, err := a.settings.GetServerSignatureKey()
-	if err != nil {
-		return "", err
-	}
-	if encrypted, err := crypto.Encrypt([]byte(cookieValue), key); err != nil {
+	if encrypted, err := crypto.Encrypt([]byte(cookieValue), a.encryptionKey); err != nil {
 		return "", err
 	} else {
 		cookieValue = hex.EncodeToString(encrypted)
@@ -172,11 +175,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if err != nil {
 		return "", err
 	}
-	key, err := a.settings.GetServerSignatureKey()
-	if err != nil {
-		return "", err
-	}
-	val, err = crypto.Decrypt(val, key)
+	val, err = crypto.Decrypt(val, a.encryptionKey)
 	if err != nil {
 		return "", err
 	}

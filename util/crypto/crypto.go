@@ -4,9 +4,22 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"io"
+
+	"golang.org/x/crypto/scrypt"
 )
+
+// KeyFromPassphrase generates 32 byte key from the passphrase
+func KeyFromPassphrase(passphrase string) ([]byte, error) {
+	// salt is just a hash of a passphrase (effectively no salt)
+	salt := sha256.Sum256([]byte(passphrase))
+	// These defaults will consume approximately 16MB of memory (128 * r * N)
+	const N = 16384
+	const r = 8
+	return scrypt.Key([]byte(passphrase), salt[:], N, r, 1, 32)
+}
 
 // Encrypt encrypts the given data with the given passphrase.
 func Encrypt(data []byte, key []byte) ([]byte, error) {

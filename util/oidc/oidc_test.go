@@ -223,7 +223,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
-	key, err := cdSettings.GetServerSignatureKey()
+	key, err := cdSettings.GetServerEncryptionKey()
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/", nil)
