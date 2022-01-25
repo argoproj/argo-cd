@@ -49,7 +49,7 @@ export const ApplicationsTable = (props: {
                                     <div className='row'>
                                         <div className='show-for-xxlarge columns small-3'>Name:</div>
                                         <div className='columns small-12 xxlarge-9'>
-                                            {app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                            {app.metadata.name} <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                         </div>
                                     </div>
                                 </div>

@@ -23,6 +23,8 @@ export interface NodeId {
     group: string;
 }
 
+export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
+
 type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export function nodeKey(node: NodeId) {
@@ -654,6 +656,20 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
         return app.status.operationState;
     }
 };
+
+export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
+    if (!annotations) {
+        return urls;
+    }
+    const extLinks = urls || [];
+    const extLink: string = annotations[ExternalLinkAnnotation];
+    if (extLink) {
+        if (!extLinks.includes(extLink)) {
+            extLinks.push(extLink);
+        }
+    }
+    return extLinks;
+}
 
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
