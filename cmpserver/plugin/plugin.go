@@ -134,9 +134,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	defer cancel()
 
 	if deadline, ok := bufferedCtx.Deadline(); ok {
-		log.Infof("generating manifests with deadline %v from now", time.Until(deadline))
+		log.Infof("Generating manifests with deadline %v from now", time.Until(deadline))
 	} else {
-		log.Info("generating manifests with no request-level timeout")
+		log.Info("Generating manifests with no request-level timeout")
 	}
 
 	config := s.initConstants.PluginConfig
