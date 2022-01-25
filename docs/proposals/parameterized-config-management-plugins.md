@@ -275,8 +275,8 @@ const (
 )
 
 type ParameterDefinition struct {
-	// Name is the name identifying a parameter. Should be machine friendly (no spaces). (required)
-	Name string `json:"name"`
+    // Name is the name identifying a parameter. Should be machine friendly (no spaces). (required)
+    Name string `json:"name"`
 
     // Title is a human readable text of the parameter name. (optional)
     Title string `json:"title"`
@@ -284,15 +284,18 @@ type ParameterDefinition struct {
     // Tooltip is a human readable description of the parameter. (optional)
     Tooltip string `json:"tooltip"`
 
-	// Type is the type of the parameter. Can be used to validate the provided
-    // values. (optional: default is string)
-	Type ParameterDefinitionType `json:"type"`
+    // Type is the type of the parameter. Can be used to validate the provided values.
+    // (optional: default is string)
+    Type ParameterDefinitionType `json:"type"`
 
     // IsList defines if the parameter can be passed multiple times. (optional: default false)
     IsList bool `json:"isList"`
 
+    // Required defines if this given parameter is mandatory. (optional: default false)
+    Required bool `json:"required"`
+
     // Group is used to identify parameters that bellongs to the same context (E.g. 'helm'). (optional)
-	Group string `json:"group"`
+    Group string `json:"group"`
 
     // DefaultValues defines the values that should be provided by default in case no change is
     // required by the user. If the list has more than one item `IsList` must be true. (optional)
