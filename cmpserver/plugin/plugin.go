@@ -1,8 +1,11 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"github.com/argoproj/pkg/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +20,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
@@ -46,8 +48,33 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
 
+	cmd.Env = env
+	cmd.Dir = path
+
+	execId, err := rand.RandString(5)
+	if err != nil {
+		return "", err
+	}
+	logCtx := log.WithFields(log.Fields{"execID": execId})
+
+	// log in a way we can copy-and-paste into a terminal
+	args := strings.Join(cmd.Args, " ")
+	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(args)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
 	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	start := time.Now()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+
 	go func() {
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
@@ -55,9 +82,38 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}()
 
-	cmd.Env = env
-	cmd.Dir = path
-	return executil.Run(cmd)
+	err = cmd.Wait()
+
+	duration := time.Since(start)
+	output := stdout.String()
+
+	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
+
+	if err != nil {
+		err := newCmdError(args, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		logCtx.Error(err.Error())
+		return strings.TrimSuffix(output, "\n"), err
+	}
+
+	return strings.TrimSuffix(output, "\n"), nil
+}
+
+type CmdError struct {
+	Args   string
+	Stderr string
+	Cause  error
+}
+
+func (ce *CmdError) Error() string {
+	res := fmt.Sprintf("`%v` failed %v", ce.Args, ce.Cause)
+	if ce.Stderr != "" {
+		res = fmt.Sprintf("%s: %s", res, ce.Stderr)
+	}
+	return res
+}
+
+func newCmdError(args string, cause error, stderr string) *CmdError {
+	return &CmdError{Args: args, Stderr: stderr, Cause: cause}
 }
 
 // Environ returns a list of environment variables in name=value format from a list of variables
