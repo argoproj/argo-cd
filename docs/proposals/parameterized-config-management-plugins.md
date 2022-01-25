@@ -218,7 +218,7 @@ spec:
 ```
 
 The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
-`parameters.command` via an `ARGOCD_PARAMETERS` environment variable. The parameters will be encoded according to the 
+`parameters.command` via an `ARGOCD_APP_PARAMETERS` environment variable. The parameters will be encoded according to the 
 [parameters serialization format](#parameters-manifest--parameters-serialization-format) defined below.
 
 Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
@@ -226,39 +226,92 @@ Passing the parameters to the `parameters.command` will allow configuration of p
 ```yaml
 plugin:
   parameters:
-    main:
-      - name: ignore-helm-charts
-        value: '["chart-a", "chart-b"]'
+    - name: ignore-helm-charts
+      value: '["chart-a", "chart-b"]'
 ```
 
-#### Parameters manifest / parameters serialization format
+#### How will the CMP know what parameter values are set?
 
-Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
-(native JSON libraries, StackOverflow answers about jq, etc.).
+Users persist parameter values in the `spec.source.plugin.parameters` list.
 
-Parameters should be set in the manifest as a map of section names to parameter name/value pairs. YAML is used because
-it's easy to read/manipulate in an editor when modifying an Application manifest. We partition by section name so that
-the manifest, to the extent possible, is laid out similarly to the UI.
+Each parameter has a `name` and a `value`. The name should match the name of some parameter announced by the CMP. (But 
+the user can set any parameter name, so it's the CMP's job to ignore invalid parameters.) The parameter `value`
+can be any string. The `group` field is optional and should be set according to the CMP documentation. 
+
+This example is for a hypothetical Helm CMP. This CMP accepts a `values` and a `values-files` parameter which are 
+implicitly in the "main" group, since `group` isn't explicitly set. The hypothetical Helm CMP also accepts arbitrary 
+values in the `set-value` group.
 
 ```yaml
-plugin:
-  parameters:
-    main:
-      - name: values-files
-        value: '["values.yaml"]'
-    Helm Parameters:
-      - name: image
-        values: some.repo:tag
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    plugin:
+      parameters:
+        - name: values  # implicitly in the "main" group
+          value: >-
+            resources:
+              cpu: 100m
+              memory: 128Mi
+        - name: values-files  # implicitly in the "main" group
+          value: '["values.yaml"]'
+        - name: image.repository
+          value: my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo
+          group: set-value
+        - name: image.tag
+          value: "0.1"
+          group: set-value
 ```
 
-**Note:** I'm not sure whether CRDs allow Map<string, list> types. If not, we should consider flattening the schema to
-a list of objects, each object having a `section` field.
+When Argo CD generates manifests (for example, when the user clicks "Hard Refresh" in the UI), Argo CD will send these
+parameters to the CMP as JSON (using the equivalent structure to what's shown above) on an environment variable called
+`ARGOCD_APP_PARAMETERS`.
 
-Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
-JSON might be a surprising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
-sense because 1) it's used for parameters announcements (consistency is good) and 2) JSON tooling is better.
+```shell
+echo "$ARGOCD_APP_PARAMETERS" | jq
+```
 
-#### Parameter definition schema
+That command, when run by a CMP with the above Application manifest, will print the following:
+
+```json
+[
+  {
+    "name": "values",
+    "value": "resources:\n  cpu: 100m\n  memory: 128Mi"
+  },
+  {
+    "name": "values-files",
+    "value": "[\"values.yaml\"]"
+  },
+  {
+    "name": "image.repository",
+    "value": "my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo",
+    "group": "set-value"
+  },
+  {
+    "name": "image.tag",
+    "value": "0.1",
+    "group": "set-value"
+  }
+]
+```
+
+Another way the CMP can access parameters is via environment variables. For example:
+
+```shell
+echo "$VALUES" > /tmp/values.yaml
+helm template --values /tmp/values.yaml .
+```
+
+Environment variable names are set according to these rules:
+
+1. If a parameter is in the "main" (default) group, the format is `escaped({name})` (`escaped` is defined below).
+2. If a parameter is not in the "main" group, the format is `escaped({group}_{name})`.
+3. 
+
+#### How will the UI know what parameters may be set?
 
 A parameter definition is an object with following schema:
 
@@ -278,8 +331,6 @@ type ParameterDefinition struct {
 	Section string `json:"section"`
 }
 ```
-
-#### Parameters announcement schema
 
 ```go
 type ParametersAnnouncement []ParameterDefinition
@@ -302,37 +353,6 @@ Example:
 ]
 ```
 
-#### Parameter list schema
-
-The top level is a JSON object. Each key is the name of a parameter "section". Each value of the top-level JSON object
-is a JSON list of objects representing parameter values. Each parameter value has the following schema:
-
-```go
-type Parameter struct {
-	// Name is the name of the parameter.
-  Name string `json:"name"`
-  // Value is the value of the parameter. It's up to the CMP to interpret this value. It could be interpreted as a 
-  // simple string, or it could be some encoding of something more complex (like a JSON object).
-  Value string `json:"value"`
-}
-```
-
-Example:
-
-```json
-{
-  "main": [
-    {"name": "values-files", "value": "values.yaml"}
-  ],
-  "Helm Parameters": [
-    {"name": "image", "value": "some.repo:tag"}
-  ]
-}
-```
-
-When the CMP receives parameters, they should be in JSON. But the parameters should be represented as YAML in the 
-Application manifest for better readability.
-
 ### Detailed examples
 
 #### Example 1: trivial parameterized CMP
@@ -350,7 +370,7 @@ spec:
       - -c
       - |
         # Pull one parameter value from the "main" section of the given parameters.
-        CM_NAME_SUFFIX=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
+        CM_NAME_SUFFIX=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
         cat << EOM
         {
           "kind": "ConfigMap",
@@ -449,12 +469,12 @@ spec:
 **generate.sh**
 
 ```shell
-VALUES_FILES=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
+VALUES_FILES=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
 # Put the extra values at a random filename to avoid conflicting with existing files.
 EXTRA_VALUES_FILENAME="values-$(openssl rand -base64 12).yaml"
-echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
+echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
 # Convert JSON parameters to comma-delimited k=v pairs.
-PARAMETERS=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
+PARAMETERS=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
 helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "$PARAMETERS"
 ```
 
