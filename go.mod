@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.16
+go 1.17
 
 require (
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
