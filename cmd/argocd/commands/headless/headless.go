@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 
 	argoapi "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -91,7 +92,7 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 		log.SetLevel(log.ErrorLevel)
 		os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 		if address == nil {
-			*address = "localhost"
+			address = pointer.String("localhost")
 		}
 		if port == nil || *port == 0 {
 			addr := fmt.Sprintf("%s:0", *address)
