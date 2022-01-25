@@ -17,11 +17,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 )
 
-func Discover(root string) (map[string]string, error) {
+func Discover(ctx context.Context, root string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(root)
+	conn, _, err := DetectConfigManagementPlugin(ctx, root)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -56,8 +56,8 @@ func Discover(root string) (map[string]string, error) {
 	return apps, err
 }
 
-func AppType(path string) (string, error) {
-	apps, err := Discover(path)
+func AppType(ctx context.Context, path string) (string, error) {
+	apps, err := Discover(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func AppType(path string) (string, error) {
 // 3. check isSupported(path)?
 // 4.a if no then close connection
 // 4.b if yes then return conn for detected plugin
-func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+func DetectConfigManagementPlugin(ctx context.Context, appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	var conn io.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
@@ -89,7 +89,7 @@ func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
 			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
-			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
+			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
 			if err != nil {
@@ -97,7 +97,7 @@ func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 				continue
 			}
 
-			resp, err := cmpClient.MatchRepository(context.Background(), &pluginclient.RepositoryRequest{Path: appPath})
+			resp, err := cmpClient.MatchRepository(ctx, &pluginclient.RepositoryRequest{Path: appPath})
 			if err != nil {
 				log.Errorf("repository %s is not the match because %v", appPath, err)
 				continue

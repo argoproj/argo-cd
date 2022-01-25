@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
@@ -62,4 +64,20 @@ func TestGenerateManifest(t *testing.T) {
 	if res1 != nil {
 		require.Equal(t, expectedOutput, res1.Manifests[0])
 	}
+}
+
+// TestRunCommandContextTimeout makes sure the command dies at timeout rather than sleeping past the timeout.
+func TestRunCommandContextTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 990*time.Millisecond)
+	defer cancel()
+	// Use a subshell so there's a child command.
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{"sleep 5"},
+	}
+	before := time.Now()
+	_, err := runCommand(ctx, command, "", []string{})
+	after := time.Now()
+	assert.Error(t, err) // The command should time out, causing an error.
+	assert.Less(t, after.Sub(before), 1*time.Second)
 }

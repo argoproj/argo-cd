@@ -155,7 +155,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(gitClient.Root())
+	apps, err := discovery.Discover(ctx, gitClient.Root())
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
-		res, err = s.runManifestGen(repoRoot, commitSHA, cacheKey, ctxSrc, q)
+		res, err = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
 		return err
 	}
 
@@ -325,11 +325,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var manifestGenResult *apiclient.ManifestResponse
-	ctx, err := ctxSrc()
+	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx.appPath, repoRoot, commitSHA, q, false)
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false)
 	}
 	if err != nil {
 
@@ -372,7 +372,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 		MostRecentError:                 "",
 	}
 	manifestGenResult.Revision = commitSHA
-	manifestGenResult.VerifyResult = ctx.verificationResult
+	manifestGenResult.VerifyResult = opContext.verificationResult
 	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
@@ -731,12 +731,12 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool) (*apiclient.ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath, q.AppName)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName)
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +764,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 		} else {
 			var cmpManifests []string
 			var cmpErr error
-			cmpManifests, cmpErr = runConfigManagementPluginSidecars(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+			cmpManifests, cmpErr = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds())
 			if cmpErr == nil {
 				return &apiclient.ManifestResponse{
 					Manifests:  cmpManifests,
@@ -902,7 +902,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -915,7 +915,7 @@ func GetAppSourceType(source *v1alpha1.ApplicationSource, path, appName string) 
 	if appSourceType != nil {
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(path)
+	appType, err := discovery.AppType(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -1199,9 +1199,10 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	}
 	return env, nil
 }
-func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1224,7 +1225,8 @@ func runConfigManagementPluginSidecars(appPath, repoPath string, envVars *v1alph
 	if err != nil {
 		return nil, err
 	}
-	cmpManifests, err := cmpClient.GenerateManifest(context.Background(), &pluginclient.ManifestRequest{
+
+	cmpManifests, err := cmpClient.GenerateManifest(ctx, &pluginclient.ManifestRequest{
 		AppPath:  appPath,
 		RepoPath: repoPath,
 		Env:      toEnvEntry(env),
@@ -1252,12 +1254,12 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 	cacheFn := s.createGetAppDetailsCacheHandler(res, q)
 	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
-		ctx, err := ctxSrc()
+		opContext, err := ctxSrc()
 		if err != nil {
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(q.Source, ctx.appPath, q.AppName)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName)
 		if err != nil {
 			return err
 		}
@@ -1266,15 +1268,15 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeKsonnet:
-			if err := populateKsonnetAppDetails(res, ctx.appPath, q); err != nil {
+			if err := populateKsonnetAppDetails(res, opContext.appPath, q); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := populateHelmAppDetails(res, ctx.appPath, q); err != nil {
+			if err := populateHelmAppDetails(res, opContext.appPath, q); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(res, q, ctx.appPath); err != nil {
+			if err := populateKustomizeAppDetails(res, q, opContext.appPath); err != nil {
 				return err
 			}
 		}

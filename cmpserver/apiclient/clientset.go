@@ -24,27 +24,23 @@ type Clientset interface {
 }
 
 type clientSet struct {
-	address        string
-	timeoutSeconds int
+	address string
 }
 
 func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
-	conn, err := NewConnection(c.address, c.timeoutSeconds)
+	conn, err := NewConnection(c.address)
 	if err != nil {
 		return nil, nil, err
 	}
 	return conn, NewConfigManagementPluginServiceClient(conn), nil
 }
 
-func NewConnection(address string, timeoutSeconds int) (*grpc.ClientConn, error) {
+func NewConnection(address string) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
-	if timeoutSeconds > 0 {
-		unaryInterceptors = append(unaryInterceptors, grpc_util.WithTimeout(time.Duration(timeoutSeconds)*time.Second))
-	}
 	dialOpts := []grpc.DialOption{
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
@@ -60,7 +56,7 @@ func NewConnection(address string, timeoutSeconds int) (*grpc.ClientConn, error)
 	return conn, nil
 }
 
-// NewCMPServerClientset creates new instance of config management plugin server Clientset
-func NewConfigManagementPluginClientSet(address string, timeoutSeconds int) Clientset {
-	return &clientSet{address: address, timeoutSeconds: timeoutSeconds}
+// NewConfigManagementPluginClientSet creates new instance of config management plugin server Clientset
+func NewConfigManagementPluginClientSet(address string) Clientset {
+	return &clientSet{address: address}
 }
