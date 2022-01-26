@@ -309,7 +309,15 @@ Environment variable names are set according to these rules:
 
 1. If a parameter is in the "main" (default) group, the format is `escaped({name})` (`escaped` is defined below).
 2. If a parameter is not in the "main" group, the format is `escaped({group}_{name})`.
-3. 
+3. If an escaped env var name matches one in the [build environment](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/build-environment/),
+   the build environment variable wins.
+4. If more than one parameter name produces the same env var name, the env var later in the list wins.
+
+The `escaped` function will perform the following tasks:
+1. It will uppercase the input.
+2. It will replace any characters matching this regex with an underscore: `[^A-Z0-9_]`.
+3. If, after those steps, the first character is a number, the name will be prefixed with an underscore. For example:
+   `1_DIRECTION` -> `_1_DIRECTION`.
 
 #### How will the UI know what parameters may be set?
 
