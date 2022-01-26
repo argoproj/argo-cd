@@ -229,8 +229,11 @@ Pros:
 
 Cons:
  * More difficult to implement
- * More cognitive load for plugin developers. Since the `ui` field can configure both group-level and param-level 
-   presentation, the dev has to think harder about what their spec means.
+ * More cognitive load for plugin developers.
+   * Since the `ui` field can configure both group-level and param-level presentation, the dev has to think harder about 
+     what their spec means.
+   * Plugin developers might not easily see the relationship between the `ui` and `parameters`/`dynamicParameters` 
+     objects.
  * There's no way to dynamically configure the UI. We could add a `dynamicUI.command`, but that's more cognitive load.
 
 ##### Helm example for separate UI/param config
