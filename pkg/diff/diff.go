@@ -517,6 +517,17 @@ func normalizeEndpoint(un *unstructured.Unstructured, o options) {
 		return
 	}
 
+	// add default protocol to subsets ports if it is empty
+	for s := range ep.Subsets {
+		subset := &ep.Subsets[s]
+		for p := range subset.Ports {
+			port := &subset.Ports[p]
+			if port.Protocol == "" {
+				port.Protocol = corev1.ProtocolTCP
+			}
+		}
+	}
+
 	endpoints.SortSubsets(ep.Subsets)
 
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ep)

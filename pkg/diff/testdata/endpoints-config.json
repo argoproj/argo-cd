@@ -35,6 +35,19 @@
         {
           "name": "solr-http",
           "port": 8080
+        },
+        {
+          "name": "solr-https",
+          "port": 8443
+        },
+        {
+          "name": "solr-node",
+          "port": 8983,
+          "protocol": "UDP"
+        },
+        {
+          "name": "solr-zookeeper",
+          "port": 9983
         }
       ]
     }
