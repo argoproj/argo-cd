@@ -17,6 +17,7 @@ resources:
 - ../../base/dex
 - ../../base/repo-server
 - ../../base/server
+- ../../base/applicationset
 - ../../base/config
 - ../../base/notification
 - ./redis-ha
