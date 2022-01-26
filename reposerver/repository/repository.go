@@ -757,7 +757,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), repoURL, kustomizeBinary)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
@@ -1276,7 +1276,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(res, q, opContext.appPath); err != nil {
+			if err := populateKustomizeAppDetails(res, q, opContext.appPath, commitSHA); err != nil {
 				return err
 			}
 		}
@@ -1423,14 +1423,21 @@ func findHelmValueFilesInPath(path string) ([]string, error) {
 	return result, nil
 }
 
-func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, appPath string) error {
+func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, appPath string, reversion string) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary := ""
 	if q.KustomizeOptions != nil {
 		kustomizeBinary = q.KustomizeOptions.BinaryPath
 	}
 	k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(), q.Repo.Repo, kustomizeBinary)
-	_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions)
+	fakeManifestRequest := apiclient.ManifestRequest{
+		AppName:           q.AppName,
+		Namespace:         "", // FIXME: omit it for now
+		Repo:              q.Repo,
+		ApplicationSource: q.Source,
+	}
+	env := newEnv(&fakeManifestRequest, reversion)
+	_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env)
 	if err != nil {
 		return err
 	}
