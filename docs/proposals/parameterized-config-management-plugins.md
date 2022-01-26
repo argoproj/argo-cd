@@ -141,10 +141,10 @@ spec:
   {
     "name": "_plus",
     "group": "helm-parameters",
-    defaultValues: []
-    isList: true
-    title: Others
-    tooltip: "Add additional Helm chart parameters."
+    "defaultValues": []
+    "isList": true
+    "title": "Others"
+    "tooltip": "Add additional Helm chart parameters."
   }
 ]
 ```
@@ -200,10 +200,10 @@ spec:
   {
     "name": "_plus",
     "group": "kustomize-images",
-    defaultValues: []
-    isList: true
-    title: Others
-    tooltip: "Add additional image overrides."
+    "defaultValues": []
+    "isList": true
+    "title": "Others"
+    "tooltip": "Add additional image overrides."
   }
 ]
 ```
