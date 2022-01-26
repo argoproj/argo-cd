@@ -95,6 +95,7 @@ announcement? Or should the UI config information be its own section?
 Pros:
  * No additional `ui` field in the ConfigManagementPlugin spec
  * Less cognitive load on plugin developers
+ * Easier to implement
 
 Cons:
  * No group-level UI configuration
@@ -227,6 +228,7 @@ Pros:
  * Less repetition in the `parameters` field where `type` is not the default (makes it simpler to implement `type: images`).
 
 Cons:
+ * More difficult to implement
  * More cognitive load for plugin developers. Since the `ui` field can configure both group-level and param-level 
    presentation, the dev has to think harder about what their spec means.
  * There's no way to dynamically configure the UI. We could add a `dynamicUI.command`, but that's more cognitive load.
