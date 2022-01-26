@@ -63,7 +63,7 @@ management tools (Helm, Kustomize, etc.).
 
 Is there a way to make it easier for the generate command to consume parameters? (Easier than parsing a JSON object, 
 that is.)
-* We could translate all parameters to env vars, like `ARGOCD_PARAM_{section}_{param name}`.
+* We could translate all parameters to env vars, like `ARGOCD_PARAM_{group}_{param name}`.
   * Advantage: no need to pull the param from JSON.
   * Disadvantage: we'd need an easy-to-predict and collision-resistant way to translate arbitrary parameter names
     to env vars. 
@@ -224,8 +224,11 @@ The currently-configured parameters (if there are any) will be communicated to b
 Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
 
 ```yaml
-plugin:
-  parameters:
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  plugin:
+    parameters:
     - name: ignore-helm-charts
       value: '["chart-a", "chart-b"]'
 ```
@@ -324,19 +327,39 @@ The `escaped` function will perform the following tasks:
 A parameter definition is an object with following schema:
 
 ```go
+type ParameterDefinitionType string
+const (
+    ParameterTypeString  ParameterDefinitionType = "string"
+    ParameterTypeBoolean ParameterDefinitionType = "boolean"
+    ParameterTypeNumber  ParameterDefinitionType = "number"
+)
+
 type ParameterDefinition struct {
-	// Name is the name of a parameter. (required)
-	Name string `json:"name"`
-	// Type is the type of the parameter. This determines the schema of `uiConfig` and how the UI presents the 
-	// parameter. (default is `string)
-	Type string `json:"type"`
-	// UiConfig is a stringified JSON object containing information about how the UI should present the parameter. 
-	// (default is `{}`)
-	UiConfig string `json:"uiConfig"`
-	// Section is the name of the group of parameters in which this parameter belongs. `main` parameters will be 
-	// presented at the top of the UI. Other parameters will be grouped by section, and the sections will be 
-	// displayed in alphabetical order after the main section.
-	Section string `json:"section"`
+    // Name is the name identifying a parameter. Should be machine friendly (no spaces). (required)
+    Name string `json:"name"`
+
+    // Title is a human readable text of the parameter name. (optional)
+    Title string `json:"title"`
+
+    // Tooltip is a human readable description of the parameter. (optional)
+    Tooltip string `json:"tooltip"`
+
+    // Type is the type of the parameter. Can be used to validate the provided values.
+    // (optional: default is string)
+    Type ParameterDefinitionType `json:"type"`
+
+    // IsList defines if the parameter can be passed multiple times. (optional: default false)
+    IsList bool `json:"isList"`
+
+    // Required defines if this given parameter is mandatory. (optional: default false)
+    Required bool `json:"required"`
+
+    // Group is used to identify parameters that bellongs to the same context (E.g. 'helm'). (optional)
+    Group string `json:"group"`
+
+    // DefaultValues defines the values that should be provided by default in case no change is
+    // required by the user. If the list has more than one item `IsList` must be true. (optional)
+    DefaultValues []string `json:"defaultValues"`
 }
 ```
 
