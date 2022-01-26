@@ -265,6 +265,7 @@ spec:
     "group": "helm-parameters",
     "value": "quay.io/argoproj/argocd"
   }
+  ... etc ...
 ]
 ```
 
@@ -313,6 +314,7 @@ spec:
     "group": "kustomize-images",
     "value": "docker.company.com/proxy/ubuntu:latest"
   }
+  ... etc ...
 ]
 ```
 
