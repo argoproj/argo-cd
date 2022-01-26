@@ -43,11 +43,9 @@ management tools (Helm, Kustomize, etc.).
     + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
       - [Prerequisites](#prerequisites)
       - [Terms](#terms)
-      - [CMP config schema](#cmp-config-schema)
-      - [Parameters manifest / parameters serialization format](#parameters-manifest--parameters-serialization-format)
-      - [Parameter definition schema](#parameter-definition-schema)
-      - [Parameters announcement schema](#parameters-announcement-schema)
-      - [Parameter list schema](#parameter-list-schema)
+      - [How will the ConfigManagementPlugin spec change?](#how-will-the-configmanagementplugin-spec-change)
+      - [How will the CMP know what parameter values are set?](#how-will-the-cmp-know-what-parameter-values-are-set)
+      - [How will the UI know what parameters may be set?](#how-will-the-ui-know-what-parameters-may-be-set)
     + [Detailed examples](#detailed-examples)
       - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
       - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
@@ -71,9 +69,9 @@ that is.)
       vars. Is limiting the param namespace worth it for the usability win?
     * Option 2: Only translate to an env var if the param name happens to be in the safely-translatable
       namespace. For example, `set-file` becomes `SET_FILE`, but `omg!!!param` doesn't get translated to an env var.
-    * Option 3: Add an `envVar` field to the [parameter definition schema](#parameter-definition-schema) to specify
+    * Option 3: Add an `envVar` field to the [parameter definition schema](#how-will-the-ui-know-what-parameters-may-be-set) to specify
       a target env var (prefixed with `ARGOCD_PARAM_`).
-* We could add a field to the  [parameter definition schema](#parameter-definition-schema) to indicate whether the 
+* We could add a field to the  [parameter definition schema](#how-will-the-ui-know-what-parameters-may-be-set) to indicate whether the 
   parameter is intended as an argument to the `generate.command` command. For example, if the `set-file` parameter's 
   `asArg` field is `true`, then we could pass `--set-file {value}` to `generate.command`.
 
@@ -183,8 +181,8 @@ Bugs to fix:
 #### Terms
 
 * **Parameter definition**: an instance of a data structure which describes an individual parameter that may be applied
-  to a specific Application. (See the [schema](#parameter-definition-schema) below.)
-* **Parameters announcement**: a list of parameter definitions. (See the [schema](#parameters-announcement-schema) below.)
+  to a specific Application. (See the [schema](#how-will-the-ui-know-what-parameters-may-be-set) below.)
+* **Parameters announcement**: a list of parameter definitions. (See the [schema](#how-will-the-ui-know-what-parameters-may-be-set) below.)
 
   "Parameters" is plural because each "announcement" will be a list of multiple parameter definitions.
 * **Parameterized CMP**: a CMP which supports rich parameters (i.e. more than environment variables). A CMP is
@@ -192,7 +190,7 @@ Bugs to fix:
   1. its configuration includes the sections consumed by the default CMP server to generate parameters announcements
   2. it is a fully customized CMP server which implements an endpoint to generate parameters announcements
 
-#### CMP config schema
+#### How will the ConfigManagementPlugin spec change?
 
 This proposal adds a new `parameters` key to the ConfigManagementPlugin config spec.
 
@@ -211,15 +209,17 @@ spec:
   parameters:
     # The declarative announcement follows the parameters announcement schema. This is where a parameter description
     # should go if it applies to all apps for this CMP.
-    announcement:
-      - name: example
-    # The (optional) generated announcement is combined with the declarative announcement (if present).
+    - name: values-file
+      title: Values File
+      tooltip: Path of a Helm values file to apply to the chart.
+  # The (optional) generated announcement is combined with the declarative announcement (if present).
+  announcement:
     command: ["example-params.sh"]
 ```
 
 The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
 `parameters.command` via an `ARGOCD_APP_PARAMETERS` environment variable. The parameters will be encoded according to the 
-[parameters serialization format](#parameters-manifest--parameters-serialization-format) defined below.
+[parameters serialization format](#how-will-the-cmp-know-what-parameter-values-are-set) defined below.
 
 Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
 
