@@ -93,7 +93,8 @@ announcement? Or should the UI config information be its own section?
 #### UI config as part of the parameter descriptions
 
 Pros:
- * No additional `ui` field in the ConfigManagementPlugin spec - less cognitive load on plugin developers
+ * No additional `ui` field in the ConfigManagementPlugin spec
+ * Less cognitive load on plugin developers
 
 Cons:
  * No group-level UI configuration
