@@ -29,6 +29,14 @@ management tools (Helm, Kustomize, etc.).
 
 - [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
   * [Open Questions](#open-questions)
+    + [Env Var Translation](#env-var-translation)
+    + [CMP Config File Spec](#cmp-config-file-spec)
+      - [UI config as part of the parameter descriptions](#ui-config-as-part-of-the-parameter-descriptions)
+        * [Helm example for integrated UI/param config](#helm-example-for-integrated-uiparam-config)
+        * [Kustomize example for integrated UI/param config](#kustomize-example-for-integrated-uiparam-config)
+      - [UI config as separate ConfigManagementPlugin item](#ui-config-as-separate-configmanagementplugin-item)
+        * [Helm example for separate UI/param config](#helm-example-for-separate-uiparam-config)
+        * [Kustomize example for separate UI/param config](#kustomize-example-for-separate-uiparam-config)
   * [Summary](#summary)
   * [Motivation](#motivation)
     + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
@@ -43,11 +51,9 @@ management tools (Helm, Kustomize, etc.).
     + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
       - [Prerequisites](#prerequisites)
       - [Terms](#terms)
-      - [CMP config schema](#cmp-config-schema)
-      - [Parameters manifest / parameters serialization format](#parameters-manifest--parameters-serialization-format)
-      - [Parameter definition schema](#parameter-definition-schema)
-      - [Parameters announcement schema](#parameters-announcement-schema)
-      - [Parameter list schema](#parameter-list-schema)
+      - [How will the ConfigManagementPlugin spec change?](#how-will-the-configmanagementplugin-spec-change)
+      - [How will the CMP know what parameter values are set?](#how-will-the-cmp-know-what-parameter-values-are-set)
+      - [How will the UI know what parameters may be set?](#how-will-the-ui-know-what-parameters-may-be-set)
     + [Detailed examples](#detailed-examples)
       - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
       - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
@@ -61,6 +67,8 @@ management tools (Helm, Kustomize, etc.).
 
 ## Open Questions
 
+### Env Var Translation
+
 Is there a way to make it easier for the generate command to consume parameters? (Easier than parsing a JSON object, 
 that is.)
 * We could translate all parameters to env vars, like `ARGOCD_PARAM_{group}_{param name}`.
@@ -71,11 +79,259 @@ that is.)
       vars. Is limiting the param namespace worth it for the usability win?
     * Option 2: Only translate to an env var if the param name happens to be in the safely-translatable
       namespace. For example, `set-file` becomes `SET_FILE`, but `omg!!!param` doesn't get translated to an env var.
-    * Option 3: Add an `envVar` field to the [parameter definition schema](#parameter-definition-schema) to specify
+    * Option 3: Add an `envVar` field to the [parameter definition schema](#how-will-the-ui-know-what-parameters-may-be-set) to specify
       a target env var (prefixed with `ARGOCD_PARAM_`).
-* We could add a field to the  [parameter definition schema](#parameter-definition-schema) to indicate whether the 
+* We could add a field to the  [parameter definition schema](#how-will-the-ui-know-what-parameters-may-be-set) to indicate whether the 
   parameter is intended as an argument to the `generate.command` command. For example, if the `set-file` parameter's 
   `asArg` field is `true`, then we could pass `--set-file {value}` to `generate.command`.
+
+### CMP Config File Spec
+
+In the CMP config file, should the UI config information be part of each parameter description in the parameters
+announcement? Or should the UI config information be its own section?
+
+#### UI config as part of the parameter descriptions
+
+Pros:
+ * No additional `ui` field in the ConfigManagementPlugin spec
+ * Less cognitive load on plugin developers
+ * Easier to implement
+
+Cons:
+ * No group-level UI configuration
+ * More JSON/YAML in the parameter descriptions (maybe more repetition?)
+ * `parameters[]` spec in ConfigMapPlugin is different from `parameters[]` spec in `Application` manifest (because 
+   parameters in ConfigMapPlugin have more/different fields)
+
+##### Helm example for integrated UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: helm
+spec:
+  parameters:
+    - name: values-files
+      title: VALUES FILES
+      tooltip: Path of a Helm values file to apply to the chart.
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "nameOverride",
+    "group": "helm-parameters",
+    "defaultValues": [
+      "argocd"
+    ]
+  },
+  {
+    "name": "global.image.repository",
+    "group": "helm-parameters",
+    "defaultValues": [
+      "quay.io/argoproj/argocd"
+    ]
+  }
+  ... etc ...
+  {
+    "name": "_plus",
+    "group": "helm-parameters",
+    defaultValues: []
+    isList: true
+    title: Others
+    tooltip: "Add additional Helm chart parameters."
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Helm example for integrated UI config](images/integrated-ui-config-helm.png)
+
+Differences from native Helm:
+ - No group heading (though we could theoretically pull that from the `group` field)
+ - No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
+ - Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
+
+##### Kustomize example for integrated UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  parameters:
+    - name: version
+      title: VERSION
+      defaultValues: [v4.3.0]
+    - name: name-prefix
+      title: NAME PREFIX
+    - name: name-suffix
+      title: NAME SUFFIX
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "quay.io/argoproj/argocd",
+    "group": "kustomize-images",
+    "defaultValues": [
+      "docker.company.com/proxy/argoproj/argocd"
+    ]
+  },
+  {
+    "name": "ubuntu:latest",
+    "group": "kustomize-images",
+    "defaultValues": [
+      "docker.company.com/proxy/ubuntu:latest"
+    ]
+  }
+  ... etc ...
+  {
+    "name": "_plus",
+    "group": "kustomize-images",
+    defaultValues: []
+    isList: true
+    title: Others
+    tooltip: "Add additional image overrides."
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Kustomize example for integrated UI config](images/integrated-ui-config-kustomize.png)
+
+Differences from native Kustomize:
+- No group heading (though we could theoretically pull that from the `group` field)
+- No digest checkbox
+- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
+- Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
+
+#### UI config as separate ConfigManagementPlugin item
+
+Pros:
+ * The UI can be configured at the section level. This allows things like:
+   * Easy titles
+   * `canAddMore: true`, which is simpler than the `_plus` mechanism
+   * Separate name/value input fields in the "Add another" interface
+ * Less repetition in the `parameters` field where `type` is not the default (makes it simpler to implement `type: images`).
+
+Cons:
+ * More difficult to implement
+ * More cognitive load for plugin developers.
+   * Since the `ui` field can configure both group-level and param-level presentation, the dev has to think harder about 
+     what their spec means.
+   * Plugin developers might not easily see the relationship between the `ui` and `parameters`/`dynamicParameters` 
+     objects.
+ * There's no way to dynamically configure the UI. We could add a `dynamicUI.command`, but that's more cognitive load.
+
+##### Helm example for separate UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: helm
+spec:
+  ui:
+    - name: values-files
+      title: VALUES FILES
+      tooltip: Path of a Helm values file to apply to the chart.
+    - group: helm-parameters
+      title: Parameters
+      userCanAddMore: true
+  parameters:
+    - name: values-files
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "nameOverride",
+    "group": "helm-parameters",
+    "value": "argocd"
+  },
+  {
+    "name": "global.image.repository",
+    "group": "helm-parameters",
+    "value": "quay.io/argoproj/argocd"
+  }
+  ... etc ...
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Helm example for separate UI config](images/separate-ui-config-helm.png)
+
+Differences from native Helm:
+- No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
+- Arbitrary values are added with plus button and split name/value inputs
+
+##### Kustomize example for separate UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  ui:
+    - group: kustomize-images
+      title: Images
+      userCanAddMore: true
+  parameters:
+    - name: version
+      title: VERSION
+    - name: name-prefix
+      title: NAME PREFIX
+    - name: name-suffix
+      title: NAME SUFFIX
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "quay.io/argoproj/argocd",
+    "group": "kustomize-images",
+    "value": "docker.company.com/proxy/argoproj/argocd"
+  },
+  {
+    "name": "ubuntu:latest",
+    "group": "kustomize-images",
+    "value": "docker.company.com/proxy/ubuntu:latest"
+  }
+  ... etc ...
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Kustomize example for separate UI config](images/separate-ui-config-kustomize.png)
+
+Differences from native Kustomize:
+- No digest checkbox
+- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
+- Arbitrary values are added with plus button and split name/value inputs
 
 ## Summary
 
@@ -183,8 +439,8 @@ Bugs to fix:
 #### Terms
 
 * **Parameter definition**: an instance of a data structure which describes an individual parameter that may be applied
-  to a specific Application. (See the [schema](#parameter-definition-schema) below.)
-* **Parameters announcement**: a list of parameter definitions. (See the [schema](#parameters-announcement-schema) below.)
+  to a specific Application. (See the [schema](#how-will-the-ui-know-what-parameters-may-be-set) below.)
+* **Parameters announcement**: a list of parameter definitions. (See the [schema](#how-will-the-ui-know-what-parameters-may-be-set) below.)
 
   "Parameters" is plural because each "announcement" will be a list of multiple parameter definitions.
 * **Parameterized CMP**: a CMP which supports rich parameters (i.e. more than environment variables). A CMP is
@@ -192,7 +448,7 @@ Bugs to fix:
   1. its configuration includes the sections consumed by the default CMP server to generate parameters announcements
   2. it is a fully customized CMP server which implements an endpoint to generate parameters announcements
 
-#### CMP config schema
+#### How will the ConfigManagementPlugin spec change?
 
 This proposal adds a new `parameters` key to the ConfigManagementPlugin config spec.
 
@@ -211,15 +467,18 @@ spec:
   parameters:
     # The declarative announcement follows the parameters announcement schema. This is where a parameter description
     # should go if it applies to all apps for this CMP.
-    announcement:
-      - name: example
-    # The (optional) generated announcement is combined with the declarative announcement (if present).
+    - name: values-file
+      title: Values File
+      tooltip: Path of a Helm values file to apply to the chart.
+  # The (optional) generated announcement is combined with the declarative announcement (if present).
+  # NEW KEY
+  dynamicParameters:
     command: ["example-params.sh"]
 ```
 
 The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
-`parameters.command` via an `ARGOCD_PARAMETERS` environment variable. The parameters will be encoded according to the 
-[parameters serialization format](#parameters-manifest--parameters-serialization-format) defined below.
+`parameters.command` via an `ARGOCD_APP_PARAMETERS` environment variable. The parameters will be encoded according to the 
+[parameters serialization format](#how-will-the-cmp-know-what-parameter-values-are-set) defined below.
 
 Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
 
@@ -233,36 +492,96 @@ spec:
       value: '["chart-a", "chart-b"]'
 ```
 
-#### Parameters manifest / parameters serialization format
+#### How will the CMP know what parameter values are set?
 
-Parameters announcements should be produced by the CMP as JSON. Use JSON instead of YAML because the tooling is better
-(native JSON libraries, StackOverflow answers about jq, etc.).
+Users persist parameter values in the `spec.source.plugin.parameters` list.
 
-Parameters should be set in the manifest as a map of section names to parameter name/value pairs. YAML is used because
-it's easy to read/manipulate in an editor when modifying an Application manifest. We partition by section name so that
-the manifest, to the extent possible, is laid out similarly to the UI.
+Each parameter has a `name` and a `value`. The name should match the name of some parameter announced by the CMP. (But 
+the user can set any parameter name, so it's the CMP's job to ignore invalid parameters.) The parameter `value`
+can be any string. The `group` field is optional and should be set according to the CMP documentation. 
+
+This example is for a hypothetical Helm CMP. This CMP accepts a `values` and a `values-files` parameter which are 
+implicitly in the "main" group, since `group` isn't explicitly set. The hypothetical Helm CMP also accepts arbitrary 
+values in the `set-value` group.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
-  plugin:
-    parameters:
-    - name: values-files
-      value: '["values.yaml"]'
-    - name: image
-      values: some.repo:tag
-      group: helm
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    plugin:
+      parameters:
+        - name: values  # implicitly in the "main" group
+          value: >-
+            resources:
+              cpu: 100m
+              memory: 128Mi
+        - name: values-files  # implicitly in the "main" group
+          value: '["values.yaml"]'
+        - name: image.repository
+          value: my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo
+          group: set-value
+        - name: image.tag
+          value: "0.1"
+          group: set-value
 ```
 
-**Note:** I'm not sure whether CRDs allow Map<string, list> types. If not, we should consider flattening the schema to
-a list of objects, each object having a `section` field.
+When Argo CD generates manifests (for example, when the user clicks "Hard Refresh" in the UI), Argo CD will send these
+parameters to the CMP as JSON (using the equivalent structure to what's shown above) on an environment variable called
+`ARGOCD_APP_PARAMETERS`.
 
-Parameters should be communicated _to_ the CMP as JSON in the same schema as is used in the Application manifest.
-JSON might be a surprising choice considering parameters are represented in the manifest as YAML. But I think JSON makes 
-sense because 1) it's used for parameters announcements (consistency is good) and 2) JSON tooling is better.
+```shell
+echo "$ARGOCD_APP_PARAMETERS" | jq
+```
 
-#### Parameter definition schema
+That command, when run by a CMP with the above Application manifest, will print the following:
+
+```json
+[
+  {
+    "name": "values",
+    "value": "resources:\n  cpu: 100m\n  memory: 128Mi"
+  },
+  {
+    "name": "values-files",
+    "value": "[\"values.yaml\"]"
+  },
+  {
+    "name": "image.repository",
+    "value": "my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo",
+    "group": "set-value"
+  },
+  {
+    "name": "image.tag",
+    "value": "0.1",
+    "group": "set-value"
+  }
+]
+```
+
+Another way the CMP can access parameters is via environment variables. For example:
+
+```shell
+echo "$VALUES" > /tmp/values.yaml
+helm template --values /tmp/values.yaml .
+```
+
+Environment variable names are set according to these rules:
+
+1. If a parameter is in the "main" (default) group, the format is `escaped({name})` (`escaped` is defined below).
+2. If a parameter is not in the "main" group, the format is `escaped({group}_{name})`.
+3. If an escaped env var name matches one in the [build environment](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/build-environment/),
+   the build environment variable wins.
+4. If more than one parameter name produces the same env var name, the env var later in the list wins.
+
+The `escaped` function will perform the following tasks:
+1. It will uppercase the input.
+2. It will replace any characters matching this regex with an underscore: `[^A-Z0-9_]`.
+3. If, after those steps, the first character is a number, the name will be prefixed with an underscore. For example:
+   `1_DIRECTION` -> `_1_DIRECTION`.
+
+#### How will the UI know what parameters may be set?
 
 A parameter definition is an object with following schema:
 
@@ -303,8 +622,6 @@ type ParameterDefinition struct {
 }
 ```
 
-#### Parameters announcement schema
-
 ```go
 type ParametersAnnouncement []ParameterDefinition
 ```
@@ -326,37 +643,6 @@ Example:
 ]
 ```
 
-#### Parameter list schema
-
-The top level is a JSON object. Each key is the name of a parameter "section". Each value of the top-level JSON object
-is a JSON list of objects representing parameter values. Each parameter value has the following schema:
-
-```go
-type Parameter struct {
-	// Name is the name of the parameter.
-  Name string `json:"name"`
-  // Value is the value of the parameter. It's up to the CMP to interpret this value. It could be interpreted as a 
-  // simple string, or it could be some encoding of something more complex (like a JSON object).
-  Value string `json:"value"`
-}
-```
-
-Example:
-
-```json
-{
-  "main": [
-    {"name": "values-files", "value": "values.yaml"}
-  ],
-  "Helm Parameters": [
-    {"name": "image", "value": "some.repo:tag"}
-  ]
-}
-```
-
-When the CMP receives parameters, they should be in JSON. But the parameters should be represented as YAML in the 
-Application manifest for better readability.
-
 ### Detailed examples
 
 #### Example 1: trivial parameterized CMP
@@ -374,7 +660,7 @@ spec:
       - -c
       - |
         # Pull one parameter value from the "main" section of the given parameters.
-        CM_NAME_SUFFIX=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
+        CM_NAME_SUFFIX=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "cm-name-suffix").value')
         cat << EOM
         {
           "kind": "ConfigMap",
@@ -473,12 +759,12 @@ spec:
 **generate.sh**
 
 ```shell
-VALUES_FILES=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
+VALUES_FILES=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
 # Put the extra values at a random filename to avoid conflicting with existing files.
 EXTRA_VALUES_FILENAME="values-$(openssl rand -base64 12).yaml"
-echo "$ARGOCD_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
+echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
 # Convert JSON parameters to comma-delimited k=v pairs.
-PARAMETERS=$(echo "$ARGOCD_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
+PARAMETERS=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
 helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "$PARAMETERS"
 ```
 
