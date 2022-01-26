@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
@@ -1479,6 +1480,11 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 		return false
 	}
 	return len(dexCfg) > 0
+}
+
+// GetServerEncryptionKey generates a new server encryption key using the server signature as a passphrase
+func (a *ArgoCDSettings) GetServerEncryptionKey() ([]byte, error) {
+	return crypto.KeyFromPassphrase(string(a.ServerSignature))
 }
 
 func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
