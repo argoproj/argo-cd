@@ -29,6 +29,14 @@ management tools (Helm, Kustomize, etc.).
 
 - [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
   * [Open Questions](#open-questions)
+    + [Env Var Translation](#env-var-translation)
+    + [CMP Config File Spec](#cmp-config-file-spec)
+      - [UI config as part of the parameter descriptions](#ui-config-as-part-of-the-parameter-descriptions)
+        * [Helm example for integrated UI/param config](#helm-example-for-integrated-uiparam-config)
+        * [Kustomize example for integrated UI/param config](#kustomize-example-for-integrated-uiparam-config)
+      - [UI config as separate ConfigManagementPlugin item](#ui-config-as-separate-configmanagementplugin-item)
+        * [Helm example for separate UI/param config](#helm-example-for-separate-uiparam-config)
+        * [Kustomize example for separate UI/param config](#kustomize-example-for-separate-uiparam-config)
   * [Summary](#summary)
   * [Motivation](#motivation)
     + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
@@ -59,6 +67,8 @@ management tools (Helm, Kustomize, etc.).
 
 ## Open Questions
 
+### Env Var Translation
+
 Is there a way to make it easier for the generate command to consume parameters? (Easier than parsing a JSON object, 
 that is.)
 * We could translate all parameters to env vars, like `ARGOCD_PARAM_{group}_{param name}`.
@@ -74,6 +84,246 @@ that is.)
 * We could add a field to the  [parameter definition schema](#how-will-the-ui-know-what-parameters-may-be-set) to indicate whether the 
   parameter is intended as an argument to the `generate.command` command. For example, if the `set-file` parameter's 
   `asArg` field is `true`, then we could pass `--set-file {value}` to `generate.command`.
+
+### CMP Config File Spec
+
+In the CMP config file, should the UI config information be part of each parameter description in the parameters
+announcement? Or should the UI config information be its own section?
+
+#### UI config as part of the parameter descriptions
+
+Pros:
+ * No additional `ui` field in the ConfigManagementPlugin spec - less cognitive load on plugin developers
+
+Cons:
+ * No group-level UI configuration
+ * More JSON/YAML in the parameter descriptions (maybe more repetition?)
+ * `parameters[]` spec in ConfigMapPlugin is different from `parameters[]` spec in `Application` manifest (because 
+   parameters in ConfigMapPlugin have more/different fields)
+
+##### Helm example for integrated UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: helm
+spec:
+  parameters:
+    - name: values-files
+      title: VALUES FILES
+      tooltip: Path of a Helm values file to apply to the chart.
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "nameOverride",
+    "group": "helm-parameters",
+    "defaultValues": [
+      "argocd"
+    ]
+  },
+  {
+    "name": "global.image.repository",
+    "group": "helm-parameters",
+    "defaultValues": [
+      "quay.io/argoproj/argocd"
+    ]
+  }
+  ... etc ...
+  {
+    "name": "_plus",
+    "group": "helm-parameters",
+    defaultValues: []
+    isList: true
+    title: Others
+    tooltip: "Add additional Helm chart parameters."
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Helm example for integrated UI config](images/integrated-ui-config-helm.png)
+
+Differences from native Helm:
+ - No group heading (though we could theoretically pull that from the `group` field)
+ - No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
+ - Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
+
+##### Kustomize example for integrated UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  parameters:
+    - name: version
+      title: VERSION
+      defaultValues: [v4.3.0]
+    - name: name-prefix
+      title: NAME PREFIX
+    - name: name-suffix
+      title: NAME SUFFIX
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "quay.io/argoproj/argocd",
+    "group": "kustomize-images",
+    "defaultValues": [
+      "docker.company.com/proxy/argoproj/argocd"
+    ]
+  },
+  {
+    "name": "ubuntu:latest",
+    "group": "kustomize-images",
+    "defaultValues": [
+      "docker.company.com/proxy/ubuntu:latest"
+    ]
+  }
+  ... etc ...
+  {
+    "name": "_plus",
+    "group": "kustomize-images",
+    defaultValues: []
+    isList: true
+    title: Others
+    tooltip: "Add additional image overrides."
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Kustomize example for integrated UI config](images/integrated-ui-config-kustomize.png)
+
+Differences from native Kustomize:
+- No group heading (though we could theoretically pull that from the `group` field)
+- No digest checkbox
+- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
+- Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
+
+#### UI config as separate ConfigManagementPlugin item
+
+Pros:
+ * The UI can be configured at the section level. This allows things like:
+   * Easy titles
+   * `canAddMore: true`, which is simpler than the `_plus` mechanism
+   * Separate name/value input fields in the "Add another" interface
+ * Less repetition in the `parameters` field where `type` is not the default (makes it simpler to implement `type: images`).
+
+Cons:
+ * More cognitive load for plugin developers. Since the `ui` field can configure both group-level and param-level 
+   presentation, the dev has to think harder about what their spec means.
+ * There's no way to dynamically configure the UI. We could add a `dynamicUI.command`, but that's more cognitive load.
+
+##### Helm example for separate UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: helm
+spec:
+  ui:
+    - name: values-files
+      title: VALUES FILES
+      tooltip: Path of a Helm values file to apply to the chart.
+    - group: helm-parameters
+      title: Parameters
+      userCanAddMore: true
+  parameters:
+    - name: values-files
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "nameOverride",
+    "group": "helm-parameters",
+    "value": "argocd"
+  },
+  {
+    "name": "global.image.repository",
+    "group": "helm-parameters",
+    "value": "quay.io/argoproj/argocd"
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Helm example for separate UI config](images/separate-ui-config-helm.png)
+
+Differences from native Helm:
+- No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
+- Arbitrary values are added with plus button and split name/value inputs
+
+##### Kustomize example for separate UI/param config
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  ui:
+    - group: kustomize-images
+      title: Images
+      userCanAddMore: true
+  parameters:
+    - name: version
+      title: VERSION
+    - name: name-prefix
+      title: NAME PREFIX
+    - name: name-suffix
+      title: NAME SUFFIX
+  dynamicParameters:
+    command: ["example-params.sh"]
+```
+
+`dynamicParameters.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "quay.io/argoproj/argocd",
+    "group": "kustomize-images",
+    "value": "docker.company.com/proxy/argoproj/argocd"
+  },
+  {
+    "name": "ubuntu:latest",
+    "group": "kustomize-images",
+    "value": "docker.company.com/proxy/ubuntu:latest"
+  }
+]
+```
+
+The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
+
+![Kustomize example for separate UI config](images/separate-ui-config-kustomize.png)
+
+Differences from native Kustomize:
+- No digest checkbox
+- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
+- Arbitrary values are added with plus button and split name/value inputs
 
 ## Summary
 
@@ -213,7 +463,8 @@ spec:
       title: Values File
       tooltip: Path of a Helm values file to apply to the chart.
   # The (optional) generated announcement is combined with the declarative announcement (if present).
-  announcement:
+  # NEW KEY
+  dynamicParameters:
     command: ["example-params.sh"]
 ```
 
