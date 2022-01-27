@@ -744,6 +744,7 @@ less robust than native tools.
 
 Bugs to fix:
 1. [#8145](https://github.com/argoproj/argo-cd/issues/8145) - `argocd app sync/diff --local` doesn't account for sidecar CMPs
+2. [#8243](https://github.com/argoproj/argo-cd/issues/8243) - "Configure plugin via sidecar" ⇒ child resources not pruned on deletion
 
 #### Terms
 
