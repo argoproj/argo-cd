@@ -67,7 +67,8 @@ spec:
   lockRepo: false
 ```
 
-!!! note While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
+!!! note
+    While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
     It only follows kubernetes-style spec conventions.
 
 The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
