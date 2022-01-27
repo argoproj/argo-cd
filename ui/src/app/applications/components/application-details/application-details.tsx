@@ -34,6 +34,7 @@ interface ApplicationDetailsState {
     revision?: string;
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
+    zoom?: number;
 }
 
 interface FilterInput {
@@ -68,7 +69,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0};
     }
 
     private get showOperationState() {
@@ -211,6 +212,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     )
                                 );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+                            const zoomNum = (this.state.zoom * 100).toFixed(0);
+                            const setZoom = (s: number) => {
+                                let targetZoom: number = this.state.zoom + s;
+                                if (targetZoom <= 0.05) {
+                                    targetZoom = 0.1;
+                                } else if (targetZoom > 2.0) {
+                                    targetZoom = 2.0;
+                                }
+                                this.setState({zoom: targetZoom});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -274,15 +285,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    {pref.view === 'tree' && (
-                                                        <button
-                                                            className={`argo-button argo-button--base${!pref.groupNodes ? '-o' : ''}`}
-                                                            style={{border: 'none', width: '160px'}}
-                                                            onClick={() => this.toggleCompactView(pref)}>
-                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
-                                                            Group Nodes
-                                                        </button>
-                                                    )}
+                                                    <div className='graph-options-panel'>
+                                                        {pref.view === 'tree' && (
+                                                            <a
+                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                title='Group Nodes'
+                                                                onClick={() => this.toggleCompactView(pref)}>
+                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                            </a>
+                                                        )}
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                            <i className='fa fa-search-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                            <i className='fa fa-search-minus fa-fw' />
+                                                        </a>
+                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                    </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -299,6 +318,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                        zoom={this.state.zoom}
                                                     />
                                                 </Filters>
                                             )) ||
