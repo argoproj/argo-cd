@@ -410,8 +410,10 @@ Questions:
      map:
      - name: cpu
        string: '100'
+       number: 100
      - name: memory
        string: '1000'
+       boolean: false
    ```
 
    1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
