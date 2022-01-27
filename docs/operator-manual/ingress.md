@@ -32,15 +32,19 @@ metadata:
   name: argocd-server-cli
   namespace: argocd
 spec:
+  # NOTE: the port must be ignored if you have strip_matching_host_port enabled on envoy
   host: argocd.example.com:443
   prefix: /
-  service: argocd-server:443
+  service: argocd-server:80
+  regex_headers:
+    Content-Type: "^application/grpc.*$"
+  grpc: true
 ```
 
-Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for gRPC-web.
+Login with the `argocd` CLI:
 
 ```shell
-argocd login <host>:<port> --grpc-web-root-path /
+argocd login <host>
 ```
 
 ### Option 2: Mapping CRD for Path-based Routing
