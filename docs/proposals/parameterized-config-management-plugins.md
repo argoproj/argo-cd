@@ -28,42 +28,45 @@ parameters for an Application. Announcing parameters allows CMPs to provide a UI
 management tools (Helm, Kustomize, etc.).
 
 - [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
-  * [Open Questions](#open-questions)
-    + [Env Var Translation](#env-var-translation)
-    + [CMP Config File Spec](#cmp-config-file-spec)
-      - [UI config as part of the parameter descriptions](#ui-config-as-part-of-the-parameter-descriptions)
-        * [Helm example for integrated UI/param config](#helm-example-for-integrated-uiparam-config)
-        * [Kustomize example for integrated UI/param config](#kustomize-example-for-integrated-uiparam-config)
-      - [UI config as separate ConfigManagementPlugin item](#ui-config-as-separate-configmanagementplugin-item)
-        * [Helm example for separate UI/param config](#helm-example-for-separate-uiparam-config)
-        * [Kustomize example for separate UI/param config](#kustomize-example-for-separate-uiparam-config)
-  * [Summary](#summary)
-  * [Motivation](#motivation)
-    + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
-    + [2. Decisions about config management tools are limited by the core code](#2-decisions-about-config-management-tools-are-limited-by-the-core-code)
-    + [3. Ksonnet is deprecated, and CMPs are a good place to maintain support](#3-ksonnet-is-deprecated-and-cmps-are-a-good-place-to-maintain-support)
-    + [Goals](#goals)
-    + [Non-Goals](#non-goals)
-  * [Proposal](#proposal)
-    + [Use cases](#use-cases)
-      - [Use case 1: building Argo CD without config management dependencies](#use-case-1-building-argo-cd-without-config-management-dependencies)
-      - [Use case 2: writing CMPs with rich UI experiences](#use-case-2-writing-cmps-with-rich-ui-experiences)
-    + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
-      - [Prerequisites](#prerequisites)
-      - [Terms](#terms)
-      - [How will the ConfigManagementPlugin spec change?](#how-will-the-configmanagementplugin-spec-change)
-      - [How will the CMP know what parameter values are set?](#how-will-the-cmp-know-what-parameter-values-are-set)
-      - [How will the UI know what parameters may be set?](#how-will-the-ui-know-what-parameters-may-be-set)
-    + [Detailed examples](#detailed-examples)
-      - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
-      - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
-      - [Example 3: simple Helm CMP](#example-3-simple-helm-cmp)
-    + [Security Considerations](#security-considerations)
-      - [Increased scripting](#increased-scripting)
-    + [Risks and Mitigations](#risks-and-mitigations)
-    + [Upgrade / Downgrade Strategy](#upgrade--downgrade-strategy)
-  * [Drawbacks](#drawbacks)
-  * [Alternatives](#alternatives)
+    * [Open Questions](#open-questions)
+        + [Env Var Translation](#env-var-translation)
+        + [CMP Config File Spec](#cmp-config-file-spec)
+            - [UI config as part of the parameter descriptions](#ui-config-as-part-of-the-parameter-descriptions)
+                * [Helm example for integrated UI/param config](#helm-example-for-integrated-uiparam-config)
+                * [Kustomize example for integrated UI/param config](#kustomize-example-for-integrated-uiparam-config)
+            - [UI config as separate ConfigManagementPlugin item](#ui-config-as-separate-configmanagementplugin-item)
+                * [Helm example for separate UI/param config](#helm-example-for-separate-uiparam-config)
+                * [Kustomize example for separate UI/param config](#kustomize-example-for-separate-uiparam-config)
+            - [UI config as part of the parameter descriptions - v2](#ui-config-as-part-of-the-parameter-descriptions---v2)
+                * [Helm example for integrated UI/param config v2](#helm-example-for-integrated-uiparam-config-v2)
+                * [Kustomize example for integrated UI/param config v2](#kustomize-example-for-integrated-uiparam-config-v2)
+    * [Summary](#summary)
+    * [Motivation](#motivation)
+        + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
+        + [2. Decisions about config management tools are limited by the core code](#2-decisions-about-config-management-tools-are-limited-by-the-core-code)
+        + [3. Ksonnet is deprecated, and CMPs are a good place to maintain support](#3-ksonnet-is-deprecated-and-cmps-are-a-good-place-to-maintain-support)
+        + [Goals](#goals)
+        + [Non-Goals](#non-goals)
+    * [Proposal](#proposal)
+        + [Use cases](#use-cases)
+            - [Use case 1: building Argo CD without config management dependencies](#use-case-1-building-argo-cd-without-config-management-dependencies)
+            - [Use case 2: writing CMPs with rich UI experiences](#use-case-2-writing-cmps-with-rich-ui-experiences)
+        + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
+            - [Prerequisites](#prerequisites)
+            - [Terms](#terms)
+            - [How will the ConfigManagementPlugin spec change?](#how-will-the-configmanagementplugin-spec-change)
+            - [How will the CMP know what parameter values are set?](#how-will-the-cmp-know-what-parameter-values-are-set)
+            - [How will the UI know what parameters may be set?](#how-will-the-ui-know-what-parameters-may-be-set)
+        + [Detailed examples](#detailed-examples)
+            - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
+            - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
+            - [Example 3: simple Helm CMP](#example-3-simple-helm-cmp)
+        + [Security Considerations](#security-considerations)
+            - [Increased scripting](#increased-scripting)
+        + [Risks and Mitigations](#risks-and-mitigations)
+        + [Upgrade / Downgrade Strategy](#upgrade--downgrade-strategy)
+    * [Drawbacks](#drawbacks)
+    * [Alternatives](#alternatives)
 
 ## Open Questions
 
@@ -244,20 +247,21 @@ kind: ConfigManagementPlugin
 metadata:
   name: helm
 spec:
-  ui:
+  parameters:
+    ui:
     - name: values-files
       title: VALUES FILES
       tooltip: Path of a Helm values file to apply to the chart.
     - group: helm-parameters
       title: Parameters
       userCanAddMore: true
-  parameters:
+    static:
     - name: values-files
-  dynamicParameters:
-    command: ["example-params.sh"]
+    dynamic:
+      command: ["example-params.sh"]
 ```
 
-`dynamicParameters.command` will produce something like this:
+`parameters.dynamic.command` will produce something like this:
 
 ```yaml
 [
@@ -291,22 +295,23 @@ kind: ConfigManagementPlugin
 metadata:
   name: kustomize
 spec:
-  ui:
+  parameters:
+    ui:
     - group: kustomize-images
       title: Images
       userCanAddMore: true
-  parameters:
+    static:
     - name: version
       title: VERSION
     - name: name-prefix
       title: NAME PREFIX
     - name: name-suffix
       title: NAME SUFFIX
-  dynamicParameters:
-    command: ["example-params.sh"]
+    dynamic:
+      command: ["example-params.sh"]
 ```
 
-`dynamicParameters.command` will produce something like this:
+`parameters.dynamic.command` will produce something like this:
 
 ```yaml
 [
@@ -332,6 +337,233 @@ Differences from native Kustomize:
 - No digest checkbox
 - No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
 - Arbitrary values are added with plus button and split name/value inputs
+
+#### UI config as part of the parameter descriptions - v2
+
+Questions:
+1. How do we encode parameters in the Application manifest?
+   1. Suggestion: Use the same structure as the announcement.
+
+      Example:
+
+      ```yaml
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      spec:
+        source:
+          plugin:
+            parameters:
+            - name: name-prefix
+              value: my-company-
+            - name: images
+              map:
+              - name: ubuntu:latest
+                value: docker.company.com/proxy/ubuntu:latest
+              - name: guestbook:v0.1
+                value: docker.company.com/proxy/guestbook:v0.1
+      ```
+      
+      Problem: How do we handle UI fields in the parameter items?
+      1. Suggestion: Don't include UI fields in the CRD version of the items.
+      2. Suggestion: Ignore UI fields. Problem: UI fields will still show up in IDE hints for the Application CRD.
+
+2. How does the UI know what type of input to use for "add more" on array and map-type parameters?
+
+   Example:
+ 
+   ```yaml
+   - name: parameter
+     title: Parameter Overrides
+     map:
+     - name: param1
+       string: param1
+     - name: param2
+       boolean: false
+     - name: param3
+       number: 1
+   ```
+
+   1. Suggestion: Use the type of the last item in the map or array. Problem: What if the map/array is empty?
+      1. Suggestion: default to string.
+   2. Suggestion: Declare the type at the top level. Problem: What do we do if the top-level type doesn't match some
+      item's type?
+      1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
+3. What do we do if the user sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean`?
+    
+   Example:
+
+   ```yaml
+   - title: Resources
+     name: resources
+     itemType: number
+     map:
+     - name: cpu
+       string: '100'
+     - name: memory
+       string: '1000'
+   ```
+
+   1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
+4. What do we do if the user sets both `name` and `value.name`?
+    
+   Example:
+
+   ```yaml
+   - name: name-prefix
+     title: NAME PREFIX
+     value:
+       name: prefix
+       string: "my-company-"
+   ```
+   1. Suggestion: Ignore the inner `name` field. Problem: It could be confusing for CMP developers.
+   2. Suggestion: Don't include the `name` field in the `value` type. Problem: More types, more complexity.
+5. What do we do if the user sets `array[].name`s?
+
+   Example: 
+
+   ```yaml
+   - title: Image Overrides
+     name: images
+     array:
+     - name: ubuntu:latest
+       value: docker.company.com/proxy/ubuntu:latest
+     - name: guestbook:v0.1
+       value: docker.company.com/proxy/guestbook:v0.1
+   ```
+    
+   1. Suggestion: Ignore the `name` field. Problem: It could be confusing for CMP developers.
+   2. Suggestion: Don't include the `name` field in the `array` item type. Problem: More types, more complexity.
+   3. Suggestion: Instead of an `array` field, use a `values` field, where absence of `name` implies array.
+      Problem: What if some items have names but not others?
+6. How do we handle duplicate `name` fields in a `map`?
+    
+   Example:
+
+   ```yaml
+   - name: parameter
+     title: Parameter Overrides
+     map:
+     - name: global.image.repository
+       value: quay.io/argoproj/argocd
+     - name: global.image.repository
+       value: docker.company.com/proxy/argoproj/argocd
+   ```
+   1. Suggestion: Allow duplicates. Problem: `map` is a confusing name for what is actually a list of key/value pairs.
+   2. Suggestion: De-duplicate in the CMP server. Problem: CMP developers might not expect that behavior.
+7. What golang type will represent `number`?
+
+   Example:
+
+   ```yaml
+   - name: resources
+     map:
+     - name: cpu
+       number: 0.1  # should probably be a float or decimal
+     - name: memory
+       number: 100  # should probably be an integer or decimal
+   ```
+   
+   1. Suggestion: Use decimal type. Problem: The CMP might need to infer float/int for a given parameter.
+8. How will the UI know the difference between the zero-values of `string`/`number`/`boolean` and absence of those
+   fields?
+
+   Example:
+
+   ```yaml
+   - name: name-prefix
+     value:
+       string: ""  # How does CMP server know this value isn't actually a `number` type?
+   ```
+   1. Suggestion: Use pointer types instead of the primitives. This will let us detect absent or `null` fields as `nil`.
+9. How will the UI know that adding more items to an array or a map is allowed?
+   1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
+      or map, they should just break it into individual params.
+   
+##### Helm example for integrated UI/param config v2
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: helm
+spec:
+  parameters:
+    static:
+    - name: values-files
+      title: VALUES FILES
+      tooltip: Path of a Helm values file to apply to the chart.
+      array: []
+    dynamic:
+      command: ["example-params.sh"]
+```
+
+`parameters.dynamic.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "helm-parameters"
+    "title": "Parameters",
+    "map": [
+      {
+        "name": "nameOverride",
+        "string": "argocd"
+      },
+      {
+        "name": "global.image.repository",
+        "string": "quay.io/argoproj/argocd"
+      }
+    ]
+  }
+]
+```
+
+##### Kustomize example for integrated UI/param config v2
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  parameters:
+    static:
+    - name: version
+      title: VERSION
+      value:
+        string: v4.3.0
+    - name: name-prefix
+      title: NAME PREFIX
+      value:
+        string: ""
+    - name: name-suffix
+      title: NAME SUFFIX
+      value:
+        string: ""
+    dynamic:
+      command: ["example-params.sh"]
+```
+
+`parameters.dynamic.command` will produce something like this:
+
+```yaml
+[
+  {
+    "name": "images",
+    "title": "Image Overrides",
+    "map": [
+      {
+        "name": "quay.io/argoproj/argocd",
+        "string": "docker.company.com/proxy/argoproj/argocd"
+      },
+      {
+        "name": "ubuntu:latest",
+        "string": "docker.company.com/proxy/argoproj/argocd"
+      }
+    ]
+  }
+]
+```
 
 ## Summary
 
