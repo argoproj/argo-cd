@@ -518,16 +518,46 @@ Questions:
     1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
        or map, they should just break it into individual params.
 11. What do we do if a CMP announcement doesn't include any type info?
+   
+    Example:
 
-   Example:
+    ```yaml
+    - name: name-prefix
+      value: {}
+    # or
+    - name: name-prefix
+    ```
+    1. Suggestion: Default to `string`, since it's the most common type.
+12. What do we do if a map parameters has one or more items with an empty or absent `name` field?
 
-   ```yaml
-   - name: name-prefix
-     value: {}
-   # or
-   - name: name-prefix
-   ```
-   1. Suggestion: Default to `string`, since it's the most common type.
+    Example:
+
+    ```yaml
+    - name: parameter
+      title: Parameter Overrides
+      map:
+      - name: ""
+        value: quay.io/argoproj/argocd
+      - value: docker.company.com/proxy/argoproj/argocd
+    ```
+    1. Suggestion: Throw a validation error in the CMP server when handling an announcement. Throw a validation error
+       in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
+       in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
+13. What do we do if a parameter has a missing or absent top-level `name` field?
+
+    Example:
+
+    ```yaml
+    - title: Parameter Overrides
+      map:
+      - name: global.image.repository
+        value: quay.io/argoproj/argocd
+      - name: global.image.repository
+        value: docker.company.com/proxy/argoproj/argocd
+    ```
+    1. Suggestion: Throw a validation error in the CMP server when handling an announcement. Throw a validation error
+       in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
+       in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
    
 ##### Helm example for integrated UI/param config v2
 
