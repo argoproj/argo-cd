@@ -695,15 +695,12 @@ Parameterized CMPs must be:
     2. See the parameters reflected in the Application manifest
     3. Easily read/modify the generated parameters in the manifest (they should be structured in a way that's easy to read)
   * CMPs should be able to announce parameters with more helpful interfaces than a simple text field.
-    * For example, image parameters should be presented using the same helpful interface as the one in Kustomize applications.
+    * For example, numbers and booleans should be represented in the UI with the appropriate inputs.
 * Future-proof
   * Since the rich parameters UI is an important feature for config management tools, the parameter definition schema 
     should be flexible enough to announce new _types_ of parameters so the UI can customize its presentation.
 * Backwards-compatible
   * CMPs written before this enhancement should work fine after this enhancement is released.
-  * The UI should be able to handle unknown (new) parameter types. For example, if a plugin announces a parameter of 
-    type `date`, the UI should fall back to allowing text entry. The UI can then be enhanced to provide a better input
-    mechanism in a later release.
 * Proven with a rich demonstration
   * The initial release of this feature should include a CMP implementation of the Helm config tool. This will
     1. Serve as a rich example for others CMP developers to mimic
