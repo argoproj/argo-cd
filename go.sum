@@ -127,8 +127,8 @@ github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
 github.com/argoproj/gitops-engine v0.5.1-0.20220126184517-b0c5e00ccfa5 h1:oMRXPoMzlonjHMUE/dcdimFLiWUTieitanXlCIQf+a8=
 github.com/argoproj/gitops-engine v0.5.1-0.20220126184517-b0c5e00ccfa5/go.mod h1:UJrK2YMBUbwJZue68mXhSDw+T52egdZWAU1F5cK34ko=
-github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e h1:px7jeBJNoRF84tcik7Iw7MtXOUiqqNhYLf3UapYhJBM=
-github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e/go.mod h1:fONJdKbHnb3uhczfCXfJhlk87RPKCqt489KX+AaXurA=
+github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998 h1:V9RDg+IZeebnm3XjkfkbN07VM21Fu1Cy/RJNoHO++VM=
+github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998/go.mod h1:5mKv7zEgI3NO0L+fsuRSwBSY9EIXSuyIsDND8O8TTIw=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -902,8 +902,8 @@ github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE
 github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c h1:fyKiXKO1/I/B6Y2U8T7WdQGWzwehOuGIrljPtt7YTTI=
 github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c/go.mod h1:sUM3LWHvSMaG192sy56D9F7CNvL7jUJVXoqM1QKLnog=
-github.com/slack-go/slack v0.6.6 h1:ln0fO794CudStSJEfhZ08Ok5JanMjvW6/k2xBuHqedU=
-github.com/slack-go/slack v0.6.6/go.mod h1:FGqNzJBmxIsZURAxh2a8D21AnOVvvXZvGligs4npPUM=
+github.com/slack-go/slack v0.10.1 h1:BGbxa0kMsGEvLOEoZmYs8T1wWfoZXwmQFBb6FgYCXUA=
+github.com/slack-go/slack v0.10.1/go.mod h1:wWL//kk0ho+FcQXcBTmEafUI5dz4qz5f4mMk8oIkioQ=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/assertions v1.1.0/go.mod h1:tcbTF8ujkAEcZ8TElKY+i30BzYlVhC/LOxJk7iOWnoo=
 github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a/go.mod h1:syvi0/a8iFYH4r/RixwvyeAJjdLS9QV7WQ/tjFTllLA=

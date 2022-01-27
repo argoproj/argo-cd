@@ -9,7 +9,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.5.1-0.20220126184517-b0c5e00ccfa5
-	github.com/argoproj/notifications-engine v0.3.1-0.20220124172652-14e7f52eb33e
+	github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
@@ -180,7 +180,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
-	github.com/slack-go/slack v0.6.6 // indirect
+	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect

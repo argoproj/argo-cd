@@ -41,9 +41,8 @@ type GenerateOpts struct {
 	ClusterOpts     ClusterOpts     `yaml:"cluster"`
 	RepositoryOpts  RepositoryOpts  `yaml:"repository"`
 	ProjectOpts     ProjectOpts     `yaml:"project"`
-
-	GithubToken string
-	Namespace   string `yaml:"namespace"`
+	GithubToken     string
+	Namespace       string `yaml:"namespace"`
 }
 
 func Parse(opts *GenerateOpts, file string) error {
