@@ -559,6 +559,53 @@ Questions:
        in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
        in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
    
+Tentative parameters data structures:
+
+```go
+package cmp
+
+// ParameterValue represents a single value for a parameter. Only one field may be set.
+type ParameterValue struct {
+	String  *string `json:"string,omitempty"`
+	Number  *int    `json:"number,omitempty"`
+	Boolean *bool   `json:"boolean,omitempty"`
+}
+
+// ParameterNameAndValue represents a single name/value pair in a map parameter. Only one field besides Name may be set.
+type ParameterNameAndValue struct {
+	Name    string  `json:"name,omitempty"`
+	String  *string `json:"string,omitempty"`
+	Number  *int    `json:"number,omitempty"`
+	Boolean *bool   `json:"boolean,omitempty"`
+}
+
+// ParameterAnnouncement represents a CMP's announcement of one acceptable parameter.
+type ParameterAnnouncement struct {
+	Name     string                  `json:"name,omitempty"`
+	Value    *ParameterValue         `json:"value,omitempty"`
+	Map      []ParameterNameAndValue `json:"map,omitempty"`
+	Array    []ParameterValue        `json:"array,omitempty"`
+	Title    string                  `json:"title,omitempty"`
+	Tooltip  string                  `json:"tooltip,omitempty"`
+	Required bool                    `json:"required,omitempty"`
+}
+
+// ParametersAnnouncement is a list of announcements. This list represents all the parameters which a CMP is able to 
+// accept.
+type ParametersAnnouncement []ParameterAnnouncement
+
+// Parameter represents a single parameter name and its value. One of Value, Map, or Array must be set.
+type Parameter struct {
+	Name  string                  `json:"name,omitempty"`
+	Value *ParameterValue         `json:"value,omitempty"`
+	Map   []ParameterNameAndValue `json:"map,omitempty"`
+	Array []ParameterValue        `json:"array,omitempty"`
+}
+
+// Parameters is a list of parameters to be sent to a CMP for manifest generation.
+type Parameters []Parameter
+```
+
 ##### Helm example for integrated UI/param config v2
 
 ```yaml
