@@ -341,7 +341,7 @@ Differences from native Kustomize:
 #### UI config as part of the parameter descriptions - v2
 
 Questions:
-1. How do we encode parameters in the Application manifest?
+1. How do users encode parameters in the Application manifest?
    1. Suggestion: Use the same structure as the announcement.
 
       Example:
@@ -399,7 +399,7 @@ Questions:
           boolean: false
       ```
       1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
-3. What do we do if the user sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean`?
+3. What do we do if the CMP announcement sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean`?
     
    Example:
 
@@ -417,7 +417,32 @@ Questions:
    ```
 
    1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
-4. What do we do if the user sets both `name` and `value.name`?
+4. What do we do if the CMP user sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean` in the 
+   Application spec?
+
+   Example:
+
+   ```yaml
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   spec:
+     source:
+       plugin:
+         parameters:
+         - title: Resources
+           name: resources
+           itemType: number
+           map:
+           - name: cpu
+             string: '100'
+             number: 100
+           - name: memory
+             string: '1000'
+             boolean: false
+   ```
+   1. Suggestion: Throw an exception in the controller and mark the Application as unhealthy. Throw an exception in the
+      CMP server and refuse to generate manifests for the Application.
+5. What do we do if the user sets both `name` and `value.name`?
     
    Example:
 
@@ -430,7 +455,7 @@ Questions:
    ```
    1. Suggestion: Ignore the inner `name` field. Problem: It could be confusing for CMP developers.
    2. Suggestion: Don't include the `name` field in the `value` type. Problem: More types, more complexity.
-5. What do we do if the user sets `array[].name`s?
+6. What do we do if the user sets `array[].name`s?
 
    Example: 
 
@@ -448,7 +473,7 @@ Questions:
    2. Suggestion: Don't include the `name` field in the `array` item type. Problem: More types, more complexity.
    3. Suggestion: Instead of an `array` field, use a `values` field, where absence of `name` implies array.
       Problem: What if some items have names but not others?
-6. How do we handle duplicate `name` fields in a `map`?
+7. How do we handle duplicate `name` fields in a `map`?
     
    Example:
 
@@ -463,7 +488,7 @@ Questions:
    ```
    1. Suggestion: Allow duplicates. Problem: `map` is a confusing name for what is actually a list of key/value pairs.
    2. Suggestion: De-duplicate in the CMP server. Problem: CMP developers might not expect that behavior.
-7. What golang type will represent `number`?
+8. What golang type will represent `number`?
 
    Example:
 
@@ -477,7 +502,7 @@ Questions:
    ```
    
    1. Suggestion: Use decimal type. Problem: The CMP might need to infer float/int for a given parameter.
-8. How will the UI know the difference between the zero-values of `string`/`number`/`boolean` and absence of those
+9. How will the UI know the difference between the zero-values of `string`/`number`/`boolean` and absence of those
    fields?
 
    Example:
@@ -488,9 +513,9 @@ Questions:
        string: ""  # How does CMP server know this value isn't actually a `number` type?
    ```
    1. Suggestion: Use pointer types instead of the primitives. This will let us detect absent or `null` fields as `nil`.
-9. How will the UI know that adding more items to an array or a map is allowed?
-   1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
-      or map, they should just break it into individual params.
+10. How will the UI know that adding more items to an array or a map is allowed?
+    1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
+       or map, they should just break it into individual params.
    
 ##### Helm example for integrated UI/param config v2
 
