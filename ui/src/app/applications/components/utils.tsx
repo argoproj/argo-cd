@@ -45,17 +45,20 @@ export function helpTip(text: string) {
 }
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
-    const propagationPolicies: {name: string; message: string}[] = [
+    const propagationPolicies: {name: string; id: string; message: string}[] = [
         {
             name: 'Foreground',
+            id: 'foreground',
             message: `Cascade delete the application's resources using foreground propagation policy`
         },
         {
             name: 'Background',
+            id: 'background',
             message: `Cascade delete the application's resources using background propagation policy`
         },
         {
             name: 'Non-cascading',
+            id: 'non-cascading',
             message: `Only delete the application, but do not cascade delete its resources`
         }
     ];
@@ -79,12 +82,13 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
                         return (
                             <FormField
                                 formApi={api}
-                                key={policy.name}
+                                key={policy.id}
                                 field='propagationPolicy'
                                 component={PropagationPolicyOption}
                                 componentProps={{
-                                    policy: policy.name,
-                                    message: policy.message
+                                    policyName: policy.name,
+                                    policyID: policy.id,
+                                    policyMessage: policy.message
                                 }}
                             />
                         );
@@ -116,7 +120,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
     return confirmed;
 }
 
-const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policy: string; message: string}) => {
+const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policyName: string; policyID: string; policyMessage: string}) => {
     const {
         fieldApi: {setValue}
     } = props;
@@ -124,16 +128,16 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
         <div className='propagation-policy-option'>
             <input
                 className='radio-button'
-                key={props.policy}
+                key={props.policyID}
                 type='radio'
                 name='propagation-policy'
-                value={props.policy}
-                id={props.policy}
-                defaultChecked={props.policy === 'Foreground'}
-                onChange={() => setValue(props.policy.toLowerCase())}
+                value={props.policyID}
+                id={props.policyID}
+                defaultChecked={props.policyID === 'foreground'}
+                onChange={() => setValue(props.policyID)}
             />
-            <label htmlFor={props.policy}>
-                {props.policy} {helpTip(props.message)}
+            <label htmlFor={props.policyID}>
+                {props.policyName} {helpTip(props.policyMessage)}
             </label>
         </div>
     );
@@ -242,12 +246,23 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
     const isManaged = !!resource.status;
-    const deleteOptions = {
-        option: 'foreground'
-    };
-    function handleStateChange(option: string) {
-        deleteOptions.option = option;
-    }
+    const propagationPolicies: {name: string; id: string; message: string}[] = [
+        {
+            name: 'Foreground',
+            id: 'foreground',
+            message: `Deletes the resource and dependent resources using the cascading policy in the foreground`
+        },
+        {
+            name: 'Force',
+            id: 'force',
+            message: `Deletes the resource and its dependent resources in the background`
+        },
+        {
+            name: 'Non-cascading (Orphan)',
+            id: 'orphan',
+            message: `Deletes the resource and orphans the dependent resources`
+        }
+    ];
     return ctx.popup.prompt(
         'Delete resource',
         api => (
@@ -262,24 +277,23 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 ) : (
                     ''
                 )}
-                <div className='argo-form-row'>
-                    <input
-                        type='radio'
-                        name='deleteOptions'
-                        value='foreground'
-                        onChange={() => handleStateChange('foreground')}
-                        defaultChecked={true}
-                        style={{marginRight: '5px'}}
-                    />
-                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
-                        Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
-                    </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
-                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
-                    </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
-                    <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
+                <p>Select propagation policy for resource deletion</p>
+                <div className='propagation-policy-list'>
+                    {propagationPolicies.map(policy => {
+                        return (
+                            <FormField
+                                formApi={api}
+                                key={policy.id}
+                                field='propagationPolicy'
+                                component={PropagationPolicyOption}
+                                componentProps={{
+                                    policyName: policy.name,
+                                    policyID: policy.id,
+                                    policyMessage: policy.message
+                                }}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         ),
@@ -289,8 +303,8 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
                 },
             submit: async (vals, _, close) => {
-                const force = deleteOptions.option === 'force';
-                const orphan = deleteOptions.option === 'orphan';
+                const force = vals.propagationPolicy === 'force';
+                const orphan = vals.propagationPolicy === 'orphan';
                 try {
                     await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
                     if (appChanged) {
@@ -306,7 +320,8 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
             }
         },
         {name: 'argo-icon-warning', color: 'warning'},
-        'yellow'
+        'yellow',
+        {propagationPolicy: 'foreground'}
     );
 };
 
