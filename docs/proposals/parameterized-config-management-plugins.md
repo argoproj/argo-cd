@@ -487,6 +487,7 @@ Questions:
        value: docker.company.com/proxy/argoproj/argocd
    ```
    1. Suggestion: Allow duplicates. Problem: `map` is a confusing name for what is actually a list of key/value pairs.
+      1. Suggestion: Rename the `map` field.
    2. Suggestion: De-duplicate in the CMP server. Problem: CMP developers might not expect that behavior.
 8. What golang type will represent `number`?
 
