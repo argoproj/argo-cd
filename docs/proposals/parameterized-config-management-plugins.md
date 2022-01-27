@@ -517,6 +517,17 @@ Questions:
 10. How will the UI know that adding more items to an array or a map is allowed?
     1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
        or map, they should just break it into individual params.
+11. What do we do if a CMP announcement doesn't include any type info?
+
+   Example:
+
+   ```yaml
+   - name: name-prefix
+     value: {}
+   # or
+   - name: name-prefix
+   ```
+   1. Suggestion: Default to `string`, since it's the most common type.
    
 ##### Helm example for integrated UI/param config v2
 
