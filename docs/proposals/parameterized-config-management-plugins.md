@@ -775,31 +775,33 @@ spec:
     fileName: "./subdir/s*.yaml"
   # NEW KEY
   parameters:
+    static:
     # The declarative announcement follows the parameters announcement schema. This is where a parameter description
     # should go if it applies to all apps for this CMP.
     - name: values-file
       title: Values File
       tooltip: Path of a Helm values file to apply to the chart.
-  # The (optional) generated announcement is combined with the declarative announcement (if present).
-  # NEW KEY
-  dynamicParameters:
-    command: ["example-params.sh"]
+    # The (optional) generated announcement is combined with the declarative announcement (if present).
+    # NEW KEY
+    dynamic:
+      command: ["example-params.sh"]
 ```
 
 The currently-configured parameters (if there are any) will be communicated to both `generate.command` and 
-`parameters.command` via an `ARGOCD_APP_PARAMETERS` environment variable. The parameters will be encoded according to the 
-[parameters serialization format](#how-will-the-cmp-know-what-parameter-values-are-set) defined below.
+`parameters.dynamic.command` via an `ARGOCD_APP_PARAMETERS` environment variable. The parameters will be encoded 
+according to the [parameters serialization format](#how-will-the-cmp-know-what-parameter-values-are-set) defined below.
 
-Passing the parameters to the `parameters.command` will allow configuration of parameter discovery. For example:
+Passing the parameters to the `parameters.dynamic.command` will allow configuration of parameter discovery. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
-  plugin:
-    parameters:
-    - name: ignore-helm-charts
-      value: '["chart-a", "chart-b"]'
+  source:
+    plugin:
+      parameters:
+      - name: ignore-helm-charts
+        value: '["chart-a", "chart-b"]'
 ```
 
 #### How will the CMP know what parameter values are set?
