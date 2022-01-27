@@ -1107,7 +1107,7 @@ well as image and source code scanning tools in CI/CD.
 1. Risk: encouraging CMP adoption while missing critical features from native tools.
 
    Mitigation: rewrite the Helm config management tool as a CMP and test as many common use cases as possible. Write a
-   document before starting on the Helm CMP documenting all majore features which must be tested.
+   document before starting on the Helm CMP documenting all major features which must be tested.
 
 ### Upgrade / Downgrade Strategy
 
