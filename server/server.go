@@ -772,7 +772,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
-	if !a.settings.IsDexConfigured() {
+	if !a.settings.IsSSOConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
