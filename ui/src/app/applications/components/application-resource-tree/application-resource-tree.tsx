@@ -43,6 +43,7 @@ export interface ApplicationResourceTreeProps {
     onClearFilter: () => any;
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
+    zoom: number;
 }
 
 interface Line {
@@ -644,7 +645,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         )) || (
             <div
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250}}>
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 0%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;
