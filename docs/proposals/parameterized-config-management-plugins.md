@@ -387,6 +387,17 @@ Questions:
       1. Suggestion: default to string.
    2. Suggestion: Declare the type at the top level. Problem: What do we do if the top-level type doesn't match some
       item's type?
+      
+      Example:
+   
+      ```yaml
+      - name: parameter
+        title: Parameter Overrides
+        type: string
+        map:
+        - name: param1
+          boolean: false
+      ```
       1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
 3. What do we do if the user sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean`?
     
