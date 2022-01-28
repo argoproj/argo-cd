@@ -1,36 +1,36 @@
 # Changelog
 
-## v2.2.0 (Unreleased)
+## v2.3.0 (Unreleased)
 
 ### Argo CD ApplicationSet and Notifications are now part of Argo CD
 
 Two popular [Argoproj Labs](https://github.com/argoproj-labs) projects [Argo CD ApplicationSet](https://github.com/argoproj/applicationset) and
-[Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) are now part of Argo CD! The default Argo CD installation manifests are now
-bundles both projects out of the box. Going forward you can expect more tightened integration of these projects into Argo CD.
+[Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) are now part of Argo CD! The default Argo CD installation manifests now
+bundle both projects out of the box. Going forward you can expect more tightened integration of these projects into Argo CD.
 
 ### New sync and diff strategies
 
-Users can now configure the Application resource to instruct ArgoCD to consider the ignore difference setup during the sync process.
-In order to do so, add the new sync option RespectIgnoreDifferences=true in the Application resource. Once the sync option is added
+Users can now configure the Application resource to instruct Argo CD to consider the ignore difference setup during the sync process.
+In order to do so, add the new sync option RespectIgnoreDifferences=true in the Application resource. Once the sync option is added,
 Argo CD won't change ignored fields during the syncing process.
 
-Configuring ignored fields is also easier now. Instead of listing fields one by one users can now Now it is possible to leverage the 
-managedFields metadata to instruct ArgoCD about trusted managers and automatically ignore any fields owned by them. A new diff customization
-(managedFieldsManagers) is now available allowing users to specify managers the application should trust and ignore all fields owned by them.
+Configuring ignored fields is also easier now. Instead of listing fields one by one users can now leverage the 
+managedFields metadata to instruct Argo CD about trusted managers and automatically ignore any fields owned by them. A new diff customization
+(managedFieldsManagers) is now available allowing users to specify managers the application should trust and to ignore all fields owned by those managers.
 Read more about these changes at [New sync and diff strategies in ArgoCD](https://blog.argoproj.io/new-sync-and-diff-strategies-in-argocd-44195d3f8b8c) blog post.
 
 ### ARM Images
 
-Officially supported ARM 64 image is now available. Enjoy running Argo CD on your Raspberry Pi! Additionally, the image size was reduced by nearly ~50%
-and only 200MB now.
+An officially supported ARM 64 image is now available. Enjoy running Argo CD on your Raspberry Pi! Additionally, the image size was reduced by nearly ~50%
+and is only 200MB now.
 
 ### Compact Tree View And Click Application Navigation
 
-The application details page now supports compact application resources tree visualization. Using the "Group Nodes" button you can collapse the similar resources
-into a single group node to remove the clutter and make it easier to understand the state of application resources. You still can get detailed information about the collapsed resources by clicking on the group node. The list of collapsed resources will be available in a sliding panel. Compact resource tree is still to big?
-You can use zoom in and out feature to make it smaller!
+The application details page now supports compact application resources tree visualization. Using the "Group Nodes" button, you can collapse the similar resources
+into a single group node to remove the clutter and make it easier to understand the state of application resources. You still can get detailed information about the collapsed resources by clicking on the group node. The list of collapsed resources will be available in a sliding panel. Compact resource tree is still too big?
+You can use the zoom in and zoom out feature to make it smaller - or even larger!
 
-You no longer need to move back and fourth between the application details page and the application list page. Instead you can navigate directly to the required application by clicking the search icon in the application details page title.
+You no longer need to move back and forth between the application details page and the application list page. Instead you can navigate directly to the required application by clicking the search icon in the application details page title.
 
 ### Bug Fixes and Performance Enhancements
 
