@@ -107,11 +107,9 @@ Q/A:
          - name: name-prefix
            value: my-company-
          - name: images
-           value:
-             collectionType: map
-             map:
-               ubuntu:latest: docker.company.com/proxy/ubuntu:latest
-               guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
+           map:
+             ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+             guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
 2. **Question**: How does the UI know what type of input to use for "add more" on array and map-type parameters?
@@ -122,11 +120,10 @@ Q/A:
    - name: resources
      title: Resource Overrides
      itemType: number
-     value:
-       collectionType: map
-       map:
-         cpu: '100'
-         memory: '1000'
+     collectionType: map
+     map:
+       cpu: '100'
+       memory: '1000'
    ```
 
 3. **Question**: What do we do if the CMP announcement sets more than one `value.{collection}`?
@@ -135,19 +132,18 @@ Q/A:
 
    ```yaml
    - name: images
-     value:
-       collectionType: map
-       array:  # this gets ignored because collectionType is 'map'
-       - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
-       - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
-       map:
-         ubuntu:latest: docker.company.com/proxy/ubuntu:latest
-         guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
+     collectionType: map
+     array:  # this gets ignored because collectionType is 'map'
+     - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+     - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
+     map:
+       ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+       guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
 4. **Question**: What do we do if the CMP user sets more than one of `value`/`array`/`map` in the Application spec?
 
-   **Answer**: We ignore all but the configured `collectionType`.
+   **Answer**: We send all given information to the CMP and allow it to select the relevant field.
 
    ```yaml
    apiVersion: argoproj.io/v1alpha1
@@ -157,14 +153,12 @@ Q/A:
        plugin:
          parameters:
          - name: images
-           value:
-             collectionType: map
-             array:  # this gets ignored because collectionType is 'map'
-             - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
-             - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
-             map:
-               ubuntu:latest: docker.company.com/proxy/ubuntu:latest
-               guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
+           array:  # this gets sent to the CMP, but the CMP should ignore it
+           - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+           - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
+           map:
+             ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+             guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
 5. **Question**: How will the UI know that adding more items to an array or a map is allowed?
@@ -173,22 +167,19 @@ Q/A:
 
    ```yaml
    - name: images
-     value:
-       collectionType: map  # users will be allowed to add new items, because this is a map
-       map:
-         ubuntu:latest: docker.company.com/proxy/ubuntu:latest
-         guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
+     collectionType: map  # users will be allowed to add new items, because this is a map
+     map:
+       ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+       guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
    If the CMP author wants an immutable array or map, they should just break it into individual parameters.
 
    ```yaml
    - name: ubuntu:latest
-     value: 
-       string: docker.company.com/proxy/ubuntu:latest
+     string: docker.company.com/proxy/ubuntu:latest
    - name: guestbook:v0.1
-     value: 
-       string: docker.company.com/proxy/guestbook:v0.1
+     string: docker.company.com/proxy/guestbook:v0.1
    ```
 
 6. **Question**: What do we do if a CMP announcement doesn't include a `collectionType`?
@@ -197,17 +188,13 @@ Q/A:
 
    ```yaml
    - name: name-prefix  # expects a string
-   - name: name-suffix  # expects a string
-     value: {}
    - name: helm-parameters-incorrect  # expects a string, the map is ignored
-     value:
-       map:
-         global.image.repository: quay.io/argoproj/argocd
+     map:
+       global.image.repository: quay.io/argoproj/argocd
    - name: helm-parameters  # expects a map
-     value:
-       collectionType: map
-       map:
-         global.image.repository: quay.io/argoproj/argocd
+     collectionType: map
+     map:
+       global.image.repository: quay.io/argoproj/argocd
    ```
 
 7. **Question**: What do we do if a parameter has a missing or absent top-level `name` field?
@@ -219,15 +206,10 @@ Q/A:
    ```yaml
    # needs a `name` field
    - title: Parameter Overrides
-     value:
-       collectionType: map
-       map:
-         global.image.repository: quay.io/argoproj/argocd
+     collectionType: map
+     map:
+       global.image.repository: quay.io/argoproj/argocd
    ```
-   
-Parameters golang data structures:
-
-
 
 ##### Helm example for integrated UI/param config v2
 
@@ -242,8 +224,7 @@ spec:
     - name: values-files
       title: VALUES FILES
       tooltip: Path of a Helm values file to apply to the chart.
-      value:
-        collectionType: array
+      collectionType: array
     dynamic:
       command: ["example-params.sh"]
 ```
@@ -255,12 +236,10 @@ spec:
   {
     "name": "helm-parameters"
     "title": "Parameters",
-    "value": {
-      "collectionType": "map",
-      "map": {
-        "nameOverride": "argocd",
-        "global.image.repository": "quay.io/argoproj/argocd"
-      }
+    "collectionType": "map",
+    "map": {
+      "nameOverride": "argocd",
+      "global.image.repository": "quay.io/argoproj/argocd"
     }
   }
 ]
@@ -295,12 +274,10 @@ spec:
   {
     "name": "images",
     "title": "Image Overrides",
-    "value": {
-      "collectionType": "map",
-      "map": {
-        "quay.io/argoproj/argocd": "docker.company.com/proxy/argoproj/argocd",
-        "ubuntu:latest": "docker.company.com/proxy/argoproj/argocd"
-      }
+    "collectionType": "map",
+    "map": {
+      "quay.io/argoproj/argocd": "docker.company.com/proxy/argoproj/argocd",
+      "ubuntu:latest": "docker.company.com/proxy/argoproj/argocd"
     }
   }
 ]
@@ -462,7 +439,7 @@ spec:
     plugin:
       parameters:
       - name: ignore-helm-charts
-        value: '["chart-a", "chart-b"]'
+        array: ["chart-a", "chart-b"]
 ```
 
 #### How will the CMP know what parameter values are set?
@@ -486,18 +463,16 @@ spec:
     plugin:
       parameters:
         - name: values  # implicitly in the "main" group
-          value: >-
+          string: >-
             resources:
               cpu: 100m
               memory: 128Mi
         - name: values-files  # implicitly in the "main" group
-          value: '["values.yaml"]'
+          array: ["values.yaml"]
         - name: image.repository
-          value: my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo
-          group: set-value
-        - name: image.tag
+          string: my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo
+        - string: image.tag
           value: "0.1"
-          group: set-value
 ```
 
 When Argo CD generates manifests (for example, when the user clicks "Hard Refresh" in the UI), Argo CD will send these
@@ -581,35 +556,27 @@ const (
 	ParameterValueTypeArray  ParameterCollectionType = "array"
 )
 
-// ParameterValue is the concrete value of a parameter. In an Application spec, this represents the current values
-// assigned by a user. In a parameters announcement, this represents the default value of the parameter.
-type ParameterValue struct {
-	// Type is the type of value this parameter holds - either a single value (a string) or a collection (array or map).
-	// If Type is set, only the field with that type will be used. If Type is not set, `string` is the default. If Type
-	// is set to an invalid value, a validation error is thrown.
-	CollectionType ParameterCollectionType `json:"collectionType,omitempty"`
-	String         string                  `json:"value,omitempty"`
-	Map            map[string]string       `json:"map,omitempty"`
-	Array          []string                `json:"array,omitempty"`
-}
-
 // ParameterAnnouncement represents a CMP's announcement of one acceptable parameter (though that parameter may contain
 // multiple elements, if the value holds an array or a map).
 type ParameterAnnouncement struct {
 	// Name is the name identifying a parameter. (required)
 	Name string `json:"name,omitempty"`
-	// Value holds the value type information (string or collection) and default value(s) (if any) of this parameter.
-	// Optional. Behavior defaults to ParameterValue{CollectionType: "string", String: ""}.
-	Value    ParameterValue `json:"value,omitempty"`
 	// Title is a human readable text of the parameter name. (optional)
 	Title    string         `json:"title,omitempty"`
 	// Tooltip is a human readable description of the parameter. (optional)
 	Tooltip  string         `json:"tooltip,omitempty"`
 	// Required defines if this given parameter is mandatory. (optional: default false)
 	Required bool           `json:"required,omitempty"`
-	// ParameterType determines the primitive data type represented by the parameter. Parameters are always encoded as
+	// ItemType determines the primitive data type represented by the parameter. Parameters are always encoded as
 	// strings, but ParameterTypes lets them be interpreted as other primitive types.
 	ItemType ParameterItemType `json:"itemType,omitempty"`
+	// CollectionType is the type of value this parameter holds - either a single value (a string) or a collection (array or map).
+	// If Type is set, only the field with that type will be used. If Type is not set, `string` is the default. If Type
+	// is set to an invalid value, a validation error is thrown.
+	CollectionType ParameterCollectionType `json:"collectionType,omitempty"`
+	String         string                  `json:"string,omitempty"`
+	Map            map[string]string       `json:"map,omitempty"`
+	Array          []string                `json:"array,omitempty"`
 }
 
 // ParametersAnnouncement is a list of announcements. This list represents all the parameters which a CMP is able to 
@@ -620,9 +587,9 @@ type ParametersAnnouncement []ParameterAnnouncement
 type Parameter struct {
 	// Name is the name identifying a parameter. (required)
 	Name  string         `json:"name,omitempty"`
-	// Value holds the value type information (string or collection) and value(s) (if any) of this parameter.
-	// Optional. Behavior defaults to ParameterValue{CollectionType: "string", String: ""}.
-	Value ParameterValue `json:"value,omitempty"`
+	String         string                  `json:"string,omitempty"`
+	Map            map[string]string       `json:"map,omitempty"`
+	Array          []string                `json:"array,omitempty"`
 }
 
 // Parameters is a list of parameters to be sent to a CMP for manifest generation.
@@ -686,8 +653,7 @@ spec:
     static:
       - name: version
         title: VERSION
-        value:
-          string: v4.3.0
+        string: v4.3.0
       - name: name-prefix
         title: NAME PREFIX
       - name: name-suffix
@@ -756,8 +722,7 @@ spec:
     static:
     - name: values-files
       title: VALUES FILES
-      value:
-        array: []
+      collectionType: array
     dynamic:
       command: [/home/argocd/get-parameters.sh]
 ```
