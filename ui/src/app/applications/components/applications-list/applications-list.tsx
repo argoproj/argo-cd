@@ -122,6 +122,9 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .split(',')
                                     .filter(item => !!item);
                             }
+                            if (params.get('showFavorites') != null) {
+                                viewPref.showFavorites = params.get('showFavorites') === 'true';
+                            }
                             if (params.get('view') != null) {
                                 viewPref.view = params.get('view') as AppsListViewType;
                             } else {
