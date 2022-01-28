@@ -281,8 +281,7 @@ spec:
                               to helm template, typically defined as a block
                             type: string
                           version:
-                            description: Version is the Helm version to use for templating
-                              (either "2" or "3")
+                            description: Version is the Helm version to use for templating ("3")
                             type: string
                         type: object
                       kustomize:
@@ -628,8 +627,7 @@ spec:
                           helm template, typically defined as a block
                         type: string
                       version:
-                        description: Version is the Helm version to use for templating
-                          (either "2" or "3")
+                        description: Version is the Helm version to use for templating ("3")
                         type: string
                     type: object
                   kustomize:
@@ -982,8 +980,7 @@ spec:
                                 to helm template, typically defined as a block
                               type: string
                             version:
-                              description: Version is the Helm version to use for
-                                templating (either "2" or "3")
+                              description: Version is the Helm version to use for templating ("3")
                               type: string
                           type: object
                         kustomize:
@@ -1353,8 +1350,7 @@ spec:
                                       a block
                                     type: string
                                   version:
-                                    description: Version is the Helm version to use
-                                      for templating (either "2" or "3")
+                                    description: Version is the Helm version to use for templating ("3")
                                     type: string
                                 type: object
                               kustomize:
@@ -1698,8 +1694,7 @@ spec:
                                   to helm template, typically defined as a block
                                 type: string
                               version:
-                                description: Version is the Helm version to use for
-                                  templating (either "2" or "3")
+                                description: Version is the Helm version to use for templating ("3")
                                 type: string
                             type: object
                           kustomize:
@@ -2032,8 +2027,7 @@ spec:
                                   to helm template, typically defined as a block
                                 type: string
                               version:
-                                description: Version is the Helm version to use for
-                                  templating (either "2" or "3")
+                                description: Version is the Helm version to use for templating ("3")
                                 type: string
                             type: object
                           kustomize:
