@@ -335,7 +335,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision)
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
 	} else {
 		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
 	}
