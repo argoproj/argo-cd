@@ -22,7 +22,7 @@ Read more about these changes at [New sync and diff strategies in ArgoCD](https:
 ### ARM Images
 
 An officially supported ARM 64 image is now available. Enjoy running Argo CD on your Raspberry Pi! Additionally, the image size was reduced by nearly ~50%
-and is only 200MB now.
+and is only 200MB now. The ARM version of `argocd` CLI is also available and published as a Github release artifact.
 
 ### Compact Tree View And Click Application Navigation
 
