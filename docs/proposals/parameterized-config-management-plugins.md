@@ -31,12 +31,6 @@ management tools (Helm, Kustomize, etc.).
     * [Open Questions](#open-questions)
         + [Env Var Translation](#env-var-translation)
         + [CMP Config File Spec](#cmp-config-file-spec)
-            - [UI config as part of the parameter descriptions](#ui-config-as-part-of-the-parameter-descriptions)
-                * [Helm example for integrated UI/param config](#helm-example-for-integrated-uiparam-config)
-                * [Kustomize example for integrated UI/param config](#kustomize-example-for-integrated-uiparam-config)
-            - [UI config as separate ConfigManagementPlugin item](#ui-config-as-separate-configmanagementplugin-item)
-                * [Helm example for separate UI/param config](#helm-example-for-separate-uiparam-config)
-                * [Kustomize example for separate UI/param config](#kustomize-example-for-separate-uiparam-config)
             - [UI config as part of the parameter descriptions - v2](#ui-config-as-part-of-the-parameter-descriptions---v2)
                 * [Helm example for integrated UI/param config v2](#helm-example-for-integrated-uiparam-config-v2)
                 * [Kustomize example for integrated UI/param config v2](#kustomize-example-for-integrated-uiparam-config-v2)
@@ -93,334 +87,67 @@ that is.)
 In the CMP config file, should the UI config information be part of each parameter description in the parameters
 announcement? Or should the UI config information be its own section?
 
-#### UI config as part of the parameter descriptions
-
-Pros:
- * No additional `ui` field in the ConfigManagementPlugin spec
- * Less cognitive load on plugin developers
- * Easier to implement
-
-Cons:
- * No group-level UI configuration
- * More JSON/YAML in the parameter descriptions (maybe more repetition?)
- * `parameters[]` spec in ConfigMapPlugin is different from `parameters[]` spec in `Application` manifest (because 
-   parameters in ConfigMapPlugin have more/different fields)
-
-##### Helm example for integrated UI/param config
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: helm
-spec:
-  parameters:
-    - name: values-files
-      title: VALUES FILES
-      tooltip: Path of a Helm values file to apply to the chart.
-  dynamicParameters:
-    command: ["example-params.sh"]
-```
-
-`dynamicParameters.command` will produce something like this:
-
-```yaml
-[
-  {
-    "name": "nameOverride",
-    "group": "helm-parameters",
-    "defaultValues": [
-      "argocd"
-    ]
-  },
-  {
-    "name": "global.image.repository",
-    "group": "helm-parameters",
-    "defaultValues": [
-      "quay.io/argoproj/argocd"
-    ]
-  }
-  ... etc ...
-  {
-    "name": "_plus",
-    "group": "helm-parameters",
-    "defaultValues": []
-    "isList": true
-    "title": "Others"
-    "tooltip": "Add additional Helm chart parameters."
-  }
-]
-```
-
-The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
-
-![Helm example for integrated UI config](images/integrated-ui-config-helm.png)
-
-Differences from native Helm:
- - No group heading (though we could theoretically pull that from the `group` field)
- - No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
- - Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
-
-##### Kustomize example for integrated UI/param config
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: kustomize
-spec:
-  parameters:
-    - name: version
-      title: VERSION
-      defaultValues: [v4.3.0]
-    - name: name-prefix
-      title: NAME PREFIX
-    - name: name-suffix
-      title: NAME SUFFIX
-  dynamicParameters:
-    command: ["example-params.sh"]
-```
-
-`dynamicParameters.command` will produce something like this:
-
-```yaml
-[
-  {
-    "name": "quay.io/argoproj/argocd",
-    "group": "kustomize-images",
-    "defaultValues": [
-      "docker.company.com/proxy/argoproj/argocd"
-    ]
-  },
-  {
-    "name": "ubuntu:latest",
-    "group": "kustomize-images",
-    "defaultValues": [
-      "docker.company.com/proxy/ubuntu:latest"
-    ]
-  }
-  ... etc ...
-  {
-    "name": "_plus",
-    "group": "kustomize-images",
-    "defaultValues": []
-    "isList": true
-    "title": "Others"
-    "tooltip": "Add additional image overrides."
-  }
-]
-```
-
-The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
-
-![Kustomize example for integrated UI config](images/integrated-ui-config-kustomize.png)
-
-Differences from native Kustomize:
-- No group heading (though we could theoretically pull that from the `group` field)
-- No digest checkbox
-- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
-- Arbitrary values are added via a special `_plus` parameter marked as `isList: true`. Users add their own `=` sign.
-
-#### UI config as separate ConfigManagementPlugin item
-
-Pros:
- * The UI can be configured at the section level. This allows things like:
-   * Easy titles
-   * `canAddMore: true`, which is simpler than the `_plus` mechanism
-   * Separate name/value input fields in the "Add another" interface
- * Less repetition in the `parameters` field where `type` is not the default (makes it simpler to implement `type: images`).
-
-Cons:
- * More difficult to implement
- * More cognitive load for plugin developers.
-   * Since the `ui` field can configure both group-level and param-level presentation, the dev has to think harder about 
-     what their spec means.
-   * Plugin developers might not easily see the relationship between the `ui` and `parameters`/`dynamicParameters` 
-     objects.
- * There's no way to dynamically configure the UI. We could add a `dynamicUI.command`, but that's more cognitive load.
-
-##### Helm example for separate UI/param config
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: helm
-spec:
-  parameters:
-    ui:
-    - name: values-files
-      title: VALUES FILES
-      tooltip: Path of a Helm values file to apply to the chart.
-    - group: helm-parameters
-      title: Parameters
-      userCanAddMore: true
-    static:
-    - name: values-files
-    dynamic:
-      command: ["example-params.sh"]
-```
-
-`parameters.dynamic.command` will produce something like this:
-
-```yaml
-[
-  {
-    "name": "nameOverride",
-    "group": "helm-parameters",
-    "value": "argocd"
-  },
-  {
-    "name": "global.image.repository",
-    "group": "helm-parameters",
-    "value": "quay.io/argoproj/argocd"
-  }
-  ... etc ...
-]
-```
-
-The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
-
-![Helm example for separate UI config](images/separate-ui-config-helm.png)
-
-Differences from native Helm:
-- No values multi-line box (though we could theoretically re-add that by supporting `type: multiline-string`)
-- Arbitrary values are added with plus button and split name/value inputs
-
-##### Kustomize example for separate UI/param config
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: kustomize
-spec:
-  parameters:
-    ui:
-    - group: kustomize-images
-      title: Images
-      userCanAddMore: true
-    static:
-    - name: version
-      title: VERSION
-    - name: name-prefix
-      title: NAME PREFIX
-    - name: name-suffix
-      title: NAME SUFFIX
-    dynamic:
-      command: ["example-params.sh"]
-```
-
-`parameters.dynamic.command` will produce something like this:
-
-```yaml
-[
-  {
-    "name": "quay.io/argoproj/argocd",
-    "group": "kustomize-images",
-    "value": "docker.company.com/proxy/argoproj/argocd"
-  },
-  {
-    "name": "ubuntu:latest",
-    "group": "kustomize-images",
-    "value": "docker.company.com/proxy/ubuntu:latest"
-  }
-  ... etc ...
-]
-```
-
-The UI produced by the combination of the declarative `announcements` and the `dynamicAnnouncements` will look like this:
-
-![Kustomize example for separate UI config](images/separate-ui-config-kustomize.png)
-
-Differences from native Kustomize:
-- No digest checkbox
-- No `tag` field - it's all in the main input field (though we could theoretically add support with `type: image`)
-- Arbitrary values are added with plus button and split name/value inputs
-
 #### UI config as part of the parameter descriptions - v2
 
-Questions:
-1. How do users encode parameters in the Application manifest?
-   1. Suggestion: Use the same structure as the announcement.
+- 
 
-      Example:
+Q/A:
+1. **Question**: How do users encode parameters in the Application manifest?
 
-      ```yaml
-      apiVersion: argoproj.io/v1alpha1
-      kind: Application
-      spec:
-        source:
-          plugin:
-            parameters:
-            - name: name-prefix
-              value: my-company-
-            - name: images
-              map:
-              - name: ubuntu:latest
-                value: docker.company.com/proxy/ubuntu:latest
-              - name: guestbook:v0.1
-                value: docker.company.com/proxy/guestbook:v0.1
-      ```
-      
-      Problem: How do we handle UI fields in the parameter items?
-      1. Suggestion: Don't include UI fields in the CRD version of the items.
-      2. Suggestion: Ignore UI fields. Problem: UI fields will still show up in IDE hints for the Application CRD.
-
-2. How does the UI know what type of input to use for "add more" on array and map-type parameters?
+   **Answer**: The Application manifest uses the same structure as the announcement, but with UI-specific fields removed.
 
    Example:
+   ```yaml
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   spec:
+     source:
+       plugin:
+         parameters:
+         - name: name-prefix
+           value: my-company-
+         - name: images
+           value:
+             collectionType: map
+             map:
+               ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+               guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
+   ```
+
+2. **Question**: How does the UI know what type of input to use for "add more" on array and map-type parameters?
+
+   **Answer**: The announcement declares the item type at the top level of the parameter.
  
    ```yaml
-   - name: parameter
-     title: Parameter Overrides
-     map:
-     - name: param1
-       string: param1
-     - name: param2
-       boolean: false
-     - name: param3
-       number: 1
+   - name: resources
+     title: Resource Overrides
+     itemType: number
+     value:
+       collectionType: map
+       map:
+         cpu: '100'
+         memory: '1000'
    ```
 
-   1. Suggestion: Use the type of the last item in the map or array. Problem: What if the map/array is empty?
-      1. Suggestion: default to string.
-   2. Suggestion: Declare the type at the top level. Problem: What do we do if the top-level type doesn't match some
-      item's type?
-      
-      Example:
-   
-      ```yaml
-      - name: parameter
-        title: Parameter Overrides
-        type: string
-        map:
-        - name: param1
-          boolean: false
-      ```
-      1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
-3. What do we do if the CMP announcement sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean`?
+3. **Question**: What do we do if the CMP announcement sets more than one `value.{collection}`?
     
-   Example:
+   **Answer**: We ignore all but the configured `collectionType`.
 
    ```yaml
-   - title: Resources
-     name: resources
-     itemType: number
-     map:
-     - name: cpu
-       string: '100'
-       number: 100
-     - name: memory
-       string: '1000'
-       boolean: false
+   - name: images
+     value:
+       collectionType: map
+       array:  # this gets ignored because collectionType is 'map'
+       - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+       - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
+       map:
+         ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+         guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
-   1. Suggestion: Throw a validation error in the CMP server, which gets communicated up to the UI.
-4. What do we do if the CMP user sets more than one of `value`/`array`/`map` or `string`/`number`/`boolean` in the 
-   Application spec?
+4. **Question**: What do we do if the CMP user sets more than one of `value`/`array`/`map` in the Application spec?
 
-   Example:
+   **Answer**: We ignore all but the configured `collectionType`.
 
    ```yaml
    apiVersion: argoproj.io/v1alpha1
@@ -429,182 +156,78 @@ Questions:
      source:
        plugin:
          parameters:
-         - title: Resources
-           name: resources
-           itemType: number
-           map:
-           - name: cpu
-             string: '100'
-             number: 100
-           - name: memory
-             string: '1000'
-             boolean: false
+         - name: images
+           value:
+             collectionType: map
+             array:  # this gets ignored because collectionType is 'map'
+             - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+             - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
+             map:
+               ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+               guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
-   1. Suggestion: Throw an exception in the controller and mark the Application as unhealthy. Throw an exception in the
-      CMP server and refuse to generate manifests for the Application.
-5. What do we do if the user sets both `name` and `value.name`?
+
+5. **Question**: How will the UI know that adding more items to an array or a map is allowed?
     
-   Example:
+   **Answer**: Always assume it's allowed to add to a map or array.
 
    ```yaml
-   - name: name-prefix
-     title: NAME PREFIX
+   - name: images
      value:
-       name: prefix
-       string: "my-company-"
+       collectionType: map  # users will be allowed to add new items, because this is a map
+       map:
+         ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+         guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
-   1. Suggestion: Ignore the inner `name` field. Problem: It could be confusing for CMP developers.
-   2. Suggestion: Don't include the `name` field in the `value` type. Problem: More types, more complexity.
-6. What do we do if the user sets `array[].name`s?
 
-   Example: 
+   If the CMP author wants an immutable array or map, they should just break it into individual parameters.
 
    ```yaml
-   - title: Image Overrides
-     name: images
-     array:
-     - name: ubuntu:latest
-       value: docker.company.com/proxy/ubuntu:latest
-     - name: guestbook:v0.1
-       value: docker.company.com/proxy/guestbook:v0.1
+   - name: ubuntu:latest
+     value: 
+       string: docker.company.com/proxy/ubuntu:latest
+   - name: guestbook:v0.1
+     value: 
+       string: docker.company.com/proxy/guestbook:v0.1
    ```
-    
-   1. Suggestion: Ignore the `name` field. Problem: It could be confusing for CMP developers.
-   2. Suggestion: Don't include the `name` field in the `array` item type. Problem: More types, more complexity.
-   3. Suggestion: Instead of an `array` field, use a `values` field, where absence of `name` implies array.
-      Problem: What if some items have names but not others?
-7. How do we handle duplicate `name` fields in a `map`?
-    
-   Example:
 
-   ```yaml
-   - name: parameter
-     title: Parameter Overrides
-     map:
-     - name: global.image.repository
-       value: quay.io/argoproj/argocd
-     - name: global.image.repository
-       value: docker.company.com/proxy/argoproj/argocd
-   ```
-   1. Suggestion: Allow duplicates. Problem: `map` is a confusing name for what is actually a list of key/value pairs.
-      1. Suggestion: Rename the `map` field.
-   2. Suggestion: De-duplicate in the CMP server. Problem: CMP developers might not expect that behavior.
-8. What golang type will represent `number`?
-
-   Example:
-
-   ```yaml
-   - name: resources
-     map:
-     - name: cpu
-       number: 0.1  # should probably be a float or decimal
-     - name: memory
-       number: 100  # should probably be an integer or decimal
-   ```
+6. **Question**: What do we do if a CMP announcement doesn't include a `collectionType`?
    
-   1. Suggestion: Use decimal type. Problem: The CMP might need to infer float/int for a given parameter.
-9. How will the UI know the difference between the zero-values of `string`/`number`/`boolean` and absence of those
-   fields?
-
-   Example:
+   **Answer**: Default to `string`.
 
    ```yaml
-   - name: name-prefix
+   - name: name-prefix  # expects a string
+   - name: name-suffix  # expects a string
+     value: {}
+   - name: helm-parameters-incorrect  # expects a string, the map is ignored
      value:
-       string: ""  # How does CMP server know this value isn't actually a `number` type?
+       map:
+         global.image.repository: quay.io/argoproj/argocd
+   - name: helm-parameters  # expects a map
+     value:
+       collectionType: map
+       map:
+         global.image.repository: quay.io/argoproj/argocd
    ```
-   1. Suggestion: Use pointer types instead of the primitives. This will let us detect absent or `null` fields as `nil`.
-10. How will the UI know that adding more items to an array or a map is allowed?
-    1. Suggestion: Always assume it's allowed to add to a map or array. i.e. if the CMP author wants an immutable array
-       or map, they should just break it into individual params.
-11. What do we do if a CMP announcement doesn't include any type info?
+
+7. **Question**: What do we do if a parameter has a missing or absent top-level `name` field?
+
+   **Answer**: Throw a validation error in the CMP server when handling an announcement. Throw a validation error
+   in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
+   in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
+
+   ```yaml
+   # needs a `name` field
+   - title: Parameter Overrides
+     value:
+       collectionType: map
+       map:
+         global.image.repository: quay.io/argoproj/argocd
+   ```
    
-    Example:
+Parameters golang data structures:
 
-    ```yaml
-    - name: name-prefix
-      value: {}
-    # or
-    - name: name-prefix
-    ```
-    1. Suggestion: Default to `string`, since it's the most common type.
-12. What do we do if a map parameters has one or more items with an empty or absent `name` field?
 
-    Example:
-
-    ```yaml
-    - name: parameter
-      title: Parameter Overrides
-      map:
-      - name: ""
-        value: quay.io/argoproj/argocd
-      - value: docker.company.com/proxy/argoproj/argocd
-    ```
-    1. Suggestion: Throw a validation error in the CMP server when handling an announcement. Throw a validation error
-       in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
-       in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
-13. What do we do if a parameter has a missing or absent top-level `name` field?
-
-    Example:
-
-    ```yaml
-    - title: Parameter Overrides
-      map:
-      - name: global.image.repository
-        value: quay.io/argoproj/argocd
-      - name: global.image.repository
-        value: docker.company.com/proxy/argoproj/argocd
-    ```
-    1. Suggestion: Throw a validation error in the CMP server when handling an announcement. Throw a validation error
-       in the controller and mark the Application as unhealthy if the invalid spec is in the Application. Throw an error
-       in the CMP server and refuse to generate manifests in the CMP server if given invalid parameters.
-   
-Tentative parameters data structures:
-
-```go
-package cmp
-
-// ParameterValue represents a single value for a parameter. Only one field may be set.
-type ParameterValue struct {
-	String  *string `json:"string,omitempty"`
-	Number  *int    `json:"number,omitempty"`
-	Boolean *bool   `json:"boolean,omitempty"`
-}
-
-// ParameterNameAndValue represents a single name/value pair in a map parameter. Only one field besides Name may be set.
-type ParameterNameAndValue struct {
-	Name    string  `json:"name,omitempty"`
-	String  *string `json:"string,omitempty"`
-	Number  *int    `json:"number,omitempty"`
-	Boolean *bool   `json:"boolean,omitempty"`
-}
-
-// ParameterAnnouncement represents a CMP's announcement of one acceptable parameter.
-type ParameterAnnouncement struct {
-	Name     string                  `json:"name,omitempty"`
-	Value    *ParameterValue         `json:"value,omitempty"`
-	Map      []ParameterNameAndValue `json:"map,omitempty"`
-	Array    []ParameterValue        `json:"array,omitempty"`
-	Title    string                  `json:"title,omitempty"`
-	Tooltip  string                  `json:"tooltip,omitempty"`
-	Required bool                    `json:"required,omitempty"`
-}
-
-// ParametersAnnouncement is a list of announcements. This list represents all the parameters which a CMP is able to 
-// accept.
-type ParametersAnnouncement []ParameterAnnouncement
-
-// Parameter represents a single parameter name and its value. One of Value, Map, or Array must be set.
-type Parameter struct {
-	Name  string                  `json:"name,omitempty"`
-	Value *ParameterValue         `json:"value,omitempty"`
-	Map   []ParameterNameAndValue `json:"map,omitempty"`
-	Array []ParameterValue        `json:"array,omitempty"`
-}
-
-// Parameters is a list of parameters to be sent to a CMP for manifest generation.
-type Parameters []Parameter
-```
 
 ##### Helm example for integrated UI/param config v2
 
@@ -619,7 +242,8 @@ spec:
     - name: values-files
       title: VALUES FILES
       tooltip: Path of a Helm values file to apply to the chart.
-      array: []
+      value:
+        collectionType: array
     dynamic:
       command: ["example-params.sh"]
 ```
@@ -631,16 +255,13 @@ spec:
   {
     "name": "helm-parameters"
     "title": "Parameters",
-    "map": [
-      {
-        "name": "nameOverride",
-        "string": "argocd"
-      },
-      {
-        "name": "global.image.repository",
-        "string": "quay.io/argoproj/argocd"
+    "value": {
+      "collectionType": "map",
+      "map": {
+        "nameOverride": "argocd",
+        "global.image.repository": "quay.io/argoproj/argocd"
       }
-    ]
+    }
   }
 ]
 ```
@@ -661,12 +282,8 @@ spec:
         string: v4.3.0
     - name: name-prefix
       title: NAME PREFIX
-      value:
-        string: ""
     - name: name-suffix
       title: NAME SUFFIX
-      value:
-        string: ""
     dynamic:
       command: ["example-params.sh"]
 ```
@@ -678,16 +295,13 @@ spec:
   {
     "name": "images",
     "title": "Image Overrides",
-    "map": [
-      {
-        "name": "quay.io/argoproj/argocd",
-        "string": "docker.company.com/proxy/argoproj/argocd"
-      },
-      {
-        "name": "ubuntu:latest",
-        "string": "docker.company.com/proxy/argoproj/argocd"
+    "value": {
+      "collectionType": "map",
+      "map": {
+        "quay.io/argoproj/argocd": "docker.company.com/proxy/argoproj/argocd",
+        "ubuntu:latest": "docker.company.com/proxy/argoproj/argocd"
       }
-    ]
+    }
   }
 ]
 ```
@@ -945,61 +559,74 @@ The `escaped` function will perform the following tasks:
 A parameter definition is an object with following schema:
 
 ```go
-type ParameterDefinitionType string
+package cmp
+
+// ParameterItemType is the primitive data type of each of the parameter's value (or each of its values, if it's an array or
+// a map).
+type ParameterItemType string
+
 const (
-    ParameterTypeString  ParameterDefinitionType = "string"
-    ParameterTypeBoolean ParameterDefinitionType = "boolean"
-    ParameterTypeNumber  ParameterDefinitionType = "number"
+	ParameterTypeString  ParameterItemType = "string"
+	ParameterTypeNumber  ParameterItemType = "number"
+	ParameterTypeBoolean ParameterItemType = "boolean"
 )
 
-type ParameterDefinition struct {
-    // Name is the name identifying a parameter. Should be machine friendly (no spaces). (required)
-    Name string `json:"name"`
+// ParameterCollectionType is a parameter's value's type - a single value (like a string) or a collection (like an array or a
+// map).
+type ParameterCollectionType string
 
-    // Title is a human readable text of the parameter name. (optional)
-    Title string `json:"title"`
+const (
+	ParameterValueTypeString ParameterCollectionType = "string"
+	ParameterValueTypeMap    ParameterCollectionType = "map"
+	ParameterValueTypeArray  ParameterCollectionType = "array"
+)
 
-    // Tooltip is a human readable description of the parameter. (optional)
-    Tooltip string `json:"tooltip"`
-
-    // Type is the type of the parameter. Can be used to validate the provided values.
-    // (optional: default is string)
-    Type ParameterDefinitionType `json:"type"`
-
-    // IsList defines if the parameter can be passed multiple times. (optional: default false)
-    IsList bool `json:"isList"`
-
-    // Required defines if this given parameter is mandatory. (optional: default false)
-    Required bool `json:"required"`
-
-    // Group is used to identify parameters that bellongs to the same context (E.g. 'helm'). (optional)
-    Group string `json:"group"`
-
-    // DefaultValues defines the values that should be provided by default in case no change is
-    // required by the user. If the list has more than one item `IsList` must be true. (optional)
-    DefaultValues []string `json:"defaultValues"`
+// ParameterValue is the concrete value of a parameter. In an Application spec, this represents the current values
+// assigned by a user. In a parameters announcement, this represents the default value of the parameter.
+type ParameterValue struct {
+	// Type is the type of value this parameter holds - either a single value (a string) or a collection (array or map).
+	// If Type is set, only the field with that type will be used. If Type is not set, `string` is the default. If Type
+	// is set to an invalid value, a validation error is thrown.
+	CollectionType ParameterCollectionType `json:"collectionType,omitempty"`
+	String         string                  `json:"value,omitempty"`
+	Map            map[string]string       `json:"map,omitempty"`
+	Array          []string                `json:"array,omitempty"`
 }
-```
 
-```go
-type ParametersAnnouncement []ParameterDefinition
-```
+// ParameterAnnouncement represents a CMP's announcement of one acceptable parameter (though that parameter may contain
+// multiple elements, if the value holds an array or a map).
+type ParameterAnnouncement struct {
+	// Name is the name identifying a parameter. (required)
+	Name string `json:"name,omitempty"`
+	// Value holds the value type information (string or collection) and default value(s) (if any) of this parameter.
+	// Optional. Behavior defaults to ParameterValue{CollectionType: "string", String: ""}.
+	Value    ParameterValue `json:"value,omitempty"`
+	// Title is a human readable text of the parameter name. (optional)
+	Title    string         `json:"title,omitempty"`
+	// Tooltip is a human readable description of the parameter. (optional)
+	Tooltip  string         `json:"tooltip,omitempty"`
+	// Required defines if this given parameter is mandatory. (optional: default false)
+	Required bool           `json:"required,omitempty"`
+	// ParameterType determines the primitive data type represented by the parameter. Parameters are always encoded as
+	// strings, but ParameterTypes lets them be interpreted as other primitive types.
+	ItemType ParameterItemType `json:"itemType,omitempty"`
+}
 
-Example:
+// ParametersAnnouncement is a list of announcements. This list represents all the parameters which a CMP is able to 
+// accept.
+type ParametersAnnouncement []ParameterAnnouncement
 
-```json
-[
-  {
-    "name": "values-files",
-    "type": "enum",
-    "uiConfig": "{\"values\": [\"values.yaml\"]}"
-  },
-  {
-    "name": "image",
-    "type": "image",
-    "section": "Helm Parameters"
-  }
-]
+// Parameter represents a single parameter name and its value. One of Value, Map, or Array must be set.
+type Parameter struct {
+	// Name is the name identifying a parameter. (required)
+	Name  string         `json:"name,omitempty"`
+	// Value holds the value type information (string or collection) and value(s) (if any) of this parameter.
+	// Optional. Behavior defaults to ParameterValue{CollectionType: "string", String: ""}.
+	Value ParameterValue `json:"value,omitempty"`
+}
+
+// Parameters is a list of parameters to be sent to a CMP for manifest generation.
+type Parameters []Parameter
 ```
 
 ### Detailed examples
@@ -1056,7 +683,17 @@ spec:
   discover:
     fileName: "./kustomization.yaml"
   parameters:
-    command: [/home/argocd/get-parameters.sh]
+    static:
+      - name: version
+        title: VERSION
+        value:
+          string: v4.3.0
+      - name: name-prefix
+        title: NAME PREFIX
+      - name: name-suffix
+        title: NAME SUFFIX
+    dynamic:
+      command: [/home/argocd/get-parameters.sh]
 ```
 
 **generate.sh**
@@ -1071,12 +708,20 @@ kustomize build . --enable-helm > /dev/null
 
 get_parameters() {
 while read -r chart; do  
-  yq e -o=p "charts/$chart/values.yaml" | jq --arg chart "$chart" -nR 'inputs | sub(" .*"; "") | {name: ., section: "\($chart) Helm chart properties"}'
+  yq e -o=p "charts/$chart/values.yaml" | jq --arg chart "$chart" -nR '
+    {
+      name: "\($chart) Helm parameters", 
+      value: {
+        collectionType: "map",
+        map: (inputs | capture("(?<key>.*) = (?<value>.*)") | from_entries)
+      }
+    }'
 done << EOF
 $(yq e '.helmCharts[].name' kustomization.yaml)
 EOF
 }
 
+# Collect the parameters generated for each chart into one array.
 get_parameters | jq --slurp
 ```
 
@@ -1108,20 +753,22 @@ spec:
   discover:
     fileName: "./values.yaml"
   parameters:
-    announcement:
-      - name: values files
-      - name: values
-        uiConfig: '{"multiline": true}'
-    command: [/home/argocd/get-parameters.sh]
+    static:
+    - name: values-files
+      title: VALUES FILES
+      value:
+        array: []
+    dynamic:
+      command: [/home/argocd/get-parameters.sh]
 ```
 
 **generate.sh**
 
 ```shell
-VALUES_FILES=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values files").value')
+VALUES_FILES=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.[] | select(.name == "values-files").value.array | []')
 # Put the extra values at a random filename to avoid conflicting with existing files.
 EXTRA_VALUES_FILENAME="values-$(openssl rand -base64 12).yaml"
-echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["main"][] | select(.name == "values").value' > "$EXTRA_VALUES_FILENAME"
+echo "$ARGOCD_APP_PARAMETERS" | jq -r '.[] | select(.name == "helm-parameters").value' > "$EXTRA_VALUES_FILENAME"
 # Convert JSON parameters to comma-delimited k=v pairs.
 PARAMETERS=$(echo "$ARGOCD_APP_PARAMETERS" | jq -r '.["parameters"] | map("\(.name)=\(.value)") | join(",")')
 helm template --values "$VALUES_FILES" --values "$EXTRA_VALUES_FILENAME" --set "$PARAMETERS"
