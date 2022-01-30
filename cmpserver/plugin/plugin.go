@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/rand"
@@ -68,7 +67,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stderr = &stderr
 
 	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = newSysProcAttr(true)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -80,7 +79,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
 	err = cmd.Wait()
