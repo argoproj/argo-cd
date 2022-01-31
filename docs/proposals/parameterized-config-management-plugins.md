@@ -243,7 +243,7 @@ spec:
     plugin:
       parameters:
         - name: values
-          string: >-
+          string: |
             resources:
               cpu: 100m
               memory: 128Mi
