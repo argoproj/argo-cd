@@ -436,20 +436,20 @@ package cmp
 // a map).
 type ParameterItemType string
 
+// Anything besides "number" and "boolean" is treated as string.
 const (
-	ParameterTypeString  ParameterItemType = "string"
-	ParameterTypeNumber  ParameterItemType = "number"
-	ParameterTypeBoolean ParameterItemType = "boolean"
+	ParameterItemTypeNumber  ParameterItemType = "number"
+	ParameterItemTypeBoolean ParameterItemType = "boolean"
 )
 
 // ParameterCollectionType is a parameter's value's type - a single value (like a string) or a collection (like an array or a
 // map).
 type ParameterCollectionType string
 
+// Anything besides "number" and "boolean" is treated as string.
 const (
-	ParameterValueTypeString ParameterCollectionType = "string"
-	ParameterValueTypeMap    ParameterCollectionType = "map"
-	ParameterValueTypeArray  ParameterCollectionType = "array"
+	ParameterCollectionTypeMap    ParameterCollectionType = "map"
+	ParameterCollectionTypeArray  ParameterCollectionType = "array"
 )
 
 // ParameterAnnouncement represents a CMP's announcement of one acceptable parameter (though that parameter may contain
