@@ -243,7 +243,7 @@ spec:
     plugin:
       parameters:
         - name: values
-          string: |
+          string: >-
             resources:
               cpu: 100m
               memory: 128Mi
@@ -645,11 +645,13 @@ kustomize build . --enable-helm > /dev/null
 
 get_parameters() {
 while read -r chart; do  
-  yq e -o=p "charts/$chart/values.yaml" | jq --arg chart "$chart" -nR '
+  yq e -o=p "charts/$chart/values.yaml" | jq --arg chart "$chart" --slurp --raw-input '
     {
-      name: "\($chart) Helm parameters", 
+      name: "\($chart)-helm-parameters",
+      title: "\($chart) Helm parameters",
+      tooltip: "Parameter overrides for the \($chart) Helm chart.",
       collectionType: "map",
-      map: (inputs | capture("(?<key>.*) = (?<value>.*)") | from_entries)
+      map: split("\\n") | map(capture("(?<key>.*) = (?<value>.*)")) | from_entries
     }'
 done << EOF
 $(yq e '.helmCharts[].name' kustomization.yaml)
@@ -776,8 +778,7 @@ spec:
     static:
     - name: version
       title: VERSION
-      value:
-        string: v4.3.0
+      string: v4.3.0
     - name: name-prefix
       title: NAME PREFIX
     - name: name-suffix
