@@ -379,7 +379,7 @@ jobs:
       - name: Download Go dependencies
         run: |
           go mod download
-          go get github.com/mattn/goreman
+          go install github.com/mattn/goreman@latest
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local

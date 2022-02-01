@@ -1,7 +1,7 @@
 FROM golang:1.17.6 AS go
 
-RUN go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph 
+RUN go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest
 
 FROM ubuntu:21.10
 
