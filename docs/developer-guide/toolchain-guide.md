@@ -29,7 +29,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.16**.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.17**.
 
 * We will assume that your Go workspace is at `~/go`.
 
@@ -269,7 +269,7 @@ and others. Although you can make changes to these files and run them locally, i
 
 6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
 
-7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd` folder and run `yarn add https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
 
 8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
 
@@ -304,7 +304,7 @@ You need to pull in all required Go dependencies. To do so, run
 
 ### Test your build toolchain
 
-The first thing you can do whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
+The first thing you can do to test whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
 
 * `make codegen-local`
 * `make build-local`

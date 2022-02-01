@@ -63,6 +63,15 @@
         }
     }
 
+    &__accordion {
+        cursor: pointer;
+        text-align: center;
+        border: none;
+        outline: none;
+        transition: 0.4s;
+        margin-left: 10px;
+    }
+
     &__view-type {
         white-space: nowrap;
         i {
@@ -163,7 +172,6 @@
     &__external-links-icon-container {
         position: relative;
         display: inline-block;
-        width: 28px;
     }
 
     .filters-group__panel {
@@ -186,4 +194,7 @@
     .chart {
         justify-content: space-evenly;
     }
+}
+i.menu_icon{
+    vertical-align: middle;
 }

@@ -17,8 +17,6 @@ import (
 
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -113,7 +111,7 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server string, namespace
 }
 
 // GetVersionsInfo provides a mock function with given fields: serverURL
-func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGroup, error) {
+func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	ret := _m.Called(serverURL)
 
 	var r0 string
@@ -123,12 +121,12 @@ func (_m *LiveStateCache) GetVersionsInfo(serverURL string) (string, []v1.APIGro
 		r0 = ret.Get(0).(string)
 	}
 
-	var r1 []v1.APIGroup
-	if rf, ok := ret.Get(1).(func(string) []v1.APIGroup); ok {
+	var r1 []kube.APIResourceInfo
+	if rf, ok := ret.Get(1).(func(string) []kube.APIResourceInfo); ok {
 		r1 = rf(serverURL)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]v1.APIGroup)
+			r1 = ret.Get(1).([]kube.APIResourceInfo)
 		}
 	}
 

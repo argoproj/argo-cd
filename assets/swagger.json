@@ -256,7 +256,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -520,7 +520,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -753,6 +753,11 @@
             "type": "string",
             "name": "resourceName",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
+            "in": "query"
           }
         ],
         "responses": {
@@ -931,6 +936,11 @@
           {
             "type": "string",
             "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "previous",
             "in": "query"
           }
         ],
@@ -1595,6 +1605,18 @@
             "type": "string",
             "name": "name",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name.",
+            "name": "id.value",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1649,7 +1671,53 @@
         }
       }
     },
-    "/api/v1/clusters/{cluster.server}": {
+    "/api/v1/clusters/{id.value}": {
+      "get": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "Get returns a cluster by server address",
+        "operationId": "ClusterService_Get",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "ClusterService"
@@ -1659,8 +1727,8 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Server is the API server URL of the Kubernetes cluster",
-            "name": "cluster.server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
@@ -1680,41 +1748,11 @@
             "collectionFormat": "multi",
             "name": "updatedFields",
             "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Cluster"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/clusters/{server}": {
-      "get": {
-        "tags": [
-          "ClusterService"
-        ],
-        "summary": "Get returns a cluster by server address",
-        "operationId": "ClusterService_Get",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "server",
-            "in": "path",
-            "required": true
           },
           {
             "type": "string",
-            "name": "name",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1742,13 +1780,25 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1768,7 +1818,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/invalidate-cache": {
+    "/api/v1/clusters/{id.value}/invalidate-cache": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1778,7 +1828,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -1799,7 +1850,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/rotate-auth": {
+    "/api/v1/clusters/{id.value}/rotate-auth": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1809,7 +1860,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -3096,7 +3148,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -3520,6 +3572,20 @@
         }
       }
     },
+    "clusterClusterID": {
+      "type": "object",
+      "title": "ClusterID holds a cluster server URL or cluster name",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" )"
+        },
+        "value": {
+          "type": "string",
+          "title": "value holds the cluster server URL or cluster name"
+        }
+      }
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -3560,6 +3626,13 @@
       "type": "object",
       "title": "Help settings",
       "properties": {
+        "binaryUrls": {
+          "type": "object",
+          "title": "the URLs for downloading argocd binaries",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "chatText": {
           "type": "string",
           "title": "the text for getting chat help, defaults to \"Chat now!\""
@@ -3660,7 +3733,16 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "trackingMethod": {
+          "type": "string"
+        },
         "uiBannerContent": {
+          "type": "string"
+        },
+        "uiBannerPermanent": {
+          "type": "boolean"
+        },
+        "uiBannerPosition": {
           "type": "string"
         },
         "uiBannerURL": {
@@ -4349,6 +4431,10 @@
           "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'.",
           "type": "string"
         },
+        "subresource": {
+          "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource.",
+          "type": "string"
+        },
         "time": {
           "$ref": "#/definitions/v1Time"
         }
@@ -4503,7 +4589,7 @@
     },
     "v1ObjectReference": {
       "type": "object",
-      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
       "properties": {
         "apiVersion": {
           "type": "string",
@@ -4536,8 +4622,8 @@
       }
     },
     "v1OwnerReference": {
-      "description": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.",
       "type": "object",
+      "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic",
       "properties": {
         "apiVersion": {
           "description": "API version of the referent.",
@@ -4869,6 +4955,10 @@
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
         },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
         "parameters": {
           "type": "array",
           "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
@@ -4876,9 +4966,17 @@
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
         },
+        "passCredentials": {
+          "type": "boolean",
+          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+        },
         "releaseName": {
           "type": "string",
           "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
+        },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
         "valueFiles": {
           "type": "array",
@@ -5360,6 +5458,9 @@
         "init": {
           "$ref": "#/definitions/v1alpha1Command"
         },
+        "lockRepo": {
+          "type": "boolean"
+        },
         "name": {
           "type": "string"
         }
@@ -5755,16 +5856,25 @@
     },
     "v1alpha1OverrideIgnoreDiff": {
       "type": "object",
-      "title": "TODO: describe this type",
+      "title": "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between\nthe desired state and live state",
       "properties": {
         "jSONPointers": {
           "type": "array",
+          "title": "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
           "items": {
             "type": "string"
           }
         },
         "jqPathExpressions": {
           "type": "array",
+          "title": "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
           "items": {
             "type": "string"
           }
@@ -6126,6 +6236,13 @@
         },
         "kind": {
           "type": "string"
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
+          "items": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string"
@@ -6622,6 +6739,10 @@
         "schedule": {
           "type": "string",
           "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "timeZone": {
+          "type": "string",
+          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },

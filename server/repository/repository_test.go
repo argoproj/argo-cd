@@ -32,7 +32,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -102,8 +102,12 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
-		s := NewServer(&repoServerClientset, argoDB, enforcer, newFixtures().Cache, settingsMgr)
 		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -111,19 +115,38 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Equal(t, repo.Repo, url)
 	})
 
-	t.Run("Test_GetWithNotExistRepoShouldReturn403", func(t *testing.T) {
+	t.Run("Test_GetWithErrorShouldReturn403", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
+		url := "https://test"
 		db := &dbmocks.ArgoDB{}
-		db.On("GetRepository", context.TODO(), "test").Return(nil, errors.New("not found"))
+		db.On("GetRepository", context.TODO(), url).Return(nil, errors.New("some error"))
+		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: "test",
+			Repo: url,
 		})
 		assert.Nil(t, repo)
 		assert.Equal(t, err.Error(), "rpc error: code = PermissionDenied desc = permission denied")
+	})
+
+	t.Run("Test_GetWithNotExistRepoShouldReturn404", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+		db.On("RepositoryExists", context.TODO(), url).Return(false, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		assert.Nil(t, repo)
+		assert.Equal(t, err.Error(), "rpc error: code = NotFound desc = repo 'https://test' not found")
 	})
 
 	t.Run("Test_CreateRepositoryWithoutUpsert", func(t *testing.T) {

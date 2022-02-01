@@ -3,12 +3,11 @@
 ####################################################################################################
 FROM argocd-base
 COPY argocd /usr/local/bin/
-COPY argocd-darwin-amd64 /usr/local/bin/
-COPY argocd-windows-amd64.exe /usr/local/bin/
 
 USER root
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications
 USER 999

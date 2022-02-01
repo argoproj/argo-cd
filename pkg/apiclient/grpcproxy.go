@@ -86,7 +86,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	var code codes.Code
 	if statusStr := resp.Header.Get("Grpc-Status"); statusStr != "" {
-		statusInt, err := strconv.Atoi(statusStr)
+		statusInt, err := strconv.ParseUint(statusStr, 10, 32)
 		if err != nil {
 			code = codes.Unknown
 		} else {

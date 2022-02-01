@@ -94,7 +94,7 @@ export class ApplicationCreatePanel extends Base {
             // click() doesn't work. Use script
             await UiTestUtilities.click(this.driver, clusterCombo);
             const nameMenu = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_DROPDOWN_MENU_NAME);
-            await nameMenu.click();
+            await UiTestUtilities.click(this.driver, nameMenu);
             if (destinationClusterFieldValue) {
                 await this.setDestinationClusterName(destinationClusterFieldValue);
             }

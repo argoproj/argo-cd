@@ -1,13 +1,13 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi} from 'react-form';
-import {CheckboxField, ProgressPopup} from '../../../shared/components';
+import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
-import {ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../utils';
+import {ApplicationSelector} from '../../../shared/components';
 
 interface Progress {
     percentage: number;
@@ -99,30 +99,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
 
                                     <ApplicationRetryOptions formApi={formApi} />
 
-                                    <label>
-                                        Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
-                                        <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>
-                                            out of sync
-                                        </a>
-                                        /<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
-                                        ):
-                                    </label>
-                                    <div>
-                                        {apps.map((app, i) => (
-                                            <label key={app.metadata.name} style={{marginTop: '0.5em', cursor: 'pointer'}}>
-                                                <CheckboxField field={`app/${i}`} />
-                                                &nbsp;
-                                                {app.metadata.name}
-                                                &nbsp;
-                                                <ComparisonStatusIcon status={app.status.sync.status} />
-                                                &nbsp;
-                                                <HealthStatusIcon state={app.status.health} />
-                                                &nbsp;
-                                                <OperationPhaseIcon app={app} />
-                                                <br />
-                                            </label>
-                                        ))}
-                                    </div>
+                                    <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>
                             </React.Fragment>
                         )}

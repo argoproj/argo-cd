@@ -3,7 +3,7 @@ package grpc
 import (
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,9 +14,12 @@ import (
 // UserAgentUnaryServerInterceptor returns a UnaryServerInterceptor which enforces a minimum client
 // version in the user agent
 func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.UnaryServerInterceptor {
-	userAgentEnforcer := newUserAgentEnforcer(clientName, constraintStr)
+	semVerConstraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		panic(err)
+	}
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		if err := userAgentEnforcer(ctx); err != nil {
+		if err := userAgentEnforcer(ctx, clientName, constraintStr, semVerConstraint); err != nil {
 			return nil, err
 		}
 		return handler(ctx, req)
@@ -26,57 +29,54 @@ func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.Unar
 // UserAgentStreamServerInterceptor returns a StreamServerInterceptor which enforces a minimum client
 // version in the user agent
 func UserAgentStreamServerInterceptor(clientName, constraintStr string) grpc.StreamServerInterceptor {
-	userAgentEnforcer := newUserAgentEnforcer(clientName, constraintStr)
+	semVerConstraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		panic(err)
+	}
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if err := userAgentEnforcer(stream.Context()); err != nil {
+		if err := userAgentEnforcer(stream.Context(), clientName, constraintStr, semVerConstraint); err != nil {
 			return err
 		}
 		return handler(srv, stream)
 	}
 }
 
-func newUserAgentEnforcer(clientName, constraintStr string) func(context.Context) error {
-	semVerConstraint, err := semver.NewConstraint(constraintStr)
-	if err != nil {
-		panic(err)
+func userAgentEnforcer(ctx context.Context, clientName, constraintStr string, semVerConstraint *semver.Constraints) error {
+	var userAgents []string
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		for _, ua := range md["user-agent"] {
+			// ua is a string like "argocd-client/v0.11.0+cde040e grpc-go/1.15.0"
+			userAgents = append(userAgents, strings.Fields(ua)...)
+			break
+		}
 	}
-	return func(ctx context.Context) error {
-		var userAgents []string
-		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			for _, ua := range md["user-agent"] {
-				// ua is a string like "argocd-client/v0.11.0+cde040e grpc-go/1.15.0"
-				userAgents = append(userAgents, strings.Fields(ua)...)
-				break
-			}
-		}
-		if isLegacyClient(userAgents) {
-			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", constraintStr)
-		}
+	if isLegacyClient(userAgents) {
+		return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", constraintStr)
+	}
 
-		for _, userAgent := range userAgents {
-			uaSplit := strings.Split(userAgent, "/")
-			if len(uaSplit) != 2 || uaSplit[0] != clientName {
-				// User-agent was supplied, but client/format is not one we care about (e.g. grpc-go)
-				continue
-			}
-			// remove pre-release part
-			versionStr := strings.Split(uaSplit[1], "-")[0]
-			// We have matched the client name to the one we care about
-			uaVers, err := semver.NewVersion(versionStr)
-			if err != nil {
-				return status.Errorf(codes.InvalidArgument, "could not parse version from user-agent: %s", userAgent)
-			}
-			if ok, errs := semVerConstraint.Validate(uaVers); !ok {
-				return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errs[0].Error())
-			}
-			return nil
+	for _, userAgent := range userAgents {
+		uaSplit := strings.Split(userAgent, "/")
+		if len(uaSplit) != 2 || uaSplit[0] != clientName {
+			// User-agent was supplied, but client/format is not one we care about (e.g. grpc-go)
+			continue
 		}
-		// If we get here, the caller either did not supply user-agent, supplied one which we don't
-		// care about. This implies it is a from a custom generated client, so we permit the request.
-		// We really only want to enforce user-agent version constraints for clients under our
-		// control which we know to have compatibility issues
+		// remove pre-release part
+		versionStr := strings.Split(uaSplit[1], "-")[0]
+		// We have matched the client name to the one we care about
+		uaVers, err := semver.NewVersion(versionStr)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "could not parse version from user-agent: %s", userAgent)
+		}
+		if ok, errs := semVerConstraint.Validate(uaVers); !ok {
+			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errs[0].Error())
+		}
 		return nil
 	}
+	// If we get here, the caller either did not supply user-agent, supplied one which we don't
+	// care about. This implies it is a from a custom generated client, so we permit the request.
+	// We really only want to enforce user-agent version constraints for clients under our
+	// control which we know to have compatibility issues
+	return nil
 }
 
 // isLegacyClient checks if the request was made from a legacy Argo CD client (i.e. v0.10 CLI).

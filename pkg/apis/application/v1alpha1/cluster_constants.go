@@ -36,12 +36,12 @@ var (
 
 func init() {
 	if envQPS := os.Getenv(EnvK8sClientQPS); envQPS != "" {
-		if qps, err := strconv.ParseFloat(envQPS, 32); err != nil {
+		if qps, err := strconv.ParseFloat(envQPS, 32); err == nil {
 			K8sClientConfigQPS = float32(qps)
 		}
 	}
 	if envBurst := os.Getenv(EnvK8sClientBurst); envBurst != "" {
-		if burst, err := strconv.Atoi(envBurst); err != nil {
+		if burst, err := strconv.Atoi(envBurst); err == nil {
 			K8sClientConfigBurst = burst
 		}
 	} else {
@@ -49,7 +49,7 @@ func init() {
 	}
 
 	if envMaxConn := os.Getenv(EnvK8sClientMaxIdleConnections); envMaxConn != "" {
-		if maxConn, err := strconv.Atoi(envMaxConn); err != nil {
+		if maxConn, err := strconv.Atoi(envMaxConn); err == nil {
 			K8sMaxIdleConnections = maxConn
 		}
 	}

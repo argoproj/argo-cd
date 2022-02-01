@@ -1,12 +1,16 @@
 package util
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -19,6 +23,11 @@ func Test_setHelmOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{valueFiles: []string{"foo"}})
 		assert.Equal(t, []string{"foo"}, src.Helm.ValueFiles)
+	})
+	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
+		assert.Equal(t, true, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -44,6 +53,16 @@ func Test_setHelmOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{version: "v3"})
 		assert.Equal(t, "v3", src.Helm.Version)
+	})
+	t.Run("HelmPassCredentials", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{passCredentials: true})
+		assert.Equal(t, true, src.Helm.PassCredentials)
+	})
+	t.Run("HelmSkipCrds", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipCrds: true})
+		assert.Equal(t, true, src.Helm.SkipCrds)
 	})
 }
 
@@ -189,4 +208,107 @@ func Test_setAnnotations(t *testing.T) {
 		setAnnotations(&app, []string{"hoge"})
 		assert.Equal(t, map[string]string{"hoge": ""}, app.Annotations)
 	})
+}
+
+const appsYaml = `---
+# Source: apps/templates/helm.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sth1
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: sth
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    repoURL: 'https://github.com/pasha-codefresh/argocd-example-apps'
+    targetRevision: HEAD
+    path: apps
+    helm:
+      valueFiles:
+        - values.yaml
+---
+# Source: apps/templates/helm.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sth2
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: sth
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    repoURL: 'https://github.com/pasha-codefresh/argocd-example-apps'
+    targetRevision: HEAD
+    path: apps
+    helm:
+      valueFiles:
+        - values.yaml`
+
+func TestReadAppsFromURI(t *testing.T) {
+	file, err := ioutil.TempFile(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+
+	_, _ = file.WriteString(appsYaml)
+	_ = file.Sync()
+
+	apps := make([]*argoappv1.Application, 0)
+	err = readAppsFromURI(file.Name(), &apps)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(apps))
+
+	assert.Equal(t, "sth1", apps[0].Name)
+	assert.Equal(t, "sth2", apps[1].Name)
+
+}
+
+func TestConstructAppFromStdin(t *testing.T) {
+	file, err := ioutil.TempFile(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+
+	_, _ = file.WriteString(appsYaml)
+	_ = file.Sync()
+
+	if _, err := file.Seek(0, 0); err != nil {
+		log.Fatal(err)
+	}
+
+	os.Stdin = file
+
+	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	if err := file.Close(); err != nil {
+		log.Fatal(err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(apps))
+	assert.Equal(t, "sth1", apps[0].Name)
+	assert.Equal(t, "sth2", apps[1].Name)
+
+}
+
+func TestConstructBasedOnName(t *testing.T) {
+	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(apps))
+	assert.Equal(t, "test", apps[0].Name)
 }

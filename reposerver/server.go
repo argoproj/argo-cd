@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -92,7 +94,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants)
+	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking())
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
 
 	healthService := health.NewServer()

@@ -30,25 +30,20 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		switch gvk.Kind {
 		case kube.PodKind:
 			populatePodInfo(un, res)
-			return
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
-			return
 		case "Node":
 			populateHostNodeInfo(un, res)
-			return
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
-			return
 		}
 	case "networking.istio.io":
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
-			return
 		}
 	}
 

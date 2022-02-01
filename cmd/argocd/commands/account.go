@@ -54,7 +54,19 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 	)
 	var command = &cobra.Command{
 		Use:   "update-password",
-		Short: "Update password",
+		Short: "Update an account's password",
+		Long: `
+This command can be used to update the password of the currently logged on
+user, or an arbitrary local user account when the currently logged on user
+has appropriate RBAC permissions to change other accounts.
+`,
+		Example: `
+	# Update the current user's password
+	argocd account update-password
+
+	# Update the password for user foobar
+	argocd account update-password --account foobar
+`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
@@ -67,16 +79,20 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			userInfo := getCurrentAccount(acdClient)
 
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
-				fmt.Print("*** Enter current password: ")
+				fmt.Printf("*** Enter password of currently logged in user (%s): ", userInfo.Username)
 				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
 				currentPassword = string(password)
 				fmt.Print("\n")
 			}
 
+			if account == "" {
+				account = userInfo.Username
+			}
+
 			if newPassword == "" {
 				var err error
-				newPassword, err = cli.ReadAndConfirmPassword()
+				newPassword, err = cli.ReadAndConfirmPassword(account)
 				errors.CheckError(err)
 			}
 
@@ -111,7 +127,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		},
 	}
 
-	command.Flags().StringVar(&currentPassword, "current-password", "", "current password you wish to change")
+	command.Flags().StringVar(&currentPassword, "current-password", "", "password of the currently logged on user")
 	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
 	command.Flags().StringVar(&account, "account", "", "an account name that should be updated. Defaults to current user account")
 	return command

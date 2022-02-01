@@ -16,6 +16,9 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                             preventOverflow: {
                                 enabled: false
                             },
+                            hide: {
+                                enabled: false
+                            },
                             flip: {
                                 enabled: false
                             }

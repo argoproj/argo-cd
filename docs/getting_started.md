@@ -18,7 +18,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
 !!! warning
-    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you installing Argo CD into a different
+    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
 If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
@@ -73,12 +73,8 @@ in your Argo CD installation namespace. You can simply retrieve this password
 using `kubectl`:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
-
-For better readability, e.g. if you want to copy & paste the generated password,
-you can simply append `&& echo` to above command, which will add a newline to
-the output.
 
 !!! warning
     You should delete the `argocd-initial-admin-secret` from the Argo CD
@@ -137,7 +133,7 @@ An example repository containing a guestbook application is available at
 Create the example guestbook application with the following command:
 
 ```bash
-argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
+argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default
 ```
 
 ### Creating Apps Via UI

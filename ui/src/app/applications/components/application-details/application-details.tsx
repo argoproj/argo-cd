@@ -1,7 +1,8 @@
-import {Checkbox as ArgoCheckbox, DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
@@ -9,7 +10,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
@@ -22,12 +23,18 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
+import {urlPattern} from '../utils';
+import {ResourceStatus} from '../../../shared/models';
+import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+    groupedResources?: ResourceStatus[];
+    slidingPanelPage?: number;
+    zoom?: number;
 }
 
 interface FilterInput {
@@ -50,7 +57,7 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
-    appContext.navigation.goto('.', {node, tab});
+    appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
@@ -62,7 +69,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0};
     }
 
     private get showOperationState() {
@@ -84,6 +91,30 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private get selectedNodeKey() {
         const nodeContainer = this.selectedNodeInfo;
         return nodeContainer.key;
+    }
+
+    private closeGroupedNodesPanel() {
+        this.setState({groupedResources: []});
+        this.setState({slidingPanelPage: 0});
+    }
+
+    private toggleCompactView(pref: AppDetailsPreferences) {
+        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
+    }
+
+    private getPageTitle(view: string) {
+        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+        switch (view) {
+            case Tree:
+                return 'Application Details Tree';
+            case Network:
+                return 'Application Details Network';
+            case Pods:
+                return 'Application Details Pods';
+            case List:
+                return 'Application Details List';
+        }
+        return '';
     }
 
     public render() {
@@ -119,7 +150,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             tree.nodes = tree.nodes || [];
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
-                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')});
+                                this.appContext.apis.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
                             const clearFilter = () => setFilter([]);
@@ -133,59 +164,109 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
-                                ? (tree.orphanedNodes || []).map(node => ({
-                                      ...node,
-                                      status: null,
-                                      health: null
-                                  }))
-                                : [];
-                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                            const resourceNodes = (): any[] => {
+                                const statusByKey = new Map<string, models.ResourceStatus>();
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                const resources = new Map<string, any>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resource: any = {...node};
+                                        resource.uid = node.uid;
+                                        const status = statusByKey.get(AppUtils.nodeKey(node));
+                                        if (status) {
+                                            resource.health = status.health;
+                                            resource.status = status.status;
+                                            resource.hook = status.hook;
+                                            resource.requiresPruning = status.requiresPruning;
+                                        }
+                                        resources.set(node.uid || AppUtils.nodeKey(node), resource);
+                                    });
+                                const resourcesRef = Array.from(resources.values());
+                                return resourcesRef;
+                            };
+
+                            const filteredRes = resourceNodes().filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
+                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
+                                const resources = resourceNodes();
+                                this.setState({
+                                    groupedResources: groupdedNodeIds
+                                        ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
+                                        : []
+                                });
+                            };
 
+                            const renderCommitMessage = (message: string) =>
+                                message.split(/\s/).map(part =>
+                                    urlPattern.test(part) ? (
+                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                                            {part}{' '}
+                                        </a>
+                                    ) : (
+                                        part + ' '
+                                    )
+                                );
+                            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+                            const zoomNum = (this.state.zoom * 100).toFixed(0);
+                            const setZoom = (s: number) => {
+                                let targetZoom: number = this.state.zoom + s;
+                                if (targetZoom <= 0.05) {
+                                    targetZoom = 0.1;
+                                } else if (targetZoom > 2.0) {
+                                    targetZoom = 2.0;
+                                }
+                                this.setState({zoom: targetZoom});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
-                                        title='Application Details'
+                                        title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
+                                        useTitleOnly={true}
+                                        topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                            breadcrumbs: [
+                                                {title: 'Applications', path: '/applications'},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                            ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
                                                             title='Tree'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Tree});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                            className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Pods});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
                                                             title='Network'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Network});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: List});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
                                                     </div>
@@ -202,22 +283,25 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-
-                                            {(tree.orphanedNodes || []).length > 0 && (
-                                                <div className='application-details__orphaned-filter'>
-                                                    <ArgoCheckbox
-                                                        checked={!!pref.orphanedResources}
-                                                        id='orphanedFilter'
-                                                        onChange={val => {
-                                                            this.appContext.apis.navigation.goto('.', {orphaned: val});
-                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
-                                                        }}
-                                                    />{' '}
-                                                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
-                                                </div>
-                                            )}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                    <div className='graph-options-panel'>
+                                                        {pref.view === 'tree' && (
+                                                            <a
+                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                title='Group Nodes'
+                                                                onClick={() => this.toggleCompactView(pref)}>
+                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                            </a>
+                                                        )}
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                            <i className='fa fa-search-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                            <i className='fa fa-search-minus fa-fw' />
+                                                        </a>
+                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                    </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -227,11 +311,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        showCompactNodes={pref.groupNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
+                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                        zoom={this.state.zoom}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -245,6 +332,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
                                                     <div>
@@ -282,12 +370,33 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     </div>
                                                 )}
                                         </div>
+                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
+                                            <div className='application-details__sliding-panel-pagination-wrap'>
+                                                <Paginate
+                                                    page={this.state.slidingPanelPage}
+                                                    data={this.state.groupedResources}
+                                                    onPageChange={page => this.setState({slidingPanelPage: page})}
+                                                    preferencesKey='grouped-nodes-details'>
+                                                    {data => (
+                                                        <ApplicationResourceList
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            resources={data}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application, false)
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
+                                                </Paginate>
+                                            </div>
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
                                                 tree={tree}
                                                 application={application}
                                                 isAppSelected={isAppSelected}
-                                                updateApp={app => this.updateApp(app)}
+                                                updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
                                             />
@@ -352,7 +461,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>Message:</div>
                                                                     <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                        <div className='application-details__commit-message'>{metadata.message}</div>
+                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -507,15 +616,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications');
+        this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
     }
 
-    private async updateApp(app: appModels.Application) {
+    private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
         const latestApp = await services.applications.get(app.metadata.name);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp);
+        const updatedApp = await services.applications.update(latestApp, query);
         this.appChanged.next(updatedApp);
     }
 
@@ -556,15 +665,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', {operation: isVisible});
+        this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
     }
 
     private setConditionsStatusVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', {conditions: isVisible});
+        this.appContext.apis.navigation.goto('.', {conditions: isVisible}, {replace: true});
     }
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
-        this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex});
+        this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {

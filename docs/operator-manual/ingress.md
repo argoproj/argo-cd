@@ -32,15 +32,19 @@ metadata:
   name: argocd-server-cli
   namespace: argocd
 spec:
+  # NOTE: the port must be ignored if you have strip_matching_host_port enabled on envoy
   host: argocd.example.com:443
   prefix: /
-  service: argocd-server:443
+  service: argocd-server:80
+  regex_headers:
+    Content-Type: "^application/grpc.*$"
+  grpc: true
 ```
 
-Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for gRPC-web.
+Login with the `argocd` CLI:
 
 ```shell
-argocd login <host>:<port> --grpc-web-root-path /
+argocd login <host>
 ```
 
 ### Option 2: Mapping CRD for Path-based Routing
@@ -446,7 +450,7 @@ To:
 
 ### Creating a service
 
-Now you need an externally accesible service. This is practically the same as the internal service Argo CD has, but as a NodePort and with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accesible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
 
 The service:
 
@@ -454,13 +458,13 @@ The service:
 apiVersion: v1
 kind: Service
 metadata:
-  name: argocd-server-external
+  name: argocd-server
   namespace: argocd
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
     cloud.google.com/backend-config: '{"ports": {"http":"argocd-backend-config"}}'
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
   - name: http
     port: 80
@@ -528,7 +532,7 @@ kubectl -n argocd create secret tls secret-yourdomain-com \
 
 And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret:
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd
@@ -540,19 +544,16 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-      http:
-        paths:
-          - path: /*
-            backend:
-              serviceName: argocd-server-external
-              servicePort: http
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
 ```
----
-!!! warning "Deprecation Warning"
-
-    Note that, according to this [deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122), if you're using Kubernetes 1.22+, instead of `networking.k8s.io/v1beta1`, you should use `networking.k8s.io/v1`.
-
----
 
 As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
 

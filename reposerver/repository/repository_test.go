@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -70,7 +72,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1})
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -130,7 +132,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 34
+	const countOfManifests = 47
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -138,7 +140,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -154,7 +156,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -176,7 +178,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -308,7 +310,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
 		assert.Nil(t, err)
 		return cachedManifestResponse
 	}
@@ -660,6 +662,32 @@ func TestGenerateHelmWithValues(t *testing.T) {
 
 }
 
+func TestHelmWithMissingValueFiles(t *testing.T) {
+	service := newService("../..")
+	missingValuesFile := "values-prod-overrides.yaml"
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml", missingValuesFile},
+			},
+		},
+	}
+
+	// Should fail since we're passing a non-existent values file, and error should indicate that
+	_, err := service.GenerateManifest(context.Background(), req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
+
+	// Should template without error even if defining a non-existent values file
+	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
+	_, err = service.GenerateManifest(context.Background(), req)
+	assert.NoError(t, err)
+}
+
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
 // since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
@@ -869,15 +897,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp")
+	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp")
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -931,7 +959,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -1545,8 +1573,8 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	assert.Error(t, err)
-	assert.Equal(t, "OCI Helm repository URL should include hostname and port only", err.Error())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {
@@ -1558,4 +1586,48 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 	assert.Equal(t, len(repos), 2)
 	assert.Equal(t, repos[0].Repo, repo1)
 	assert.Equal(t, repos[1].Repo, repo2)
+}
+
+func TestResolveRevision(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "v2.2.2",
+	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
+		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+	}
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
+
+}
+
+func TestResolveRevisionNegativeScenarios(t *testing.T) {
+
+	service := newService(".")
+	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
+	app := &argoappv1.Application{}
+	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: "v2.a.2",
+	})
+
+	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
+		Revision:          "",
+		AmbiguousRevision: "",
+	}
+
+	assert.NotNil(t, resolveRevisionResponse.Revision)
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
+
 }

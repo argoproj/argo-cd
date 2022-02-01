@@ -20,6 +20,9 @@ export const ApplicationsLabels = ({app}: {app: Application}) => {
                 modifiers: {
                     preventOverflow: {
                         enabled: true
+                    },
+                    hide: {
+                        enabled: false
                     }
                 }
             }}

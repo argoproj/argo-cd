@@ -69,9 +69,11 @@ func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
 }
 
 func (storage *userStateStorage) loadRevokedTokensSafe() {
-	for err := storage.loadRevokedTokens(); err != nil; {
+	err := storage.loadRevokedTokens()
+	for err != nil {
 		log.Warnf("Failed to resync revoked tokens. retrying again in 1 minute: %v", err)
 		time.Sleep(time.Minute)
+		err = storage.loadRevokedTokens()
 	}
 }
 

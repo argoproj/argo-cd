@@ -12,10 +12,11 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/pointer"
 
 	argoapi "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -27,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+
+	flag "github.com/spf13/pflag"
 )
 
 func testAPI(clientOpts *argoapi.ClientOptions) error {
@@ -43,21 +46,27 @@ func testAPI(clientOpts *argoapi.ClientOptions) error {
 	return err
 }
 
-func addKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.Flags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.Flags(), kflags)
-	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+func retrieveContextIfChanged(contextFlag *flag.Flag) string {
+	if contextFlag != nil && contextFlag.Changed {
+		return contextFlag.Value.String()
+	}
+	return ""
 }
 
 // InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *int) *cobra.Command {
+func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *int, address *string) *cobra.Command {
 	ctx, cancel := context.WithCancel(context.Background())
-	clientConfig := addKubectlFlagsToCmd(cmd)
+	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+	clientConfig := cli.AddKubectlFlagsToSet(flags)
+	// copy k8s persistent flags into argocd command flags
+	flags.VisitAll(func(flag *pflag.Flag) {
+		// skip Kubernetes server flags since argocd has it's own server flag
+		if flag.Name == "server" {
+			return
+		}
+		cmd.Flags().AddFlag(flag)
+	})
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		startInProcessAPI := clientOpts.Core
 		if !startInProcessAPI {
@@ -82,8 +91,12 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 		cli.SetLogLevel(log.ErrorLevel.String())
 		log.SetLevel(log.ErrorLevel)
 		os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
+		if address == nil {
+			address = pointer.String("localhost")
+		}
 		if port == nil || *port == 0 {
-			ln, err := net.Listen("tcp", "localhost:0")
+			addr := fmt.Sprintf("%s:0", *address)
+			ln, err := net.Listen("tcp", addr)
 			if err != nil {
 				return err
 			}
@@ -109,12 +122,14 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			return err
 		}
 
+		context := retrieveContextIfChanged(cmd.Flag("context"))
+
 		mr, err := miniredis.Run()
 		if err != nil {
 			return err
 		}
 
-		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace}), time.Hour)
+		appstateCache := appstatecache.NewCache(cacheutil.NewCache(&forwardCacheClient{namespace: namespace, context: context}), time.Hour)
 		srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 			EnableGZip:    false,
 			Namespace:     namespace,
@@ -125,12 +140,12 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 			Cache:         servercache.NewCache(appstateCache, 0, 0, 0),
 			KubeClientset: kubeClientset,
 			Insecure:      true,
-			ListenHost:    "localhost",
-			RepoClientset: &forwardRepoClientset{namespace: namespace},
+			ListenHost:    *address,
+			RepoClientset: &forwardRepoClientset{namespace: namespace, context: context},
 		})
 
 		go srv.Run(ctx, *port, 0)
-		clientOpts.ServerAddr = fmt.Sprintf("localhost:%d", *port)
+		clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
 		clientOpts.PlainText = true
 		if !cache.WaitForCacheSync(ctx.Done(), srv.Initialized) {
 			log.Fatal("Timed out waiting for project cache to sync")

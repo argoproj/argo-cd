@@ -54,6 +54,9 @@ const (
 	GuestbookPath = "guestbook"
 
 	ProjectName = "argo-project"
+
+	// cmp plugin sock file path
+	PluginSockFilePath = "/app/config/plugin"
 )
 
 const (
@@ -66,6 +69,7 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	KubeConfig          *rest.Config
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
 	ArgoCDClientset     argocdclient.Client
@@ -150,6 +154,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
@@ -336,6 +341,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	SetResourceOverridesSplitKeys(overrides)
 }
 
+func SetTrackingMethod(trackingMethod string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.resourceTrackingMethod"] = trackingMethod
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -346,7 +358,9 @@ func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverrid
 			if v.Actions != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "actions")] = v.Actions
 			}
-			if len(v.IgnoreDifferences.JSONPointers) > 0 || len(v.IgnoreDifferences.JQPathExpressions) > 0 {
+			if len(v.IgnoreDifferences.JSONPointers) > 0 ||
+				len(v.IgnoreDifferences.JQPathExpressions) > 0 ||
+				len(v.IgnoreDifferences.ManagedFieldsManagers) > 0 {
 				yamlBytes, err := yaml.Marshal(v.IgnoreDifferences)
 				if err != nil {
 					return err
@@ -557,6 +571,8 @@ func EnsureCleanState(t *testing.T) {
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
 		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
 	}
 
 	// set-up tmp repo, must have unique name

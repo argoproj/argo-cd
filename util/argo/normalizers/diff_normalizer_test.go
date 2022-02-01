@@ -31,6 +31,9 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
 	assert.False(t, has)
+
+	err = normalizer.Normalize(nil)
+	assert.Error(t, err)
 }
 
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {

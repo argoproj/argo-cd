@@ -38,6 +38,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --prune                                 Allow deleting unexpected resources
+      --replace                               Use a kubectl create/replace instead apply
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
       --retry-backoff-duration duration       Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int              Factor multiplies the base duration after each failed retry (default 2)
@@ -55,7 +56,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.

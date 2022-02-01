@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as renderer from 'react-test-renderer';
 import {Application, HealthStatus, HealthStatuses, OperationPhases, ResourceResult, ResultCodes, SyncStatuses} from '../../shared/models';
-import {ComparisonStatusIcon, getAppOperationState, getOperationType, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
+import {ComparisonStatusIcon, getAppOperationState, getExternalUrls, getOperationType, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
 
 const zero = new Date(0).toISOString();
 
@@ -28,6 +28,38 @@ test('getAppOperationState.Status', () => {
     expect(state.phase).toBe(OperationPhases.Error);
 });
 
+test('getExternalUrls One URL from annotation, Empty External URL array', () => {
+    const links = getExternalUrls(
+        {
+            'link.argocd.argoproj.io/external-link' : 'https://github.com/argoproj/argo-cd'
+        }, []
+    );
+    expect(links.length).toBe(1);
+    expect(links[0]).toBe('https://github.com/argoproj/argo-cd');
+});
+
+test('getExternalUrls One URL from annotation, null URL array', () => {
+    const links = getExternalUrls(
+        {
+            'link.argocd.argoproj.io/external-link' : 'https://github.com/argoproj/argo-cd'
+        }, null
+    );
+    expect(links.length).toBe(1);
+    expect(links[0]).toBe('https://github.com/argoproj/argo-cd');
+});
+
+test('getExternalUrls One URL from annotation, One External URL array', () => {
+    const links = getExternalUrls(
+        {
+            'link.argocd.argoproj.io/external-link' : 'https://github.com/argoproj/argo-cd'
+        }, ['http://ingress-url:1234']
+    );
+
+    expect(links.length).toBe(2);
+    expect(links[0]).toBe('http://ingress-url:1234');
+    expect(links[1]).toBe('https://github.com/argoproj/argo-cd');
+});
+
 test('getOperationType.Delete', () => {
     const state = getOperationType({metadata: {deletionTimestamp: zero.toString()}} as Application);
 
@@ -38,6 +70,12 @@ test('getOperationType.Sync.Operation', () => {
     const state = getOperationType({metadata: {}, operation: {sync: {}}} as Application);
 
     expect(state).toBe('Sync');
+});
+
+test('getOperationType.DeleteAndRecentSync', () => {
+    const state = getOperationType({metadata: {deletionTimestamp: '123'}, status: {operationState: {operation: {sync: {}}}}} as Application);
+
+    expect(state).toBe('Delete');
 });
 
 test('getOperationType.Sync.Status', () => {

@@ -1,8 +1,6 @@
 # Build Environment
 
-> v1.4
-
-[Custom tools](config-management-plugins.md), [Helm](helm.md), and [Jsonnet](jsonnet.md) support the following build env vars:
+[Custom tools](config-management-plugins.md), [Helm](helm.md), [Jsonnet](jsonnet.md), and [Kustomize](kustomize.md) support the following build env vars:
 
 * `ARGOCD_APP_NAME` - name of application
 * `ARGOCD_APP_NAMESPACE` - destination application namespace.
@@ -12,3 +10,13 @@
 * `ARGOCD_APP_SOURCE_TARGET_REVISION` - the target revision from the spec, e.g. `master`.
 * `KUBE_VERSION` - the version of kubernetes
 * `KUBE_API_VERSIONS` = the version of kubernetes API
+
+In case you don't want a variable to be interpolated, `$` can be escaped via `$$`.
+
+```
+command:
+  - sh
+  - -c
+  - |
+    echo $$FOO
+```

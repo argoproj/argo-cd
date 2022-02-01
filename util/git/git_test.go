@@ -327,7 +327,6 @@ func TestNewFactory(t *testing.T) {
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
 	defer closer()
-
 	type args struct {
 		url                   string
 		insecureIgnoreHostKey bool
@@ -337,7 +336,6 @@ func TestNewFactory(t *testing.T) {
 		args args
 	}{
 		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
-		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 	}
 	for _, tt := range tests {
 

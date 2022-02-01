@@ -1,19 +1,23 @@
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
+import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
 require('./application-retry-options.scss');
 
-function buildFormItem(label: string, propertyPath: string, component: React.ComponentType, formApi: FormApi, componentProps?: Record<string, any>) {
-    return <FormField formApi={formApi} label={label} field={propertyPath} component={component} componentProps={componentProps} />;
-}
+const durationRegex = /^([\d\.]+[HMS])+$/i;
+const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 
 const onlyPositiveValidation = {
     min: '1',
     step: '1'
 };
+
+function buildFormItem(label: string, propertyPath: string, component: React.ComponentType, formApi: FormApi, componentProps?: Record<string, any>) {
+    return <FormField formApi={formApi} label={label} field={propertyPath} component={component} componentProps={componentProps} />;
+}
 
 const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
     formApi => buildFormItem('Limit', 'limit', NumberField, formApi, onlyPositiveValidation),
@@ -22,10 +26,60 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
     formApi => buildFormItem('Factor', 'backoff.factor', NumberField, formApi, onlyPositiveValidation)
 ];
 
-const durationRegex = /T?([\d\.]+H)?([\d\.]+M)?([\d\.]+?S)?$/i;
-const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
+const defaultInitialValues = {
+    limit: 2,
+    backoff: {
+        duration: '5s',
+        maxDuration: '3m0s',
+        factor: 2
+    }
+};
 
-export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi; initValues?: models.RetryStrategy}) => {
+export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {initValues?: models.RetryStrategy; field: string}) => {
+    return (
+        <NestedForm field={field}>
+            <Form
+                defaultValues={{
+                    ...defaultInitialValues,
+                    ...initValues
+                }}
+                validateError={values => {
+                    const backoff = values.backoff || {};
+
+                    if (!values) {
+                        return {};
+                    }
+
+                    return {
+                        'limit': !values.limit && values.hasOwnProperty('limit') && 'Limit is required',
+
+                        'backoff.duration':
+                            backoff.hasOwnProperty('duration') && ((!backoff.duration && 'Duration is required') || (!durationRegex.test(backoff.duration) && durationRegexError)),
+
+                        'backoff.maxDuration':
+                            backoff.hasOwnProperty('maxDuration') &&
+                            ((!backoff.maxDuration && 'Max Duration is required') || (!durationRegex.test(backoff.maxDuration) && durationRegexError)),
+
+                        'backoff.factor': backoff.hasOwnProperty('factor') && !backoff.factor && 'Factor is required'
+                    };
+                }}>
+                {nestedFormApi => {
+                    return (
+                        <div className='row application-retry-options-list'>
+                            {retryOptions.map((render, i) => (
+                                <div className='columns small-6 application-retry-options-list__item' key={i}>
+                                    {render(nestedFormApi)}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }}
+            </Form>
+        </NestedForm>
+    );
+};
+
+export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStrategy'}: {formApi: FormApi; field?: string; initValues?: models.RetryStrategy}) => {
     const [retry, setRetry] = React.useState(!!initValues);
 
     const toggleRetry = (value: boolean) => {
@@ -34,13 +88,13 @@ export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi
             const values = formState.values;
             const errors = formState.errors;
 
-            const {['retryStrategy']: delVal, ...newValues} = values;
-            const {['retryStrategy']: delErr, ...newErrors} = errors;
+            const newValues = omit(values, field);
+            const newErrors = omit(errors, field);
 
             formApi.setFormState({
                 ...formState,
-                values: {...newValues},
-                errors: {...newErrors}
+                values: newValues,
+                errors: newErrors
             });
         }
 
@@ -48,47 +102,10 @@ export const ApplicationRetryOptions = ({formApi, initValues}: {formApi: FormApi
     };
 
     return (
-        <div style={{marginBottom: '1em'}}>
+        <div className='application-retry-options'>
             <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
             <label htmlFor='retry'>Retry</label>
-            {retry && (
-                <NestedForm field='retryStrategy'>
-                    <Form
-                        defaultValues={{...initValues}}
-                        validateError={values => {
-                            const isRetryEnabled = () => !!values && values.backoff;
-                            const getBackoffSafe = () => values.backoff || {};
-
-                            return {
-                                'limit': isRetryEnabled() && !values.limit && values.hasOwnProperty('limit') && 'Limit is required',
-
-                                'backoff.duration':
-                                    isRetryEnabled() &&
-                                    getBackoffSafe().hasOwnProperty('duration') &&
-                                    ((!getBackoffSafe().duration && 'Duration is required') || (!durationRegex.test(getBackoffSafe().duration) && durationRegexError)),
-
-                                'backoff.maxDuration':
-                                    isRetryEnabled() &&
-                                    getBackoffSafe().hasOwnProperty('maxDuration') &&
-                                    ((!getBackoffSafe().maxDuration && 'Max Duration is required') || (!durationRegex.test(getBackoffSafe().maxDuration) && durationRegexError)),
-
-                                'backoff.factor': isRetryEnabled() && getBackoffSafe().hasOwnProperty('factor') && !getBackoffSafe().factor && 'Factor is required'
-                            };
-                        }}>
-                        {nestedFormApi => {
-                            return (
-                                <div className='row application-retry-options'>
-                                    {retryOptions.map((render, i) => (
-                                        <div className='columns small-6 application-retry-options__item' key={i}>
-                                            {render(nestedFormApi)}
-                                        </div>
-                                    ))}
-                                </div>
-                            );
-                        }}
-                    </Form>
-                </NestedForm>
-            )}
+            {retry && <ApplicationRetryForm initValues={initValues} field={field} />}
         </div>
     );
 };
