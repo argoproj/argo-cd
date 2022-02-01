@@ -204,7 +204,7 @@ jobs:
           set -ue
           git clean -fd
           mkdir -p dist/
-          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:${TARGET_VERSION} -t argoproj/argocd:${TARGET_VERSION} .
+          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
