@@ -95,7 +95,7 @@ jobs:
           echo "=========== BEGIN COMMIT MESSAGE ============="
           git show ${SOURCE_TAG}
           echo "============ END COMMIT MESSAGE =============="
-          
+
           # Quite dirty hack to get the release notes from the annotated tag
           # into a temporary file.
           RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
@@ -289,6 +289,36 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the https://github.com/opensbom-generator/spdx-sbom-generator
+          # to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui" 
+        run: |
+          wget -q https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/$SPDX_GEN_VERSION/spdx-sbom-generator-$SPDX_GEN_VERSION-linux-386.tar.gz -O generator.tar.gz
+          tar -zxf generator.tar.gz
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            ./spdx-sbom-generator -p $folder -o /tmp
+          done
+          tar -zcf /tmp/sbom.tar.gz /tmp/*.spdx
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload SBOM to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /tmp/sbom.tar.gz
+          asset_name: sbom.tar.gz
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
@@ -303,3 +333,4 @@ jobs:
           set -ue
           git push --delete origin ${SOURCE_TAG}
         if: ${{ always() }}
+
