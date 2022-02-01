@@ -11,7 +11,6 @@ resources:
 - ./dex
 - ./repo-server
 - ./server
-- ./applicationset
 - ./config
 - ./redis
 - ./notification
