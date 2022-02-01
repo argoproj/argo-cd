@@ -32,13 +32,17 @@ You can use the zoom in and zoom out feature to make it smaller - or even larger
 
 You no longer need to move back and forth between the application details page and the application list page. Instead you can navigate directly to the required application by clicking the search icon in the application details page title.
 
+### Upgraded Config Management Tools
+
+Both bundled Helm and Kustomize binaries have been upgraded to the latest versions. Kustomize has been upgraded from 4.2.0 to 4.4.1 and Helm has been upgraded from 3.7.1 to 3.8.0.
+
 ### Bug Fixes and Performance Enhancements
 
 * Config management tools enhancements:
-  * The skipCrds flag and ability to ignore missing values files for Helm (#8012, #8003)
-  * Additional environment variables for Kustomize (#8096)
-  * Argo CD CLI follows the XDG Base directory standard (#7638)
-  * Redis is no longer used during SSO login (#8241)
+* The skipCrds flag and ability to ignore missing values files for Helm (#8012, #8003)
+* Additional environment variables for Kustomize (#8096)
+* Argo CD CLI follows the XDG Base directory standard (#7638)
+* Redis is no longer used during SSO login (#8241)
 
 
 ### Features
