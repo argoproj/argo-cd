@@ -105,12 +105,12 @@ policy.default: role:readonly
 
     ![Azure AD token configuration](../../assets/azure-token-configuration.png "Azure AD token configuration")
 
-3. Edit `argocd-cm` and configure the `data.oidc.config` section:
+3. Edit `argocd-cm` and configure the `data.oidc.config` and `data.url` section:
 
         ConfigMap -> argocd-cm
 
         data:
-            url: https://argocd.example.com/
+            url: {argocd_externally_facing_base_url}  # https://argocd.example.com/
             oidc.config: |
                 name: Azure
                 issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
