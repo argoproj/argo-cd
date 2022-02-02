@@ -422,7 +422,10 @@ func (a *ArgoCDServer) watchSettings() {
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
 	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
 	prevGogsSecret := a.settings.WebhookGogsSecret
-	prevSecrets := a.settings.Secrets
+	var prevSecrets map[string]string
+	if a.settings.Secrets != nil {
+		prevSecrets = a.settings.Secrets
+	}
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
