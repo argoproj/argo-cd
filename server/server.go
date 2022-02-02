@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/fs"
 	"math"
 	"net"
@@ -48,7 +49,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"

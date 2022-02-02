@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,7 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )

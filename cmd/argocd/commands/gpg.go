@@ -3,6 +3,9 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -10,7 +13,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -44,7 +46,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List configured GPG public keys",
 		Run: func(c *cobra.Command, args []string) {
-			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
 			keys, err := gpgIf.List(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{})
 			errors.CheckError(err)
@@ -75,7 +77,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if len(args) != 1 {
 				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
-			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
 			key, err := gpgIf.Get(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
@@ -114,7 +116,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if err != nil {
 				errors.CheckError(err)
 			}
-			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
 			resp, err := gpgIf.Create(context.Background(), &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
@@ -139,7 +141,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			if len(args) != 1 {
 				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
-			conn, gpgIf := argocdclient.NewClientOrDie(clientOpts).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
 			_, err := gpgIf.Delete(context.Background(), &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)

@@ -3,13 +3,15 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"os"
 
 	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -53,7 +55,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           globalClientOpts.Headers,
 			}
-			acdClient := argocdclient.NewClientOrDie(&clientOpts)
+			acdClient := headless.NewClientOrDie(&clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {

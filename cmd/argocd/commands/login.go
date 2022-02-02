@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"html"
 	"net/http"
 	"os"
@@ -19,7 +22,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -111,7 +113,7 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !globalClientOpts.Core {
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+				acdClient := headless.NewClientOrDie(&clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
 				if !sso {

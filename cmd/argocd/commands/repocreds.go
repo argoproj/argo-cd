@@ -3,6 +3,9 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"io/ioutil"
 	"os"
 	"text/tabwriter"
@@ -11,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -126,7 +128,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 				}
 			}
 
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -170,7 +172,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.DeleteRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
@@ -211,7 +213,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Use:   "list",
 		Short: "List configured repository credentials",
 		Run: func(c *cobra.Command, args []string) {
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(context.Background(), &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)

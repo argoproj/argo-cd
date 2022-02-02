@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"io"
 	"io/ioutil"
 	"math"
@@ -45,7 +46,6 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	http_util "github.com/argoproj/argo-cd/v2/util/http"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -455,15 +455,6 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 	}
 	refreshToken, _ := token.Extra("refresh_token").(string)
 	return rawIDToken, refreshToken, nil
-}
-
-// NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *ClientOptions) Client {
-	client, err := NewClient(opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return client
 }
 
 // JwtCredentials implements the gRPC credentials.Credentials interface which we is used to do

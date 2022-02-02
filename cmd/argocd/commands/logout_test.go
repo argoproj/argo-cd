@@ -1,11 +1,10 @@
 package commands
 
 import (
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 
@@ -23,7 +22,7 @@ func TestLogout(t *testing.T) {
 	assert.Equal(t, localConfig.CurrentContext, "localhost:8080")
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "localhost:8080", Server: "localhost:8080", User: "localhost:8080"})
 
-	command := NewLogoutCommand(&apiclient.ClientOptions{ConfigPath: testConfigFilePath})
+	command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	command.Run(nil, []string{"localhost:8080"})
 
 	localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)

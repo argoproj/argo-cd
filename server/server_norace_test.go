@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/test"
 )

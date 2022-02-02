@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -29,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -263,7 +263,7 @@ func NewReconcileCommand() *cobra.Command {
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60, apiclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
+				repoServerClient := argocdclient.NewRepoServerClientset(repoServerAddress, 60, argocdclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
@@ -327,7 +327,7 @@ func reconcileApplications(
 	kubeClientset kubernetes.Interface,
 	appClientset appclientset.Interface,
 	namespace string,
-	repoServerClient apiclient.Clientset,
+	repoServerClient argocdclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
 ) ([]appReconcileResult, error) {

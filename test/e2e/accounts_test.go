@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -11,7 +12,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
@@ -63,7 +63,7 @@ test   true     login, apiKey`, output)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token
-	testAccountClientset := argocdclient.NewClientOrDie(&clientOpts)
+	testAccountClientset := headless.NewClientOrDie(&clientOpts, "")
 
 	closer, client := testAccountClientset.NewSessionClientOrDie()
 	defer io.Close(closer)

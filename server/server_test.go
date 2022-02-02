@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"

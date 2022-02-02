@@ -3,6 +3,9 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"os"
 	"strconv"
 	"strings"
@@ -10,7 +13,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -36,7 +38,7 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return roleCommand
 }
 
-// NewProjectSyncWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
+// NewProjectWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
 func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "disable-manual-sync PROJECT ID",
@@ -52,7 +54,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -87,7 +89,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -127,7 +129,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -167,7 +169,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -207,7 +209,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -249,7 +251,7 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
