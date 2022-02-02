@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"os"
 	"path"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"

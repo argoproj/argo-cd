@@ -3,11 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"

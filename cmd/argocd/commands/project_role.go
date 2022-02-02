@@ -3,13 +3,14 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"os"
 	"strconv"
 	"text/tabwriter"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	timeutil "github.com/argoproj/pkg/time"
 	jwtgo "github.com/golang-jwt/jwt/v4"

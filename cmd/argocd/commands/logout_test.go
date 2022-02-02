@@ -1,10 +1,11 @@
 package commands
 
 import (
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 

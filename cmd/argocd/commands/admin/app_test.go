@@ -1,8 +1,9 @@
 package admin
 
 import (
-	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"testing"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	"github.com/argoproj/argo-cd/v2/test"
 

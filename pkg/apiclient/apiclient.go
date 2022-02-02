@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"io"
 	"io/ioutil"
 	"math"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/coreos/go-oidc"
 	"github.com/golang-jwt/jwt/v4"

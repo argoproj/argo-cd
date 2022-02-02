@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"sort"
 	"time"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
 

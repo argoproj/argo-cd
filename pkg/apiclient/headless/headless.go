@@ -3,15 +3,12 @@ package headless
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/alicebob/miniredis/v2"
-	apiclient2 "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/server"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -19,15 +16,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
-	"net"
-	"os"
-	"sync"
-	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/server"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 
 	"github.com/go-redis/redis/v8"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -111,7 +112,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 			c.err = err
 			return
 		}
-		c.repoClientset = apiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, apiclient.TLSConfiguration{
+		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, repoapiclient.TLSConfiguration{
 			DisableTLS: false, StrictValidation: false})
 	})
 	if c.err != nil {
@@ -120,8 +121,8 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 	return c.repoClientset.NewRepoServerClient()
 }
 
-func testAPI(clientOpts *apiclient2.ClientOptions) error {
-	apiClient, err := apiclient2.NewClient(clientOpts)
+func testAPI(clientOpts *apiclient.ClientOptions) error {
+	apiClient, err := apiclient.NewClient(clientOpts)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ func testAPI(clientOpts *apiclient2.ClientOptions) error {
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func StartLocalServer(clientOpts *apiclient2.ClientOptions, ctxStr string, port *int, address *string) error {
+func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -231,11 +232,14 @@ func StartLocalServer(clientOpts *apiclient2.ClientOptions, ctxStr string, port 
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *apiclient2.ClientOptions, ctxStr string) apiclient2.Client {
+func NewClientOrDie(opts *apiclient.ClientOptions, ctxStr string) apiclient.Client {
 	err := StartLocalServer(opts, ctxStr, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	client, err := apiclient2.NewClient(opts)
+	client, err := apiclient.NewClient(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return client
 }

@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"os"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"os"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/ghodss/yaml"

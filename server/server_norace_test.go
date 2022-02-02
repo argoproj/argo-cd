@@ -6,12 +6,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 

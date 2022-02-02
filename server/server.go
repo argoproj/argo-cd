@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"io/fs"
 	"math"
 	"net"
@@ -17,6 +16,8 @@ import (
 	"strings"
 	gosync "sync"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"

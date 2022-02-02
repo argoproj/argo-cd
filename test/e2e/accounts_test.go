@@ -2,8 +2,9 @@ package e2e
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 

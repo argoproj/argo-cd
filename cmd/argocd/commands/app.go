@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"io"
 	"os"
 	"reflect"
@@ -16,6 +13,10 @@ import (
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 

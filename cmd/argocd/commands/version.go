@@ -3,12 +3,14 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"

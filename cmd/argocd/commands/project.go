@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
