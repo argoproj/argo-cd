@@ -68,6 +68,12 @@ func InitCommand(cmd *cobra.Command, clientOpts *argoapi.ClientOptions, port *in
 		cmd.Flags().AddFlag(flag)
 	})
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if cmd.Name() == "version" {
+			clientFlag := cmd.Flag("client")
+			if clientFlag != nil && clientFlag.Value.String() == "true" {
+				return nil
+			}
+		}
 		startInProcessAPI := clientOpts.Core
 		if !startInProcessAPI {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
