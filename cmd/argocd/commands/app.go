@@ -1319,9 +1319,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		infos                   []string
 		diffChanges             bool
 		diffChangesConfirm      bool
+		projects                []string
 	)
 	var command = &cobra.Command{
-		Use:   "sync [APPNAME... | -l selector]",
+		Use:   "sync [APPNAME... | -l selector | --project project-name]",
 		Short: "Sync an application to its target state",
 		Example: `  # Sync an app
   argocd app sync my-app
@@ -1339,7 +1340,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Specify namespace if the application has resources with the same name in different namespaces
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 && selector == "" {
+			if len(args) == 0 && selector == "" && len(projects) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1351,14 +1352,22 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			appNames := args
-			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+			if selector != "" || len(projects) > 0 {
+				appList, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector, Projects: projects})
 				errors.CheckError(err)
-				// unlike list, we'd want to fail if nothing was found
-				if len(list.Items) == 0 {
-					log.Fatalf("no apps match selector %v", selector)
+
+				if len(appList.Items) == 0 {
+					errMsg := "No matching apps found for filter:"
+					if selector != "" {
+						errMsg += fmt.Sprintf(" selector %s", selector)
+					}
+					if len(projects) != 0 {
+						errMsg += fmt.Sprintf(" projects %v", projects)
+					}
+					log.Fatalf(errMsg)
 				}
-				for _, i := range list.Items {
+
+				for _, i := range appList.Items {
 					appNames = append(appNames, i.Name)
 				}
 			}
@@ -1538,6 +1547,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
+	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
 	return command
 }
 
