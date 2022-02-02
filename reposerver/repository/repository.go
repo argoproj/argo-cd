@@ -85,7 +85,7 @@ type RepoServerInitConstants struct {
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int
-	SubmoduleEnabled							 bool
+	SubmoduleEnabled                             bool
 }
 
 // NewService returns a new instance of the Manifest service
