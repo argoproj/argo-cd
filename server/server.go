@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
 	go_runtime "runtime"
 	"strings"
@@ -421,6 +422,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
 	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
 	prevGogsSecret := a.settings.WebhookGogsSecret
+	prevSecrets := a.settings.Secrets
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -470,6 +472,12 @@ func (a *ArgoCDServer) watchSettings() {
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
 				log.Infof("tls certificate modified. restarting")
+				break
+			}
+		}
+		if prevSecrets != nil && a.settings.Secrets != nil {
+			if !reflect.DeepEqual(prevSecrets, a.settings.Secrets) {
+				log.Infof("secrets modified. restarting")
 				break
 			}
 		}
