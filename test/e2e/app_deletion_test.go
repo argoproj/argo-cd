@@ -41,3 +41,18 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		// delete is successful
 		Expect(DoesNotExist())
 }
+
+func TestApplicationDeleteWait(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteWait().
+		Then().
+		Expect(DoesNotExist())
+}
