@@ -1769,14 +1769,10 @@ func waitOnApplicationStatus(opts applicationStatusOpts) (*argoappv1.Application
 					_ = printFinalStatus(app)
 					return nil, fmt.Errorf("application '%s' health state has transitioned from %s to %s", opts.appName, prevState.Health, newState.Health)
 				}
-				if opts.watch.delete {
-					if newState.Health == string(health.HealthStatusMissing) {
-						newState.Message = strings.Replace(newState.Message, "created", "deleted", 1)
-						doPrint = prevState.Merge(newState)
-					}
-				} else {
-					doPrint = prevState.Merge(newState)
+				if opts.watch.delete && newState.Health == string(health.HealthStatusMissing) {
+					newState.Message = strings.Replace(newState.Message, "created", "deleted", 1)
 				}
+				doPrint = prevState.Merge(newState)
 			} else {
 				prevStates[stateKey] = newState
 				doPrint = true
