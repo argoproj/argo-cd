@@ -49,9 +49,9 @@ RUN ./install.sh ksonnet-linux && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
-    go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph && \
-    go get github.com/jstemmer/go-junit-report && \
+    go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest && \
+    go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/helm2 && \
