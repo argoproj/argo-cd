@@ -110,7 +110,7 @@ policy.default: role:readonly
         ConfigMap -> argocd-cm
 
         data:
-            url: {argocd_externally_facing_base_url}  # https://argocd.example.com/
+            url: https://argocd.example.com/  # Replace with the external base URL of your Argo CD
             oidc.config: |
                 name: Azure
                 issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
