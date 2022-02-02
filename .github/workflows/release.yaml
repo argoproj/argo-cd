@@ -302,14 +302,13 @@ jobs:
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
-          wget -q https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/$SPDX_GEN_VERSION/spdx-sbom-generator-$SPDX_GEN_VERSION-linux-386.tar.gz -O generator.tar.gz
-          tar -zxf generator.tar.gz
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
           # Generate SPDX for project dependencies analyzing package managers
           for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
           do
-            ./spdx-sbom-generator -p $folder -o /tmp
+            generator -p $folder -o /tmp
           done
 
           # Generate SPDX for binaries analyzing the docker image
