@@ -19,6 +19,7 @@ export const ApplicationsTable = (props: {
     deleteApplication: (appName: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
+
     const {useKeybinding} = React.useContext(KeybindingContext);
 
     useKeybinding({keys: Key.DOWN, action: () => navApp(1)});
