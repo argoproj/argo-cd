@@ -5,7 +5,9 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"io/ioutil"
+	"k8s.io/api/apps/v1beta1"
 	"os"
 	"path"
 	"path/filepath"
@@ -324,6 +326,19 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(err)
 }
 
+func updateRepoServerDeployment(updater func(deployment *v1beta1.Deployment) error) {
+	updateGenericDeployment(common.DefaultRepoServerDeploymentName, updater)
+}
+
+// Updates a given config map in argocd-e2e namespace
+func updateGenericDeployment(name string, updater func(deployment *v1beta1.Deployment) error) {
+	deployment, err := KubeClientset.AppsV1beta1().Deployments(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
+	errors.CheckError(err)
+	errors.CheckError(updater(deployment))
+	_, err = KubeClientset.AppsV1beta1().Deployments(TestNamespace()).Update(context.Background(), deployment, v1.UpdateOptions{})
+	errors.CheckError(err)
+}
+
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {
@@ -420,6 +435,45 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 		}
 		cm.Data["configManagementPlugins"] = string(yamlBytes)
 		return nil
+	})
+}
+
+func SetSidecarConfigManagementPlugins(plugins ...plugin.PluginConfig) {
+	updateRepoServerDeployment(func(deployment *v1beta1.Deployment) error {
+		var containers []corev1.Container
+		for _, plugin := range plugins {
+			runAsUser := int64(999)
+			runAsNonRoot := true
+			container := corev1.Container{
+				Name:                     plugin.Metadata.Name,
+				Image:                    "busybox",
+				Command:                  []string{"/var/run/argocd/argocd-cmp-server"},
+				VolumeMounts:             []corev1.VolumeMount{
+					{
+						MountPath: "/var/run/argocd",
+						Name: "var-files",
+					},
+					{
+						MountPath: common.DefaultPluginSockFilePath,
+						Name: "plugins",
+					},
+					{
+						MountPath: "/tmp",
+						Name: "tmp",
+					},
+					{
+						MountPath: common.DefaultPluginConfigFilePath,
+						Name: plugin.Metadata.Name,
+					},
+				},
+				SecurityContext:          &corev1.SecurityContext{
+					RunAsUser:                &runAsUser,
+					RunAsNonRoot:             &runAsNonRoot,
+				},
+			}
+			containers = append(containers, container)
+		}
+		deployment.Spec.Template.Spec.Containers =
 	})
 }
 
