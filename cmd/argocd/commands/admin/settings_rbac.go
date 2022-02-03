@@ -196,7 +196,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 // NewRBACValidateCommand returns a new rbac validate command
 func NewRBACValidateCommand() *cobra.Command {
 	var (
-		policyFile string
+		policyFile   string
 		clientConfig clientcmd.ClientConfig
 	)
 
