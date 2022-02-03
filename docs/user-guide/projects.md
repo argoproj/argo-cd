@@ -261,5 +261,4 @@ stringData:
   username: ****
   password: ****
 ```
-
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
