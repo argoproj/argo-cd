@@ -27,10 +27,6 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 )
 
-const (
-	DefaultRepoServerDeploymentName = "argocd-repo-server"
-)
-
 // Some default configurables
 const (
 	DefaultSystemNamespace = "kube-system"
