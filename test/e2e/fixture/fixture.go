@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"io/ioutil"
 	"k8s.io/api/apps/v1beta1"
 	"os"
@@ -435,45 +434,6 @@ func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
 		}
 		cm.Data["configManagementPlugins"] = string(yamlBytes)
 		return nil
-	})
-}
-
-func SetSidecarConfigManagementPlugins(plugins ...plugin.PluginConfig) {
-	updateRepoServerDeployment(func(deployment *v1beta1.Deployment) error {
-		var containers []corev1.Container
-		for _, plugin := range plugins {
-			runAsUser := int64(999)
-			runAsNonRoot := true
-			container := corev1.Container{
-				Name:                     plugin.Metadata.Name,
-				Image:                    "busybox",
-				Command:                  []string{"/var/run/argocd/argocd-cmp-server"},
-				VolumeMounts:             []corev1.VolumeMount{
-					{
-						MountPath: "/var/run/argocd",
-						Name: "var-files",
-					},
-					{
-						MountPath: common.DefaultPluginSockFilePath,
-						Name: "plugins",
-					},
-					{
-						MountPath: "/tmp",
-						Name: "tmp",
-					},
-					{
-						MountPath: common.DefaultPluginConfigFilePath,
-						Name: plugin.Metadata.Name,
-					},
-				},
-				SecurityContext:          &corev1.SecurityContext{
-					RunAsUser:                &runAsUser,
-					RunAsNonRoot:             &runAsNonRoot,
-				},
-			}
-			containers = append(containers, container)
-		}
-		deployment.Spec.Template.Spec.Containers =
 	})
 }
 
