@@ -122,32 +122,59 @@ data:
 #### 3. Register the plugin sidecar
 
 To install a plugin, patch argocd-repo-server to run the CMP container as a sidecar, with argocd-cmp-server as its 
-entrypoint. You can use either off-the-shelf or custom-built plugin image as sidecar image. For example:
+entrypoint. You can use either off-the-shelf or custom-built plugin image as sidecar image. 
+
+The example bellow shows how to configure Kustomize with strategicMergePatch to register a pluging:
 
 ```yaml
-containers:
-- name: cmp
-  command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: busybox # This can be off-the-shelf or custom-built image
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 999
-  volumeMounts:
-    - mountPath: /var/run/argocd
-      name: var-files
-    - mountPath: /home/argocd/cmp-server/plugins
-      name: plugins
-    - mountPath: /tmp
-      name: tmp
-    # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
-    - mountPath: /home/argocd/cmp-server/config/plugin.yaml
-      subPath: plugin.yaml
-      name: cmp-plugin
-  volumes:
-    - configMap:
-        name: cmp-plugin
-      name: cmp-plugin
-``` 
+# kustomization.yaml file
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+patchesStrategicMerge:
+- cmp-sidecar-patch.yaml
+
+resources:
+- github.com/argoproj/argo-cd/manifests/cluster-install
+- configmap.yaml
+```
+
+```yaml
+# cmp-sidecar-patch.yaml file
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: cmp
+        command: [/var/run/argocd/argocd-cmp-server]
+        image: busybox # This can be off-the-shelf or custom-built image
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+        - mountPath: /tmp
+          name: tmp
+        # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
+        - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+          name: cmp-plugin
+      volumes:
+      - name: cmp-plugin
+        configMap:
+          name: cmp-plugin
+```
 
 !!! important "Double-check these items"
     1. Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
