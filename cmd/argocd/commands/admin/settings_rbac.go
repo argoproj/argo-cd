@@ -197,21 +197,43 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 func NewRBACValidateCommand() *cobra.Command {
 	var (
 		policyFile string
+		clientConfig clientcmd.ClientConfig
 	)
 
 	var command = &cobra.Command{
-		Use:   "validate --policy-file=POLICYFILE",
+		Use:   "validate --policy-file=POLICYFILE [--namespace=NAMESPACE]",
 		Short: "Validate RBAC policy",
 		Long: `
 Validates an RBAC policy for being syntactically correct. The policy must be
 a local file, and in either CSV or K8s ConfigMap format.
 `,
 		Run: func(c *cobra.Command, args []string) {
-			if policyFile == "" {
+			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				log.Fatalf("Please specify policy to validate using --policy-file")
+				os.Exit(1)
 			}
-			userPolicy, _ := getPolicy(policyFile, nil, "")
+
+			namespace, nsOverride, err := clientConfig.Namespace()
+			if err != nil {
+				log.Fatalf("could not create k8s client: %v", err)
+			}
+
+			// Exactly one of --namespace or --policy-file must be given.
+			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
+				c.HelpFunc()(c, args)
+				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+			}
+
+			restConfig, err := clientConfig.ClientConfig()
+			if err != nil {
+				log.Fatalf("could not create k8s client: %v", err)
+			}
+			realClientset, err := kubernetes.NewForConfig(restConfig)
+			if err != nil {
+				log.Fatalf("could not create k8s client: %v", err)
+			}
+
+			userPolicy, _ := getPolicy(policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
@@ -224,6 +246,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 		},
 	}
 
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	return command
 }
