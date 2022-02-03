@@ -6,7 +6,6 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/api/apps/v1beta1"
 	"os"
 	"path"
 	"path/filepath"
@@ -322,19 +321,6 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	}
 	errors.CheckError(updater(cm))
 	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
-	errors.CheckError(err)
-}
-
-func updateRepoServerDeployment(updater func(deployment *v1beta1.Deployment) error) {
-	updateGenericDeployment(common.DefaultRepoServerDeploymentName, updater)
-}
-
-// Updates a given config map in argocd-e2e namespace
-func updateGenericDeployment(name string, updater func(deployment *v1beta1.Deployment) error) {
-	deployment, err := KubeClientset.AppsV1beta1().Deployments(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
-	errors.CheckError(err)
-	errors.CheckError(updater(deployment))
-	_, err = KubeClientset.AppsV1beta1().Deployments(TestNamespace()).Update(context.Background(), deployment, v1.UpdateOptions{})
 	errors.CheckError(err)
 }
 

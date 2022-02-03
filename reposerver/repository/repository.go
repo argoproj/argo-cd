@@ -1231,7 +1231,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	for _, manifestString := range cmpManifests.Manifests {
 		manifestObjs, err := kube.SplitYAML([]byte(manifestString))
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to convert CMP manifests to unstructured objects: %s", err.Error()))
+			return nil, fmt.Errorf("failed to convert CMP manifests to unstructured objects: %s", err.Error())
 		}
 		manifests = append(manifests, manifestObjs...)
 	}
