@@ -8,11 +8,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )

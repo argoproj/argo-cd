@@ -5,10 +5,9 @@ import (
 	"os"
 	"testing"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	"github.com/stretchr/testify/assert"
 
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 

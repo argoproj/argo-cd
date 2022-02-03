@@ -4,11 +4,10 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/errors"

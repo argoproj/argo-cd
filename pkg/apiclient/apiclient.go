@@ -16,8 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
-
 	"github.com/coreos/go-oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -47,6 +45,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	http_util "github.com/argoproj/argo-cd/v2/util/http"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"

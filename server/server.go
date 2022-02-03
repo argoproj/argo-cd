@@ -20,11 +20,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	// nolint:staticcheck
-	golang_proto "github.com/golang/protobuf/proto"
-
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
+	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"

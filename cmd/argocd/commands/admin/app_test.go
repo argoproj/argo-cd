@@ -3,10 +3,6 @@ package admin
 import (
 	"testing"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-
-	"github.com/argoproj/argo-cd/v2/test"
-
 	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -23,7 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
