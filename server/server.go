@@ -17,13 +17,12 @@ import (
 	gosync "sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	// nolint:staticcheck
+	golang_proto "github.com/golang/protobuf/proto"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
-	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -49,6 +48,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
