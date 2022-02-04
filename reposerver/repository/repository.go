@@ -696,7 +696,7 @@ func resolveHelmValueFilePath(appPath, repoRoot, valueFile string, allowedURLSch
 
 	// Make sure that the resolved path to values file is within the repository's root path
 	if !strings.HasPrefix(path, requiredRootPath) {
-		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root (%s)", valueFile, path)
+		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root", valueFile)
 	}
 
 	return path, false, nil
