@@ -68,6 +68,9 @@ var validRBACActions map[string]bool = map[string]bool{
 
 // NewRBACCommand is the command for 'rbac'
 func NewRBACCommand() *cobra.Command {
+	var (
+		clientConfig clientcmd.ClientConfig
+	)
 	var command = &cobra.Command{
 		Use:   "rbac",
 		Short: "Validate and test RBAC configuration",
@@ -75,24 +78,24 @@ func NewRBACCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewRBACCanCommand())
-	command.AddCommand(NewRBACValidateCommand())
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.AddCommand(NewRBACCanCommand(clientConfig))
+	command.AddCommand(NewRBACValidateCommand(clientConfig))
 	return command
 }
 
 // NewRBACCanRoleCommand is the command for 'rbac can-role'
-func NewRBACCanCommand() *cobra.Command {
+func NewRBACCanCommand(clientConfig clientcmd.ClientConfig) *cobra.Command {
 	var (
-		policyFile   string
-		defaultRole  string
-		useBuiltin   bool
-		strict       bool
-		quiet        bool
-		subject      string
-		action       string
-		resource     string
-		subResource  string
-		clientConfig clientcmd.ClientConfig
+		policyFile  string
+		defaultRole string
+		useBuiltin  bool
+		strict      bool
+		quiet       bool
+		subject     string
+		action      string
+		resource    string
+		subResource string
 	)
 	var command = &cobra.Command{
 		Use:   "can ROLE/SUBJECT ACTION RESOURCE [SUB-RESOURCE]",
@@ -184,7 +187,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 		},
 	}
 
-	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	command.Flags().StringVar(&defaultRole, "default-role", "", "name of the default role to use")
 	command.Flags().BoolVar(&useBuiltin, "use-builtin-policy", true, "whether to also use builtin-policy")
@@ -194,10 +196,9 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 }
 
 // NewRBACValidateCommand returns a new rbac validate command
-func NewRBACValidateCommand() *cobra.Command {
+func NewRBACValidateCommand(clientConfig clientcmd.ClientConfig) *cobra.Command {
 	var (
-		policyFile   string
-		clientConfig clientcmd.ClientConfig
+		policyFile string
 	)
 
 	var command = &cobra.Command{
@@ -246,7 +247,6 @@ a local file, and in either CSV or K8s ConfigMap format.
 		},
 	}
 
-	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	return command
 }
