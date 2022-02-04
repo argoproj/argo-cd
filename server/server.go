@@ -407,6 +407,22 @@ func (a *ArgoCDServer) Shutdown() {
 	}
 }
 
+func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newOIDCConfig := newArgoCDSettings.OIDCConfig()
+
+	if (currentOIDCConfig != nil && newOIDCConfig == nil) || (currentOIDCConfig == nil && newOIDCConfig != nil) {
+		return true
+	}
+
+	if currentOIDCConfig != nil && newOIDCConfig != nil {
+		if !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings() {
@@ -436,14 +452,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("dex config modified. restarting")
 			break
 		}
-		newOIDCConfig := a.settings.OIDCConfig()
-		if prevOIDCConfig != nil && newOIDCConfig != nil {
-			if !reflect.DeepEqual(*prevOIDCConfig, *newOIDCConfig) {
-				log.Infof("oidc config modified. restarting")
-				break
-			}
-		}
-		if (prevOIDCConfig != nil && newOIDCConfig == nil) || (prevOIDCConfig == nil && newOIDCConfig != nil) {
+		if checkOIDCConfigChange(prevOIDCConfig, a.settings) {
 			log.Infof("oidc config modified. restarting")
 			break
 		}
