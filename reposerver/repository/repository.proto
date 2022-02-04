@@ -42,6 +42,20 @@ message TestRepositoryResponse {
     bool verifiedRepository = 1;
 }
 
+// ResolveRevisionRequest
+message ResolveRevisionRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
+    string ambiguousRevision = 3;
+}
+
+// ResolveRevisionResponse
+message ResolveRevisionResponse {
+    // returns the resolved revision
+    string revision = 1;
+    string ambiguousRevision = 2;
+}
+
 message ManifestResponse {
     repeated string manifests = 1;
     string namespace = 2;
@@ -173,6 +187,10 @@ service RepoServerService {
 
     // Returns a bool val if the repository is valid and has proper access
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
+    }
+
+    // Returns a valid revision
+    rpc ResolveRevision(ResolveRevisionRequest) returns (ResolveRevisionResponse) {
     }
     
     // Returns a list of refs (e.g. branches and tags) in the repo

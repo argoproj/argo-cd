@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"

@@ -145,3 +145,5 @@ template.app-sync-failed: |
     groupingKey: "{{.app.status.sync.revision}}"
     notifyBroadcast: true
 ```
+
+The message is sent according to the `deliveryPolicy` string field under the `slack` field. The available modes are `Post` (default), `PostAndUpdate`, and `Update`. The `PostAndUpdate` and `Update` settings require `groupingKey` to be set.

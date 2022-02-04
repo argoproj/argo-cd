@@ -133,7 +133,7 @@ An example repository containing a guestbook application is available at
 Create the example guestbook application with the following command:
 
 ```bash
-argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
+argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default
 ```
 
 ### Creating Apps Via UI

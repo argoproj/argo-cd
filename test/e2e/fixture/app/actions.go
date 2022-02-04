@@ -143,14 +143,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 }
 
 func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+	args = a.prepareCreateAppArgs(args)
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+func (a *Actions) CreateApp(args ...string) *Actions {
+	args = a.prepareCreateAppArgs(args)
 	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
@@ -159,14 +159,18 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) prepareCreateArgs(args []string) []string {
+func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
-		"--dest-server", a.context.destServer,
 	}, args...)
 
+	if a.context.destName != "" {
+		args = append(args, "--dest-name", a.context.destName)
+	} else {
+		args = append(args, "--dest-server", a.context.destServer)
+	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
 	}
@@ -202,6 +206,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
+	}
+	if a.context.helmSkipCrds {
+		args = append(args, "--helm-skip-crds")
 	}
 	return args
 }

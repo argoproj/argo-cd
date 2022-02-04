@@ -9,7 +9,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	jwtgo "github.com/dgrijalva/jwt-go/v4"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"

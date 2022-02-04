@@ -36,6 +36,7 @@ type AppOptions struct {
 	destNamespace                   string
 	Parameters                      []string
 	valuesFiles                     []string
+	ignoreMissingValueFiles         bool
 	values                          string
 	releaseName                     string
 	helmSets                        []string
@@ -43,6 +44,7 @@ type AppOptions struct {
 	helmSetFiles                    []string
 	helmVersion                     string
 	helmPassCredentials             bool
+	helmSkipCrds                    bool
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -86,6 +88,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.Parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
+	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Ignore locally missing valueFiles when setting helm template --values")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
@@ -93,6 +96,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
+	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
@@ -147,6 +151,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.RevisionHistoryLimit = &i
 		case "values":
 			setHelmOpt(&spec.Source, helmOpts{valueFiles: appOpts.valuesFiles})
+		case "ignore-missing-value-files":
+			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-literal-file":
 			var data []byte
 
@@ -171,6 +177,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "helm-set-file":
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
+		case "helm-skip-crds":
+			setHelmOpt(&spec.Source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
 			if spec.Source.Directory != nil {
 				spec.Source.Directory.Recurse = appOpts.directoryRecurse
@@ -381,14 +389,16 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 }
 
 type helmOpts struct {
-	valueFiles      []string
-	values          string
-	releaseName     string
-	version         string
-	helmSets        []string
-	helmSetStrings  []string
-	helmSetFiles    []string
-	passCredentials bool
+	valueFiles              []string
+	ignoreMissingValueFiles bool
+	values                  string
+	releaseName             string
+	version                 string
+	helmSets                []string
+	helmSetStrings          []string
+	helmSetFiles            []string
+	passCredentials         bool
+	skipCrds                bool
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -397,6 +407,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if len(opts.valueFiles) > 0 {
 		src.Helm.ValueFiles = opts.valueFiles
+	}
+	if opts.ignoreMissingValueFiles {
+		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
 		src.Helm.Values = opts.values
@@ -409,6 +422,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.passCredentials {
 		src.Helm.PassCredentials = opts.passCredentials
+	}
+	if opts.skipCrds {
+		src.Helm.SkipCrds = opts.skipCrds
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)

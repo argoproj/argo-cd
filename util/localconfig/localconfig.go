@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
@@ -65,11 +65,9 @@ type User struct {
 }
 
 // Claims returns the standard claims from the JWT claims
-func (u *User) Claims() (*jwt.StandardClaims, error) {
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	claims := jwt.StandardClaims{}
+func (u *User) Claims() (*jwt.RegisteredClaims, error) {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.RegisteredClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
 	if err != nil {
 		return nil, err
@@ -246,15 +244,46 @@ func (l *LocalConfig) IsEmpty() bool {
 
 // DefaultConfigDir returns the local configuration path for settings such as cached authentication tokens.
 func DefaultConfigDir() (string, error) {
+	// Manually defined config directory
+	configDir := os.Getenv("ARGOCD_CONFIG_DIR")
+	if configDir != "" {
+		return configDir, nil
+	}
+
+	homeDir, err := getHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Legacy config directory
+	// Use it if it already exists
+	legacyConfigDir := path.Join(homeDir, ".argocd")
+
+	if _, err := os.Stat(legacyConfigDir); err == nil {
+		return legacyConfigDir, nil
+	}
+
+	// Manually configured XDG config home
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return path.Join(xdgConfigHome, "argocd"), nil
+	}
+
+	// XDG config home fallback
+	return path.Join(homeDir, ".config", "argocd"), nil
+}
+
+func getHomeDir() (string, error) {
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {
 		usr, err := user.Current()
 		if err != nil {
 			return "", err
 		}
+
 		homeDir = usr.HomeDir
 	}
-	return path.Join(homeDir, ".argocd"), nil
+
+	return homeDir, nil
 }
 
 // DefaultLocalConfigPath returns the local configuration path for settings such as cached authentication tokens.

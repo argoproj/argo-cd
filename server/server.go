@@ -21,8 +21,8 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -782,7 +782,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		tlsConfig := a.settings.TLSConfig()
 		tlsConfig.InsecureSkipVerify = true
 	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr, a.BaseHRef)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -1065,17 +1065,21 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		}
 		rk.Url = pattern
 	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
-		server, err := url.QueryUnescape(cq.Server)
-		if err != nil {
-			return nil, err
+		if cq.Id != nil {
+			val, err := url.QueryUnescape(cq.Id.Value)
+			if err != nil {
+				return nil, err
+			}
+			cq.Id.Value = val
 		}
-		cq.Server = server
 	} else if cu, ok := req.(*clusterpkg.ClusterUpdateRequest); ok {
-		server, err := url.QueryUnescape(cu.Cluster.Server)
-		if err != nil {
-			return nil, err
+		if cu.Id != nil {
+			val, err := url.QueryUnescape(cu.Id.Value)
+			if err != nil {
+				return nil, err
+			}
+			cu.Id.Value = val
 		}
-		cu.Cluster.Server = server
 	}
 	return handler(ctx, req)
 }

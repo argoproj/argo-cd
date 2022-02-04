@@ -32,7 +32,7 @@ and might fail. To avoid failed syncs use `ARGOCD_GIT_ATTEMPTS_COUNT` environmen
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind this will negate the benefit of caching if set too low. 
 
-* `argocd-repo-server` fork exec config management tools such as `helm` or `kustomize` and enforces 90 seconds timeout. The timeout can be increased using `ARGOCD_EXEC_TIMEOUT` env variable.
+* `argocd-repo-server` fork exec config management tools such as `helm` or `kustomize` and enforces 90 seconds timeout. The timeout can be increased using `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in Go time duration string format, for example, `2m30s`.
 
 **metrics:**
 

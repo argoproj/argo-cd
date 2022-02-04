@@ -42,6 +42,11 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default listener address for ArgoCD components
+const (
+	DefaultAddressAPIServer = "localhost"
+)
+
 // Default paths on the pod's file system
 const (
 	// The default path where TLS certificates for repositories are located
@@ -71,6 +76,10 @@ const (
 	ArgoCDUserAgentName = "argocd-client"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
+	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5

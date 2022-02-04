@@ -350,6 +350,15 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 	}
 
+	// ValidateDestination will resolve the destination's server address from its name for us, if possible
+	if err := ValidateDestination(ctx, &spec.Destination, db); err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: err.Error(),
+		})
+		return conditions, nil
+	}
+
 	if spec.Destination.Server != "" {
 		if !proj.IsDestinationPermitted(spec.Destination) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -607,15 +616,9 @@ func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository
 }
 
 func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
-	clusterList, err := db.ListClusters(ctx)
+	servers, err := db.GetClusterServersByName(ctx, clusterName)
 	if err != nil {
 		return "", err
-	}
-	var servers []string
-	for _, c := range clusterList.Items {
-		if c.Name == clusterName {
-			servers = append(servers, c.Server)
-		}
 	}
 	if len(servers) > 1 {
 		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)

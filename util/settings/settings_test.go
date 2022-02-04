@@ -305,6 +305,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         - bar`,
 			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
         - bar`,
+			"resource.customizations.ignoreDifferences.all": `managedFieldsManagers: 
+        - kube-controller-manager
+        - argo-rollouts`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -312,7 +315,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 8, len(overrides))
+		assert.Equal(t, 9, len(overrides))
 		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
@@ -332,6 +335,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
+		assert.Equal(t, 2, len(overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers))
+		assert.Equal(t, "kube-controller-manager", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[0])
+		assert.Equal(t, "argo-rollouts", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[1])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {

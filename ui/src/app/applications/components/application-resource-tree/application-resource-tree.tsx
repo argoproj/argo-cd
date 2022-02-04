@@ -11,7 +11,7 @@ import {Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {BASE_COLORS, ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
+import {BASE_COLORS, ComparisonStatusIcon, getAppOverridesCount, getExternalUrls, HealthStatusIcon, isAppNode, NodeId, nodeKey} from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
@@ -43,6 +43,7 @@ export interface ApplicationResourceTreeProps {
     onClearFilter: () => any;
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
+    zoom: number;
 }
 
 interface Line {
@@ -337,6 +338,10 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
+    let extLinks: string[] = props.app.status.summary.externalURLs;
+    if (rootNode) {
+        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
+    }
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
@@ -374,7 +379,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             )}
                         </Consumer>
                     )}
-                    <ApplicationURLs urls={rootNode ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs} />
+                    <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </span>
             </div>
             <div className='application-resource-tree__node-labels'>
@@ -640,7 +645,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         )) || (
             <div
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250}}>
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 0%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

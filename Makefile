@@ -4,6 +4,8 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+GEN_RESOURCES_CLI_NAME=argocd-resources-gen
+
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
@@ -222,13 +224,17 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
+.PHONY: gen-resources-cli-local
+gen-resources-cli-local: clean-debug
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
+
 .PHONY: release-cli
-release-cli: clean-debug image
-	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
+release-cli: clean-debug
 	make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all
+	make BIN_NAME=argocd-darwin-arm64 GOOS=darwin GOARCH=arm64 argocd-all
+	make BIN_NAME=argocd-linux-amd64 GOOS=linux argocd-all
+	make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all
 	make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all
-	docker cp tmp-argocd-linux:/usr/local/bin/argocd ${DIST_DIR}/argocd-linux-amd64
-	docker rm tmp-argocd-linux
 
 .PHONY: test-tools-image
 test-tools-image:
@@ -503,7 +509,7 @@ serve-docs:
 .PHONY: lint-docs
 lint-docs:
 	#  https://github.com/dkhamsing/awesome_bot
-	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat white-list | grep -v "#" | tr "\n" ','` --skip-save-results --
+	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --allow-timeout --allow-ssl --allow 502,500,429,400 --white-list `cat docs/url-allow-list | grep -v "#" | tr "\n" ','` --skip-save-results --
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect

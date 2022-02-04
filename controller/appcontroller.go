@@ -36,9 +36,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/component-base/metrics/prometheus/workqueue"
-
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -48,6 +45,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -318,12 +316,27 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if isManagedResource {
 			level = CompareWithRecent
 		}
+
+		// Additional check for debug level so we don't need to evaluate the
+		// format string in case of non-debug scenarios
+		if log.GetLevel() >= log.DebugLevel {
+			var resKey string
+			if ref.Namespace != "" {
+				resKey = ref.Namespace + "/" + ref.Name
+			} else {
+				resKey = "(cluster-scoped)/" + ref.Name
+			}
+			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appName, resKey, ref.APIVersion, ref.Kind)
+		}
+
 		ctrl.requestAppRefresh(appName, &level, nil)
 	}
 }
 
+// setAppManagedResources will build a list of ResourceDiff based on the provided comparisonResult
+// and persist app resources related data in the cache. Will return the persisted ApplicationTree.
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
-	managedResources, err := ctrl.managedResources(comparisonResult)
+	managedResources, err := ctrl.hideSecretData(a, comparisonResult)
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %s", err)
 	}
@@ -543,7 +556,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 	return hosts, nil
 }
 
-func (ctrl *ApplicationController) managedResources(comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
 	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
@@ -569,14 +582,34 @@ func (ctrl *ApplicationController) managedResources(comparisonResult *comparison
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource compare options: %s", err)
 			}
-			resDiffPtr, err := diff.Diff(target, live,
-				diff.WithNormalizer(comparisonResult.diffNormalizer),
-				diff.WithLogr(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())),
-				diff.IgnoreAggregatedRoles(compareOptions.IgnoreAggregatedRoles))
+			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+			if err != nil {
+				return nil, fmt.Errorf("error getting resource overrides: %s", err)
+			}
+			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			if err != nil {
+				return nil, fmt.Errorf("error getting app instance label key: %s", err)
+			}
+			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+			if err != nil {
+				return nil, fmt.Errorf("error getting tracking method: %s", err)
+			}
+
+			diffConfig, err := argodiff.NewDiffConfigBuilder().
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+				WithTracking(appLabelKey, trackingMethod).
+				WithNoCache().
+				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+				Build()
+			if err != nil {
+				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)
+			}
+
+			diffResult, err := argodiff.StateDiff(live, target, diffConfig)
 			if err != nil {
 				return nil, fmt.Errorf("error applying diff: %s", err)
 			}
-			resDiff = *resDiffPtr
+			resDiff = diffResult
 		}
 
 		if live != nil {

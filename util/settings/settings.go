@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
@@ -165,6 +166,23 @@ var (
 		}
 		if url, ok := s.Data["server"]; ok {
 			return []string{strings.TrimRight(string(url), "/")}, nil
+		}
+		return nil, nil
+	}
+	ByClusterNameIndexer     = "byClusterName"
+	byClusterNameIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
+		if !ok {
+			return nil, nil
+		}
+		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+			return nil, nil
+		}
+		if s.Data == nil {
+			return nil, nil
+		}
+		if name, ok := s.Data["name"]; ok {
+			return []string{string(name)}, nil
 		}
 		return nil, nil
 	}
@@ -717,6 +735,10 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			return err
 		}
 
+		if overrideKey == "all" {
+			overrideKey = "*/*"
+		}
+
 		overrideVal, ok := resourceOverrides[overrideKey]
 		if !ok {
 			overrideVal = v1alpha1.ResourceOverride{}
@@ -1052,6 +1074,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
 		ByClusterURLIndexer:     byClusterURLIndexerFunc,
+		ByClusterNameIndexer:    byClusterNameIndexerFunc,
 		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 	}
@@ -1457,6 +1480,11 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 		return false
 	}
 	return len(dexCfg) > 0
+}
+
+// GetServerEncryptionKey generates a new server encryption key using the server signature as a passphrase
+func (a *ArgoCDSettings) GetServerEncryptionKey() ([]byte, error) {
+	return crypto.KeyFromPassphrase(string(a.ServerSignature))
 }
 
 func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
