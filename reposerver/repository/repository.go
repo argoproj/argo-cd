@@ -575,6 +575,13 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 		return "", fmt.Errorf("maximum nesting level reached")
 	}
 
+	// If we resolved to a relative symlink, make sure we use the absolute
+	// path for further resolving
+	if !strings.HasPrefix(resolved, "/") {
+		basePath := filepath.Dir(path)
+		resolved = filepath.Join(basePath, resolved)
+	}
+
 	return resolveSymbolicLinkRecursive(resolved, maxDepth-1)
 }
 
@@ -689,7 +696,7 @@ func resolveHelmValueFilePath(appPath, repoRoot, valueFile string, allowedURLSch
 
 	// Make sure that the resolved path to values file is within the repository's root path
 	if !strings.HasPrefix(path, requiredRootPath) {
-		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root", valueFile)
+		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root (%s)", valueFile, path)
 	}
 
 	return path, false, nil

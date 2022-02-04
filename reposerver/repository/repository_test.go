@@ -757,6 +757,36 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
+	t.Run("Valid symlink", func(t *testing.T) {
+		service := newService("../..")
+		source := &argoappv1.ApplicationSource{
+			Chart:          "my-chart",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"my-chart-link.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.NoError(t, err)
+	})
+	t.Run("Symlink pointing to outside", func(t *testing.T) {
+		service := newService("../..")
+		source := &argoappv1.ApplicationSource{
+			Chart:          "my-chart",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"my-chart-outside-link.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+	})
+}
+
 func TestGenerateHelmWithURL(t *testing.T) {
 	service := newService("../..")
 
@@ -1688,40 +1718,34 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 }
 
 func Test_resolveSymlinkRecursive(t *testing.T) {
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	err = os.Chdir("testdata/symlinks")
-	require.NoError(t, err)
-	defer func() {
-		err := os.Chdir(cwd)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	testsDir, err := filepath.Abs("./testdata/symlinks")
+	if err != nil {
+		panic(err)
+	}
 	t.Run("Resolve non-symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive("foo", 2)
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/foo", 2)
 		assert.NoError(t, err)
-		assert.Equal(t, "foo", r)
+		assert.Equal(t, testsDir+"/foo", r)
 	})
 	t.Run("Successfully resolve symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive("bar", 2)
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 2)
 		assert.NoError(t, err)
-		assert.Equal(t, "foo", r)
+		assert.Equal(t, testsDir+"/foo", r)
 	})
 	t.Run("Do not allow symlink at all", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive("bar", 0)
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 0)
 		assert.Error(t, err)
 		assert.Equal(t, "", r)
 	})
 	t.Run("Error because too nested symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive("bam", 2)
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bam", 2)
 		assert.Error(t, err)
 		assert.Equal(t, "", r)
 	})
 	t.Run("No such file or directory", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive("foobar", 2)
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/foobar", 2)
 		assert.NoError(t, err)
-		assert.Equal(t, "foobar", r)
+		assert.Equal(t, testsDir+"/foobar", r)
 	})
 }
 
