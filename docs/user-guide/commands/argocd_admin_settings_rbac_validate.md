@@ -10,7 +10,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 
 
 ```
-argocd admin settings rbac validate --policy-file=POLICYFILE [flags]
+argocd admin settings rbac validate --policy-file=POLICYFILE [--namespace=NAMESPACE] [flags]
 ```
 
 ### Options
