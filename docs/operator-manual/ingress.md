@@ -95,9 +95,13 @@ spec:
   - host: internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - internal.path.to.argocd.io
@@ -117,9 +121,13 @@ spec:
   - host: grpc-internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
   tls:
   - hosts:
     - grpc-internal.path.to.argocd.io
@@ -141,9 +149,12 @@ spec:
     http:
       paths:
       - path: /api/dex/callback
+        pathType: Prefix
         backend:
-          serviceName: argocd-server
-          servicePort: http
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - external.path.to.argocd.io
@@ -196,9 +207,13 @@ spec:
   - host: argocd.example.com
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
 ```
 
 The above rule terminates TLS at the Argo CD API server, which detects the protocol being used,
@@ -261,9 +276,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
     host: argocd.example.com
   tls:
   - hosts:
@@ -285,9 +304,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
     host: grpc.argocd.example.com
   tls:
   - hosts:
@@ -399,13 +422,19 @@ Once we create this service, we can configure the Ingress to conditionally route
     - host: argocd.argoproj.io
       http:
         paths:
-        - backend:
-            serviceName: argogrpc
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argogrpc
+              port:
+                number: 443
           pathType: ImplementationSpecific
-        - backend:
-            serviceName: argocd-server
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 443
           pathType: ImplementationSpecific
     tls:
     - hosts:
