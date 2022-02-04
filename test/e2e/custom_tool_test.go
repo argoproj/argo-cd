@@ -307,7 +307,7 @@ func TestPruneResourceFromCMP(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist()).
-		And(func(app *Application) {
+		AndAction(func() {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
 			assert.Error(t, err)
 		})
