@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
 	go_runtime "runtime"
 	"strings"
@@ -406,6 +407,22 @@ func (a *ArgoCDServer) Shutdown() {
 	}
 }
 
+func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newOIDCConfig := newArgoCDSettings.OIDCConfig()
+
+	if (currentOIDCConfig != nil && newOIDCConfig == nil) || (currentOIDCConfig == nil && newOIDCConfig != nil) {
+		return true
+	}
+
+	if currentOIDCConfig != nil && newOIDCConfig != nil {
+		if !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings() {
@@ -413,7 +430,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
-	prevOIDCConfig := a.settings.OIDCConfigRAW
+	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
@@ -435,7 +452,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("dex config modified. restarting")
 			break
 		}
-		if prevOIDCConfig != a.settings.OIDCConfigRAW {
+		if checkOIDCConfigChange(prevOIDCConfig, a.settings) {
 			log.Infof("oidc config modified. restarting")
 			break
 		}
