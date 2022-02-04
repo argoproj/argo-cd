@@ -61,6 +61,11 @@ management tools (Helm, Kustomize, etc.).
 
 ## Open Questions
 
+* Should we write examples in documentation in Python instead of shell scripts?
+
+  It's very easy to write an insecure shell script. People copy/paste code from documentation to start their own work.
+  Maybe by using a different language in examples, we can encourage more secure CMP development.
+
 ## Summary
 
 [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/) 
@@ -211,7 +216,7 @@ according to the [parameters serialization format](#how-will-the-cmp-know-what-p
 
 Passing the parameters to the `parameters.dynamic.command` will allow configuration of parameter discovery. For example,
 if my CMP is designed to handle Kustomize projects which contain Helm charts, I might have the CMP accept an
-`ignore-helm-charts` parameter to avoid announciming parameters for those charts.
+`ignore-helm-charts` parameter to avoid announcing parameters for those charts.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -294,9 +299,9 @@ helm template --values /tmp/values.yaml .
 
 Environment variable names are set according to these rules:
 
-1. If a parameter is a `string`, the format is `escaped({name})` (`escaped` is defined below).
-2. If a parameter is an `array`, the format is `escaped({name}_{index})` (where the first index is 0).
-3. If a parameter is a `map`, the format is `escaped({name}_{key})`.
+1. If a parameter is a `string`, the format is `PARAM_{escaped(name)}` (`escaped` is defined below).
+2. If a parameter is an `array`, the format is `PARAM_{escaped(name_{index})}` (where the first index is 0).
+3. If a parameter is a `map`, the format is `PARAM_{escaped(name_key)}`.
 4. If an escaped env var name matches one in the [build environment](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/build-environment/),
    the build environment variable wins.
 5. If more than one parameter name produces the same env var name, the env var later in the list wins.
@@ -304,16 +309,14 @@ Environment variable names are set according to these rules:
 The `escaped` function will perform the following tasks:
 1. It will uppercase the input.
 2. It will replace any characters matching this regex with an underscore: `[^A-Z0-9_]`.
-3. If, after those steps, the first character is a number, the name will be prefixed with an underscore. For example:
-   `1_DIRECTION` -> `_1_DIRECTION`.
 
 The above example will produce the following env vars:
 
 ```shell
-echo "$VALUES"
-echo "$VALUES_FILES_0"
-echo "$HELM_PARAMETERS_IMAGE_REPOSITORY"
-echo "$HELM_PARAMETERS_IMAGE_TAG"
+echo "$PARAM_VALUES"
+echo "$PARAM_VALUES_FILES_0"
+echo "$PARAM_HELM_PARAMETERS_IMAGE_REPOSITORY"
+echo "$PARAM_HELM_PARAMETERS_IMAGE_TAG"
 ```
 
 The parameters in the Application manifest are represented behind the scenes with the following Go types:
