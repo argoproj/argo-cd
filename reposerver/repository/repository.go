@@ -574,6 +574,13 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 		return "", fmt.Errorf("maximum nesting level reached")
 	}
 
+	// If we resolved to a relative symlink, make sure we use the absolute
+	// path for further resolving
+	if !strings.HasPrefix(resolved, "/") {
+		basePath := filepath.Dir(path)
+		resolved = filepath.Join(basePath, resolved)
+	}
+
 	return resolveSymbolicLinkRecursive(resolved, maxDepth-1)
 }
 
