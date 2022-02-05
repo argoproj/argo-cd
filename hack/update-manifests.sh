@@ -8,8 +8,8 @@ KUSTOMIZE=kustomize
 
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
-
-cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
+DIST_PATH="${SRCROOT}/dist"
+PATH=${DIST_PATH}:${PATH}
 
 IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/argoproj}"
 IMAGE_TAG="${IMAGE_TAG:-}"
@@ -44,7 +44,7 @@ resources:
 - ../addons/$addon/$ADDON_BASE
 EOF
     echo "${AUTOGENMSG}" > $2
-    $KUSTOMIZE build $SRCROOT/manifests/_tmp-bundle >> $2
+    $KUSTOMIZE build --enable-helm $SRCROOT/manifests/_tmp-bundle >> $2
   done
 }
 
