@@ -208,7 +208,7 @@ require (
 	k8s.io/cli-runtime v0.23.1 // indirect
 	k8s.io/component-base v0.23.1 // indirect
 	k8s.io/component-helpers v0.23.1 // indirect
-	k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c // indirect
+	k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 // indirect
 	k8s.io/kube-aggregator v0.23.1 // indirect
 	k8s.io/kubernetes v1.23.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
