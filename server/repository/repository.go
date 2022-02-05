@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -213,15 +212,30 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 	})
 }
 
-// ListApps returns list of apps in the repo
+// ListApps performs discovery of a git repository for potential sources of applications. Used
+// as a convenience to the UI for auto-complete.
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	claims := ctx.Value("claims")
+	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
+	}
+
+	// This endpoint causes us to clone git repos & invoke config management tooling for the purposes
+	// of app discovery. Only allow this to happen if user has privileges to create or update the
+	// application which it wants to retrieve these details for.
+	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
+	for _, action := range []string{rbacpolicy.ActionCreate, rbacpolicy.ActionUpdate} {
+		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, action, appRBACresource) {
+			// return empty list instead of permission denied since app is still in the process of
+			// being formulated in the UI
+			items := make([]*repositorypkg.AppInfo, 0)
+			return &repositorypkg.RepoAppsResponse{Items: items}, nil
+		}
 	}
 
 	// Test the repo

@@ -16,6 +16,8 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 message RepoAppsQuery {
 	string repo = 1;
 	string revision = 2;
+	string appName = 3;
+	string appProject = 4;
 }
 
 

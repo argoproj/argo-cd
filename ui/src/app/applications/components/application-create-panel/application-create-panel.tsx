@@ -281,7 +281,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 load={async src =>
                                                                     (src.repoURL &&
                                                                         services.repos
-                                                                            .apps(src.repoURL, src.revision)
+                                                                            .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
                                                                             .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
                                                                             .catch(() => new Array<string>())) ||
                                                                     new Array<string>()
