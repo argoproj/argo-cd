@@ -765,7 +765,37 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 	}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
 	_, err := service.GenerateManifest(context.Background(), request)
-	assert.Error(t, err, "should be on or under current directory")
+	assert.Error(t, err)
+}
+
+func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
+	t.Run("Valid symlink", func(t *testing.T) {
+		service := newService("../..")
+		source := &argoappv1.ApplicationSource{
+			Chart:          "my-chart",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"my-chart-link.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.NoError(t, err)
+	})
+	t.Run("Symlink pointing to outside", func(t *testing.T) {
+		service := newService("../..")
+		source := &argoappv1.ApplicationSource{
+			Chart:          "my-chart",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"my-chart-outside-link.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+	})
 }
 
 func TestGenerateHelmWithURL(t *testing.T) {
@@ -788,33 +818,88 @@ func TestGenerateHelmWithURL(t *testing.T) {
 // The requested value file (`../../../../../minio/values.yaml`) is outside the repo directory
 // (`~/go/src/github.com/argoproj/argo-cd`), so it is blocked
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
-	service := newService("../..")
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:    &argoappv1.Repository{},
-		AppName: "test",
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/redis",
-			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"../../../../../minio/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+	t.Run("Values file with relative path pointing outside repo root", func(t *testing.T) {
+		service := newService("../..")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: "./util/helm/testdata/redis",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"../../../../../minio/values.yaml"},
+					Values:     `cluster: {slaveCount: 2}`,
+				},
 			},
-		},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
 	})
-	assert.Error(t, err, "should be on or under current directory")
 
-	service = newService("./testdata/my-chart")
-	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:    &argoappv1.Repository{},
-		AppName: "test",
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: ".",
-			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"../my-chart-2/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
+					Values:     `cluster: {slaveCount: 2}`,
+				},
 			},
-		},
+		})
+		assert.NoError(t, err)
 	})
-	assert.Error(t, err, "should be on or under current directory")
+
+	t.Run("Values file with absolute path stays within repo root", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"/my-chart-values.yaml"},
+					Values:     `cluster: {slaveCount: 2}`,
+				},
+			},
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("Values file with absolute path using back-references outside repo root", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"/../../../my-chart-values.yaml"},
+					Values:     `cluster: {slaveCount: 2}`,
+				},
+			},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+	})
+
+	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
+					Values:     `cluster: {slaveCount: 2}`,
+				},
+			},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "is not allowed")
+	})
 }
 
 // The requested file parameter (`/tmp/external-secret.txt`) is outside the app path
@@ -1599,4 +1684,173 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 	assert.Equal(t, len(repos), 2)
 	assert.Equal(t, repos[0].Repo, repo1)
 	assert.Equal(t, repos[1].Repo, repo2)
+}
+
+func Test_resolveSymlinkRecursive(t *testing.T) {
+	testsDir, err := filepath.Abs("./testdata/symlinks")
+	if err != nil {
+		panic(err)
+	}
+	t.Run("Resolve non-symlink", func(t *testing.T) {
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/foo", 2)
+		assert.NoError(t, err)
+		assert.Equal(t, testsDir+"/foo", r)
+	})
+	t.Run("Successfully resolve symlink", func(t *testing.T) {
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 2)
+		assert.NoError(t, err)
+		assert.Equal(t, testsDir+"/foo", r)
+	})
+	t.Run("Do not allow symlink at all", func(t *testing.T) {
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 0)
+		assert.Error(t, err)
+		assert.Equal(t, "", r)
+	})
+	t.Run("Error because too nested symlink", func(t *testing.T) {
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/bam", 2)
+		assert.Error(t, err)
+		assert.Equal(t, "", r)
+	})
+	t.Run("No such file or directory", func(t *testing.T) {
+		r, err := resolveSymbolicLinkRecursive(testsDir+"/foobar", 2)
+		assert.NoError(t, err)
+		assert.Equal(t, testsDir+"/foobar", r)
+	})
+}
+
+func Test_isURLSchemeAllowed(t *testing.T) {
+	type testdata struct {
+		name     string
+		scheme   string
+		allowed  []string
+		expected bool
+	}
+	var tts []testdata = []testdata{
+		{
+			name:     "Allowed scheme matches",
+			scheme:   "http",
+			allowed:  []string{"http", "https"},
+			expected: true,
+		},
+		{
+			name:     "Allowed scheme matches only partially",
+			scheme:   "http",
+			allowed:  []string{"https"},
+			expected: false,
+		},
+		{
+			name:     "Scheme is not allowed",
+			scheme:   "file",
+			allowed:  []string{"http", "https"},
+			expected: false,
+		},
+		{
+			name:     "Empty scheme with valid allowances is forbidden",
+			scheme:   "",
+			allowed:  []string{"http", "https"},
+			expected: false,
+		},
+		{
+			name:     "Empty scheme with empty allowances is forbidden",
+			scheme:   "",
+			allowed:  []string{},
+			expected: false,
+		},
+		{
+			name:     "Some scheme with empty allowances is forbidden",
+			scheme:   "file",
+			allowed:  []string{},
+			expected: false,
+		},
+	}
+	for _, tt := range tts {
+		t.Run(tt.name, func(t *testing.T) {
+			r := isURLSchemeAllowed(tt.scheme, tt.allowed)
+			assert.Equal(t, tt.expected, r)
+		})
+	}
+}
+
+func Test_resolveHelmValueFilePath(t *testing.T) {
+	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/bim.yaml", allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "/foo/bar/baz/bim.yaml", p)
+	})
+	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/../../bim.yaml", allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "/foo/bim.yaml", p)
+	})
+	t.Run("Error on path resolving outside repository root", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/../../../bim.yaml", allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
+	t.Run("Return verbatim URL", func(t *testing.T) {
+		url := "https://some.where/foo,yaml"
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", url, allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.True(t, remote)
+		assert.Equal(t, url, p)
+	})
+	t.Run("URL scheme not allowed", func(t *testing.T) {
+		url := "file:///some.where/foo,yaml"
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", url, allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
+	t.Run("Implicit URL by absolute path", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "/baz.yaml", allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "/foo/baz.yaml", p)
+	})
+	t.Run("Relative app path", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath(".", "/foo", "/baz.yaml", allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "/foo/baz.yaml", p)
+	})
+	t.Run("Relative repo path", func(t *testing.T) {
+		c, err := os.Getwd()
+		require.NoError(t, err)
+		p, remote, err := resolveHelmValueFilePath(".", ".", "baz.yaml", allowedHelmRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, c+"/baz.yaml", p)
+	})
+	t.Run("Overlapping root prefix without trailing slash", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath(".", "/foo", "../foo2/baz.yaml", allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
+	t.Run("Overlapping root prefix with trailing slash", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "../foo2/baz.yaml", allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
+	t.Run("Garbage input as values file", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "kfdj\\ks&&&321209.,---e32908923%$§!\"", allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
+	t.Run("NUL-byte path input as values file", func(t *testing.T) {
+		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "\000", allowedHelmRemoteProtocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
+		assert.False(t, remote)
+		assert.Equal(t, "", p)
+	})
 }
