@@ -6,7 +6,7 @@ sponsors:
   - TBD        # List all intereste parties here.
 reviewers:
   - "@jannfis"
-  - TBD
+  - "@crenshaw-dev"
 approvers:
   - "@jannfis"
   - TBD
@@ -20,12 +20,11 @@ last-updated: 2022-01-28
 Support more than one source for creating an Application.
 
 Related Issues: 
-* https://github.com/argoproj/argo-cd/issues/677
-* https://github.com/argoproj/argo-cd/issues/2789
+* [Proposal: Support multiple sources for an application](https://github.com/argoproj/argo-cd/issues/677)
+* [Helm chart + values from Git](https://github.com/argoproj/argo-cd/issues/2789)
 
 ## Open Questions
 * Adding external sources to the Application reource would add additional latencies for creation/reconcilation process. Should we add it to the doc in Risks?
-* 
 
 ## Summary
 
@@ -51,11 +50,11 @@ Users should be able to specify different sources for Helm charts and values fil
 
 #### Changes to UI
 
-The UI should allow users to add multiple sources while creating the application. For each source, UI should allow users to add multiple external values files Helm projects.
+The UI should allow users to add multiple sources while creating the application. For each source, UI should allow users to add multiple external values files Helm projects. We would need a separate proposal for changes to UI.
 
 #### Changes to cli
 
-The cli would need to support adding a list of resources instead of just one while creating the application. Also, just like `--values` field for adding values files, we would need an option to allow external value files to the application.
+The cli would need to support adding a list of resources instead of just one while creating the application. Also, just like `--values` field for adding values files, we would need an option to allow external value files to the application. We would need a separate proposal for changes to cli.
 
 ### Non-goals
 * Allow reconciliation from Argo CD Application resources that are located at various sources. We believe this would be possible with some adaptions in the reconcilation workflow.
@@ -64,24 +63,26 @@ The cli would need to support adding a list of resources instead of just one whi
 
 ### Add new `sources` field in Application Spec
 
-The proposal is to add a new field `sources` which would allow users to input list of `ApplicationSource`s. We would mark field `source` as deprecated and would override the details under `source` with details under `sources` field.
+The proposal is to add a new field `sources` which would allow users to input list of `ApplicationSource`s. We would mark field `source` as deprecated and would ignore the details under `source` with details under `sources` field. 
+
+Below example shows how the yaml would look like for `source` and `sources` field. We would ignore the `source` field and apply the resources mentioned under `sources` field.
 
 ```yaml
 spec:
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    targetRevision: 8.5.8
+    repoURL: https://github.com/elastic/helm-charts/tree/main/elasticsearch
+    targetRevision: 6.8
     helm:
-    valueFiles:
+      valueFiles:
         - values.yaml
-    chart: mysql
+    chart: elasticsearch
   sources:                                          # new field
-    - repoURL: https://charts.bitnami.com/bitnami
-      targetRevision: 8.5.8
+    - repoURL: https://github.com/helm/charts/tree/master/incubator/elasticsearch
+      targetRevision: master
       helm:
         valueFiles:
           - values.yaml
-      chart: mysql
+      chart: elasticsearch
 ```
 
 ### Add `externalValues` field in helm section of Application Spec
@@ -90,17 +91,17 @@ Along with new `sources` field, add a new field for accepting external value fil
 
 ```yaml
 sources:
-    - repoURL: https://charts.bitnami.com/bitnami
-      targetRevision: 8.5.8
-      helm:
-        valueFiles:
-          - values.yaml
-        externalValueFiles:                         # new field
-          - repoURL: https://github.com/KaiReichart/argo-test-values.git
-            targetRevision: main
-            valueFiles:
-              - values.yaml
-      chart: mysql
+  - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch
+    targetRevision: master
+    helm:
+      valueFiles:
+        - values.yaml
+      externalValueFiles:                         # new field
+        - repoURL: https://github.com/helm/charts.git
+          targetRevision: main
+          valueFiles:
+            - stable/elasticsearch/values.yaml
+    chart: elasticsearch
 ```
 
 ### Combined Example Application yaml
@@ -117,35 +118,35 @@ spec:
     server: https://some.k8s.url.com:6443
   project: default
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    targetRevision: 8.5.8
+    repoURL: https://github.com/helm/charts/tree/master/incubator/elasticsearch
+    targetRevision: master
     helm:
     valueFiles:
         - values.yaml
-    chart: mysql
+    chart: elasticsearch
   sources:                                          # new field
-    - repoURL: https://charts.bitnami.com/bitnami
-      targetRevision: 8.5.8
+    - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch
+      targetRevision: master
       helm:
         valueFiles:
           - values.yaml
         externalValueFiles:                         # new field
-          - repoURL: https://github.com/KaiReichart/argo-test-values.git
-            targetRevision: main
+          - repoURL: https://github.com/helm/charts.git
+            targetRevision: master
             valueFiles:
-              - values.yaml
-      chart: mysql
-    - repoURL: https://charts.bitnami.com/bitnami1
-      targetRevision: 8.5.8
+              - stable/elasticsearch/values.yaml
+      chart: elasticsearch
+    - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch-exporter
+      targetRevision: master
       helm:
         valueFiles:
           - values.yaml
         externalValueFiles:
-          - repoURL: https://github.com/KaiReichart/argo-test-values.git
+          - repoURL: https://github.com/helm/charts.git
             targetRevision: main
             valueFiles:
-              - values.yaml
-      chart: mysql
+              - stable/elasticsearch-exporter/values.yaml
+      chart: elasticsearch-exporter
   syncPolicy:
     automated: {}
 ```
@@ -160,10 +161,12 @@ As a user, I have an Application that uses the [elasticsearch](https://github.co
 https://github.com/argoproj/argo-cd/issues/677
 
 #### Use case 2: 
+As per one of the [comment]((https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307)) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
+```
 We have a Helm Chart which is used in 30+ Services and each of them is customized for 3 possible environments.
 Replicating this Chart 30 times without a centralized Repo looks dirty. Can be a show stopper for the whole migration.
-Modifying the Applica`tion definition is not an option since the whole goal is to reduce the rights that the CI-solution has. Giving it the right to update all Application-definitions from various teams in the argocd namespace is a a hard thing to convince people with.
-
+Modifying the Application definition is not an option since the whole goal is to reduce the rights that the CI-solution has. Giving it the right to update all Application-definitions from various teams in the argocd namespace is a a hard thing to convince people with.
+```
 
 ### Implementation Details
 
@@ -172,6 +175,8 @@ Modifying the Applica`tion definition is not an option since the whole goal is t
 To allow multiple sources to the Application, we would add a new field `sources` which would allow users to input list of `ApplicationSource`s. As part of this update and to support backward compatibilty, we would mark field `source` as deprecated and remove it in later revisions.
 
 To avoid complexity on the deciding the list of sources, if both `source` and `sources` fields are specified, we would override the source under `source` field with all the sources under `sources` field.
+
+** Depracating `source` field:** - Once the `sources` field is implemented in UI and cli as well, we will mark the `source` field as deprecated. At the same time, we will log `WARNING` messages and add UI blurbs about the deprecation. When maintainers feel confident about the adoption of the `sources` field, we will remove the `source` field from later releases.
 
 #### Invalidating existing cache
 
@@ -190,6 +195,7 @@ We would need to create new options to the `argocd app create` command for addin
 
 For supporting external Helm value files, we would need to introduce a new option similar to existing `--values` option for Helm projects to support external values files. This options would need to be added individually to each source.
 
+As per the community call on February 3, changes to UI and cli are huge and are not planned to be part of first iteration.
 
 ### Security Considerations
 
