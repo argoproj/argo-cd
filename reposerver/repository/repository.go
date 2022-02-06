@@ -66,7 +66,7 @@ const (
 )
 
 // List of protocol schemes allowed for fetching remote value files
-var allowedHelmRemoteProtocols = []string{"http", "https"}
+var allowedHelmRemoteProtocols = []string{"http", "https", "secrets"}
 
 // Service implements ManifestService interface
 type Service struct {
