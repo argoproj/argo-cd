@@ -1360,3 +1360,4 @@ message TLSClientConfig {
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
 }
+
