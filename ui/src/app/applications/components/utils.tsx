@@ -88,7 +88,8 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
                                 componentProps={{
                                     policyName: policy.name,
                                     policyID: policy.id,
-                                    policyMessage: policy.message
+                                    policyMessage: policy.message,
+                                    isDefaultPolicy: policy.id === 'foreground'
                                 }}
                             />
                         );
@@ -120,28 +121,30 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
     return confirmed;
 }
 
-const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policyName: string; policyID: string; policyMessage: string}) => {
-    const {
-        fieldApi: {setValue}
-    } = props;
-    return (
-        <div className='propagation-policy-option'>
-            <input
-                className='radio-button'
-                key={props.policyID}
-                type='radio'
-                name='propagation-policy'
-                value={props.policyID}
-                id={props.policyID}
-                defaultChecked={props.policyID === 'foreground'}
-                onChange={() => setValue(props.policyID)}
-            />
-            <label htmlFor={props.policyID}>
-                {props.policyName} {helpTip(props.policyMessage)}
-            </label>
-        </div>
-    );
-});
+const PropagationPolicyOption = ReactForm.FormField(
+    (props: {fieldApi: ReactForm.FieldApi; policyName: string; policyID: string; policyMessage: string; isDefaultPolicy: boolean}) => {
+        const {
+            fieldApi: {setValue}
+        } = props;
+        return (
+            <div className='propagation-policy-option'>
+                <input
+                    className='radio-button'
+                    key={props.policyID}
+                    type='radio'
+                    name='propagation-policy'
+                    value={props.policyID}
+                    id={props.policyID}
+                    defaultChecked={props.isDefaultPolicy}
+                    onChange={() => setValue(props.policyID)}
+                />
+                <label htmlFor={props.policyID}>
+                    {props.policyName} {helpTip(props.policyMessage)}
+                </label>
+            </div>
+        );
+    }
+);
 
 export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
@@ -246,10 +249,11 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
     const isManaged = !!resource.status;
+    const resourceDeleteForeground = 'resourceDeleteForeground';
     const propagationPolicies: {name: string; id: string; message: string}[] = [
         {
             name: 'Foreground',
-            id: 'foreground',
+            id: resourceDeleteForeground,
             message: `Deletes the resource and dependent resources using the cascading policy in the foreground`
         },
         {
@@ -289,7 +293,8 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                                 componentProps={{
                                     policyName: policy.name,
                                     policyID: policy.id,
-                                    policyMessage: policy.message
+                                    policyMessage: policy.message,
+                                    isDefaultPolicy: policy.id === resourceDeleteForeground
                                 }}
                             />
                         );
@@ -321,7 +326,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         },
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
-        {propagationPolicy: 'foreground'}
+        {propagationPolicy: resourceDeleteForeground}
     );
 };
 
