@@ -85,7 +85,7 @@ func init() {
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
-	clusterCacheRetryLimit = env.ParseInt64FromEnv(EnvClusterCacheRetryLimit, 0, 0, math.MaxInt32)
+	clusterCacheRetryLimit = env.ParseInt64FromEnv(EnvClusterCacheRetryLimit, 1, 1, math.MaxInt32)
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 }
 
