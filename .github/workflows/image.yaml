@@ -53,7 +53,7 @@ jobs:
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push=true \
-            -t ghcr.io/argoproj/argocd:591bc122-arm-test
+            -t ghcr.io/argoproj/argocd:591bc122 .
         working-directory: ./src/github.com/argoproj/argo-cd
 
 
