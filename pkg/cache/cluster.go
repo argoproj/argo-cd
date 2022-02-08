@@ -141,6 +141,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 			syncTime:      nil,
 		},
 		watchResyncTimeout:      defaultWatchResyncTimeout,
+		clusterSyncRetryTimeout: ClusterRetryTimeout,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
 		log:                     log,
@@ -162,6 +163,8 @@ type clusterCache struct {
 
 	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
 	watchResyncTimeout time.Duration
+	// sync retry timeout for cluster when sync error happens
+	clusterSyncRetryTimeout time.Duration
 
 	// size of a page for list operations pager.
 	listPageSize int64
@@ -388,14 +391,14 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 }
 
 // clusterCacheSync's lock should be held before calling this method
-func (syncStatus *clusterCacheSync) synced() bool {
+func (syncStatus *clusterCacheSync) synced(clusterRetryTimeout time.Duration) bool {
 	syncTime := syncStatus.syncTime
 
 	if syncTime == nil {
 		return false
 	}
 	if syncStatus.syncError != nil {
-		return time.Now().Before(syncTime.Add(ClusterRetryTimeout))
+		return time.Now().Before(syncTime.Add(clusterRetryTimeout))
 	}
 	if syncStatus.resyncTimeout == 0 {
 		// cluster resync timeout has been disabled
@@ -722,7 +725,7 @@ func (c *clusterCache) EnsureSynced() error {
 
 	// first check if cluster is synced *without acquiring the full clusterCache lock*
 	syncStatus.lock.Lock()
-	if syncStatus.synced() {
+	if syncStatus.synced(c.clusterSyncRetryTimeout) {
 		syncError := syncStatus.syncError
 		syncStatus.lock.Unlock()
 		return syncError
@@ -736,7 +739,7 @@ func (c *clusterCache) EnsureSynced() error {
 
 	// before doing any work, check once again now that we have the lock, to see if it got
 	// synced between the first check and now
-	if syncStatus.synced() {
+	if syncStatus.synced(c.clusterSyncRetryTimeout) {
 		return syncStatus.syncError
 	}
 	err := c.sync()
