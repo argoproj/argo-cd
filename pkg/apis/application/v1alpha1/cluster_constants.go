@@ -35,41 +35,30 @@ const (
 	EnvK8sTCPIdleConnTimeout = "ARGOCD_K8S_TCP_IDLE_TIMEOUT"
 )
 
-// Constants associated with the Cluster API
+// Configuration variables associated with the Cluster API
 var (
 
 	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs
-	K8sClientConfigQPS float32 = 50
+	K8sClientConfigQPS float32 = env.ParseFloatFromEnv(EnvK8sClientQPS, 50, 0, math.MaxFloat32)
 
 	// K8sClientConfigBurst controls the burst to be used in K8s REST client configs
-	K8sClientConfigBurst int = 100
+	K8sClientConfigBurst int = env.ParseNumFromEnv(EnvK8sClientBurst, int(2*K8sClientConfigQPS), 0, math.MaxInt32)
 
 	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
-	K8sMaxIdleConnections = 500
+	K8sMaxIdleConnections = env.ParseNumFromEnv(EnvK8sClientMaxIdleConnections, 500, 0, math.MaxInt32)
 
 	// K8sTLSHandshakeTimeout defines the maximum duration to wait for a TLS handshake to complete
-	K8sTLSHandshakeTimeout = 10 * time.Second
+	K8sTLSHandshakeTimeout = env.ParseDurationFromEnv(EnvK8sTLSHandshakeTimeout, 10*time.Second, 0, math.MaxInt32)
 
 	// K8sTCPTimeout defines the TCP timeout to use when performing K8s API requests
-	K8sTCPTimeout = 30 * time.Second
+	K8sTCPTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 30*time.Second, 0, math.MaxInt32)
 
 	// K8sTCPKeepAlive defines the interval for sending TCP keep alive to K8s API server
-	K8sTCPKeepAlive = 30 * time.Second
+	K8sTCPKeepAlive = env.ParseDurationFromEnv(EnvK8sTCPKeepAlive, 30*time.Second, 0, math.MaxInt32)
 
 	// K8sTCPIdleConnTimeout defines the duration for keeping idle TCP connections to the K8s API server
-	K8sTCPIdleConnTimeout = 5 * time.Minute
+	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32)
 
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
-	K8sServerSideTimeout = 32 * time.Second
+	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 32*time.Second, 0, math.MaxInt32)
 )
-
-func init() {
-	K8sClientConfigQPS = env.ParseFloatFromEnv(EnvK8sClientQPS, K8sClientConfigQPS, 0, math.MaxFloat32)
-	K8sClientConfigBurst = env.ParseNumFromEnv(EnvK8sClientBurst, int(2*K8sClientConfigQPS), 0, math.MaxInt32)
-	K8sMaxIdleConnections = env.ParseNumFromEnv(EnvK8sClientMaxIdleConnections, K8sMaxIdleConnections, 0, math.MaxInt32)
-	K8sTCPKeepAlive = env.ParseDurationFromEnv(EnvK8sTCPKeepAlive, K8sTCPKeepAlive, 0, math.MaxInt32)
-	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, K8sServerSideTimeout, 0, math.MaxInt32)
-	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, K8sTCPIdleConnTimeout, 0, math.MaxInt32)
-	K8sTLSHandshakeTimeout = env.ParseDurationFromEnv(EnvK8sTLSHandshakeTimeout, K8sTLSHandshakeTimeout, 0, math.MaxInt32)
-	K8sTCPTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, K8sTCPTimeout, 0, math.MaxInt32)
-}
