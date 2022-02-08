@@ -60,18 +60,24 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
+func WithChartPaths(chartPaths *io.TempPaths) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.chartCachePaths = chartPaths
+	}
+}
+
 func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
-		repoURL:   repoURL,
-		creds:     creds,
-		repoPath:  filepath.Join(os.TempDir(), strings.Replace(repoURL, "/", "_", -1)),
-		repoLock:  repoLock,
-		enableOci: enableOci,
-		proxy:     proxy,
+		repoURL:         repoURL,
+		creds:           creds,
+		repoLock:        repoLock,
+		enableOci:       enableOci,
+		proxy:           proxy,
+		chartCachePaths: io.NewTempPaths(),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -82,13 +88,13 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	repoPath   string
-	repoURL    string
-	creds      Creds
-	repoLock   sync.KeyLock
-	enableOci  bool
-	indexCache indexCache
-	proxy      string
+	chartCachePaths *io.TempPaths
+	repoURL         string
+	creds           Creds
+	repoLock        sync.KeyLock
+	enableOci       bool
+	indexCache      indexCache
+	proxy           string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -102,29 +108,17 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) ensureHelmChartRepoPath() error {
-	c.repoLock.Lock(c.repoPath)
-	defer c.repoLock.Unlock(c.repoPath)
-
-	err := os.Mkdir(c.repoPath, 0700)
-	if err != nil && !os.IsExist(err) {
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+	cachePath, err := c.getCachedChartPath(chart, version)
+	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
-	return os.RemoveAll(c.getCachedChartPath(chart, version))
+	return os.RemoveAll(cachePath)
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
-	err := c.ensureHelmChartRepoPath()
-	if err != nil {
-		return "", nil, err
-	}
-
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion(c.repoPath, HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
 
 	if err != nil {
 		return "", nil, err
@@ -142,7 +136,10 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		return "", nil, err
 	}
 
-	cachedChartPath := c.getCachedChartPath(chart, version)
+	cachedChartPath, err := c.getCachedChartPath(chart, version)
+	if err != nil {
+		return "", nil, err
+	}
 
 	c.repoLock.Lock(cachedChartPath)
 	defer c.repoLock.Unlock(cachedChartPath)
@@ -355,8 +352,8 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version string) string {
-	return path.Join(c.repoPath, fmt.Sprintf("%s-%s.tgz", strings.ReplaceAll(chart, "/", "_"), version))
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
+	return c.chartCachePaths.GetPath(fmt.Sprintf("%s/%s-%s", c.repoURL, strings.ReplaceAll(chart, "/", "_"), version))
 }
 
 // Ensures that given OCI registries URL does not have protocol
