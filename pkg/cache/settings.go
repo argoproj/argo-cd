@@ -145,3 +145,16 @@ func SetTracer(tracer tracing.Tracer) UpdateSettingsFunc {
 		}
 	}
 }
+
+// SetRetryOptions sets cluster list retry options
+func SetRetryOptions(maxRetries int32, useBackoff bool, retryFunc ListRetryFunc) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		// Max retries must be at least one
+		if maxRetries < 1 {
+			maxRetries = 1
+		}
+		cache.listRetryLimit = maxRetries
+		cache.listRetryUseBackoff = useBackoff
+		cache.listRetryFunc = retryFunc
+	}
+}

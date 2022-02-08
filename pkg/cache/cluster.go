@@ -18,12 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
 	watchutil "k8s.io/client-go/tools/watch"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/klogr"
 	"k8s.io/kubectl/pkg/util/openapi"
 
@@ -120,6 +122,8 @@ type WeightedSemaphore interface {
 	Release(n int64)
 }
 
+type ListRetryFunc func(err error) bool
+
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
 	log := klogr.New()
@@ -145,6 +149,9 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
 		log:                     log,
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -171,6 +178,11 @@ type clusterCache struct {
 	// number of pages to prefetch for list pager.
 	listPageBufferSize int32
 	listSemaphore      WeightedSemaphore
+
+	// retry options for list operations
+	listRetryLimit      int32
+	listRetryUseBackoff bool
+	listRetryFunc       ListRetryFunc
 
 	// lock is a rw lock which protects the fields of clusterInfo
 	lock      sync.RWMutex
@@ -201,6 +213,16 @@ type clusterCacheSync struct {
 	syncTime      *time.Time
 	syncError     error
 	resyncTimeout time.Duration
+}
+
+// ListRetryFuncNever never retries on errors
+func ListRetryFuncNever(err error) bool {
+	return false
+}
+
+// ListRetryFuncAlways always retries on errors
+func ListRetryFuncAlways(err error) bool {
+	return true
 }
 
 // OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache
@@ -461,12 +483,33 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 		return "", err
 	}
 	defer c.listSemaphore.Release(1)
+	var retryCount int64 = 0
 	resourceVersion := ""
 	listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		res, err := resClient.List(ctx, opts)
-		if err == nil {
-			resourceVersion = res.GetResourceVersion()
+		var res *unstructured.UnstructuredList
+		var listRetry wait.Backoff
+
+		if c.listRetryUseBackoff {
+			listRetry = retry.DefaultBackoff
+		} else {
+			listRetry = retry.DefaultRetry
 		}
+
+		listRetry.Steps = int(c.listRetryLimit)
+		err := retry.OnError(listRetry, c.listRetryFunc, func() error {
+			var ierr error
+			res, ierr = resClient.List(ctx, opts)
+			if ierr != nil {
+				// Log out a retry
+				if c.listRetryLimit > 1 && c.listRetryFunc(ierr) {
+					retryCount += 1
+					c.log.Info(fmt.Sprintf("Error while listing resources: %v (try %d/%d)", ierr, retryCount, c.listRetryLimit))
+				}
+				return ierr
+			}
+			resourceVersion = res.GetResourceVersion()
+			return nil
+		})
 		return res, err
 	})
 	listPager.PageBufferSize = c.listPageBufferSize
