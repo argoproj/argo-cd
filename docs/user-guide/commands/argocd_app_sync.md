@@ -30,6 +30,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
 
 ```
       --async                                 Do not wait for application to sync before continuing
+      --diff-changes                          Preview difference against the target and live state before syncing app and wait for user confirmation
       --dry-run                               Preview apply without affecting cluster
       --force                                 Use a force apply
   -h, --help                                  help for sync
@@ -48,6 +49,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
   -l, --selector string                       Sync apps that match this label
       --strategy string                       Sync strategy (one of: apply|hook)
       --timeout uint                          Time out after this many seconds
+      --yes                                   To be used with --diff-changes for auto confirmation to sync app after a preview of diff against the target and live state before syncing app
 ```
 
 ### Options inherited from parent commands
