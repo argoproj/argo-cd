@@ -15,13 +15,14 @@ IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/codefresh}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
-if [ "$IMAGE_TAG" = "" ]; then
-  branch=$(git rev-parse --abbrev-ref HEAD)
-  if [[ $branch = release-* ]]; then
-    pwd
-    IMAGE_TAG=v$(cat $SRCROOT/VERSION)
-  fi
-fi
+## Codefresh comment out - if no IMAGE_TAG is provided, then use 'latest'
+# if [ "$IMAGE_TAG" = "" ]; then
+#   branch=$(git rev-parse --abbrev-ref HEAD)
+#   if [[ $branch = release-* ]]; then
+#     pwd
+#     IMAGE_TAG=v$(cat $SRCROOT/VERSION)
+#   fi
+# fi
 # otherwise, use latest
 if [ "$IMAGE_TAG" = "" ]; then
   IMAGE_TAG=latest
