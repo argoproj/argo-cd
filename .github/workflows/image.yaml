@@ -52,9 +52,8 @@ jobs:
             IMAGE_PLATFORMS=linux/amd64,linux/arm64
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
-          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
-            -t quay.io/argoproj/argocd:latest .
+          docker buildx build --platform $IMAGE_PLATFORMS --push=true \
+            -t ghcr.io/argoproj/argocd:591bc122-arm-test
         working-directory: ./src/github.com/argoproj/argo-cd
 
 
