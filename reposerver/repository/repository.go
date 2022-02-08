@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -68,6 +69,7 @@ type Service struct {
 	gitCredsStore             git.CredsStore
 	gitRepoPaths              *io.TempPaths
 	chartPaths                *io.TempPaths
+	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
 	cache                     *reposervercache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
@@ -105,11 +107,12 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, opts...)
 		},
-		initConstants: initConstants,
-		now:           time.Now,
-		gitCredsStore: gitCredsStore,
-		gitRepoPaths:  io.NewTempPaths(),
-		chartPaths:    io.NewTempPaths(),
+		initConstants:      initConstants,
+		now:                time.Now,
+		gitCredsStore:      gitCredsStore,
+		gitRepoPaths:       io.NewTempPaths(),
+		chartPaths:         io.NewTempPaths(),
+		gitRepoInitializer: directoryPermissionInitializer,
 	}
 }
 
@@ -150,8 +153,8 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() error {
-		return checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
 	})
 
 	if err != nil {
@@ -262,8 +265,8 @@ func (s *Service) runRepoOperation(
 			return &operationContext{chartPath, ""}, nil
 		})
 	} else {
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
-			return checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
+			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
 		})
 
 		if err != nil {
@@ -1628,8 +1631,8 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() error {
-		return checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
 	})
 
 	if err != nil {
@@ -1725,13 +1728,35 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	return helmClient, version.String(), nil
 }
 
+// directoryPermissionInitializer ensures the directory has read/write permissions and returns
+// a function that can be used to remove all permissions.
+func directoryPermissionInitializer(rootPath string) goio.Closer {
+	if _, err := os.Stat(rootPath); err == nil {
+		if err := os.Chmod(rootPath, 0755); err != nil {
+			log.Warnf("Failed to restore read/write permissions on %s: %v", rootPath, err)
+		} else {
+			log.Debugf("Successfully restored read/write permissions on %s", rootPath)
+		}
+	}
+
+	return io.NewCloser(func() error {
+		if err := os.Chmod(rootPath, 0000); err != nil {
+			log.Warnf("Failed to remove permissions on %s: %v", rootPath, err)
+		} else {
+			log.Debugf("Successfully removed permissions on %s", rootPath)
+		}
+		return nil
+	})
+}
+
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
+	closer := s.gitRepoInitializer(gitClient.Root())
 	err := gitClient.Init()
 	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
 	err = gitClient.Fetch(revision)
@@ -1741,21 +1766,21 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		log.Infof("Fallback to fetch default")
 		err = gitClient.Fetch("")
 		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+			return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
 		err = gitClient.Checkout(revision, submoduleEnabled)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
-		return err
+		return closer, err
 	}
 
 	err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 	}
 
-	return err
+	return closer, err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

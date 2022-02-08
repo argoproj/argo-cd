@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
@@ -87,6 +87,9 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	}
 	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
+	}
+	service.gitRepoInitializer = func(rootPath string) goio.Closer {
+		return io.NopCloser
 	}
 	return service, gitClient
 }
