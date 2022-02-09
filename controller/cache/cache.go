@@ -74,7 +74,7 @@ var (
 
 	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
 	// If set to 1, retries are disabled.
-	clusterCacheRetryLimit int64 = 1
+	clusterCacheRetryLimit int32 = 1
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff bool = false
@@ -85,7 +85,7 @@ func init() {
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
-	clusterCacheRetryLimit = env.ParseInt64FromEnv(EnvClusterCacheRetryLimit, 1, 1, math.MaxInt32)
+	clusterCacheRetryLimit = int32(env.ParseInt64FromEnv(EnvClusterCacheRetryLimit, 1, 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 }
 
@@ -361,7 +361,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
-		clustercache.SetRetryOptions(int32(clusterCacheRetryLimit), clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetRetryOptions(clusterCacheRetryLimit, clusterCacheRetryUseBackoff, isRetryableError),
 	}
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
