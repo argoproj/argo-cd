@@ -8,6 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -230,7 +234,8 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *apiclient.ClientOptions, ctxStr string) apiclient.Client {
+func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
+	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	err := StartLocalServer(opts, ctxStr, nil, nil)
 	if err != nil {
 		log.Fatal(err)

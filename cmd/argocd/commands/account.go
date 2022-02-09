@@ -16,10 +16,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -74,7 +73,7 @@ has appropriate RBAC permissions to change other accounts.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			acdClient := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
+			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
 			defer io.Close(conn)
 
@@ -148,7 +147,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewSessionClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie()
 			defer io.Close(conn)
 
 			ctx := context.Background()
@@ -203,7 +202,7 @@ Resources: %v
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
 			defer io.Close(conn)
 
 			ctx := context.Background()
@@ -243,7 +242,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Example: "argocd account list",
 		Run: func(c *cobra.Command, args []string) {
 
-			conn, client := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context"))).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
 			defer io.Close(conn)
 
 			ctx := context.Background()
@@ -289,7 +288,7 @@ argocd account get
 # Get details for an account by name
 argocd account get --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
-			clientset := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
+			clientset := headless.NewClientOrDie(clientOpts, c)
 
 			if account == "" {
 				account = getCurrentAccount(clientset).Username
@@ -361,7 +360,7 @@ argocd account generate-token
 argocd account generate-token --account <account-name>`,
 		Run: func(c *cobra.Command, args []string) {
 
-			clientset := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
+			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, client := clientset.NewAccountClientOrDie()
 			defer io.Close(conn)
 			if account == "" {
@@ -403,7 +402,7 @@ argocd account delete-token --account <account-name> ID`,
 			}
 			id := args[0]
 
-			clientset := headless.NewClientOrDie(clientOpts, initialize.RetrieveContextIfChanged(c.Flag("context")))
+			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, client := clientset.NewAccountClientOrDie()
 			defer io.Close(conn)
 			if account == "" {

@@ -8,10 +8,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -42,7 +41,6 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			cv := common.GetVersion()
-			ctxStr := initialize.RetrieveContextIfChanged(cmd.Flag("context"))
 			switch output {
 			case "yaml", "json":
 				v := make(map[string]interface{})
@@ -54,7 +52,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				if !client {
-					sv := getServerVersion(clientOpts, ctxStr)
+					sv := getServerVersion(clientOpts, cmd)
 
 					if short {
 						v["server"] = map[string]string{"argocd-server": sv.Version}
@@ -69,7 +67,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				printClientVersion(&cv, short || (output == "short"))
 
 				if !client {
-					sv := getServerVersion(clientOpts, ctxStr)
+					sv := getServerVersion(clientOpts, cmd)
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
@@ -83,8 +81,8 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &versionCmd
 }
 
-func getServerVersion(options *argocdclient.ClientOptions, ctxStr string) *version.VersionMessage {
-	conn, versionIf := headless.NewClientOrDie(options, ctxStr).NewVersionClientOrDie()
+func getServerVersion(options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
+	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer argoio.Close(conn)
 
 	v, err := versionIf.Version(context.Background(), &empty.Empty{})

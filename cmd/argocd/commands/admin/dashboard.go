@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/headless"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
