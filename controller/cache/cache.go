@@ -73,8 +73,8 @@ var (
 	clusterCacheListPageSize int64 = 500
 
 	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
-	// If set to 0, retries are disabled.
-	clusterCacheRetryLimit int64 = 0
+	// If set to 1, retries are disabled.
+	clusterCacheRetryLimit int64 = 1
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff bool = false
