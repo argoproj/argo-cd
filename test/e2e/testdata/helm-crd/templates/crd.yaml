@@ -3,12 +3,25 @@ kind: CustomResourceDefinition
 metadata:
   name: crontabs.stable.example.com
 spec:
+  conversion:
+    strategy: None
   group: stable.example.com
-  version: v1
-  scope: Namespaced
   names:
-    plural: crontabs
-    singular: crontab
     kind: CronTab
+    listKind: CronTabList
+    plural: crontabs
     shortNames:
-      - ct
+    - ct
+    singular: crontab
+  scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          json:
+            x-kubernetes-preserve-unknown-fields: true
