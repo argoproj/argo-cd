@@ -1,6 +1,7 @@
 package io
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestGetPath_SameURLs(t *testing.T) {
-	paths := NewTempPaths()
+	paths := NewTempPaths(os.TempDir())
 	res1, err := paths.GetPath("https://localhost/test.txt")
 	require.NoError(t, err)
 	res2, err := paths.GetPath("https://localhost/test.txt")
@@ -17,7 +18,7 @@ func TestGetPath_SameURLs(t *testing.T) {
 }
 
 func TestGetPath_DifferentURLs(t *testing.T) {
-	paths := NewTempPaths()
+	paths := NewTempPaths(os.TempDir())
 	res1, err := paths.GetPath("https://localhost/test1.txt")
 	require.NoError(t, err)
 	res2, err := paths.GetPath("https://localhost/test2txt")
@@ -26,10 +27,10 @@ func TestGetPath_DifferentURLs(t *testing.T) {
 }
 
 func TestGetPath_SameURLsDifferentInstances(t *testing.T) {
-	paths1 := NewTempPaths()
+	paths1 := NewTempPaths(os.TempDir())
 	res1, err := paths1.GetPath("https://localhost/test.txt")
 	require.NoError(t, err)
-	paths2 := NewTempPaths()
+	paths2 := NewTempPaths(os.TempDir())
 	res2, err := paths2.GetPath("https://localhost/test.txt")
 	require.NoError(t, err)
 	assert.NotEqual(t, res1, res2)

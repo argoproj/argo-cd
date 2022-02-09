@@ -77,7 +77,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
-		chartCachePaths: io.NewTempPaths(),
+		chartCachePaths: io.NewTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)

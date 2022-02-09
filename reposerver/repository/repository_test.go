@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -72,7 +73,11 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
+<<<<<<< HEAD
 	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{})
+=======
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), os.TempDir())
+>>>>>>> afe616a79 (support restoring URLs from file system; sanitize error messages)
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -1906,4 +1911,64 @@ func Test_resolveHelmValueFilePath(t *testing.T) {
 		assert.False(t, remote)
 		assert.Equal(t, "", p)
 	})
+}
+
+func TestDirectoryPermissionInitializer(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	file, err := ioutil.TempFile(dir, "")
+	require.NoError(t, err)
+	io.Close(file)
+
+	// remove read permissions
+	assert.NoError(t, os.Chmod(dir, 0000))
+	closer := directoryPermissionInitializer(dir)
+
+	// make sure permission are restored
+	_, err = ioutil.ReadFile(file.Name())
+	require.NoError(t, err)
+
+	// make sure permission are removed by closer
+	io.Close(closer)
+	_, err = ioutil.ReadFile(file.Name())
+	require.Error(t, err)
+}
+
+func initGitRepo(repoPath string, remote string) error {
+	if err := os.Mkdir(repoPath, 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("git", "init", repoPath)
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	cmd = exec.Command("git", "remote", "add", "origin", remote)
+	cmd.Dir = repoPath
+	return cmd.Run()
+}
+
+func TestInit(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	repoPath := path.Join(dir, "repo1")
+	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
+
+	service := newService(".")
+	service.rootDir = dir
+
+	require.NoError(t, service.Init())
+
+	repo1Path, err := service.gitRepoPaths.GetPath(git.NormalizeGitURL("https://github.com/argo-cd/test-repo1"))
+	assert.NoError(t, err)
+	assert.Equal(t, repoPath, repo1Path)
 }
