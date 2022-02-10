@@ -15,6 +15,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
+type dummyCredsStore struct {
+}
+
+func (d dummyCredsStore) Add(username string, password string) string {
+	return ""
+}
+
+func (d dummyCredsStore) Remove(id string) {
+}
+
 const kustomization1 = "kustomization_yaml"
 const kustomization2a = "kustomization_yml"
 const kustomization2b = "Kustomization"
@@ -38,7 +48,7 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, &dummyCredsStore{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,
@@ -164,7 +174,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, &dummyCredsStore{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -213,7 +223,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, &dummyCredsStore{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -233,7 +243,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	kustomizePath, err := testDataDir(kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, &dummyCredsStore{}, "", kustomizePath+"/kustomize.special")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Version: "special",
 	}

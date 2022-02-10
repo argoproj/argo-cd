@@ -37,6 +37,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
+type gitCredsStoreStub struct {
+}
+
+func (d gitCredsStoreStub) Add(username string, password string) string {
+	return ""
+}
+
+func (d gitCredsStoreStub) Remove(id string) {
+}
+
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
 gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
@@ -72,7 +82,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &gitCredsStoreStub{})
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -140,7 +150,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &gitCredsStoreStub{})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -1032,9 +1042,8 @@ func TestRunCustomTool(t *testing.T) {
 
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
-	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
-	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
-	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
+	assert.Empty(t, obj.GetAnnotations()["GIT_USERNAME"])
+	assert.Empty(t, obj.GetAnnotations()["GIT_PASSWORD"])
 	// Git client is mocked, so the revision is always mock.Anything
 	assert.Equal(t, map[string]string{"revision": "prefix-mock.Anything"}, obj.GetLabels())
 }
@@ -1044,7 +1053,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &gitCredsStoreStub{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

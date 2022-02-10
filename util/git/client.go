@@ -92,7 +92,8 @@ type nativeGitClient struct {
 	// indicates if client allowed to load refs from cache
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
-	proxy string
+	proxy      string
+	credsStore CredsStore
 }
 
 var (
@@ -124,6 +125,13 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+// WithCredsStore sets the temporal credentials store
+func WithCredsStore(store CredsStore) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.credsStore = store
 	}
 }
 
@@ -611,7 +619,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 // nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
-	closer, environ, err := m.creds.Environ()
+	closer, environ, err := m.creds.Environ(m.credsStore)
 	if err != nil {
 		return err
 	}
@@ -623,7 +631,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.

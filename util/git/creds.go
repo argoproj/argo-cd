@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	gocache "github.com/patrickmn/go-cache"
-
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
+	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
-
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // In memory cache for storing github APP api token credentials
@@ -38,8 +38,22 @@ func init() {
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 }
 
+type CredsStore interface {
+	Add(username string, password string) string
+	Remove(id string)
+}
+
 type Creds interface {
-	Environ() (io.Closer, []string, error)
+	Environ(store CredsStore) (io.Closer, []string, error)
+}
+
+func getGitAskPassEnv(id string) []string {
+	return []string{
+		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
+		fmt.Sprintf("ARGOCD_GIT_ASKPASS_NONCE=%s", id),
+		"GIT_TERMINAL_PROMPT=0",
+		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+	}
 }
 
 // nop implementation
@@ -55,7 +69,7 @@ var _ Creds = NopCreds{}
 type NopCreds struct {
 }
 
-func (c NopCreds) Environ() (io.Closer, []string, error) {
+func (c NopCreds) Environ(_ CredsStore) (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
@@ -65,7 +79,7 @@ type GenericHTTPSCreds interface {
 	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
-	Environ() (io.Closer, []string, error)
+	Environ(store CredsStore) (io.Closer, []string, error)
 }
 
 var _ GenericHTTPSCreds = HTTPSCreds{}
@@ -99,13 +113,9 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
-func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
-	if c.username != "" {
-		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", c.username))
-	} else {
-		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", "x-access-token"))
-	}
+func (c HTTPSCreds) Environ(store CredsStore) (io.Closer, []string, error) {
+	var env []string
+
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -157,9 +167,13 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-
 	}
-	return httpCloser, env, nil
+	id := store.Add(text.FirstNonEmpty(c.username, "x-access-token"), c.password)
+	env = append(env, getGitAskPassEnv(id)...)
+	return argoioutils.NewCloser(func() error {
+		store.Remove(id)
+		return httpCloser.Close()
+	}), env, nil
 }
 
 func (g HTTPSCreds) HasClientCert() bool {
@@ -207,7 +221,7 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
-func (c SSHCreds) Environ() (io.Closer, []string, error) {
+func (c SSHCreds) Environ(store CredsStore) (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
 	file, err := ioutil.TempFile(argoio.TempDir, "")
 	if err != nil {
@@ -256,13 +270,12 @@ func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseU
 	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure}
 }
 
-func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
+func (g GitHubAppCreds) Environ(store CredsStore) (io.Closer, []string, error) {
 	token, err := g.getAccessToken()
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
-
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), "GIT_USERNAME=x-access-token", fmt.Sprintf("GIT_PASSWORD=%s", token)}
+	var env []string
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -316,7 +329,12 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 
 	}
-	return httpCloser, env, nil
+	id := store.Add("x-access-token", token)
+	env = append(env, getGitAskPassEnv(id)...)
+	return argoioutils.NewCloser(func() error {
+		store.Remove(id)
+		return httpCloser.Close()
+	}), env, nil
 }
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.

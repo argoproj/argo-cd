@@ -376,6 +376,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Add ./dist to PATH
+        run: |
+          echo "$(pwd)/dist" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download

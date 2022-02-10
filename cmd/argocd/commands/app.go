@@ -758,6 +758,16 @@ func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelK
 	return objs
 }
 
+type dummyCredsStore struct {
+}
+
+func (d dummyCredsStore) Add(username string, password string) string {
+	return ""
+}
+
+func (d dummyCredsStore) Remove(id string) {
+}
+
 func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
 
@@ -772,7 +782,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true)
+	}, true, &dummyCredsStore{})
 	errors.CheckError(err)
 
 	return res.Manifests
