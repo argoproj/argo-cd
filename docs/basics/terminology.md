@@ -1,4 +1,4 @@
-Before using ArgoCD we assume that you already know about containers, tags and registries. Ideally you should also know how to build containers and publish them to a registry.
+Before using Argo CD we assume that you already know about containers, tags and registries. Ideally you should also know how to build containers and publish them to a registry.
 
 In addition, you should also be familiar with basic Kubernetes concepts such as:
 
@@ -44,7 +44,7 @@ The [Application Set controller](https://argocd-applicationset.readthedocs.io/en
 
 ## Command Line Interface (CLI)
 
-Argo CD has a CLI called `argocd` that can manage applications, clusters and other entities. Using the CLI is great for automation and scripting. It can also be used from a Continuous Integration (CI) pipeline to automate deployments as part of a workflow. The CLI is optional and some people might prefer to use the web UI for the same actions.
+Argo CD has a CLI called `argocd` that can be used to manage various aspects of Argo CD, such as applications, clusters and other entities. Using the CLI is great for automation and scripting. It can also be used from a Continuous Integration (CI) pipeline to automate deployments as part of a workflow. The CLI is optional and some people might prefer to use the web UI for the same actions.
 
 ## Web User Interface (UI)
 
@@ -52,11 +52,11 @@ Argo CD has a very powerful web interface that can be used to inspect your appli
 
 ## Application Programming Interface (API)
 
-Argo CD exposes an API that allows you to automate all possible actions from your own program or script. Everything that is available from the CLI and the UI is also available in API form. 
+Argo CD exposes a RESTful API that allows you to automate all possible actions from your own program or script. Everything that is available from the CLI and the UI is also available through Argo CD's API.  
 
 ## Target state
 
-The desired state of an application as described in Git. Typically it consists of Kubernetes manifests either in raw form or templated with Helm/Kustomize or other configuration tool. 
+The desired state of an application as described in Git. Typically it consists of Kubernetes manifests either in raw form or templated with Helm/Kustomize or other configuration management tool. 
 
 ##  Live state
 
@@ -64,7 +64,7 @@ The state of the application as found in the cluster. It typically includes pods
 
 ## Diff process
 
-The operation when the live state and target state are compared. If they are the same we know that what is in the cluster is also in Git and thus no action needs to be taken. If they are not the same, ArgoCD can take an action according to its configuration. A possible action is to apply changes from the Git state to the live state starting the sync process. It is also possible to customize the diff process to ignore specific fields.
+The operation when the live state and target state are compared. If they are the same we know that what is in the cluster is also in Git and thus no action needs to be taken. If they are not the same, Argo CD can take an action according to its configuration. A possible action is to apply changes from the Git state to the live state starting the sync process. It is also possible to customize the diff process to ignore specific fields.
 
 ## Sync process
 
@@ -84,7 +84,7 @@ Sync waves allow you to customize the order of resource creation when an applica
 
 ## Resource Hooks
 
-For each sync operation ArgoCD can optionally run other actions before/during/after the sync process. For example you can use the `PostSync` hook
+For each sync operation Argo CD can optionally run other actions before/during/after the sync process. For example you can use the `PostSync` hook
 to run some smoke tests in your new deployments. In the case of Helm, Argo CD also tries to translate [Helm hooks](https://helm.sh/docs/topics/charts_hooks/) to Argo CD hooks.
 
 ## Health status
@@ -92,9 +92,9 @@ to run some smoke tests in your new deployments. In the case of Helm, Argo CD al
 This is an Argo CD specific status that is monitored for all applications. The "healthy" state is different per application type. For example, a Kubernetes ReplicaSet is deemed healthy if the live generation and live replicas match the target generation and desired replicas. Argo CD also has built-in health checks for other common resources such as [Argo Rollout Objects](https://argoproj.github.io/argo-rollouts/) or [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets).
 You can create your own Health checks with the [Lua programming language](https://www.lua.org/).
 
-## Configuration tool
+## Configuration management tool
 
-Argo CD can use any supported templating tool such as Helm, Kustomize, JSonnet. You can add your own third party tool for preparing/templating Kubernetes manifests. Note that in the case of Helm, Argo CD uses it as a pure templating tool. Helm applications installed with Argo CD are not visible to normal Helm commands.
+Argo CD can use any supported templating tool such as Helm, Kustomize, JSonnet. You can add your own third party tool for preparing/templating Kubernetes manifests. Note that in the case of Helm, Argo CD uses it as a pure templating tool. Helm applications installed with Argo CD are not visible to normal Helm commands, and not all of Helm's features and concepts are supported.
 
 ## Custom Resource Definitions (CRDs)
 
