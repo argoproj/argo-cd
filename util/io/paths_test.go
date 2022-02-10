@@ -21,7 +21,7 @@ func TestGetPath_DifferentURLs(t *testing.T) {
 	paths := NewTempPaths(os.TempDir())
 	res1, err := paths.GetPath("https://localhost/test1.txt")
 	require.NoError(t, err)
-	res2, err := paths.GetPath("https://localhost/test2txt")
+	res2, err := paths.GetPath("https://localhost/test2.txt")
 	require.NoError(t, err)
 	assert.NotEqual(t, res1, res2)
 }

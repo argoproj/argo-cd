@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	goio "io"
+	"io/fs"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -121,10 +122,22 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 }
 
 func (s *Service) Init() error {
-	files, err := ioutil.ReadDir(s.rootDir)
-	if err != nil && !os.IsNotExist(err) {
-		log.Warnf("Failed to restore cloned repositories paths: %v", err)
+	_, err := os.Stat(s.rootDir)
+	if err == nil {
+		// give itself read permissions to list previously written directories
+		err = os.Chmod(s.rootDir, 0700)
 	}
+	var files []fs.FileInfo
+	if err == nil {
+		files, err = ioutil.ReadDir(s.rootDir)
+	} else if !os.IsNotExist(err) {
+		return os.MkdirAll(s.rootDir, 0300)
+	}
+	if err != nil {
+		log.Warnf("Failed to restore cloned repositories paths: %v", err)
+		return nil
+	}
+
 	for _, file := range files {
 		if !file.IsDir() {
 			continue
@@ -138,7 +151,8 @@ func (s *Service) Init() error {
 		}
 		io.Close(closer)
 	}
-	return nil
+	// remove read permissions since no-one should be able to list the directories
+	return os.Chmod(s.rootDir, 0300)
 }
 
 // List a subset of the refs (currently, branches and tags) of a git repo
@@ -1757,14 +1771,14 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	return helmClient, version.String(), nil
 }
 
-// directoryPermissionInitializer ensures the directory has read/write permissions and returns
+// directoryPermissionInitializer ensures the directory has read/write/execute permissions and returns
 // a function that can be used to remove all permissions.
 func directoryPermissionInitializer(rootPath string) goio.Closer {
 	if _, err := os.Stat(rootPath); err == nil {
-		if err := os.Chmod(rootPath, 0755); err != nil {
-			log.Warnf("Failed to restore read/write permissions on %s: %v", rootPath, err)
+		if err := os.Chmod(rootPath, 0700); err != nil {
+			log.Warnf("Failed to restore read/write/execute permissions on %s: %v", rootPath, err)
 		} else {
-			log.Debugf("Successfully restored read/write permissions on %s", rootPath)
+			log.Debugf("Successfully restored read/write/execute permissions on %s", rootPath)
 		}
 	}
 

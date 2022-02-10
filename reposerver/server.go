@@ -69,7 +69,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		grpc_logrus.UnaryServerInterceptor(serverLog),
-		grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
+		grpc_prometheus.UnaryServerInterceptor,
+		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}
 

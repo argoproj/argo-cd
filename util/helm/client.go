@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/sync"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
@@ -152,8 +153,8 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest, err := ioutil.TempDir("", "helm")
-		if err != nil {
+		tempDest := path.Join(os.TempDir(), uuid.New().String())
+		if err := os.Mkdir(tempDest, 0755); err != nil {
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
@@ -353,7 +354,7 @@ func normalizeChartName(chart string) string {
 }
 
 func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
-	return c.chartCachePaths.GetPath(fmt.Sprintf("%s/%s-%s", c.repoURL, strings.ReplaceAll(chart, "/", "_"), version))
+	return c.chartCachePaths.GetPath(fmt.Sprintf("%s/%s:%s", c.repoURL, strings.ReplaceAll(chart, "/", "_"), version))
 }
 
 // Ensures that given OCI registries URL does not have protocol

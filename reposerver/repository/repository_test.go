@@ -1971,4 +1971,8 @@ func TestInit(t *testing.T) {
 	repo1Path, err := service.gitRepoPaths.GetPath(git.NormalizeGitURL("https://github.com/argo-cd/test-repo1"))
 	assert.NoError(t, err)
 	assert.Equal(t, repoPath, repo1Path)
+
+	_, err = ioutil.ReadDir(dir)
+	require.Error(t, err)
+	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
