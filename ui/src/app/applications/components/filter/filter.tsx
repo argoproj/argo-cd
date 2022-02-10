@@ -121,7 +121,7 @@ export const Filter = (props: FilterProps) => {
     }, 0);
 
     return (
-        <div className='filter' key={totalCount}>
+        <div className='filter' key={totalCount + props.label}>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
