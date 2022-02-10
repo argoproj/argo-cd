@@ -10,7 +10,7 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
     const [badgeType, setBadgeType] = React.useState('URL');
     const context = React.useContext(Context);
     if (!app && !project) {
-        throw new Error('Either app of project property must be specified');
+        throw new Error('Either app or project property must be specified');
     }
 
     function badgeContent(statusBadgeRootUrl: string) {
