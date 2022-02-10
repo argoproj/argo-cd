@@ -189,14 +189,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 {showPreviousLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
-                        <button
-                            className='argo-button argo-button--base-o'
-                            onClick={() => {
-                                const inverted = prefs.appDetails.darkMode;
-                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
-                            }}>
-                            {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
-                        </button>
+                        <Tooltip content={prefs.appDetails.darkMode ? 'Light Mode' : 'Dark Mode'}>
+                            <button
+                                className='argo-button argo-button--base-o'
+                                onClick={() => {
+                                    const inverted = prefs.appDetails.darkMode;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
+                                }}>
+                                {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
+                            </button>
+                        </Tooltip>    
                         {!props.timestamp && (
                             <Tooltip content={viewTimestamps ? 'Hide timestamps' : 'Show timestamps'}>
                                 <button
@@ -212,10 +214,15 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             </Tooltip>
                         )}
                         {!props.fullscreen && (
-                            <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
-                                <i className='fa fa-external-link-alt' />
-                            </Link>
+                            <Tooltip content='Fullscreen View'>
+                                <button className='argo-button argo-button--base'>
+                                    <Link to={fullscreenURL} target='_blank'>
+                                        <i style={{color: '#fff'}} className='fa fa-external-link-alt' />
+                                    </Link>{' '}
+                                </button>
+                            </Tooltip>
                         )}
+
                         <div className='pod-logs-viewer__filter'>
                             <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
                                 <button
