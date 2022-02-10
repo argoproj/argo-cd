@@ -457,6 +457,15 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 	return rawIDToken, refreshToken, nil
 }
 
+// NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
+func NewClientOrDie(opts *ClientOptions) Client {
+	client, err := NewClient(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return client
+}
+
 // JwtCredentials implements the gRPC credentials.Credentials interface which we is used to do
 // grpc.WithPerRPCCredentials(), for authentication
 type jwtCredentials struct {
