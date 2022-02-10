@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -72,7 +72,7 @@ var (
 	KubeConfig          *rest.Config
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
-	ArgoCDClientset     argocdclient.Client
+	ArgoCDClientset     apiclient.Client
 	adminUsername       string
 	AdminPassword       string
 	apiServerAddress    string
@@ -156,14 +156,14 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
 	CheckError(err)
 
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
@@ -203,7 +203,7 @@ func loginAs(username, password string) {
 	CheckError(err)
 	token = sessionResponse.Token
 
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
 		AuthToken:  token,
