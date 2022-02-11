@@ -22,14 +22,13 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
-      --health                 Wait for health
-  -h, --help                   help for wait
-      --operation              Wait for pending operations
-      --resource stringArray   Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
-  -l, --selector string        Wait for apps by label
-      --suspended              Wait for suspended
-      --sync                   Wait for sync
-      --timeout uint           Time out after this many seconds
+      --health-status stringArray   Wait for health status. Healthy, Degraded, Suspended, Missing, Progressing, or Unknown. This option may be specified repeatedly to wait for different statuses
+  -h, --help                        help for wait
+      --operation                   Wait for pending operations
+      --resource stringArray        Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
+  -l, --selector string             Wait for apps by label
+      --sync                        Wait for sync
+      --timeout uint                Time out after this many seconds
 ```
 
 ### Options inherited from parent commands

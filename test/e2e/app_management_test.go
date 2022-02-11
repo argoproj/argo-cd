@@ -1960,7 +1960,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		And(func() {
-			_, err := RunCli("app", "wait", Name(), "--suspended")
+			_, err := RunCli("app", "wait", Name(), "--health-status", "Suspended")
 			errors.CheckError(err)
 		})
 }

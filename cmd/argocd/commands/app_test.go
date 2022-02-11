@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -117,32 +118,38 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 
 }
 
+func TestOverrideHealthOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:           false,
+		operation:      false,
+	}
+	opts := getWatchOpts(watch, []string{ "degraded" })
+	assert.Equal(t, false, opts.sync)
+	assert.Equal(t, map[health.HealthStatusCode]bool{ health.HealthStatusDegraded: true }, opts.healthStatuses)
+	assert.Equal(t, false, opts.operation)
+}
+
 func TestDefaultWaitOptions(t *testing.T) {
 	watch := watchOpts{
-		sync:      false,
-		health:    false,
-		operation: false,
-		suspended: false,
+		sync:           false,
+		operation:      false,
 	}
-	opts := getWatchOpts(watch)
+	opts := getWatchOpts(watch, []string{})
 	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
+	assert.Equal(t, map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true }, opts.healthStatuses)
 	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
 	watch := watchOpts{
-		sync:      true,
-		health:    false,
-		operation: false,
-		suspended: false,
+		sync:           true,
+		healthStatuses: map[health.HealthStatusCode]bool{},
+		operation:      false,
 	}
-	opts := getWatchOpts(watch)
+	opts := getWatchOpts(watch, []string{})
 	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
+  assert.Equal(t, map[health.HealthStatusCode]bool{}, opts.healthStatuses)
 	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -1109,43 +1116,37 @@ func TestMergeWitoutUpdate(t *testing.T) {
 func TestCheckResourceStatus(t *testing.T) {
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: true,
-			health:    true,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true, health.HealthStatusSuspended: true },
 		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.True(t, res)
 	})
 	t.Run("Suspended and health status failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: true,
-			health:    true,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true, health.HealthStatusSuspended: true },
 		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.False(t, res)
 	})
 	t.Run("Suspended passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: true,
-			health:    false,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusSuspended: true },
 		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.True(t, res)
 	})
 	t.Run("Suspended failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: true,
-			health:    false,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusSuspended: true },
 		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.False(t, res)
 	})
 	t.Run("Health passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: false,
-			health:    true,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true },
 		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.True(t, res)
 	})
 	t.Run("Health failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
-			suspended: false,
-			health:    true,
+			healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true },
 		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
 		assert.False(t, res)
 	})
@@ -1157,4 +1158,82 @@ func TestCheckResourceStatus(t *testing.T) {
 		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
 		assert.True(t, res)
 	})
+}
+
+func TestCheckResourceStatusWatchHealth(t *testing.T) {
+	watch := watchOpts{
+		sync: false,
+		operation: false,
+		healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true, health.HealthStatusSuspended: true },
+	}
+
+	// Healthy status
+	resourceStatus := checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, true)
+
+	// Degraded status
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusDegraded), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, false)
+
+	// Suspended status
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusSuspended), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, true)
+
+	// Unknown status
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusUnknown), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, false)
+}
+
+func TestCheckResourceStatusWatchSync(t *testing.T) {
+	watch := watchOpts{
+		sync: true,
+		operation: false,
+	}
+
+	// Synced
+	resourceStatus := checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, true)
+
+	// OutOfSync
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeOutOfSync), nil)
+	assert.Equal(t, resourceStatus, false)
+}
+
+func TestCheckResourceStatusWatchOperation(t *testing.T) {
+	watch := watchOpts{
+		sync: false,
+		operation: true,
+	}
+
+	// Operation
+	resourceStatus := checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), &argoappv1.Operation{})
+	assert.Equal(t, resourceStatus, false)
+
+	// No Operation
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, true)
+}
+
+func TestCheckResourceStatusWatchEverything(t *testing.T) {
+	watch := watchOpts{
+		sync: true,
+		operation: true,
+    healthStatuses: map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true },
+	}
+
+	// Everything OK
+	resourceStatus := checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, true)
+
+	// Degraded
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusDegraded), string(argoappv1.SyncStatusCodeSynced), nil)
+	assert.Equal(t, resourceStatus, false)
+
+	// On-Going Operation
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeSynced), &argoappv1.Operation{})
+	assert.Equal(t, resourceStatus, false)
+
+	// OutOfSync
+	resourceStatus = checkResourceStatus(watch, string(health.HealthStatusHealthy), string(argoappv1.SyncStatusCodeOutOfSync), nil)
+	assert.Equal(t, resourceStatus, false)
 }

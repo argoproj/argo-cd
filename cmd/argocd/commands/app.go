@@ -99,10 +99,9 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 }
 
 type watchOpts struct {
-	sync      bool
-	health    bool
-	operation bool
-	suspended bool
+	sync           bool
+	healthStatuses map[health.HealthStatusCode]bool
+	operation      bool
 }
 
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
@@ -1236,25 +1235,65 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 	return selectedResources, nil
 }
 
-func getWatchOpts(watch watchOpts) watchOpts {
+func isValidHealthStatus(healthStatus health.HealthStatusCode) bool {
+	switch healthStatus {
+		case
+		health.HealthStatusDegraded,
+		health.HealthStatusHealthy,
+		health.HealthStatusMissing,
+		health.HealthStatusProgressing,
+		health.HealthStatusSuspended,
+		health.HealthStatusUnknown:
+		return true
+	}
+	return false
+}
+
+func parseHealthStatus(status string) health.HealthStatusCode {
+	if (status == "") {
+		return health.HealthStatusCode("")
+	}
+
+	runeStatus := []rune(status)
+	status     = strings.ToUpper(string(runeStatus[0])) + strings.ToLower(string(runeStatus[1:]))
+
+	return health.HealthStatusCode(status)
+}
+
+func getWatchOpts(watch watchOpts, healthStatuses []string) watchOpts {
 	// if no opts are defined should wait for sync,health,operation
-	if (watch == watchOpts{}) {
+	if (reflect.DeepEqual(watch, watchOpts{}) && len(healthStatuses) == 0) {
 		return watchOpts{
-			sync:      true,
-			health:    true,
-			operation: true,
+			sync:            true,
+			healthStatuses:  map[health.HealthStatusCode]bool{ health.HealthStatusHealthy: true },
+			operation:       true,
 		}
 	}
+
+	watch.healthStatuses = map[health.HealthStatusCode]bool{}
+
+	for _, status := range healthStatuses {
+		parsedHealthStatus := parseHealthStatus(status)
+
+		if isValidHealthStatus(parsedHealthStatus) {
+			watch.healthStatuses[parsedHealthStatus] = true
+		} else {
+			errors.CheckError(fmt.Errorf("invalid health status '%s': must be one of Healthy, Degraded, Suspended, Missing, Progressing, or Unknown", parsedHealthStatus))
+			os.Exit(1)
+		}
+	}
+
 	return watch
 }
 
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		watch     watchOpts
-		timeout   uint
-		selector  string
-		resources []string
+		watch          watchOpts
+		healthStatuses []string
+		timeout        uint
+		selector       string
+		resources      []string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1272,7 +1311,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			watch = getWatchOpts(watch)
+			watch = getWatchOpts(watch, healthStatuses)
 			selectedResources, err := parseSelectedResources(resources)
 			errors.CheckError(err)
 			appNames := args
@@ -1293,8 +1332,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().BoolVar(&watch.sync, "sync", false, "Wait for sync")
-	command.Flags().BoolVar(&watch.health, "health", false, "Wait for health")
-	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
+	command.Flags().StringArrayVar(&healthStatuses, "health-status", []string{}, "Wait for health status. Healthy, Degraded, Suspended, Missing, Progressing, or Unknown. This option may be specified repeatedly to wait for different statuses")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
@@ -1672,18 +1710,10 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 
 // check if resource health, sync and operation statuses matches watch options
 func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
-	healthCheckPassed := true
-	if watch.suspended && watch.health {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.suspended {
-		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.health {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	}
-
+	healthCheckPassed := len(watch.healthStatuses) == 0 || watch.healthStatuses[health.HealthStatusCode(healthStatus)]
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
 	operational := !watch.operation || operationStatus == nil
+
 	return synced && healthCheckPassed && operational
 }
 
@@ -1787,7 +1817,7 @@ func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, time
 			var doPrint bool
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
-				if watch.health && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
+				if watch.healthStatuses[health.HealthStatusHealthy] && prevState.Health != string(health.HealthStatusUnknown) && prevState.Health != string(health.HealthStatusDegraded) && newState.Health == string(health.HealthStatusDegraded) {
 					_ = printFinalStatus(app)
 					return nil, fmt.Errorf("application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
 				}
