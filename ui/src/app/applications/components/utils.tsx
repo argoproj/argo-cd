@@ -806,9 +806,6 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
-        return app.spec.source.ksonnet.parameters.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }

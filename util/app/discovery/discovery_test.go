@@ -12,7 +12,6 @@ func TestDiscover(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"foo": "Kustomize",
-		"bar": "Ksonnet",
 		"baz": "Helm",
 	}, apps)
 }

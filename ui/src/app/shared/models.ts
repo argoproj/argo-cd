@@ -183,8 +183,6 @@ export interface ApplicationSource {
 
     kustomize?: ApplicationSourceKustomize;
 
-    ksonnet?: ApplicationSourceKsonnet;
-
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
@@ -202,11 +200,6 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
-}
-
-export interface ApplicationSourceKsonnet {
-    environment: string;
-    parameters: KsonnetParameter[];
 }
 
 export interface EnvEntry {
@@ -534,36 +527,16 @@ export interface ClusterCacheInfo {
 
 export interface ClusterList extends ItemsList<Cluster> {}
 
-export interface KsonnetEnvironment {
-    k8sVersion: string;
-    path: string;
-    destination: {server: string; namespace: string};
-}
-
-export interface KsonnetParameter {
-    component: string;
-    name: string;
-    value: string;
-}
-
-export interface KsonnetAppSpec {
-    name: string;
-    path: string;
-    environments: {[key: string]: KsonnetEnvironment};
-    parameters: KsonnetParameter[];
-}
-
 export interface HelmChart {
     name: string;
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;
     path: string;
-    ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
@@ -756,7 +729,6 @@ export interface VersionMessage {
     GoVersion: string;
     Compiler: string;
     Platform: string;
-    KsonnetVersion: string;
     KustomizeVersion: string;
     HelmVersion: string;
     KubectlVersion: string;

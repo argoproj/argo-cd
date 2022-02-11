@@ -225,8 +225,6 @@ spec:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
-    ksonnet:
-      environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
@@ -243,8 +241,6 @@ spec:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
-    ksonnet:
-      environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
     name: fake-cluster
@@ -263,8 +259,6 @@ spec:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
-    ksonnet:
-      environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com

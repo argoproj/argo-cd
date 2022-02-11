@@ -532,7 +532,6 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 .PHONY: install-test-tools-local
 install-test-tools-local:
 	./hack/install.sh kustomize-linux
-	./hack/install.sh ksonnet-linux
 	./hack/install.sh helm2-linux
 	./hack/install.sh helm-linux
 
