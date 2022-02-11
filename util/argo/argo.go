@@ -173,7 +173,6 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 // * the repository is accessible
 // * the path contains valid manifests
 // * there are parameters of only one app source type
-// * ksonnet: the specified environment exists
 func ValidateRepo(
 	ctx context.Context,
 	app *argoappv1.Application,
@@ -238,25 +237,6 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	// get the app details, and populate the Ksonnet stuff from it
-	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo:             repo,
-		Source:           &spec.Source,
-		Repos:            permittedHelmRepos,
-		KustomizeOptions: kustomizeOptions,
-		// don't use case during application change to make sure to fetch latest git/helm revisions
-		NoRevisionCache: true,
-		TrackingMethod:  string(GetTrackingMethod(settingsMgr)),
-	})
-	if err != nil {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to get app details: %v", err),
-		})
-		return conditions, nil
-	}
-
-	enrichSpec(spec, appDetails)
 
 	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
 	if err != nil {
@@ -279,21 +259,6 @@ func ValidateRepo(
 		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
 
 	return conditions, nil
-}
-
-func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDetailsResponse) {
-	if spec.Source.Ksonnet != nil && appDetails.Ksonnet != nil {
-		env, ok := appDetails.Ksonnet.Environments[spec.Source.Ksonnet.Environment]
-		if ok {
-			// If server and namespace are not supplied, pull it from the app.yaml
-			if spec.Destination.Server == "" {
-				spec.Destination.Server = env.Destination.Server
-			}
-			if spec.Destination.Namespace == "" {
-				spec.Destination.Namespace = env.Destination.Namespace
-			}
-		}
-	}
 }
 
 // ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
@@ -577,9 +542,6 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	}
 	if spec.Source.Helm != nil && spec.Source.Helm.IsZero() {
 		spec.Source.Helm = nil
-	}
-	if spec.Source.Ksonnet != nil && spec.Source.Ksonnet.IsZero() {
-		spec.Source.Ksonnet = nil
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
 		if spec.Source.Directory.Exclude != "" && spec.Source.Directory.Include != "" {

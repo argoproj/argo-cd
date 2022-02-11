@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -50,7 +49,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/ksonnet"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 	"github.com/argoproj/argo-cd/v2/util/text"
 )
@@ -880,8 +878,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	env := newEnv(q, revision)
 
 	switch appSourceType {
-	case v1alpha1.ApplicationSourceTypeKsonnet:
-		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
 	case v1alpha1.ApplicationSourceTypeKustomize:
@@ -1073,38 +1069,6 @@ func isNullList(obj *unstructured.Unstructured) bool {
 		return false
 	}
 	return field == nil
-}
-
-// ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
-	ksApp, err := ksonnet.NewKsonnetApp(appPath)
-	if err != nil {
-		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
-	}
-	if ksonnetOpts == nil {
-		return nil, nil, status.Errorf(codes.InvalidArgument, "Ksonnet environment not set")
-	}
-	for _, override := range ksonnetOpts.Parameters {
-		err = ksApp.SetComponentParams(ksonnetOpts.Environment, override.Component, override.Name, override.Value)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	dest, err := ksApp.Destination(ksonnetOpts.Environment)
-	if err != nil {
-		return nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
-	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
-	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
-		// Address https://github.com/ksonnet/ksonnet/issues/707
-		for _, d := range targetObjs {
-			kube.UnsetLabel(d, "ksonnet.io/component")
-		}
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	return targetObjs, dest, nil
 }
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
@@ -1400,10 +1364,6 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		res.Type = string(appSourceType)
 
 		switch appSourceType {
-		case v1alpha1.ApplicationSourceTypeKsonnet:
-			if err := populateKsonnetAppDetails(res, opContext.appPath, q); err != nil {
-				return err
-			}
 		case v1alpha1.ApplicationSourceTypeHelm:
 			if err := populateHelmAppDetails(res, opContext.appPath, q); err != nil {
 				return err
@@ -1438,33 +1398,6 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 		}
 		return false, nil
 	}
-}
-
-func populateKsonnetAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, q *apiclient.RepoServerAppDetailsQuery) error {
-	var ksonnetAppSpec apiclient.KsonnetAppSpec
-	data, err := ioutil.ReadFile(filepath.Join(appPath, "app.yaml"))
-	if err != nil {
-		return err
-	}
-	err = yaml.Unmarshal(data, &ksonnetAppSpec)
-	if err != nil {
-		return err
-	}
-	ksApp, err := ksonnet.NewKsonnetApp(appPath)
-	if err != nil {
-		return status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
-	}
-	env := ""
-	if q.Source.Ksonnet != nil {
-		env = q.Source.Ksonnet.Environment
-	}
-	params, err := ksApp.ListParams(env)
-	if err != nil {
-		return err
-	}
-	ksonnetAppSpec.Parameters = params
-	res.Ksonnet = &ksonnetAppSpec
-	return nil
 }
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, q *apiclient.RepoServerAppDetailsQuery) error {

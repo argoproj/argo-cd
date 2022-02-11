@@ -31,7 +31,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
@@ -708,38 +707,6 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
-		})
-}
-
-func TestKsonnetApp(t *testing.T) {
-	SkipOnEnv(t, "KSONNET")
-	Given(t).
-		Path("ksonnet").
-		Env("prod").
-		// Null out dest server to verify that destination is inferred from ksonnet app
-		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
-		DestServer("").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		And(func(app *Application) {
-			closer, client, err := ArgoCDClientset.NewRepoClient()
-			assert.NoError(t, err)
-			defer io.Close(closer)
-
-			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
-				Source: &app.Spec.Source,
-			})
-			assert.NoError(t, err)
-
-			serviceType := ""
-			for _, param := range details.Ksonnet.Parameters {
-				if param.Name == "type" && param.Component == "guestbook-ui" {
-					serviceType = param.Value
-				}
-			}
-			assert.Equal(t, serviceType, "LoadBalancer")
 		})
 }
 

@@ -400,9 +400,6 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
 		Kustomize: &ApplicationSourceKustomize{
 			NamePrefix: "foo",
 		},
@@ -426,9 +423,6 @@ func TestExplicitType(t *testing.T) {
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
@@ -841,7 +835,6 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
 		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
-		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
 	}
@@ -946,24 +939,6 @@ func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceJsonnet{}, true},
 		{"ExtVars", &ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}, false},
 		{"TLAs", &ApplicationSourceJsonnet{TLAs: []JsonnetVar{{}}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.source.IsZero())
-		})
-	}
-}
-
-func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
-	tests := []struct {
-		name   string
-		source *ApplicationSourceKsonnet
-		want   bool
-	}{
-		{"Nil", nil, true},
-		{"Empty", &ApplicationSourceKsonnet{}, true},
-		{"Environment", &ApplicationSourceKsonnet{Environment: "foo"}, false},
-		{"Parameters", &ApplicationSourceKsonnet{Parameters: []KsonnetParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2475,22 +2450,6 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
-}
-
-func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
-	src := ApplicationSource{Path: "."}
-
-	assert.True(t, src.AllowsConcurrentProcessing())
-}
-
-func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
-		Parameters: []KsonnetParameter{{
-			Name: "test", Component: "test", Value: "1",
-		}},
-	}}
-
-	assert.False(t, src.AllowsConcurrentProcessing())
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {

@@ -42,9 +42,6 @@ func Discover(ctx context.Context, root string) (map[string]string, error) {
 			return err
 		}
 		base := filepath.Base(path)
-		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") {
-			apps[filepath.Dir(dir)] = string(v1alpha1.ApplicationSourceTypeKsonnet)
-		}
 		if strings.HasSuffix(base, "Chart.yaml") {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeHelm)
 		}
