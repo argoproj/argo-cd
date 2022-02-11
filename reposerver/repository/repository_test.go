@@ -73,11 +73,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-<<<<<<< HEAD
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{})
-=======
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), os.TempDir())
->>>>>>> afe616a79 (support restoring URLs from file system; sanitize error messages)
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, os.TempDir())
 
 	chart := "my-chart"
 	version := "1.1.0"

@@ -86,7 +86,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
 		return nil, err
 	}
@@ -97,11 +97,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		cache:         cache,
 		initConstants: initConstants,
 		opts:          serverOpts,
-<<<<<<< HEAD
 		gitCredsStore: gitCredsStore,
-=======
 		repoService:   repoService,
->>>>>>> afe616a79 (support restoring URLs from file system; sanitize error messages)
 	}, nil
 }
 
@@ -111,12 +108,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-<<<<<<< HEAD
-	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking(), a.gitCredsStore)
-	apiclient.RegisterRepoServerServiceServer(server, manifestService)
-=======
 	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
->>>>>>> afe616a79 (support restoring URLs from file system; sanitize error messages)
 
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)

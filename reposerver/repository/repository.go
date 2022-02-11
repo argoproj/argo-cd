@@ -123,6 +123,9 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 
 func (s *Service) Init() error {
 	_, err := os.Stat(s.rootDir)
+	if os.IsNotExist(err) {
+		return os.MkdirAll(s.rootDir, 0300)
+	}
 	if err == nil {
 		// give itself read permissions to list previously written directories
 		err = os.Chmod(s.rootDir, 0700)
@@ -130,8 +133,6 @@ func (s *Service) Init() error {
 	var files []fs.FileInfo
 	if err == nil {
 		files, err = ioutil.ReadDir(s.rootDir)
-	} else if !os.IsNotExist(err) {
-		return os.MkdirAll(s.rootDir, 0300)
 	}
 	if err != nil {
 		log.Warnf("Failed to restore cloned repositories paths: %v", err)

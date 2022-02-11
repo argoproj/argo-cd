@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -117,6 +118,18 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(cachePath)
 }
 
+func createTempDir() (string, error) {
+	newUUID, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+	tempDir := path.Join(os.TempDir(), newUUID.String())
+	if err := os.Mkdir(tempDir, 0755); err != nil {
+		return "", err
+	}
+	return tempDir, nil
+}
+
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
@@ -132,7 +145,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
-	tempDir, err := ioutil.TempDir("", "helm")
+	tempDir, err := createTempDir()
 	if err != nil {
 		return "", nil, err
 	}
@@ -153,8 +166,8 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest := path.Join(os.TempDir(), uuid.New().String())
-		if err := os.Mkdir(tempDest, 0755); err != nil {
+		tempDest, err := createTempDir()
+		if err != nil {
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
@@ -354,7 +367,11 @@ func normalizeChartName(chart string) string {
 }
 
 func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
-	return c.chartCachePaths.GetPath(fmt.Sprintf("%s/%s:%s", c.repoURL, strings.ReplaceAll(chart, "/", "_"), version))
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
+	if err != nil {
+		return "", err
+	}
+	return c.chartCachePaths.GetPath(string(keyData))
 }
 
 // Ensures that given OCI registries URL does not have protocol

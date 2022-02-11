@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// TempPaths allows generating and memoizing random paths for a given URL.
+// TempPaths allows generating and memoizing random paths, each path being mapped to a specific key.
 type TempPaths struct {
 	root  string
 	paths map[string]string
@@ -27,7 +27,7 @@ func (p *TempPaths) Add(key string, value string) {
 	p.paths[key] = value
 }
 
-// GetPath generates a path for the given URL or returns previously generated one.
+// GetPath generates a path for the given key or returns previously generated one.
 func (p *TempPaths) GetPath(key string) (string, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
