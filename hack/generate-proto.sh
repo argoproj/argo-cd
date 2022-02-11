@@ -38,11 +38,21 @@ APIMACHINERY_PKGS=(
 export GO111MODULE=on
 [ -e ./v2 ] || ln -s . v2
 
+# protoc_include is the include directory containing the .proto files distributed with protoc binary
+if [ -d /dist/protoc-include ]; then
+    # containerized codegen build
+    protoc_include=/dist/protoc-include
+else
+    # local codegen build 
+    protoc_include=${PROJECT_ROOT}/dist/protoc-include
+fi
+
 go-to-protobuf \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
     --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
-    --proto-import=./vendor
+    --proto-import=./vendor \
+    --proto-import=${protoc_include}
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
@@ -64,7 +74,7 @@ PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or 
 for i in ${PROTO_FILES}; do
     protoc \
         -I${PROJECT_ROOT} \
-        -I/usr/local/include \
+        -I${protoc_include} \
         -I./vendor \
         -I$GOPATH/src \
         -I${GOOGLE_PROTO_API_PATH} \
