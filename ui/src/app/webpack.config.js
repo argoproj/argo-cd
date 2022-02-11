@@ -105,6 +105,10 @@ const config = {
             '/extensions': proxyConf,
             '/api': proxyConf,
             '/auth': proxyConf,
+            '/terminal': {
+              target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+              ws: true,
+            },
             '/swagger-ui': proxyConf,
             '/swagger.json': proxyConf
         }

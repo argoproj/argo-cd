@@ -57,6 +57,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
+
 const (
 	maxPodLogsToRender                 = 10
 	backgroundPropagationPolicy string = "background"
@@ -101,10 +103,10 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-) application.ApplicationServiceServer {
+) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
-	return &Server{
+	s := &Server{
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
@@ -121,6 +123,7 @@ func NewServer(
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
 	}
+	return s, s.GetAppResources
 }
 
 // appRBACName formats fully qualified application name for RBAC check
@@ -488,7 +491,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
-		tree, err := s.getAppResources(ctx, a)
+		tree, err := s.GetAppResources(ctx, a)
 		if err != nil {
 			return nil, err
 		}
@@ -944,7 +947,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 	return err
 }
 
-func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+func (s *Server) GetAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
 	var tree appv1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppResourcesTree(a.Name, &tree)
@@ -961,7 +964,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(ctx, a)
+	tree, err := s.GetAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1098,7 +1101,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	return s.getAppResources(ctx, a)
+	return s.GetAppResources(ctx, a)
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
@@ -1243,7 +1246,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	tree, err := s.getAppResources(ws.Context(), a)
+	tree, err := s.GetAppResources(ws.Context(), a)
 	if err != nil {
 		return err
 	}

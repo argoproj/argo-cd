@@ -196,7 +196,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		panic("Timed out waiting for caches to sync")
 	}
 
-	server := NewServer(
+	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
