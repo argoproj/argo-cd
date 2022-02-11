@@ -1,4 +1,4 @@
-package headless
+package initialize
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ func (f *StringFlag) Type() string {
 }
 
 func Test_FlagContextNotChanged(t *testing.T) {
-	res := retrieveContextIfChanged(&flag.Flag{
+	res := RetrieveContextIfChanged(&flag.Flag{
 		Name:                "",
 		Shorthand:           "",
 		Usage:               "",
@@ -44,7 +44,7 @@ func Test_FlagContextNotChanged(t *testing.T) {
 }
 
 func Test_FlagContextChanged(t *testing.T) {
-	res := retrieveContextIfChanged(&flag.Flag{
+	res := RetrieveContextIfChanged(&flag.Flag{
 		Name:                "",
 		Shorthand:           "",
 		Usage:               "",
@@ -62,7 +62,7 @@ func Test_FlagContextChanged(t *testing.T) {
 }
 
 func Test_FlagContextNil(t *testing.T) {
-	res := retrieveContextIfChanged(&flag.Flag{
+	res := RetrieveContextIfChanged(&flag.Flag{
 		Name:                "",
 		Shorthand:           "",
 		Usage:               "",
