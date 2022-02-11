@@ -358,7 +358,7 @@ build-local:
 # If TEST_MODULE is set (to fully qualified module name), only this specific
 # module will be tested.
 .PHONY: test
-test: test-tools-image
+test: #test-tools-image
 	mkdir -p $(GOCACHE)
 	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
