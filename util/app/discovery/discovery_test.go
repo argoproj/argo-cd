@@ -23,7 +23,7 @@ func TestAppType(t *testing.T) {
 
 	appType, err = AppType(context.Background(), "./testdata/bar")
 	assert.NoError(t, err)
-	assert.Equal(t, "Ksonnet", appType)
+	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz")
 	assert.NoError(t, err)

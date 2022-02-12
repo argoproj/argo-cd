@@ -260,22 +260,6 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestGenerateKsonnetManifest(t *testing.T) {
-	service := newService("../..")
-
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-		},
-	}
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res.Manifests))
-	assert.Equal(t, "dev", res.Namespace)
-	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
-}
-
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
