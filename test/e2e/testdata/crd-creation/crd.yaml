@@ -21,11 +21,19 @@ spec:
       openAPIV3Schema:
         type: object
         properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
           spec:
             type: object
             properties:
-              requests:
-                x-kubernetes-preserve-unknown-fields: true
+              cpu:
+                type: string
+              memory:
+                type: string
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -49,8 +57,13 @@ spec:
       openAPIV3Schema:
         type: object
         properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
           spec:
             type: object
-            properties:
-              requests:
-                x-kubernetes-preserve-unknown-fields: true
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
