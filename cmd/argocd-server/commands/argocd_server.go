@@ -96,7 +96,7 @@ func NewCommand() *cobra.Command {
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
-			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
+			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
@@ -131,7 +131,7 @@ func NewCommand() *cobra.Command {
 				BaseHRef:            baseHRef,
 				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
+				AppClientset:        appClientSet,
 				RepoClientset:       repoclientset,
 				DexServerAddr:       dexServerAddress,
 				DisableAuth:         disableAuth,
