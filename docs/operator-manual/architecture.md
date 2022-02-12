@@ -24,7 +24,7 @@ manifests when provided the following inputs:
 * repository URL
 * revision (commit, tag, branch)
 * application path
-* template specific settings: parameters, ksonnet environments, helm values.yaml
+* template specific settings: parameters, helm values.yaml
 
 ### Application Controller
 The application controller is a Kubernetes controller which continuously monitors running

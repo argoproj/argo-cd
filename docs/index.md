@@ -35,7 +35,6 @@ the desired application state. Kubernetes manifests can be specified in several 
 
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files
 * Plain directory of YAML/json manifests
 * Any custom config management tool configured as a config management plugin
