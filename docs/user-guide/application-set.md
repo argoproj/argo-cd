@@ -42,6 +42,6 @@ Likewise, changes made to the ApplicationSet `template` fields will automaticall
 
 Within ApplicationSet there exist other more powerful generators in addition to the List generator, including the Cluster generator (which automatically uses Argo CD-defined clusters to template Applications), and the Git generator (which uses the files/directories of a Git repository to template applications).
 
-To learn more about the ApplicationSet controller, check out [ApplicationSet documentation](https://argocd-applicationset.readthedocs.io/en/stable/) and [Getting Started](https://argocd-applicationset.readthedocs.io/en/stable/Geting-Started/) to install the ApplicationSet controller alongside Argo CD.
+To learn more about the ApplicationSet controller, check out [ApplicationSet documentation](https://argocd-applicationset.readthedocs.io/en/stable/) and [Getting Started](https://argocd-applicationset.readthedocs.io/en/stable/Getting-Started/) to install the ApplicationSet controller alongside Argo CD.
 
 **Note:** Starting `v2.3` of Argo CD, we don't need to install ApplicationSet Controller separately. It would be instead as part of Argo CD installation.
