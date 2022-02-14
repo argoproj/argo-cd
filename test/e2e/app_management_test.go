@@ -650,7 +650,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		When().
 		And(func() {
 			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
-			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
+			patchData := []byte(`{"spec":{"cpu": "2"}}`)
 			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
@@ -660,7 +660,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
-						Field: "spec.requests",
+						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
