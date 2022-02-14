@@ -146,11 +146,11 @@ export interface ComponentParameter {
 
 export interface ApplicationDestination {
     /**
-     * Server overrides the environment server value in the ksonnet app.yaml
+     * Server url of the destination cluster
      */
     server: string;
     /**
-     * Namespace overrides the environment namespace value in the ksonnet app.yaml
+     * Namespace for deployment in the destination cluster
      */
     namespace: string;
     /**
