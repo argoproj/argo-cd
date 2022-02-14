@@ -26,7 +26,6 @@ You also can select the tool in the Application creation wizard in the web user 
 
 If not, then the tool is detected implicitly as follows:
 
-* **Ksonnet** if there are two files, one named `app.yaml` and one named `components/params.libsonnet`.
 * **Helm** if there's a file matching `Chart.yaml`. 
 * **Kustomize** if there's a `kustomization.yaml`, `kustomization.yml`, or `Kustomization`
 
