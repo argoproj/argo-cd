@@ -63,6 +63,7 @@ argocd-server [flags]
       --tlsmaxversion string                          The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                          The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                  Bearer token for authentication to the API server
+      --tracing                                       Whether to enable opentracing or not
       --user string                                   The name of the kubeconfig user to use
       --username string                               Username for basic authentication to the API server
       --x-frame-options value                         Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")

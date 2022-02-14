@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"io"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -12,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -22,6 +25,7 @@ const (
 func NewCommand() *cobra.Command {
 	var (
 		configFilePath string
+		enableTracing  bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -34,6 +38,19 @@ func NewCommand() *cobra.Command {
 
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)
+
+			var closer io.Closer
+			if enableTracing {
+				closer, err = trace.InitTracer()
+				errors.CheckError(err)
+			}
+			defer func() {
+				if closer != nil {
+					if err := closer.Close(); err != nil {
+						log.Warnf(err.Error())
+					}
+				}
+			}()
 
 			server, err := cmpserver.NewServer(plugin.CMPServerInitConstants{
 				PluginConfig: *config,
@@ -54,5 +71,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configFilePath, "config-dir-path", common.DefaultPluginConfigFilePath, "Config management plugin configuration file location, Default is '/home/argocd/cmp-server/config/'")
+	command.Flags().BoolVar(&enableTracing, "tracing", false, "Whether to enable opentracing or not")
 	return &command
 }

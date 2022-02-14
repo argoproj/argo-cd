@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -55,6 +57,7 @@ func NewCommand() *cobra.Command {
 		redisClient              *redis.Client
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
+		enableTracing            bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -101,6 +104,19 @@ func NewCommand() *cobra.Command {
 				}
 				tlsConfig.Certificates = pool
 			}
+
+			var closer io.Closer
+			if enableTracing {
+				closer, err = trace.InitTracer()
+				errors.CheckError(err)
+			}
+			defer func() {
+				if closer != nil {
+					if err := closer.Close(); err != nil {
+						log.Warnf(err.Error())
+					}
+				}
+			}()
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
@@ -165,6 +181,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
+	command.Flags().BoolVar(&enableTracing, "tracing", false, "Whether to enable opentracing or not")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

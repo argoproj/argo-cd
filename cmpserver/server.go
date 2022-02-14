@@ -8,7 +8,9 @@ import (
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -41,8 +43,8 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 	}
 
 	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, tracing.StreamServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer())), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, tracing.UnaryServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer())), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),

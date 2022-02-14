@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -64,6 +66,7 @@ func NewCommand() *cobra.Command {
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
 		staticAssetsDir          string
+		enableTracing            bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -123,6 +126,19 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
+			var closer io.Closer
+			if enableTracing {
+				closer, err = trace.InitTracer()
+				errors.CheckError(err)
+			}
+			defer func() {
+				if closer != nil {
+					if err := closer.Close(); err != nil {
+						log.Warnf(err.Error())
+					}
+				}
+			}()
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:            insecure,
 				ListenPort:          listenPort,
@@ -176,6 +192,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	command.Flags().BoolVar(&enableTracing, "tracing", false, "Whether to enable opentracing or not")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

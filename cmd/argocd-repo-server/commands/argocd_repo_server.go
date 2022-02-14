@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -29,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -71,6 +73,7 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 		redisClient            *redis.Client
 		disableTLS             bool
+		enableTracing          bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -89,6 +92,19 @@ func NewCommand() *cobra.Command {
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
+
+			var closer io.Closer
+			if enableTracing {
+				closer, err = trace.InitTracer()
+				errors.CheckError(err)
+			}
+			defer func() {
+				if closer != nil {
+					if err := closer.Close(); err != nil {
+						log.Warnf(err.Error())
+					}
+				}
+			}()
 
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
@@ -160,6 +176,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
+	command.Flags().BoolVar(&enableTracing, "tracing", false, "Whether to enable opentracing or not")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

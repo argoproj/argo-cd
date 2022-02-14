@@ -41,6 +41,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0-rc.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.0
@@ -51,6 +52,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-zglob v0.0.3
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/opentracing/opentracing-go v1.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.0.0-20180306154005-525d0eb5f91d // indirect
@@ -64,6 +66,8 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/uber/jaeger-client-go v2.30.0+incompatible
+	github.com/uber/jaeger-lib v2.4.1+incompatible
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
@@ -101,6 +105,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
@@ -188,6 +193,7 @@ require (
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	go.mongodb.org/mongo-driver v1.1.2 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4 // indirect
 	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect

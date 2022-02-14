@@ -28,9 +28,11 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/tracing"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	netCtx "golang.org/x/net/context"
@@ -554,6 +556,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
+		tracing.StreamServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer())),
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
@@ -567,6 +570,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
+		tracing.UnaryServerInterceptor(tracing.WithTracer(opentracing.GlobalTracer())),
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {

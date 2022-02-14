@@ -56,6 +56,7 @@ argocd-application-controller [flags]
       --status-processors int                 Number of application status processors (default 20)
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
+      --tracing                               Whether to enable opentracing or not
       --user string                           The name of the kubeconfig user to use
       --username string                       Username for basic authentication to the API server
 ```
