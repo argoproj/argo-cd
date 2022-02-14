@@ -229,7 +229,7 @@ gen-resources-cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
 
 .PHONY: release-cli
-release-cli: clean-debug
+release-cli: clean-debug build-ui-local
 	make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all
 	make BIN_NAME=argocd-darwin-arm64 GOOS=darwin GOARCH=arm64 argocd-all
 	make BIN_NAME=argocd-linux-amd64 GOOS=linux argocd-all
