@@ -13,7 +13,6 @@ github.com/argoproj/my-private-repository
 github.com/argoproj/other-private-repo
 github.com/argoproj/private-repo
 github.com/otherproj/another-private-repo
-ksonnet.io
 raw.githubusercontent.com/argoproj/argo-cd
 repo.example.com
 repo.example.com:443
