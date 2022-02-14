@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -29,9 +28,6 @@ const (
 // NewMetricsServer returns a new prometheus server which collects application metrics.
 func NewMetricsServer() *MetricsServer {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	registry.MustRegister(collectors.NewGoCollector())
-
 	gitRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_git_request_total",
@@ -80,7 +76,7 @@ func NewMetricsServer() *MetricsServer {
 	registry.MustRegister(redisRequestHistogram)
 
 	return &MetricsServer{
-		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		handler:                  promhttp.HandlerFor(prometheus.Gatherers{registry, prometheus.DefaultGatherer}, promhttp.HandlerOpts{}),
 		gitRequestCounter:        gitRequestCounter,
 		gitRequestHistogram:      gitRequestHistogram,
 		repoPendingRequestsGauge: repoPendingRequestsGauge,
