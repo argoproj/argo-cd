@@ -2,8 +2,6 @@ apiVersion: argoproj.io/v1alpha1
 kind: StatusSubResource
 metadata:
   name: status-subresource
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   foo: bar
 ---
@@ -11,7 +9,5 @@ apiVersion: argoproj.io/v1alpha1
 kind: NonStatusSubResource
 metadata:
   name: non-status-subresource
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   foo: bar

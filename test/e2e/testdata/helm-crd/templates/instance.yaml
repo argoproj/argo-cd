@@ -2,5 +2,3 @@ apiVersion: stable.example.com/v1
 kind: CronTab
 metadata:
   name: {{ .Release.Name }}-inst
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
