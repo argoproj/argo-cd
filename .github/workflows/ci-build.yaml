@@ -417,6 +417,7 @@ jobs:
       - name: Run E2E testsuite
         run: |
           set -x
+          go clean -testcache
           make test-e2e-local
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@v2
