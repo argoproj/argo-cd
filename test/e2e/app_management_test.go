@@ -1668,7 +1668,7 @@ definitions:
 			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
-			assert.Equal(t, "update-both", text)
+			assert.Equal(t, "", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
 			assert.NoError(t, err)
@@ -1678,7 +1678,7 @@ definitions:
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
 			assert.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
-			assert.Equal(t, "update-status", text)
+			assert.Equal(t, "", text)
 		}).
 		// tests resource actions on a CRD *not* using status subresource
 		And(func(app *Application) {
@@ -1687,7 +1687,7 @@ definitions:
 			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
-			assert.Equal(t, "update-both", text)
+			assert.Equal(t, "", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
 			assert.NoError(t, err)
@@ -1697,7 +1697,7 @@ definitions:
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
 			assert.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
-			assert.Equal(t, "update-status", text)
+			assert.Equal(t, "", text)
 		})
 }
 
