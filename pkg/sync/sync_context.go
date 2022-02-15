@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	v1extensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -831,16 +831,16 @@ func (sc *syncContext) setOperationPhase(phase common.OperationPhase, message st
 	sc.message = message
 }
 
-// ensureCRDReady waits until specified CRD is ready (established condition is true). Method is best effort - it does not fail even if CRD is not ready without timeout.
-func (sc *syncContext) ensureCRDReady(name string) {
-	_ = wait.PollImmediate(time.Duration(100)*time.Millisecond, crdReadinessTimeout, func() (bool, error) {
-		crd, err := sc.extensionsclientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
+// ensureCRDReady waits until specified CRD is ready (established condition is true).
+func (sc *syncContext) ensureCRDReady(name string) error {
+	return wait.PollImmediate(time.Duration(100)*time.Millisecond, crdReadinessTimeout, func() (bool, error) {
+		crd, err := sc.extensionsclientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 		for _, condition := range crd.Status.Conditions {
-			if condition.Type == v1beta1.Established {
-				return condition.Status == v1beta1.ConditionTrue, nil
+			if condition.Type == v1extensions.Established {
+				return condition.Status == v1extensions.ConditionTrue, nil
 			}
 		}
 		return false, nil
@@ -881,7 +881,10 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 		return common.ResultCodeSyncFailed, err.Error()
 	}
 	if kube.IsCRD(t.targetObj) && !dryRun {
-		sc.ensureCRDReady(t.targetObj.GetName())
+		crdName := t.targetObj.GetName()
+		if err = sc.ensureCRDReady(crdName); err != nil {
+			sc.log.Error(err, fmt.Sprintf("failed to ensure that CRD %s is ready", crdName))
+		}
 	}
 	return common.ResultCodeSynced, message
 }
