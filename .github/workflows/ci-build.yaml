@@ -331,7 +331,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k3s-version: [v1.23.3, v1.21.2]
+        k3s-version: [v1.23.3, v1.22.6, v1.21.2]
     needs: 
       - build-go
     env:
@@ -417,7 +417,6 @@ jobs:
       - name: Run E2E testsuite
         run: |
           set -x
-          go clean -testcache
           make test-e2e-local
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@v2
