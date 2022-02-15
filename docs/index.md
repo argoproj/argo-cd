@@ -1,7 +1,7 @@
 
 Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
-[![ArgoCD UI example](/assets/argocd-ui-example.png)](https://cd.apps.argoproj.io/)
+[![ArgoCD UI example](assets/argocd-ui-example.png)](https://cd.apps.argoproj.io/)
 
 Argo CD is one of the major tools in the [Argo Family of projects](https://argoproj.github.io/).
 
@@ -9,7 +9,7 @@ Argo CD is one of the major tools in the [Argo Family of projects](https://argop
 
 Argo CD is a Kubernetes native application. You install it on a Kubernetes cluster as a controller. It them monitors a set of Git repositories and automatically creates/updates the Kubernetes Objects and resources described in Git.
 
-[![how it works](/assets/how-it-works.png)](/assets/how-it-works.png)
+[![how it works](assets/how-it-works.png)](assets/how-it-works.png)
 
 Argo CD follows the **GitOps** pattern of using Git repositories as the source of truth for defining
 the desired application state. 
@@ -25,7 +25,7 @@ the [terminology page](basics/terminology.md).
 If you want to see quickly how the Web Interface looks like, The Argo CD team maintains a public instance at [https://cd.apps.argoproj.io/applications](https://cd.apps.argoproj.io/applications).
 
 
-[![ArgoCD public instance](/assets/public-instance.png)](https://cd.apps.argoproj.io/)
+[![ArgoCD public instance](assets/public-instance.png)](https://cd.apps.argoproj.io/)
 
 
 This instance is used to test/deploy Argo CD and other associated Argo projects.
@@ -35,7 +35,7 @@ This instance is used to test/deploy Argo CD and other associated Argo projects.
 
 In the simplest case, Argo CD can manage applications on the same cluster that it is running on. It is also possible to connect additional clusters to a single Argo CD instance and manage them externally without the need of running extra Argo CD instances.
 
-[![multi-cluster](/assets/multi-cluster-argocd.png)](/assets/multi-cluster-argocd.png)
+[![multi-cluster](assets/multi-cluster-argocd.png)](assets/multi-cluster-argocd.png)
 
 You can also disable the deployment/management of applications on the cluster Argo CD is running on if you prefer having a "management cluster" that only controls external clusters.
 
