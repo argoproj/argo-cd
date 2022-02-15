@@ -29,6 +29,7 @@ message ManifestRequest {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
     string trackingMethod = 19;
+    map<string, bool> enableManifestGenerationForSourceType = 20;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
@@ -81,6 +82,7 @@ message Refs {
 message ListAppsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
+    map<string, bool> enableManifestGenerationForSourceType = 3;
 }
 
 // AppList returns the contents of the repo of a ListApps request
@@ -98,6 +100,7 @@ message RepoServerAppDetailsQuery {
     bool noCache = 6;
     bool noRevisionCache = 7;
     string trackingMethod = 8;
+    map<string, bool> enableManifestGenerationForSourceType = 9;
 }
 
 // RepoAppDetailsResponse application details

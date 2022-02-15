@@ -275,8 +275,12 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
+	enableGenerateManifests, err := settingsMgr.GetEnableManifestGenerationForSourceType()
+	if err != nil {
+		return nil, err
+	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, enableGenerateManifests, settingsMgr)...)
 
 	return conditions, nil
 }
@@ -466,19 +470,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(
-	ctx context.Context,
-	repoRes *argoappv1.Repository,
-	helmRepos argoappv1.Repositories,
-	app *argoappv1.Application,
-	repoClient apiclient.RepoServerServiceClient,
-	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []*argoappv1.ConfigManagementPlugin,
-	kubeVersion string,
-	apiVersions []string,
-	repositoryCredentials []*argoappv1.RepoCreds,
-	settingsMgr *settings.SettingsManager,
-) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, app *argoappv1.Application, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" {
@@ -495,18 +487,19 @@ func verifyGenerateManifests(
 			Name:  repoRes.Name,
 			Proxy: repoRes.Proxy,
 		},
-		Repos:             helmRepos,
-		Revision:          spec.Source.TargetRevision,
-		AppName:           app.Name,
-		Namespace:         spec.Destination.Namespace,
-		ApplicationSource: &spec.Source,
-		Plugins:           plugins,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       kubeVersion,
-		ApiVersions:       apiVersions,
-		HelmRepoCreds:     repositoryCredentials,
-		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
-		NoRevisionCache:   true,
+		Repos:                                 helmRepos,
+		Revision:                              spec.Source.TargetRevision,
+		AppName:                               app.Name,
+		Namespace:                             spec.Destination.Namespace,
+		ApplicationSource:                     &spec.Source,
+		Plugins:                               plugins,
+		KustomizeOptions:                      kustomizeOptions,
+		KubeVersion:                           kubeVersion,
+		ApiVersions:                           apiVersions,
+		HelmRepoCreds:                         repositoryCredentials,
+		TrackingMethod:                        string(GetTrackingMethod(settingsMgr)),
+		EnableManifestGenerationForSourceType: enableGenerateManifests,
+		NoRevisionCache:                       true,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

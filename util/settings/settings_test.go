@@ -12,6 +12,7 @@ import (
 	testutil "github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -977,4 +978,61 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
+}
+
+func TestGetEnableManifestGeneration(t *testing.T) {
+	testCases := []struct {
+		name    string
+		enabled bool
+		data    map[string]string
+		source  string
+	}{{
+		name:    "default",
+		enabled: true,
+		data:    map[string]string{},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "disabled",
+		enabled: false,
+		data:    map[string]string{"kustomize.enable": `false`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "enabled",
+		enabled: true,
+		data:    map[string]string{"kustomize.enable": `true`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+
+			kubeClient := fake.NewSimpleClientset(cm, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			enableManifestGeneration, err := settingsManager.GetEnableManifestGenerationForSourceType()
+			require.NoError(t, err)
+
+			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)
+		})
+	}
 }
