@@ -38,7 +38,7 @@ When Argo CD starts a sync, it orders the resources in the following precedence:
 
 * The phase
 * The wave they are in (lower values first)
-* By kind (e.g. namespaces first)
+* By kind (e.g. [namespaces first and then other Kubernetes resources, followed by custom resources](https://github.com/argoproj/gitops-engine/blob/bc9ce5764fa306f58cf59199a94f6c968c775a2d/pkg/sync/sync_tasks.go#L27-L66))
 * By name 
 
 It then determines the number of the next wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
@@ -48,3 +48,8 @@ It applies resources in that wave.
 It repeats this process until all phases and waves are in-sync and healthy.
 
 Because an application can have resources that are unhealthy in the first wave, it may be that the app can never get to healthy.
+
+Note that there's currently a delay between each sync wave in order give other controllers a chance to react to the spec change
+that we just applied. This also prevent Argo CD from assessing resource health too quickly (against the stale object), causing
+hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via environment
+variable `ARGOCD_SYNC_WAVE_DELAY`.
