@@ -201,6 +201,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Add /home/runner/go/src/github.com/argoproj/argo-cd/dist to PATH
+        run: |
+          echo "/home/runner/go/src/github.com/argoproj/argo-cd/dist" >> $GITHUB_PATH
       - name: Download & vendor dependencies
         run: |
           # We need to vendor go modules for codegen yet
@@ -212,6 +215,9 @@ jobs:
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Some debug
+        run: |
+          which protoc
       - name: Initialize local Helm
         run: |
           helm2 init --client-only
