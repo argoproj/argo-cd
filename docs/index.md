@@ -3,7 +3,7 @@ Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
 [![ArgoCD UI example](assets/argocd-ui-example.png)](https://cd.apps.argoproj.io/)
 
-Argo CD is one of the major tools in the [Argo Family of projects](https://argoproj.github.io/).
+Argo CD is one of the core subprojects of the [Argo Family of projects](https://argoproj.github.io/).
 
 ## How it works
 
@@ -82,7 +82,10 @@ Organizations who have officially adopted Argo CD can be found [at the USERS fil
 
 ## Community 
 
+* Follow the development of the project at [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd)
 * Visit the [Argo blog](https://blog.argoproj.io/)
-* Check the `#argo-cd` channel at the [CNCF slack](https://cloud-native.slack.com) 
+* Join the `#argo-cd` channel at the [CNCF slack](https://argoproj.github.io/community/join-slack/) 
+* Get Twitter updates at [https://twitter.com/argoproj](https://twitter.com/argoproj)
 * Visit the [Argo Subreddit](https://www.reddit.com/r/argoproj/)
+* Connect with us at [https://www.linkedin.com/company/argoproj/](https://www.linkedin.com/company/argoproj/)
 * See more videos and blog posts at the [README file](https://github.com/argoproj/argo-cd/#blogs-and-presentations).
