@@ -895,16 +895,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds())
 		} else {
-			var cmpManifests []string
-			var cmpErr error
-			cmpManifests, cmpErr = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds())
-			if cmpErr == nil {
-				return &apiclient.ManifestResponse{
-					Manifests:  cmpManifests,
-					SourceType: string(appSourceType),
-				}, nil
-			} else {
-				err = fmt.Errorf("plugin sidecar failed. %s", cmpErr.Error())
+			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds())
+			if err != nil {
+				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 			}
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -1333,7 +1326,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
 	// detect config management plugin server (sidecar)
 	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
 	if err != nil {
@@ -1367,7 +1360,15 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	if err != nil {
 		return nil, err
 	}
-	return cmpManifests.Manifests, nil
+	var manifests []*unstructured.Unstructured
+	for _, manifestString := range cmpManifests.Manifests {
+		manifestObjs, err := kube.SplitYAML([]byte(manifestString))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert CMP manifests to unstructured objects: %s", err.Error())
+		}
+		manifests = append(manifests, manifestObjs...)
+	}
+	return manifests, nil
 }
 
 func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
