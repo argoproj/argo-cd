@@ -135,6 +135,54 @@ func TestGetConfigManagementPlugins(t *testing.T) {
 	}}, plugins)
 }
 
+func TestInClusterServerAddressEnabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"cluster.inClusterEnabled": "true",
+	})
+	argoCDCM, err := settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, true, argoCDCM.Data[inClusterEnabledKey] == "true")
+
+	_, settingsManager = fixtures(map[string]string{
+		"cluster.inClusterEnabled": "false",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, false, argoCDCM.Data[inClusterEnabledKey] == "true")
+}
+
+func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+	assert.Equal(t, true, settings.InClusterEnabled)
+}
+
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.instanceLabelKey": "testLabel",

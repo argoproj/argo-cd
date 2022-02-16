@@ -260,3 +260,6 @@ data:
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
+
+  # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
+  cluster.inClusterEnabled: "true"
