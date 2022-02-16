@@ -1196,6 +1196,20 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
+	// Temporarily, logs RBAC will be enforced only if an intermediate env var serverRBACLogEnforceEnable is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes")
+	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
+	logsRBACEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
+	if err != nil {
+		return err
+	}
+
+	if logsRBACEnforceEnable {
+		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return err
+		}
+	}
+
 	tree, err := s.getAppResources(ws.Context(), a)
 	if err != nil {
 		return err
