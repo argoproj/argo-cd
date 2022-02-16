@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -848,7 +847,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer argoio.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
-			var diffOption *DifferenceOption
+			diffOption := &DifferenceOption{}
 			if revision != "" {
 				q := applicationpkg.ApplicationManifestQuery{
 					Name:     &appName,
@@ -856,16 +855,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				res, err := appIf.GetManifests(context.Background(), &q)
 				errors.CheckError(err)
-				if diffOption == nil {
-					diffOption = &DifferenceOption{}
-				}
 				diffOption.res = res
 				diffOption.revision = revision
 			}
 			if local != "" {
-				if diffOption == nil {
-					diffOption = &DifferenceOption{}
-				}
 				conn, clusterIf := clientset.NewClusterClientOrDie()
 				defer argoio.Close(conn)
 				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
@@ -902,20 +895,18 @@ func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.Mana
 	liveObjs, err := liveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
-	if diffOptions != nil {
-		if diffOptions.local != "" {
-			localObjs := groupObjsByKey(getLocalObjects(app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-			items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
-		} else if diffOptions.revision != "" {
-			var unstructureds []*unstructured.Unstructured
-			for _, mfst := range diffOptions.res.Manifests {
-				obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-				errors.CheckError(err)
-				unstructureds = append(unstructureds, obj)
-			}
-			groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-			items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
+	if diffOptions.local != "" {
+		localObjs := groupObjsByKey(getLocalObjects(app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
+	} else if diffOptions.revision != "" {
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			unstructureds = append(unstructureds, obj)
 		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
 	} else {
 		for i := range resources.Items {
 			res := resources.Items[i]
@@ -1500,11 +1491,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					foundDiffs := false
 					findandPrintDiff(app, resources, argoSettings, appName, &foundDiffs, diffOption)
 					if foundDiffs && !diffChangesConfirm {
-						reader := bufio.NewReader(os.Stdin)
-						yesno, err := yesNoPrompt(reader, "Confirm to Sync Application")
-						if err != nil {
-							log.Warn(err)
-						}
+						yesno := cli.AskToProceed("Confirm to Sync Application y/n :")
 						if !yesno {
 							os.Exit(0)
 						}
@@ -1554,28 +1541,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChangesConfirm, "yes", false, "To be used with --diff-changes for auto confirmation to sync app after a preview of diff against the target and live state before syncing app")
 	command.Flags().BoolVar(&diffChanges, "diff-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	return command
-}
-
-// yesNoPrompt Returns true/false based on user input yes/no, error for invalid input
-func yesNoPrompt(r io.Reader, message string) (bool, error) {
-	scanner := bufio.NewScanner(r)
-	choices := "Y/n"
-	var s string
-	fmt.Fprintf(os.Stderr, "%s (%s) ", message, choices)
-	if scanner.Scan() {
-		s = scanner.Text()
-	}
-	if err := scanner.Err(); err != nil {
-		return false, err
-	}
-	s = strings.ToLower(s)
-	if s == "y" || s == "yes" {
-		return true, nil
-	} else if s == "n" || s == "no" {
-		return false, nil
-	} else {
-		return false, fmt.Errorf("Invalid Input Say Y/n")
-	}
 }
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.

@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"bytes"
-	"io"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -121,34 +119,6 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 		t.Fatal("Failed to find correct history with correct revision")
 	}
 
-}
-
-// TestYesNoPrompt Test true/false on yes/no and invalid inputs
-func TestYesNoPrompt(t *testing.T) {
-	testData := []struct {
-		input          string
-		yesNo, wantErr bool
-	}{
-		{input: "Y", yesNo: true, wantErr: false},
-		{input: "y", yesNo: true, wantErr: false},
-		{input: "N", yesNo: false, wantErr: false},
-		{input: "N", yesNo: false, wantErr: false},
-		{input: "Yes", yesNo: true, wantErr: false},
-		{input: "No", yesNo: false, wantErr: false},
-		{input: "yes", yesNo: true, wantErr: false},
-		{input: "no", yesNo: false, wantErr: false},
-		{input: "others", yesNo: false, wantErr: true},
-	}
-	for _, tt := range testData {
-		var r io.Reader = bytes.NewBufferString(tt.input)
-		result, err := yesNoPrompt(r, "Confirm to Sync Application")
-		if err != nil && !tt.wantErr {
-			t.Errorf("YesNoPrompt() error Got = %v, Expectation %v", err, tt.wantErr)
-		}
-		if tt.yesNo != result {
-			t.Errorf("YesNoPrompt() Expected = %v, Got %v", tt.yesNo, result)
-		}
-	}
 }
 
 func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
