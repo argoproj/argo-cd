@@ -98,7 +98,7 @@ View [the example on GitHub](https://github.com/argoproj/argocd-example-apps/tre
 
 ### Cascading deletion
 
-If you want to ensure that child-apps and all of their resources are deleted when the parent-app is deleted make sure to add the appropriate [finalizer](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/app_deletion/#about-the-deletion-finalizer) to your `Application` definition
+If you want to ensure that child-apps and all of their resources are deleted when the parent-app is deleted make sure to add the appropriate [finalizer](../user-guide/app_deletion.md#about-the-deletion-finalizer) to your `Application` definition
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

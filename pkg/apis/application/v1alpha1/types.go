@@ -2353,18 +2353,19 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	}
 
 	dial := (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
+		Timeout:   K8sTCPTimeout,
+		KeepAlive: K8sTCPKeepAlive,
 	}).DialContext
 	transport := utilnet.SetTransportDefaults(&http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
-		TLSHandshakeTimeout: 10 * time.Second,
+		TLSHandshakeTimeout: K8sTLSHandshakeTimeout,
 		TLSClientConfig:     tlsConfig,
 		MaxIdleConns:        K8sMaxIdleConnections,
 		MaxIdleConnsPerHost: K8sMaxIdleConnections,
 		MaxConnsPerHost:     K8sMaxIdleConnections,
 		DialContext:         dial,
 		DisableCompression:  config.DisableCompression,
+		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
@@ -2375,6 +2376,9 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.TLSClientConfig = rest.TLSClientConfig{}
 	config.AuthProvider = nil
 	config.ExecProvider = nil
+
+	// Set server-side timeout
+	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
 	return nil
@@ -2459,6 +2463,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
+	config.Timeout = K8sServerSideTimeout
 	return config
 }
 

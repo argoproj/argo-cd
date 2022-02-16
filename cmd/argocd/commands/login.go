@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -111,7 +112,7 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !globalClientOpts.Core {
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
 				if !sso {

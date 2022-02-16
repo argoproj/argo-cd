@@ -37,6 +37,7 @@ message Settings {
     string trackingMethod = 18;
     bool uiBannerPermanent = 19;
     string uiBannerPosition = 20;
+    string statusBadgeRootUrl = 21;
 }
 
 message GoogleAnalyticsConfig {

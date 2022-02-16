@@ -13,6 +13,12 @@ data:
   # Enables application status badge feature
   statusbadge.enabled: "true"
 
+  # Override the Argo CD hostname root URL for both the project and the application status badges.
+  # Here is an example of the application status badge for the app `myapp` to see what is replaced.
+  #    <statusbadge.url>api/badge?name=myapp&revision=true
+  # Provide custom URL to override. You must include the trailing forward slash:
+  statusbadge.url: "https://cd-status.apps.argoproj.io/"
+
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
   # Specifies token expiration duration

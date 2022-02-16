@@ -8,7 +8,7 @@ $header: 120px;
         position: fixed;
         left: 60px;
         right: 0;
-        z-index: 2;
+        z-index: 3;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
         }
@@ -209,7 +209,7 @@ $header: 120px;
 
     .graph-options-panel {
         margin-left: 10px;
-        z-index: 10;
+        z-index: 1;
         padding: 5px;
         display: inline-block;
         background-color: $argo-color-gray-1;

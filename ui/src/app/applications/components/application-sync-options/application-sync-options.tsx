@@ -89,6 +89,7 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
     props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
+    props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
