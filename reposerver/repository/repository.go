@@ -85,6 +85,7 @@ type RepoServerInitConstants struct {
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int
+	SubmoduleEnabled                             bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -147,7 +148,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() error {
-		return checkoutRevision(gitClient, commitSHA)
+		return checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
 	})
 
 	if err != nil {
@@ -259,7 +260,7 @@ func (s *Service) runRepoOperation(
 		})
 	} else {
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() error {
-			return checkoutRevision(gitClient, revision)
+			return checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
 		})
 
 		if err != nil {
@@ -1549,7 +1550,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() error {
-		return checkoutRevision(gitClient, q.Revision)
+		return checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
 	})
 
 	if err != nil {
@@ -1644,7 +1645,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func checkoutRevision(gitClient git.Client, revision string) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -1659,14 +1660,14 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
-		err = gitClient.Checkout(revision)
+		err = gitClient.Checkout(revision, submoduleEnabled)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 		return err
 	}
 
-	err = gitClient.Checkout("FETCH_HEAD")
+	err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 	}
