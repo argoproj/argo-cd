@@ -14,6 +14,7 @@ type Context struct {
 	// seconds
 	timeout int
 	name    string
+	project string
 }
 
 func Given(t *testing.T) *Context {
@@ -22,6 +23,11 @@ func Given(t *testing.T) *Context {
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
 	return &Context{t: t, name: fixture.Name(), timeout: timeout}
+}
+
+func (c *Context) Project(project string) *Context {
+	c.project = project
+	return c
 }
 
 func (c *Context) GetName() string {

@@ -33,7 +33,9 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
@@ -50,6 +52,176 @@ const (
 	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
 )
+
+// This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
+func TestGetLogsAllowNoSwitch(t *testing.T) {
+}
+
+// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
+// when the temporary switch would die
+func TestGetLogsDenySwitchOn(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	GivenWithSameState(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "permission denied")
+		})
+}
+
+func TestGetLogsAllowSwitchOn(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	GivenWithSameState(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
+		})
+
+}
+
+func TestGetLogsAllowSwitchOff(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	Given(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
+		})
+}
 
 func TestSyncToUnsignedCommit(t *testing.T) {
 	SkipOnEnv(t, "GPG")
