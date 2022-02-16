@@ -61,6 +61,10 @@ func getPauseGenerationOnFailureForRequests() int {
 	return env.ParseNumFromEnv(common.EnvPauseGenerationRequests, defaultPauseGenerationOnFailureForRequests, 0, math.MaxInt32)
 }
 
+func getSubmoduleEnabled() bool {
+	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+}
+
 func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit       int64
@@ -97,6 +101,7 @@ func NewCommand() *cobra.Command {
 				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
 				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
+				SubmoduleEnabled:                             getSubmoduleEnabled(),
 			})
 			errors.CheckError(err)
 
