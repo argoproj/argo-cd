@@ -429,6 +429,7 @@ export interface Plugin {
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
+    statusBadgeRootUrl: string;
     googleAnalytics: {
         trackingID: string;
         anonymizeUsers: boolean;

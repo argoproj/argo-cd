@@ -138,6 +138,7 @@ Installations that use a different repo for each app are **not** subject to this
 !!! note
     Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
 I'm using `.Second()` modifier to avoid distracting users who already rely on `--app-resync` flag.
+
 * **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
 
 ```yaml
