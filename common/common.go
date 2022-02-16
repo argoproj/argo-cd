@@ -194,6 +194,8 @@ const (
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
+	// EnvLogFormatEnableTimestamp to indicate whether or not to enable the FullTimestamp option in log logs
+	EnvLogFormatEnableTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_TIMESTAMP"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
