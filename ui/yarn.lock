@@ -762,6 +762,13 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
+"@babel/runtime@^7.16.7":
+  version "7.17.2"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@babel/runtime/-/runtime-7.17.2.tgz#66f68591605e59da47523c631416b18508779941"
+  integrity sha1-ZvaFkWBeWdpHUjxjFBaxhQh3mUE=
+  dependencies:
+    regenerator-runtime "^0.13.4"
+
 "@babel/template@^7.14.5", "@babel/template@^7.4.0", "@babel/template@^7.7.0":
   version "7.14.5"
   resolved "https://registry.yarnpkg.com/@babel/template/-/template-7.14.5.tgz#a9bc9d8b33354ff6e55a9c60d1109200a68974f4"
@@ -806,6 +813,11 @@
   version "3.4.0"
   resolved "https://registry.yarnpkg.com/@ctrl/tinycolor/-/tinycolor-3.4.0.tgz#c3c5ae543c897caa9c2a68630bed355be5f9990f"
   integrity sha512-JZButFdZ1+/xAfpguQHoabIXkcqRRKpMrWKBkpEZZyxfY9C1DpADFB8PEqGSTeFr135SaTRfKqGKx5xSCLI7ZQ==
+
+"@exodus/schemasafe@^1.0.0-rc.2":
+  version "1.0.0-rc.6"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@exodus/schemasafe/-/schemasafe-1.0.0-rc.6.tgz#7985f681564cff4ffaebb5896eb4be20af3aae7a"
+  integrity sha1-eYX2gVZM/0/667WJbrS+IK86rno=
 
 "@fortawesome/fontawesome-free@^5.15.2":
   version "5.15.4"
@@ -1000,6 +1012,37 @@
     mkdirp "^1.0.4"
     rimraf "^3.0.2"
 
+"@redocly/ajv@^8.6.4":
+  version "8.6.4"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@redocly/ajv/-/ajv-8.6.4.tgz#94053e7a9d4146d1a4feacd3813892873f229a85"
+  integrity sha1-lAU+ep1BRtGk/qzTgTiShz8imoU=
+  dependencies:
+    fast-deep-equal "^3.1.1"
+    json-schema-traverse "^1.0.0"
+    require-from-string "^2.0.2"
+    uri-js "^4.2.2"
+
+"@redocly/openapi-core@^1.0.0-beta.54":
+  version "1.0.0-beta.82"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@redocly/openapi-core/-/openapi-core-1.0.0-beta.82.tgz#5f232e9c8f82499c2d96d9268b22423c8f859fe2"
+  integrity sha1-XyMunI+CSZwtltkmiyJCPI+Fn+I=
+  dependencies:
+    "@redocly/ajv" "^8.6.4"
+    "@types/node" "^14.11.8"
+    colorette "^1.2.0"
+    js-levenshtein "^1.1.6"
+    js-yaml "^4.1.0"
+    lodash.isequal "^4.5.0"
+    minimatch "^3.0.4"
+    node-fetch "^2.6.1"
+    pluralize "^8.0.0"
+    yaml-ast-parser "0.0.43"
+
+"@redocly/react-dropdown-aria@^2.0.11":
+  version "2.0.12"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@redocly/react-dropdown-aria/-/react-dropdown-aria-2.0.12.tgz#2e3af2b1b8e9123487109400d6117f0d4a8445a6"
+  integrity sha1-LjrysbjpEjSHEJQA1hF/DUqERaY=
+
 "@tippy.js/react@^2.1.2":
   version "2.2.3"
   resolved "https://registry.yarnpkg.com/@tippy.js/react/-/react-2.2.3.tgz#2ffb0af6693055be7db4b329b2d3cc7f2356f68e"
@@ -1142,6 +1185,11 @@
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.8.tgz#edf1bf1dbf4e04413ca8e5b17b3b7d7d54b59818"
   integrity sha512-YSBPTLTVm2e2OoQIDYx8HaeWJ5tTToLH67kXR7zYNGupXMEHa2++G8k+DczX2cFVgalypqtyZIcU19AFcmOpmg==
 
+"@types/json-schema@^7.0.7":
+  version "7.0.9"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@types/json-schema/-/json-schema-7.0.9.tgz#97edc9037ea0c38585320b28964dde3b39e4660d"
+  integrity sha1-l+3JA36gw4WFMgsolk3eOznkZg0=
+
 "@types/lodash-es@^4.17.5":
   version "4.17.5"
   resolved "https://registry.yarnpkg.com/@types/lodash-es/-/lodash-es-4.17.5.tgz#1c3fdd16849d84aea43890b1c60da379fb501353"
@@ -1168,6 +1216,11 @@
   version "16.3.1"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-16.3.1.tgz#24691fa2b0c3ec8c0d34bfcfd495edac5593ebb4"
   integrity sha512-N87VuQi7HEeRJkhzovao/JviiqKjDKMVKxKMfUvSKw+MbkbW8R0nA3fi/MQhhlxV2fQ+2ReM+/Nt4efdrJx3zA==
+
+"@types/node@^14.11.8":
+  version "14.18.12"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/@types/node/-/node-14.18.12.tgz#0d4557fd3b94497d793efd4e7d92df2f83b4ef24"
+  integrity sha1-DUVX/TuUSX15Pv1OfZLfL4O07yQ=
 
 "@types/normalize-package-data@^2.4.0":
   version "2.4.1"
@@ -1625,6 +1678,11 @@ ansi-regex@^5.0.0:
   resolved "https://registry.yarnpkg.com/ansi-regex/-/ansi-regex-5.0.0.tgz#388539f55179bf39339c81af30a654d69f87cb75"
   integrity sha512-bY6fj56OUQ0hU1KjFNDQuJFezqKdrAyFdIevADiqrWHwSlbmBNMHp5ak2f40Pm8JTFyM2mqxkG6ngkHO11f/lg==
 
+ansi-regex@^5.0.1:
+  version "5.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/ansi-regex/-/ansi-regex-5.0.1.tgz#082cb2c89c9fe8659a311a53bd6a4dc5301db304"
+  integrity sha1-CCyyyJyf6GWaMRpTvWpNxTAdswQ=
+
 ansi-styles@^2.2.1:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/ansi-styles/-/ansi-styles-2.2.1.tgz#b432dd3358b634cf75e1e4664368240533c1ddbe"
@@ -1637,10 +1695,10 @@ ansi-styles@^3.2.0, ansi-styles@^3.2.1:
   dependencies:
     color-convert "^1.9.0"
 
-ansi-styles@^4.1.0:
+ansi-styles@^4.0.0, ansi-styles@^4.1.0:
   version "4.3.0"
-  resolved "https://registry.yarnpkg.com/ansi-styles/-/ansi-styles-4.3.0.tgz#edd803628ae71c04c85ae7a0906edad34b648937"
-  integrity sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/ansi-styles/-/ansi-styles-4.3.0.tgz#edd803628ae71c04c85ae7a0906edad34b648937"
+  integrity sha1-7dgDYornHATIWuegkG7a00tkiTc=
   dependencies:
     color-convert "^2.0.1"
 
@@ -1765,6 +1823,11 @@ argparse@^1.0.7:
   integrity sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==
   dependencies:
     sprintf-js "~1.0.2"
+
+argparse@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/argparse/-/argparse-2.0.1.tgz#246f50f3ca78a3240f6c997e8a9bd1eac49e4b38"
+  integrity sha1-JG9Q88p4oyQPbJl+ipvR6sSeSzg=
 
 argv@0.0.2:
   version "0.0.2"
@@ -2338,6 +2401,11 @@ call-bind@^1.0.0, call-bind@^1.0.2:
     function-bind "^1.1.1"
     get-intrinsic "^1.0.2"
 
+call-me-maybe@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/call-me-maybe/-/call-me-maybe-1.0.1.tgz#26d208ea89e37b5cbde60250a15f031c16a4d66b"
+  integrity sha1-JtII6onje1y95gJQoV8DHBak1ms=
+
 callsites@^3.0.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/callsites/-/callsites-3.1.0.tgz#b3630abd8943432f54b3f0519238e33cd7df2f73"
@@ -2523,6 +2591,15 @@ cliui@^5.0.0:
     strip-ansi "^5.2.0"
     wrap-ansi "^5.1.0"
 
+cliui@^7.0.2:
+  version "7.0.4"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/cliui/-/cliui-7.0.4.tgz#a0265ee655476fc807aea9df3df8df7783808b4f"
+  integrity sha1-oCZe5lVHb8gHrqnfPfjfd4OAi08=
+  dependencies:
+    string-width "^4.2.0"
+    strip-ansi "^6.0.0"
+    wrap-ansi "^7.0.0"
+
 clone-deep@^2.0.1:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/clone-deep/-/clone-deep-2.0.2.tgz#00db3a1e173656730d1188c3d6aced6d7ea97713"
@@ -2532,6 +2609,11 @@ clone-deep@^2.0.1:
     is-plain-object "^2.0.4"
     kind-of "^6.0.0"
     shallow-clone "^1.0.0"
+
+clsx@^1.1.0:
+  version "1.1.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/clsx/-/clsx-1.1.1.tgz#98b3134f9abbdf23b2663491ace13c5c03a73188"
+  integrity sha1-mLMTT5q73yOyZjSRrOE8XAOnMYg=
 
 co@^4.6.0:
   version "4.6.0"
@@ -2601,6 +2683,11 @@ color@^3.1.0:
   dependencies:
     color-convert "^1.9.1"
     color-string "^1.5.2"
+
+colorette@^1.2.0:
+  version "1.4.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/colorette/-/colorette-1.4.0.tgz#5190fbb87276259a86ad700bff2c6d6faa3fca40"
+  integrity sha1-UZD7uHJ2JZqGrXAL/yxtb6o/ykA=
 
 colorette@^1.2.2:
   version "1.2.2"
@@ -3025,6 +3112,11 @@ decamelize@^1.1.0, decamelize@^1.2.0:
   resolved "https://registry.yarnpkg.com/decamelize/-/decamelize-1.2.0.tgz#f6534d15148269b20352e7bee26f501f9a191290"
   integrity sha1-9lNNFRSCabIDUue+4m9QH5oZEpA=
 
+decko@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/decko/-/decko-1.2.0.tgz#fd43c735e967b8013306884a56fbe665996b6817"
+  integrity sha1-/UPHNelnuAEzBohKVvvmZZlraBc=
+
 decode-uri-component@^0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/decode-uri-component/-/decode-uri-component-0.2.0.tgz#eb3913333458775cb84cd1a1fae062106bb87545"
@@ -3274,6 +3366,11 @@ domhandler@^4.0.0, domhandler@^4.2.0:
   dependencies:
     domelementtype "^2.2.0"
 
+dompurify@^2.2.8:
+  version "2.3.6"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/dompurify/-/dompurify-2.3.6.tgz#2e019d7d7617aacac07cbbe3d88ae3ad354cf875"
+  integrity sha1-LgGdfXYXqsrAfLvj2IrjrTVM+HU=
+
 domutils@^2.5.2, domutils@^2.6.0:
   version "2.7.0"
   resolved "https://registry.yarnpkg.com/domutils/-/domutils-2.7.0.tgz#8ebaf0c41ebafcf55b0b72ec31c56323712c5442"
@@ -3328,6 +3425,11 @@ emoji-regex@^7.0.1:
   version "7.0.3"
   resolved "https://registry.yarnpkg.com/emoji-regex/-/emoji-regex-7.0.3.tgz#933a04052860c85e83c122479c4748a8e4c72156"
   integrity sha512-CwBLREIQ7LvYFB0WyRvwhq5N5qPhc6PMjD6bYggFlI5YyDgl+0vxq5VHbMOFqLg7hfWzmu8T5Z1QofhmTIhItA==
+
+emoji-regex@^8.0.0:
+  version "8.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/emoji-regex/-/emoji-regex-8.0.0.tgz#e818fd69ce5ccfcb404594f842963bf53164cc37"
+  integrity sha1-6Bj9ac5cz8tARZT4QpY79TFkzDc=
 
 emojis-list@^2.0.0:
   version "2.1.0"
@@ -3428,6 +3530,11 @@ es-to-primitive@^1.2.1:
     is-callable "^1.1.4"
     is-date-object "^1.0.1"
     is-symbol "^1.0.2"
+
+es6-promise@^3.2.1:
+  version "3.3.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/es6-promise/-/es6-promise-3.3.1.tgz#a08cdde84ccdbf34d027a1451bc91d4bcd28a613"
+  integrity sha1-oIzd6EzNvzTQJ6FFG8kdS80ophM=
 
 esbuild-loader@^2.15.1:
   version "2.15.1"
@@ -3532,10 +3639,10 @@ etag@~1.8.1:
   resolved "https://registry.yarnpkg.com/etag/-/etag-1.8.1.tgz#41ae2eeb65efa62268aebfea83ac7d79299b0887"
   integrity sha1-Qa4u62XvpiJorr/qg6x9eSmbCIc=
 
-eventemitter3@^4.0.0:
+eventemitter3@^4.0.0, eventemitter3@^4.0.7:
   version "4.0.7"
-  resolved "https://registry.yarnpkg.com/eventemitter3/-/eventemitter3-4.0.7.tgz#2de9b68f6528d5644ef5c59526a1b4a07306169f"
-  integrity sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/eventemitter3/-/eventemitter3-4.0.7.tgz#2de9b68f6528d5644ef5c59526a1b4a07306169f"
+  integrity sha1-Lem2j2Uo1WRO9cWVJqG0oHMGFp8=
 
 events@^3.0.0:
   version "3.3.0"
@@ -3718,6 +3825,11 @@ fast-levenshtein@~2.0.6:
   resolved "https://registry.yarnpkg.com/fast-levenshtein/-/fast-levenshtein-2.0.6.tgz#3d8a5c66883a16a30ca8643e851f19baa7797917"
   integrity sha1-PYpcZog6FqMMqGQ+hR8Zuqd5eRc=
 
+fast-safe-stringify@^2.0.7:
+  version "2.1.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/fast-safe-stringify/-/fast-safe-stringify-2.1.1.tgz#c406a83b6e70d9e35ce3b30a81141df30aeba884"
+  integrity sha1-xAaoO25w2eNc47MKgRQd8wrrqIQ=
+
 fastparse@^1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/fastparse/-/fastparse-1.1.2.tgz#91728c5a5942eced8531283c79441ee4122c35a9"
@@ -3869,6 +3981,11 @@ for-own@^1.0.0:
   dependencies:
     for-in "^1.0.1"
 
+foreach@^2.0.4:
+  version "2.0.5"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/foreach/-/foreach-2.0.5.tgz#0bee005018aeb260d0a3af3ae658dd0136ec1b99"
+  integrity sha1-C+4AUBiusmDQo6865ljdATbsG5k=
+
 forever-agent@~0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/forever-agent/-/forever-agent-0.6.1.tgz#fbc71f0c41adeb37f96c577ad1ed42d8fdacca91"
@@ -3986,10 +4103,10 @@ generic-names@^1.0.3:
   dependencies:
     loader-utils "^0.2.16"
 
-get-caller-file@^2.0.1:
+get-caller-file@^2.0.1, get-caller-file@^2.0.5:
   version "2.0.5"
-  resolved "https://registry.yarnpkg.com/get-caller-file/-/get-caller-file-2.0.5.tgz#4f94412a82db32f36e3b0b9741f8a97feb031f7e"
-  integrity sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/get-caller-file/-/get-caller-file-2.0.5.tgz#4f94412a82db32f36e3b0b9741f8a97feb031f7e"
+  integrity sha1-T5RBKoLbMvNuOwuXQfipf+sDH34=
 
 get-intrinsic@^1.0.2, get-intrinsic@^1.1.1:
   version "1.1.1"
@@ -4472,6 +4589,11 @@ http-signature@~1.2.0:
     jsprim "^1.2.2"
     sshpk "^1.7.0"
 
+http2-client@^1.2.5:
+  version "1.3.5"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/http2-client/-/http2-client-1.3.5.tgz#20c9dc909e3cc98284dd20af2432c524086df181"
+  integrity sha1-IMnckJ48yYKE3SCvJDLFJAht8YE=
+
 https-browserify@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/https-browserify/-/https-browserify-1.0.0.tgz#ec06c10e0a34c0f2faf199f7fd7fc78fffd03c73"
@@ -4789,6 +4911,11 @@ is-fullwidth-code-point@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/is-fullwidth-code-point/-/is-fullwidth-code-point-2.0.0.tgz#a3b30a5c4f199183167aaab93beefae3ddfb654f"
   integrity sha1-o7MKXE8ZkYMWeqq5O+764937ZU8=
+
+is-fullwidth-code-point@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz#f116f8064fe90b3f7844a38997c0b75051269f1d"
+  integrity sha1-8Rb4Bk/pCz94RKOJl8C3UFEmnx0=
 
 is-generator-fn@^2.0.0:
   version "2.1.0"
@@ -5392,10 +5519,10 @@ js-base64@^2.1.8:
   resolved "https://registry.yarnpkg.com/js-base64/-/js-base64-2.6.4.tgz#f4e686c5de1ea1f867dbcad3d46d969428df98c4"
   integrity sha512-pZe//GGmwJndub7ZghVHz7vjb2LgC1m8B07Au3eYqeqv9emhESByMXxaEgkUkEqJe87oBbSniGYoQNIBklc7IQ==
 
-js-levenshtein@^1.1.3:
+js-levenshtein@^1.1.3, js-levenshtein@^1.1.6:
   version "1.1.6"
-  resolved "https://registry.yarnpkg.com/js-levenshtein/-/js-levenshtein-1.1.6.tgz#c6cee58eb3550372df8deb85fad5ce66ce01d59d"
-  integrity sha512-X2BB11YZtrRqY4EnQcLX5Rh373zbK4alC1FW7D7MBhL2gtcC17cTnr6DmfHZeS0s2rTHjUTMMHfG7gO8SSdw+g==
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/js-levenshtein/-/js-levenshtein-1.1.6.tgz#c6cee58eb3550372df8deb85fad5ce66ce01d59d"
+  integrity sha1-xs7ljrNVA3LfjeuF+tXOZs4B1Z0=
 
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
@@ -5409,6 +5536,13 @@ js-yaml@3.13.1, js-yaml@^3.13.1, js-yaml@^3.9.0:
   dependencies:
     argparse "^1.0.7"
     esprima "^4.0.0"
+
+js-yaml@^4.1.0:
+  version "4.1.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/js-yaml/-/js-yaml-4.1.0.tgz#c1fb65f8f5017901cdd2c951864ba18458a10602"
+  integrity sha1-wftl+PUBeQHN0slRhkuhhFihBgI=
+  dependencies:
+    argparse "^2.0.1"
 
 jsbn@~0.1.0:
   version "0.1.1"
@@ -5474,10 +5608,22 @@ json-parse-even-better-errors@^2.3.0:
   resolved "https://registry.yarnpkg.com/json-parse-even-better-errors/-/json-parse-even-better-errors-2.3.1.tgz#7c47805a94319928e05777405dc12e1f7a4ee02d"
   integrity sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==
 
+json-pointer@^0.6.1:
+  version "0.6.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/json-pointer/-/json-pointer-0.6.1.tgz#3c6caa6ac139e2599f5a1659d39852154015054d"
+  integrity sha1-PGyqasE54lmfWhZZ05hSFUAVBU0=
+  dependencies:
+    foreach "^2.0.4"
+
 json-schema-traverse@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz#69f6a87d9513ab8bb8fe63bdb0979c448e684660"
   integrity sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==
+
+json-schema-traverse@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/json-schema-traverse/-/json-schema-traverse-1.0.0.tgz#ae7bcb3656ab77a73ba5c49bf654f38e6b6860e2"
+  integrity sha1-rnvLNlard6c7pcSb9lTzjmtoYOI=
 
 json-schema@0.2.3:
   version "0.2.3"
@@ -5664,6 +5810,11 @@ lodash.camelcase@^4.3.0:
   resolved "https://registry.yarnpkg.com/lodash.camelcase/-/lodash.camelcase-4.3.0.tgz#b28aa6288a2b9fc651035c7711f65ab6190331a6"
   integrity sha1-soqmKIorn8ZRA1x3EfZathkDMaY=
 
+lodash.isequal@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/lodash.isequal/-/lodash.isequal-4.5.0.tgz#415c4478f2bcc30120c22ce10ed3226f7d3e18e0"
+  integrity sha1-QVxEePK8wwEgwizhDtMib30+GOA=
+
 lodash.memoize@4.x:
   version "4.1.2"
   resolved "https://registry.yarnpkg.com/lodash.memoize/-/lodash.memoize-4.1.2.tgz#bcc6c49a42a2840ed997f323eada5ecd182e0bfe"
@@ -5715,6 +5866,11 @@ lru-cache@^6.0.0:
   dependencies:
     yallist "^4.0.0"
 
+lunr@^2.3.9:
+  version "2.3.9"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/lunr/-/lunr-2.3.9.tgz#18b123142832337dd6e964df1a5a7707b25d35e1"
+  integrity sha1-GLEjFCgyM33W6WTfGlp3B7JdNeE=
+
 make-dir@^2.0.0, make-dir@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-2.1.0.tgz#5f0310e18b8be898cc07009295a30ae41e91e6f5"
@@ -5763,6 +5919,16 @@ map-visit@^1.0.0:
   integrity sha1-7Nyo8TFE5mDxtb1B8S80edmN+48=
   dependencies:
     object-visit "^1.0.0"
+
+mark.js@^8.11.1:
+  version "8.11.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/mark.js/-/mark.js-8.11.1.tgz#180f1f9ebef8b0e638e4166ad52db879beb2ffc5"
+  integrity sha1-GA8fnr74sOY45BZq1S24eb6y/8U=
+
+marked@^4.0.10:
+  version "4.0.12"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/marked/-/marked-4.0.12.tgz#2262a4e6fd1afd2f13557726238b69a48b982f7d"
+  integrity sha1-ImKk5v0a/S8TVXcmI4tppIuYL30=
 
 md5.js@^1.3.4:
   version "1.3.5"
@@ -6017,6 +6183,18 @@ mkdirp@^1.0.3, mkdirp@^1.0.4:
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-1.0.4.tgz#3eb5ed62622756d79a5f0e2a221dfebad75c2f7e"
   integrity sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==
 
+mobx-react-lite@^3.2.0:
+  version "3.2.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/mobx-react-lite/-/mobx-react-lite-3.2.3.tgz#83d2b32ebf4383cd0dc0d397acbf53a8e9c66765"
+  integrity sha1-g9KzLr9Dg80NwNOXrL9TqOnGZ2U=
+
+mobx-react@^7.2.0:
+  version "7.2.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/mobx-react/-/mobx-react-7.2.1.tgz#e9d4c04dc63d05e1139ce773f5fee7a5b4cb7c78"
+  integrity sha1-6dTATcY9BeETnOdz9f7npbTLfHg=
+  dependencies:
+    mobx-react-lite "^3.2.0"
+
 moment-timezone@^0.5.33:
   version "0.5.33"
   resolved "https://registry.yarnpkg.com/moment-timezone/-/moment-timezone-0.5.33.tgz#b252fd6bb57f341c9b59a5ab61a8e51a73bbd22c"
@@ -6135,6 +6313,13 @@ no-case@^2.2.0:
   dependencies:
     lower-case "^1.1.1"
 
+node-fetch-h2@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/node-fetch-h2/-/node-fetch-h2-2.3.0.tgz#c6188325f9bd3d834020bf0f2d6dc17ced2241ac"
+  integrity sha1-xhiDJfm9PYNAIL8PLW3BfO0iQaw=
+  dependencies:
+    http2-client "^1.2.5"
+
 node-fetch@^1.0.1:
   version "1.7.3"
   resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-1.7.3.tgz#980f6f72d85211a5347c6b2bc18c5b84c3eb47ef"
@@ -6147,6 +6332,13 @@ node-fetch@^2.2.0:
   version "2.6.1"
   resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.1.tgz#045bd323631f76ed2e2b55573394416b639a0052"
   integrity sha512-V4aYg89jEoVRxRb2fJdAg8FHvI7cEyYdVAh94HH0UIK8oJxUfkjlDQN9RbMx+bEjP7+ggMiFRprSti032Oipxw==
+
+node-fetch@^2.6.1:
+  version "2.6.7"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/node-fetch/-/node-fetch-2.6.7.tgz#24de9fba827e3b4ae44dc8b20256a379160052ad"
+  integrity sha1-JN6fuoJ+O0rkTciyAlajeRYAUq0=
+  dependencies:
+    whatwg-url "^5.0.0"
 
 node-forge@^0.10.0:
   version "0.10.0"
@@ -6218,6 +6410,13 @@ node-notifier@^5.4.2:
     semver "^5.5.0"
     shellwords "^0.1.1"
     which "^1.3.0"
+
+node-readfiles@^0.2.0:
+  version "0.2.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/node-readfiles/-/node-readfiles-0.2.0.tgz#dbbd4af12134e2e635c245ef93ffcf6f60673a5d"
+  integrity sha1-271K8SE04uY1wkXvk//Pb2BnOl0=
+  dependencies:
+    es6-promise "^3.2.1"
 
 node-releases@^1.1.71:
   version "1.1.73"
@@ -6323,6 +6522,52 @@ nwsapi@^2.0.7:
   resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.2.0.tgz#204879a9e3d068ff2a55139c2c772780681a38b7"
   integrity sha512-h2AatdwYH+JHiZpv7pt/gSX1XoRGb7L/qSIeuqA6GwYoF9w1vP1cw42TO0aI2pNyshRK5893hNSl+1//vHK7hQ==
 
+oas-kit-common@^1.0.8:
+  version "1.0.8"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/oas-kit-common/-/oas-kit-common-1.0.8.tgz#6d8cacf6e9097967a4c7ea8bcbcbd77018e1f535"
+  integrity sha1-bYys9ukJeWekx+qLy8vXcBjh9TU=
+  dependencies:
+    fast-safe-stringify "^2.0.7"
+
+oas-linter@^3.2.2:
+  version "3.2.2"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/oas-linter/-/oas-linter-3.2.2.tgz#ab6a33736313490659035ca6802dc4b35d48aa1e"
+  integrity sha1-q2ozc2MTSQZZA1ymgC3Es11Iqh4=
+  dependencies:
+    "@exodus/schemasafe" "^1.0.0-rc.2"
+    should "^13.2.1"
+    yaml "^1.10.0"
+
+oas-resolver@^2.5.6:
+  version "2.5.6"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/oas-resolver/-/oas-resolver-2.5.6.tgz#10430569cb7daca56115c915e611ebc5515c561b"
+  integrity sha1-EEMFact9rKVhFckV5hHrxVFcVhs=
+  dependencies:
+    node-fetch-h2 "^2.3.0"
+    oas-kit-common "^1.0.8"
+    reftools "^1.1.9"
+    yaml "^1.10.0"
+    yargs "^17.0.1"
+
+oas-schema-walker@^1.1.5:
+  version "1.1.5"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/oas-schema-walker/-/oas-schema-walker-1.1.5.tgz#74c3cd47b70ff8e0b19adada14455b5d3ac38a22"
+  integrity sha1-dMPNR7cP+OCxmtraFEVbXTrDiiI=
+
+oas-validator@^5.0.8:
+  version "5.0.8"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/oas-validator/-/oas-validator-5.0.8.tgz#387e90df7cafa2d3ffc83b5fb976052b87e73c28"
+  integrity sha1-OH6Q33yvotP/yDtfuXYFK4fnPCg=
+  dependencies:
+    call-me-maybe "^1.0.1"
+    oas-kit-common "^1.0.8"
+    oas-linter "^3.2.2"
+    oas-resolver "^2.5.6"
+    oas-schema-walker "^1.1.5"
+    reftools "^1.1.9"
+    should "^13.2.1"
+    yaml "^1.10.0"
+
 oauth-sign@~0.9.0:
   version "0.9.0"
   resolved "https://registry.yarnpkg.com/oauth-sign/-/oauth-sign-0.9.0.tgz#47a7b016baa68b5fa0ecf3dee08a85c679ac6455"
@@ -6416,6 +6661,14 @@ once@^1.3.0, once@^1.3.1, once@^1.4.0:
   integrity sha1-WDsap3WWHUsROsF9nFC6753Xa9E=
   dependencies:
     wrappy "1"
+
+openapi-sampler@^1.1.1:
+  version "1.2.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/openapi-sampler/-/openapi-sampler-1.2.0.tgz#2e82e4e32c1506a42f370be726d759d5275a9d4d"
+  integrity sha1-LoLk4ywVBqQvNwvnJtdZ1SdanU0=
+  dependencies:
+    "@types/json-schema" "^7.0.7"
+    json-pointer "^0.6.1"
 
 opn@^5.5.0:
   version "5.5.0"
@@ -6612,6 +6865,11 @@ path-browserify@0.0.1:
   resolved "https://registry.yarnpkg.com/path-browserify/-/path-browserify-0.0.1.tgz#e6c4ddd7ed3aa27c68a20cc4e50e1a4ee83bbc4a"
   integrity sha512-BapA40NHICOS+USX9SN4tyhq+A2RrN/Ws5F0Z5aMHDp98Fl86lX8Oti8B7uN93L4Ifv4fHOEA+pQw87gmMO/lQ==
 
+path-browserify@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/path-browserify/-/path-browserify-1.0.1.tgz#d98454a9c3753d5790860f16f68867b9e46be1fd"
+  integrity sha1-2YRUqcN1PVeQhg8W9ohnueRr4f0=
+
 path-dirname@^1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/path-dirname/-/path-dirname-1.0.2.tgz#cc33d24d525e099a5388c0336c6e32b9160609e0"
@@ -6687,6 +6945,11 @@ pbkdf2@^3.0.3:
     safe-buffer "^5.0.1"
     sha.js "^2.4.8"
 
+perfect-scrollbar@^1.5.1:
+  version "1.5.5"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/perfect-scrollbar/-/perfect-scrollbar-1.5.5.tgz#41a211a2fb52a7191eff301432134ea47052b27f"
+  integrity sha1-QaIRovtSpxke/zAUMhNOpHBSsn8=
+
 performance-now@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/performance-now/-/performance-now-2.1.0.tgz#6309f4e0e5fa913ec1c69307ae364b4b377c9e7b"
@@ -6745,10 +7008,22 @@ pkg-dir@^4.1.0:
   dependencies:
     find-up "^4.0.0"
 
+pluralize@^8.0.0:
+  version "8.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/pluralize/-/pluralize-8.0.0.tgz#1a6fa16a38d12a1901e0320fa017051c539ce3b1"
+  integrity sha1-Gm+hajjRKhkB4DIPoBcFHFOc47E=
+
 pn@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/pn/-/pn-1.1.0.tgz#e2f4cef0e219f463c179ab37463e4e1ecdccbafb"
   integrity sha512-2qHaIQr2VLRFoxe2nASzsV6ef4yOOH+Fi9FBOVH6cqeSgUnoyySPZkxzLuzd+RYOQTRpROA0ztTMqxROKSb/nA==
+
+polished@^4.1.3:
+  version "4.1.4"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/polished/-/polished-4.1.4.tgz#640293ba834109614961a700fdacbb6599fb12d0"
+  integrity sha1-ZAKTuoNBCWFJYacA/ay7ZZn7EtA=
+  dependencies:
+    "@babel/runtime" "^7.16.7"
 
 popper.js@^1.14.7:
   version "1.16.1"
@@ -6901,6 +7176,11 @@ pretty-format@^27.0.6:
     ansi-styles "^5.0.0"
     react-is "^17.0.1"
 
+prismjs@^1.24.1:
+  version "1.26.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/prismjs/-/prismjs-1.26.0.tgz#16881b594828bb6b45296083a8cbab46b0accd47"
+  integrity sha1-FogbWUgou2tFKWCDqMurRrCszUc=
+
 process-nextick-args@~2.0.0:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/process-nextick-args/-/process-nextick-args-2.0.1.tgz#7820d9b16120cc55ca9ae7792680ae7dba6d7fe2"
@@ -6923,6 +7203,15 @@ prompts@^2.0.1:
   dependencies:
     kleur "^3.0.3"
     sisteransi "^1.0.5"
+
+prop-types@^15.5.0:
+  version "15.8.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/prop-types/-/prop-types-15.8.1.tgz#67d87bf1a694f48435cf332c24af10214a3140b5"
+  integrity sha1-Z9h78aaU9IQ1zzMsJK8QIUoxQLU=
+  dependencies:
+    loose-envify "^1.4.0"
+    object-assign "^4.1.1"
+    react-is "^16.13.1"
 
 prop-types@^15.5.10, prop-types@^15.5.4, prop-types@^15.6.0, prop-types@^15.6.1, prop-types@^15.6.2, prop-types@^15.7.2:
   version "15.7.2"
@@ -7530,7 +7819,7 @@ react-hot-loader@^3.1.3:
     redbox-react "^1.3.6"
     source-map "^0.6.1"
 
-react-is@^16.12.0:
+react-is@^16.12.0, react-is@^16.13.1:
   version "16.13.1"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
@@ -7623,6 +7912,14 @@ react-svg-piechart@^2.1.1:
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/react-svg-piechart/-/react-svg-piechart-2.4.0.tgz#93e1e2196fee6b664d7435ed9411a7f196334c2c"
   integrity sha512-IXqvZCxTuiipwPgROyHi6TihR9PVaGDSnqd14Q2NUXx2PzbNnNcW2nVwLOPLUZm3xEVPzaQhBwxrwrsGLh1uDQ==
+
+react-tabs@^3.2.2:
+  version "3.2.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/react-tabs/-/react-tabs-3.2.3.tgz#ccbb3e1241ad3f601047305c75db661239977f2f"
+  integrity sha1-zLs+EkGtP2AQRzBcddtmEjmXfy8=
+  dependencies:
+    clsx "^1.1.0"
+    prop-types "^15.5.0"
 
 react-test-renderer@16.8.3:
   version "16.8.3"
@@ -7762,6 +8059,35 @@ redent@^3.0.0:
     indent-string "^4.0.0"
     strip-indent "^3.0.0"
 
+redoc@^2.0.0-rc.40:
+  version "2.0.0-rc.63"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/redoc/-/redoc-2.0.0-rc.63.tgz#d1bea51d3fdf2a6f5371a9bf7f06253ac5c1a487"
+  integrity sha1-0b6lHT/fKm9Tcam/fwYlOsXBpIc=
+  dependencies:
+    "@redocly/openapi-core" "^1.0.0-beta.54"
+    "@redocly/react-dropdown-aria" "^2.0.11"
+    classnames "^2.3.1"
+    decko "^1.2.0"
+    dompurify "^2.2.8"
+    eventemitter3 "^4.0.7"
+    json-pointer "^0.6.1"
+    lunr "^2.3.9"
+    mark.js "^8.11.1"
+    marked "^4.0.10"
+    mobx-react "^7.2.0"
+    openapi-sampler "^1.1.1"
+    path-browserify "^1.0.1"
+    perfect-scrollbar "^1.5.1"
+    polished "^4.1.3"
+    prismjs "^1.24.1"
+    prop-types "^15.7.2"
+    react-tabs "^3.2.2"
+    slugify "~1.4.7"
+    stickyfill "^1.1.1"
+    style-loader "^3.3.1"
+    swagger2openapi "^7.0.6"
+    url-template "^2.0.8"
+
 redux-logger@^3.0.6:
   version "3.0.6"
   resolved "https://registry.yarnpkg.com/redux-logger/-/redux-logger-3.0.6.tgz#f7555966f3098f3c88604c449cf0baf5778274bf"
@@ -7783,6 +8109,11 @@ redux@^3.7.2:
     lodash-es "^4.2.1"
     loose-envify "^1.1.0"
     symbol-observable "^1.0.3"
+
+reftools@^1.1.9:
+  version "1.1.9"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/reftools/-/reftools-1.1.9.tgz#e16e19f662ccd4648605312c06d34e5da3a2b77e"
+  integrity sha1-4W4Z9mLM1GSGBTEsBtNOXaOit34=
 
 regenerate-unicode-properties@^8.2.0:
   version "8.2.0"
@@ -7957,10 +8288,10 @@ require-directory@^2.1.1:
   resolved "https://registry.yarnpkg.com/require-directory/-/require-directory-2.1.1.tgz#8c64ad5fd30dab1c976e2344ffe7f792a6a6df42"
   integrity sha1-jGStX9MNqxyXbiNE/+f3kqam30I=
 
-require-from-string@^2.0.1:
+require-from-string@^2.0.1, require-from-string@^2.0.2:
   version "2.0.2"
-  resolved "https://registry.yarnpkg.com/require-from-string/-/require-from-string-2.0.2.tgz#89a7fdd938261267318eafe14f9c32e598c36909"
-  integrity sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/require-from-string/-/require-from-string-2.0.2.tgz#89a7fdd938261267318eafe14f9c32e598c36909"
+  integrity sha1-iaf92TgmEmcxjq/hT5wy5ZjDaQk=
 
 require-main-filename@^2.0.0:
   version "2.0.0"
@@ -8381,6 +8712,50 @@ shellwords@^0.1.1:
   resolved "https://registry.yarnpkg.com/shellwords/-/shellwords-0.1.1.tgz#d6b9181c1a48d397324c84871efbcfc73fc0654b"
   integrity sha512-vFwSUfQvqybiICwZY5+DAWIPLKsWO31Q91JSKl3UYv+K5c2QRPzn0qzec6QPu1Qc9eHYItiP3NdJqNVqetYAww==
 
+should-equal@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should-equal/-/should-equal-2.0.0.tgz#6072cf83047360867e68e98b09d71143d04ee0c3"
+  integrity sha1-YHLPgwRzYIZ+aOmLCdcRQ9BO4MM=
+  dependencies:
+    should-type "^1.4.0"
+
+should-format@^3.0.3:
+  version "3.0.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should-format/-/should-format-3.0.3.tgz#9bfc8f74fa39205c53d38c34d717303e277124f1"
+  integrity sha1-m/yPdPo5IFxT04w01xcwPidxJPE=
+  dependencies:
+    should-type "^1.3.0"
+    should-type-adaptors "^1.0.1"
+
+should-type-adaptors@^1.0.1:
+  version "1.1.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should-type-adaptors/-/should-type-adaptors-1.1.0.tgz#401e7f33b5533033944d5cd8bf2b65027792e27a"
+  integrity sha1-QB5/M7VTMDOUTVzYvytlAneS4no=
+  dependencies:
+    should-type "^1.3.0"
+    should-util "^1.0.0"
+
+should-type@^1.3.0, should-type@^1.4.0:
+  version "1.4.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should-type/-/should-type-1.4.0.tgz#0756d8ce846dfd09843a6947719dfa0d4cff5cf3"
+  integrity sha1-B1bYzoRt/QmEOmlHcZ36DUz/XPM=
+
+should-util@^1.0.0:
+  version "1.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should-util/-/should-util-1.0.1.tgz#fb0d71338f532a3a149213639e2d32cbea8bcb28"
+  integrity sha1-+w1xM49TKjoUkhNjni0yy+qLyyg=
+
+should@^13.2.1:
+  version "13.2.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/should/-/should-13.2.3.tgz#96d8e5acf3e97b49d89b51feaa5ae8d07ef58f10"
+  integrity sha1-ltjlrPPpe0nYm1H+qlro0H71jxA=
+  dependencies:
+    should-equal "^2.0.0"
+    should-format "^3.0.3"
+    should-type "^1.4.0"
+    should-type-adaptors "^1.0.1"
+    should-util "^1.0.0"
+
 side-channel@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/side-channel/-/side-channel-1.0.4.tgz#efce5c8fdc104ee751b25c58d4290011fa5ea2cf"
@@ -8416,6 +8791,11 @@ slash@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/slash/-/slash-3.0.0.tgz#6539be870c165adbd5240220dbe361f1bc4d4634"
   integrity sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==
+
+slugify@~1.4.7:
+  version "1.4.7"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/slugify/-/slugify-1.4.7.tgz#e42359d505afd84a44513280868e31202a79a628"
+  integrity sha1-5CNZ1QWv2EpEUTKAho4xICp5pig=
 
 snapdragon-node@^2.0.1:
   version "2.1.1"
@@ -8671,6 +9051,11 @@ stealthy-require@^1.1.1:
   resolved "https://registry.yarnpkg.com/stealthy-require/-/stealthy-require-1.1.1.tgz#35b09875b4ff49f26a777e509b3090a3226bf24b"
   integrity sha1-NbCYdbT/SfJqd35QmzCQoyJr8ks=
 
+stickyfill@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/stickyfill/-/stickyfill-1.1.1.tgz#39413fee9d025c74a7e59ceecb23784cc0f17f02"
+  integrity sha1-OUE/7p0CXHSn5ZzuyyN4TMDxfwI=
+
 stream-browserify@^2.0.1:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/stream-browserify/-/stream-browserify-2.0.2.tgz#87521d38a44aa7ee91ce1cd2a47df0cb49dd660b"
@@ -8759,6 +9144,15 @@ string-width@^3.0.0, string-width@^3.1.0:
     is-fullwidth-code-point "^2.0.0"
     strip-ansi "^5.1.0"
 
+string-width@^4.1.0, string-width@^4.2.0, string-width@^4.2.3:
+  version "4.2.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
+  integrity sha1-JpxxF9J7Ba0uU2gwqOyJXvnG0BA=
+  dependencies:
+    emoji-regex "^8.0.0"
+    is-fullwidth-code-point "^3.0.0"
+    strip-ansi "^6.0.1"
+
 string.prototype.trimend@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/string.prototype.trimend/-/string.prototype.trimend-1.0.4.tgz#e75ae90c2942c63504686c18b287b4a0b1a45f80"
@@ -8803,6 +9197,13 @@ strip-ansi@^5.0.0, strip-ansi@^5.1.0, strip-ansi@^5.2.0:
   dependencies:
     ansi-regex "^4.1.0"
 
+strip-ansi@^6.0.0, strip-ansi@^6.0.1:
+  version "6.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/strip-ansi/-/strip-ansi-6.0.1.tgz#9e26c63d30f53443e9489495b2105d37b67a85d9"
+  integrity sha1-nibGPTD1NEPpSJSVshBdN7Z6hdk=
+  dependencies:
+    ansi-regex "^5.0.1"
+
 strip-bom@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/strip-bom/-/strip-bom-3.0.0.tgz#2334c18e9c759f7bdd56fdef7e9ae3d588e68ed3"
@@ -8842,6 +9243,11 @@ style-loader@^0.20.1:
   dependencies:
     loader-utils "^1.1.0"
     schema-utils "^0.4.5"
+
+style-loader@^3.3.1:
+  version "3.3.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/style-loader/-/style-loader-3.3.1.tgz#057dfa6b3d4d7c7064462830f9113ed417d38575"
+  integrity sha1-BX36az1NfHBkRigw+RE+1BfThXU=
 
 superagent-promise@^1.1.0:
   version "1.1.0"
@@ -8896,6 +9302,23 @@ supports-color@^7.1.0:
   integrity sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==
   dependencies:
     has-flag "^4.0.0"
+
+swagger2openapi@^7.0.6:
+  version "7.0.8"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/swagger2openapi/-/swagger2openapi-7.0.8.tgz#12c88d5de776cb1cbba758994930f40ad0afac59"
+  integrity sha1-EsiNXed2yxy7p1iZSTD0CtCvrFk=
+  dependencies:
+    call-me-maybe "^1.0.1"
+    node-fetch "^2.6.1"
+    node-fetch-h2 "^2.3.0"
+    node-readfiles "^0.2.0"
+    oas-kit-common "^1.0.8"
+    oas-resolver "^2.5.6"
+    oas-schema-walker "^1.1.5"
+    oas-validator "^5.0.8"
+    reftools "^1.1.9"
+    yaml "^1.10.0"
+    yargs "^17.0.1"
 
 symbol-observable@^1.0.3:
   version "1.2.0"
@@ -9105,6 +9528,11 @@ tr46@^1.0.1:
   integrity sha1-qLE/1r/SSJUZZ0zN5VujaTtwbQk=
   dependencies:
     punycode "^2.1.0"
+
+tr46@~0.0.3:
+  version "0.0.3"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/tr46/-/tr46-0.0.3.tgz#8184fd347dac9cdc185992f3a6622e14b9d9ab6a"
+  integrity sha1-gYT9NH2snNwYWZLzpmIuFLnZq2o=
 
 trim-newlines@^3.0.0:
   version "3.0.1"
@@ -9405,6 +9833,11 @@ url-parse@^1.4.3:
     querystringify "^2.1.1"
     requires-port "^1.0.0"
 
+url-template@^2.0.8:
+  version "2.0.8"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/url-template/-/url-template-2.0.8.tgz#fc565a3cccbff7730c775f5641f9555791439f21"
+  integrity sha1-/FZaPMy/93MMd19WQflVV5FDnyE=
+
 url@^0.11.0:
   version "0.11.0"
   resolved "https://registry.yarnpkg.com/url/-/url-0.11.0.tgz#3838e97cfc60521eb73c525a8e55bfdd9e2e28f1"
@@ -9560,6 +9993,11 @@ wbuf@^1.1.0, wbuf@^1.7.3:
   dependencies:
     minimalistic-assert "^1.0.0"
 
+webidl-conversions@^3.0.0:
+  version "3.0.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/webidl-conversions/-/webidl-conversions-3.0.1.tgz#24534275e2a7bc6be7bc86611cc16ae0a5654871"
+  integrity sha1-JFNCdeKnvGvnvIZhHMFq4KVlSHE=
+
 webidl-conversions@^4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-4.0.2.tgz#a855980b1f0b6b359ba1d5d9fb39ae941faa63ad"
@@ -9714,6 +10152,14 @@ whatwg-mimetype@^2.1.0, whatwg-mimetype@^2.2.0:
   resolved "https://registry.yarnpkg.com/whatwg-mimetype/-/whatwg-mimetype-2.3.0.tgz#3d4b1e0312d2079879f826aff18dbeeca5960fbf"
   integrity sha512-M4yMwr6mAnQz76TbJm914+gPpB/nCwvZbJU28cUD6dR004SAxDLOOSUaB1JDRqLtaOV/vi0IC5lEAGFgrjGv/g==
 
+whatwg-url@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/whatwg-url/-/whatwg-url-5.0.0.tgz#966454e8765462e37644d3626f6742ce8b70965d"
+  integrity sha1-lmRU6HZUYuN2RNNib2dCzotwll0=
+  dependencies:
+    tr46 "~0.0.3"
+    webidl-conversions "^3.0.0"
+
 whatwg-url@^6.4.1:
   version "6.5.0"
   resolved "https://registry.yarnpkg.com/whatwg-url/-/whatwg-url-6.5.0.tgz#f2df02bff176fd65070df74ad5ccbb5a199965a8"
@@ -9790,6 +10236,15 @@ wrap-ansi@^5.1.0:
     string-width "^3.0.0"
     strip-ansi "^5.0.0"
 
+wrap-ansi@^7.0.0:
+  version "7.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/wrap-ansi/-/wrap-ansi-7.0.0.tgz#67e145cff510a6a6984bdf1152911d69d2eb9e43"
+  integrity sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=
+  dependencies:
+    ansi-styles "^4.0.0"
+    string-width "^4.1.0"
+    strip-ansi "^6.0.0"
+
 wrappy@1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
@@ -9843,6 +10298,11 @@ y18n@^4.0.0:
   resolved "https://registry.yarnpkg.com/y18n/-/y18n-4.0.1.tgz#8db2b83c31c5d75099bb890b23f3094891e247d4"
   integrity sha512-wNcy4NvjMYL8gogWWYAO7ZFWFfHcbdbE57tZO8e4cbpj8tfUcwrwqSl3ad8HxpYWCdXcJUCeKKZS62Av1affwQ==
 
+y18n@^5.0.5:
+  version "5.0.8"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/y18n/-/y18n-5.0.8.tgz#7f4934d0f7ca8c56f95314939ddcd2dd91ce1d55"
+  integrity sha1-f0k00PfKjFb5UxSTndzS3ZHOHVU=
+
 yallist@^3.0.2:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-3.1.1.tgz#dbb7daf9bfd8bac9ab45ebf602b8cbad0d5d08fd"
@@ -9852,6 +10312,16 @@ yallist@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-4.0.0.tgz#9bb92790d9c0effec63be73519e11a35019a3a72"
   integrity sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==
+
+yaml-ast-parser@0.0.43:
+  version "0.0.43"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/yaml-ast-parser/-/yaml-ast-parser-0.0.43.tgz#e8a23e6fb4c38076ab92995c5dca33f3d3d7c9bb"
+  integrity sha1-6KI+b7TDgHarkplcXcoz89PXybs=
+
+yaml@^1.10.0:
+  version "1.10.2"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/yaml/-/yaml-1.10.2.tgz#2301c5ffbf12b467de8da2333a459e29e7920e4b"
+  integrity sha1-IwHF/78StGfejaIzOkWeKeeSDks=
 
 yargs-parser@10.x:
   version "10.1.0"
@@ -9873,6 +10343,11 @@ yargs-parser@^20.2.3:
   resolved "https://registry.yarnpkg.com/yargs-parser/-/yargs-parser-20.2.9.tgz#2eb7dc3b0289718fc295f362753845c41a0c94ee"
   integrity sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w==
 
+yargs-parser@^21.0.0:
+  version "21.0.0"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/yargs-parser/-/yargs-parser-21.0.0.tgz#a485d3966be4317426dd56bdb6a30131b281dc55"
+  integrity sha1-pIXTlmvkMXQm3Va9tqMBMbKB3FU=
+
 yargs@^13.3.0, yargs@^13.3.2:
   version "13.3.2"
   resolved "https://registry.yarnpkg.com/yargs/-/yargs-13.3.2.tgz#ad7ffefec1aa59565ac915f82dccb38a9c31a2dd"
@@ -9888,6 +10363,19 @@ yargs@^13.3.0, yargs@^13.3.2:
     which-module "^2.0.0"
     y18n "^4.0.0"
     yargs-parser "^13.1.2"
+
+yargs@^17.0.1:
+  version "17.3.1"
+  resolved "https://registry.npmjs.intuit.com:443/artifactory/api/npm/npm-intuit/yargs/-/yargs-17.3.1.tgz#da56b28f32e2fd45aefb402ed9c26f42be4c07b9"
+  integrity sha1-2layjzLi/UWu+0Au2cJvQr5MB7k=
+  dependencies:
+    cliui "^7.0.2"
+    escalade "^3.1.1"
+    get-caller-file "^2.0.5"
+    require-directory "^2.1.1"
+    string-width "^4.2.3"
+    y18n "^5.0.5"
+    yargs-parser "^21.0.0"
 
 yarn@^1.22.10:
   version "1.22.10"
