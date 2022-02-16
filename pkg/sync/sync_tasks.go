@@ -20,7 +20,7 @@ var syncPhaseOrder = map[common.SyncPhase]int{
 }
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
-// https://github.com/helm/helm/blob/146e0f9cc3b9c7ca9cb9dd0eba12de2270ae6faf/pkg/releaseutil/kind_sorter.go
+// https://github.com/helm/helm/blob/0361dc85689e3a6d802c444e2540c92cb5842bc9/pkg/releaseutil/kind_sorter.go
 var kindOrder = map[string]int{}
 
 func init() {
@@ -57,6 +57,7 @@ func init() {
 		"StatefulSet",
 		"Job",
 		"CronJob",
+		"IngressClass",
 		"Ingress",
 		"APIService",
 	}
