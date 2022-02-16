@@ -3,8 +3,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
 
 package plugin;
 
-import "k8s.io/api/core/v1/generated.proto";
-
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
     // Name of the application for which the request is triggered
