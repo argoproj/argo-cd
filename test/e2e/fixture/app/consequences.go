@@ -47,6 +47,12 @@ func (c *Consequences) And(block func(app *Application)) *Consequences {
 	return c
 }
 
+func (c *Consequences) AndAction(block func()) *Consequences {
+	c.context.t.Helper()
+	block()
+	return c
+}
+
 func (c *Consequences) Given() *Context {
 	return c.context
 }
