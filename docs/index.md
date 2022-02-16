@@ -7,7 +7,7 @@ Argo CD is one of the major tools in the [Argo Family of projects](https://argop
 
 ## How it works
 
-Argo CD is a Kubernetes native application. You install it on a Kubernetes cluster as a controller. It them monitors a set of Git repositories and automatically creates/updates the Kubernetes Objects and resources described in Git.
+Argo CD is a Kubernetes native application. You install it on a Kubernetes cluster as a controller. It then monitors a set of Git repositories and automatically creates/updates the Kubernetes Objects and resources described in Git.
 
 [![how it works](assets/how-it-works.png)](assets/how-it-works.png)
 
@@ -45,7 +45,6 @@ Kubernetes manifests can be specified in [several ways](tools):
 
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files
 * Plain directory of YAML/json manifests
 * Any custom config management tool configured as a [config management plugin](tools/plugins.md)
@@ -58,7 +57,7 @@ details about the different tracking strategies available.
 ## Feature highlight
 
 * Automated deployment of applications to specified target environments
-* Support for multiple config management/templating tools (Kustomize, Helm, Ksonnet, Jsonnet, plain-YAML)
+* Support for multiple config management/templating tools (Kustomize, Helm, Jsonnet, plain-YAML)
 * Ability to manage and deploy to [multiple clusters](basics/clusters/external.md)
 * [SSO Integration](operations/sso/overview.md) (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)
 * Multi-tenancy and [RBAC policies](rbac) for authorization
@@ -74,7 +73,7 @@ details about the different tracking strategies available.
 * [Sync waves](syncing/waves.md) to control order of resource deployment
 * Audit trails for application events and API calls
 * [Prometheus metrics](operations/metrics.md)
-* Parameter overrides for overriding ksonnet/helm parameters in Git
+* Parameter overrides for overriding Helm parameters in Git
 
 
 ## Argo CD Adoption
