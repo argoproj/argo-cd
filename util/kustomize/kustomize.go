@@ -34,11 +34,10 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds, credsStore git.CredsStore, fromRepo string, binaryPath string) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
 	return &kustomize{
 		path:       path,
 		creds:      creds,
-		credsStore: credsStore,
 		repo:       fromRepo,
 		binaryPath: binaryPath,
 	}
@@ -48,8 +47,7 @@ type kustomize struct {
 	// path inside the checked out tree
 	path string
 	// creds structure
-	creds      git.Creds
-	credsStore git.CredsStore
+	creds git.Creds
 	// the Git repository URL where we checked out
 	repo string
 	// optional kustomize binary path
@@ -162,7 +160,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		env = append(env, envVars.Environ()...)
 	}
 	cmd.Env = env
-	closer, environ, err := k.creds.Environ(k.credsStore)
+	closer, environ, err := k.creds.Environ()
 	if err != nil {
 		return nil, nil, err
 	}

@@ -92,8 +92,7 @@ type nativeGitClient struct {
 	// indicates if client allowed to load refs from cache
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
-	proxy      string
-	credsStore CredsStore
+	proxy string
 }
 
 var (
@@ -125,13 +124,6 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
-	}
-}
-
-// WithCredsStore sets the temporal credentials store
-func WithCredsStore(store CredsStore) ClientOpts {
-	return func(c *nativeGitClient) {
-		c.credsStore = store
 	}
 }
 
@@ -619,7 +611,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 // nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
-	closer, environ, err := m.creds.Environ(m.credsStore)
+	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
 	}
