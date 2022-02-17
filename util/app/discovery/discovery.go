@@ -17,7 +17,18 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 )
 
-func Discover(ctx context.Context, root string) (map[string]string, error) {
+func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enableGenerateManifests map[string]bool) bool {
+	if enableGenerateManifests == nil {
+		return true
+	}
+	enabled, ok := enableGenerateManifests[string(sourceType)]
+	if !ok {
+		return true
+	}
+	return enabled
+}
+
+func Discover(ctx context.Context, root string, enableGenerateManifests map[string]bool) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
@@ -42,13 +53,13 @@ func Discover(ctx context.Context, root string) (map[string]string, error) {
 			return err
 		}
 		base := filepath.Base(path)
-		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") {
+		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKsonnet, enableGenerateManifests) {
 			apps[filepath.Dir(dir)] = string(v1alpha1.ApplicationSourceTypeKsonnet)
 		}
-		if strings.HasSuffix(base, "Chart.yaml") {
+		if strings.HasSuffix(base, "Chart.yaml") && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeHelm, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeHelm)
 		}
-		if kustomize.IsKustomization(base) {
+		if kustomize.IsKustomization(base) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKustomize, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeKustomize)
 		}
 		return nil
@@ -56,8 +67,8 @@ func Discover(ctx context.Context, root string) (map[string]string, error) {
 	return apps, err
 }
 
-func AppType(ctx context.Context, path string) (string, error) {
-	apps, err := Discover(ctx, path)
+func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool) (string, error) {
+	apps, err := Discover(ctx, path, enableGenerateManifests)
 	if err != nil {
 		return "", err
 	}

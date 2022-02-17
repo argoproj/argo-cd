@@ -32,6 +32,12 @@ If not, then the tool is detected implicitly as follows:
 
 Otherwise it is assumed to be a plain **directory** application. 
 
+## Disable built-in tools
+
+Optionally built-in config management tools might be disabled. In order to disable the tool add one of the following
+keys to the `argocd-cm` ConfigMap: `kustomize.enable`, `helm.enable`, `ksonnet.enable` or `jsonnet.enable`. Once the
+tool is disabled Argo CD will assume the application target directory contains plain Kubernetes YAML manifests.
+
 ## References
 
 * [reposerver/repository/repository.go/GetAppSourceType](https://github.com/argoproj/argo-cd/blob/master/reposerver/repository/repository.go#L286)
