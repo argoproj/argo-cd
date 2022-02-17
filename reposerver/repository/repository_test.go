@@ -963,15 +963,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp")
+	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -1572,7 +1572,7 @@ func TestFindResources(t *testing.T) {
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
-			})
+			}, map[string]bool{})
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -1589,7 +1589,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
-	})
+	}, map[string]bool{})
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
 		return
@@ -1602,7 +1602,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
-	})
+	}, map[string]bool{})
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
 		return

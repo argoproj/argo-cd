@@ -156,7 +156,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root())
+	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -868,7 +868,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +902,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, repoRoot, env, *directory)
+		targetObjs, err = findManifests(appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -1025,7 +1025,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string, enableGenerateManifests map[string]bool) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1036,9 +1036,13 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, p
 		return "", err
 	}
 	if appSourceType != nil {
+		if !discovery.IsManifestGenerationEnabled(*appSourceType, enableGenerateManifests) {
+			log.Debugf("Manifest generation is disabled for '%s'. Assuming plain YAML manifest.", *appSourceType)
+			return v1alpha1.ApplicationSourceTypeDirectory, nil
+		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, path)
+	appType, err := discovery.AppType(ctx, path, enableGenerateManifests)
 	if err != nil {
 		return "", err
 	}
@@ -1068,7 +1072,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -1099,6 +1103,9 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		}
 
 		if strings.HasSuffix(f.Name(), ".jsonnet") {
+			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
+				return nil
+			}
 			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
 			if err != nil {
 				return err
@@ -1358,7 +1365,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes)
 		if err != nil {
 			return err
 		}

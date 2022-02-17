@@ -1793,3 +1793,29 @@ func TestDiscoverNewCommit(t *testing.T) {
 			assert.NotEqual(t, sha, app.Status.Sync.Revision)
 		})
 }
+
+func TestDisableManifestGeneration(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
+		}).
+		When().
+		And(func() {
+			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+				ApplicationSourceTypeKustomize: false,
+			})
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
+		})
+}
