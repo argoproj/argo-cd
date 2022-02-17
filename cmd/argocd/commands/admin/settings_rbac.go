@@ -211,7 +211,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				log.Fatalf("too many arguments")
 			}
 
 			namespace, nsOverride, err := clientConfig.Namespace()
