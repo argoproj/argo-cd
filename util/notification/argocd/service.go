@@ -110,11 +110,16 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1
 	if err != nil {
 		return nil, err
 	}
+	helmOptions, err := svc.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, err
+	}
 	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		HelmOptions:      helmOptions,
 	})
 	if err != nil {
 		return nil, err

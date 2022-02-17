@@ -431,6 +431,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				NoCache:            true,
 				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 				EnabledSourceTypes: enabledSourceTypes,
+				HelmOptions:        helmOptions,
 			})
 			return err
 		}); err != nil {
