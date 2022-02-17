@@ -125,8 +125,8 @@ github.com/antonmedv/expr v1.8.9/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj/gitops-engine v0.5.1-0.20220126184517-b0c5e00ccfa5 h1:oMRXPoMzlonjHMUE/dcdimFLiWUTieitanXlCIQf+a8=
-github.com/argoproj/gitops-engine v0.5.1-0.20220126184517-b0c5e00ccfa5/go.mod h1:UJrK2YMBUbwJZue68mXhSDw+T52egdZWAU1F5cK34ko=
+github.com/argoproj/gitops-engine v0.5.1-0.20220215202024-c517b47f2f2f h1:eO09b/oPk5di9q1HdO68/zdZkjXEhmO4aS4RsWHpDWQ=
+github.com/argoproj/gitops-engine v0.5.1-0.20220215202024-c517b47f2f2f/go.mod h1:UJrK2YMBUbwJZue68mXhSDw+T52egdZWAU1F5cK34ko=
 github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998 h1:V9RDg+IZeebnm3XjkfkbN07VM21Fu1Cy/RJNoHO++VM=
 github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998/go.mod h1:5mKv7zEgI3NO0L+fsuRSwBSY9EIXSuyIsDND8O8TTIw=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
@@ -1589,8 +1589,9 @@ k8s.io/controller-manager v0.23.1/go.mod h1:AFE4qIllvTh+nRwGr3SRSUt7F+xVSzXCeb0h
 k8s.io/cri-api v0.23.1/go.mod h1:REJE3PSU0h/LOV1APBrupxrEJqnoxZC8KWzkBUHwrK4=
 k8s.io/csi-translation-lib v0.23.1/go.mod h1:0ZyB0cZBV4ZkqibwilEhKnxOne28rq5FDSjO+0MUVio=
 k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=
-k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c h1:GohjlNKauSai7gN4wsJkeZ3WAJx4Sh+oT/b5IYn5suA=
 k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=
+k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 h1:TT1WdmqqXareKxZ/oNXEUSwKlLiHzPMyB0t8BaFeBYI=
+k8s.io/gengo v0.0.0-20211129171323-c02415ce4185/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=
 k8s.io/klog/v2 v2.0.0/go.mod h1:PBfzABfn139FHAV07az/IF9Wp1bkk3vpT2XSJ76fSDE=
 k8s.io/klog/v2 v2.2.0/go.mod h1:Od+F08eJP+W3HUb4pSrPpgp9DGU4GzlpG/TmITuYh/Y=
 k8s.io/klog/v2 v2.4.0/go.mod h1:Od+F08eJP+W3HUb4pSrPpgp9DGU4GzlpG/TmITuYh/Y=

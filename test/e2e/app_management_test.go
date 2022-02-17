@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -650,7 +650,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		When().
 		And(func() {
 			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
-			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
+			patchData := []byte(`{"spec":{"cpu": "2"}}`)
 			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
@@ -660,7 +660,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
-						Field: "spec.requests",
+						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
@@ -1278,23 +1278,27 @@ func TestOrphanedResource(t *testing.T) {
 func TestNotPermittedResources(t *testing.T) {
 	ctx := Given(t)
 
-	ingress := &networkingv1beta.Ingress{
+	pathType := networkingv1.PathTypePrefix
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "sample-ingress",
 			Labels: map[string]string{
 				common.LabelKeyAppInstance: ctx.GetName(),
 			},
 		},
-		Spec: networkingv1beta.IngressSpec{
-			Rules: []networkingv1beta.IngressRule{{
-				IngressRuleValue: networkingv1beta.IngressRuleValue{
-					HTTP: &networkingv1beta.HTTPIngressRuleValue{
-						Paths: []networkingv1beta.HTTPIngressPath{{
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
 							Path: "/",
-							Backend: networkingv1beta.IngressBackend{
-								ServiceName: "guestbook-ui",
-								ServicePort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "guestbook-ui",
+									Port: networkingv1.ServiceBackendPort{Number: 80},
+								},
 							},
+							PathType: &pathType,
 						}},
 					},
 				},
@@ -1303,7 +1307,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &v1.Service{
@@ -1331,7 +1335,7 @@ func TestNotPermittedResources(t *testing.T) {
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
@@ -1357,7 +1361,7 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
@@ -1820,5 +1824,31 @@ func TestDiscoverNewCommit(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.NotEqual(t, sha, app.Status.Sync.Revision)
+		})
+}
+
+func TestDisableManifestGeneration(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
+		}).
+		When().
+		And(func() {
+			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+				ApplicationSourceTypeKustomize: false,
+			})
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
 		})
 }

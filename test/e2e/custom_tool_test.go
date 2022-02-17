@@ -289,3 +289,26 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
 		})
 }
+
+func TestPruneResourceFromCMP(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		AndAction(func() {
+			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
+			assert.Error(t, err)
+		})
+}
