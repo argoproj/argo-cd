@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -195,28 +196,28 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		})
 }
 
-// func startCMPServer(configFile string) {
-// 	pluginSockFilePath := TmpDir + PluginSockFilePath
-// 	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
-// 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
-// 	os.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
-// 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
-// 		// path/to/whatever does not exist
-// 		err := os.Mkdir(pluginSockFilePath, 0700)
-// 		CheckError(err)
-// 	}
-// 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
-// }
+func startCMPServer(configFile string) {
+	pluginSockFilePath := TmpDir + PluginSockFilePath
+	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
+	os.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
+	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
+		// path/to/whatever does not exist
+		err := os.Mkdir(pluginSockFilePath, 0700)
+		CheckError(err)
+	}
+	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
+}
 
 //Discover by fileName
 func TestCMPDiscoverWithFileName(t *testing.T) {
 	pluginName := "cmp-fileName"
 	Given(t).
-		// And(func() {
-		// 	go startCMPServer("./testdata/cmp-fileName")
-		// 	time.Sleep(1 * time.Second)
-		// 	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		// }).
+		And(func() {
+			go startCMPServer("./testdata/cmp-fileName")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path(pluginName).
 		When().
 		CreateApp().
@@ -230,11 +231,11 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 //Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
 	Given(t).
-		// And(func() {
-		// 	go startCMPServer("./testdata/cmp-find-glob")
-		// 	time.Sleep(1 * time.Second)
-		// 	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		// }).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path("guestbook").
 		When().
 		CreateApp().
@@ -249,11 +250,11 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	pluginName := "cmp-find-command"
 	Given(t).
-		// And(func() {
-		// 	go startCMPServer("./testdata/cmp-find-command")
-		// 	time.Sleep(1 * time.Second)
-		// 	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		// }).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-command")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path(pluginName).
 		When().
 		CreateApp().
@@ -292,11 +293,11 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 
 func TestPruneResourceFromCMP(t *testing.T) {
 	Given(t).
-		// And(func() {
-		// 	go startCMPServer("./testdata/cmp-find-glob")
-		// 	time.Sleep(1 * time.Second)
-		// 	os.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		// }).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		Path("guestbook").
 		When().
 		CreateApp().
