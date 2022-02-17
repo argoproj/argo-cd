@@ -64,6 +64,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	clusters, err := c.db.ListClusters(context.Background())
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
+		return
 	}
 	var clustersFiltered []appv1.Cluster
 	if c.clusterFilter == nil {
