@@ -52,6 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKeyList":               schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus":                     schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter":                schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmOptions":                      schema_pkg_apis_application_v1alpha1_HelmOptions(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter":                    schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo":                         schema_pkg_apis_application_v1alpha1_HostInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo":                 schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
@@ -2114,6 +2115,34 @@ func schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref common.Reference
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HelmOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmOptions holds helm options",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ValuesFileSchemes": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"ValuesFileSchemes"},
 			},
 		},
 	}

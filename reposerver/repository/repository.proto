@@ -30,6 +30,7 @@ message ManifestRequest {
     bool noRevisionCache = 18;
     string trackingMethod = 19;
     map<string, bool> enabledSourceTypes = 20;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
