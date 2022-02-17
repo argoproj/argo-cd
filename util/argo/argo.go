@@ -222,6 +222,11 @@ func ValidateRepo(
 		return conditions, nil
 	}
 
+	helmOptions, err := settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, err
+	}
+
 	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -276,7 +281,18 @@ func ValidateRepo(
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
+		ctx,
+		repo,
+		permittedHelmRepos,
+		helmOptions,
+		app,
+		repoClient,
+		kustomizeOptions,
+		plugins,
+		cluster.ServerVersion,
+		APIResourcesToStrings(apiGroups, true),
+		permittedHelmCredentials,
+		settingsMgr)...)
 
 	return conditions, nil
 }
@@ -457,19 +473,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(
-	ctx context.Context,
-	repoRes *argoappv1.Repository,
-	helmRepos argoappv1.Repositories,
-	app *argoappv1.Application,
-	repoClient apiclient.RepoServerServiceClient,
-	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []*argoappv1.ConfigManagementPlugin,
-	kubeVersion string,
-	apiVersions []string,
-	repositoryCredentials []*argoappv1.RepoCreds,
-	settingsMgr *settings.SettingsManager,
-) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, app *argoappv1.Application, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" {
@@ -495,6 +499,7 @@ func verifyGenerateManifests(
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,
+		HelmOptions:       helmOptions,
 		HelmRepoCreds:     repositoryCredentials,
 		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
 		NoRevisionCache:   true,
