@@ -1060,7 +1060,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 						if wait {
 							appStatusOpts := applicationStatusOpts{
-								client:  argocdclient.NewClientOrDie(clientOpts),
+								client:  headless.NewClientOrDie(clientOpts, c),
 								appName: appName,
 								timeout: timeout,
 								watch:   watchOpts{delete: true},
@@ -1272,7 +1272,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			appStatusOpts := applicationStatusOpts{
-				client:            argocdclient.NewClientOrDie(clientOpts),
+				client:            headless.NewClientOrDie(clientOpts, c),
 				timeout:           timeout,
 				selectedResources: parseSelectedResources(resources),
 			}
