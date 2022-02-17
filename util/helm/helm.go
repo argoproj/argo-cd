@@ -27,7 +27,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) (map[string]string, error)
+	GetParameters(valuesFiles []ResolvedFilePath) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -129,13 +129,14 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []ResolvedFilePath) (map[string]string, error) {
 	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
 	}
 	values := []string{out}
-	for _, file := range valuesFiles {
+	for i := range valuesFiles {
+		file := string(valuesFiles[i])
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {

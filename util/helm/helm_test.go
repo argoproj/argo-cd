@@ -56,7 +56,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
-		Values: []string{"values-production.yaml"},
+		Values: []ResolvedFilePath{"values-production.yaml"},
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
@@ -75,7 +75,7 @@ func TestHelmTemplateValues(t *testing.T) {
 func TestHelmGetParams(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{})
+	params, err := h.GetParameters(nil)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -85,7 +85,7 @@ func TestHelmGetParams(t *testing.T) {
 func TestHelmGetParamsValueFiles(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{"values-production.yaml"})
+	params, err := h.GetParameters([]ResolvedFilePath{"values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -95,7 +95,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{"values-missing.yaml", "values-production.yaml"})
+	params, err := h.GetParameters([]ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]

@@ -286,8 +286,8 @@ type TemplateOpts struct {
 	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
-	SetFile     map[string]string
-	Values      []string
+	SetFile     map[string]ResolvedFilePath
+	Values      []ResolvedFilePath
 	SkipCrds    bool
 }
 
@@ -323,10 +323,10 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for key, val := range opts.SetFile {
-		args = append(args, "--set-file", key+"="+cleanSetParameters(val))
+		args = append(args, "--set-file", key+"="+cleanSetParameters(string(val)))
 	}
 	for _, val := range opts.Values {
-		args = append(args, "--values", val)
+		args = append(args, "--values", string(val))
 	}
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
