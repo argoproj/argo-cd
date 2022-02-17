@@ -167,6 +167,10 @@
         position: absolute;
         top: 1em;
         right: 1em;
+
+        .large-text-height {
+            line-height: 1.5;
+        }
     }
 
     &__external-links-icon-container {
@@ -195,6 +199,6 @@
         justify-content: space-evenly;
     }
 }
-i.menu_icon{
+i.menu_icon {
     vertical-align: middle;
 }
