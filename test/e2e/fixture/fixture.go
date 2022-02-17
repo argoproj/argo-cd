@@ -324,6 +324,15 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(err)
 }
 
+func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range val {
+			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
+		}
+		return nil
+	})
+}
+
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {

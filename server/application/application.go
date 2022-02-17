@@ -230,6 +230,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	helmRepos []*appv1.Repository,
 	helmCreds []*v1alpha1.RepoCreds,
 	kustomizeOptions *v1alpha1.KustomizeOptions,
+	enabledSourceTypes map[string]bool,
 ) error) error {
 
 	closer, client, err := s.repoClientset.NewRepoServerClient()
@@ -274,7 +275,11 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, kustomizeOptions)
+	enabledSourceTypes, err := s.settingsMgr.GetEnabledSourceTypes()
+	if err != nil {
+		return err
+	}
+	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, kustomizeOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -289,7 +294,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, kustomizeOptions *appv1.KustomizeOptions) error {
+		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
 		revision := a.Spec.Source.TargetRevision
 		if q.Revision != "" {
 			revision = q.Revision
@@ -319,19 +324,20 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:              repo,
-			Revision:          revision,
-			AppLabelKey:       appInstanceLabelKey,
-			AppName:           a.Name,
-			Namespace:         a.Spec.Destination.Namespace,
-			ApplicationSource: &a.Spec.Source,
-			Repos:             helmRepos,
-			Plugins:           plugins,
-			KustomizeOptions:  kustomizeOptions,
-			KubeVersion:       serverVersion,
-			ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:     helmCreds,
-			TrackingMethod:    string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			Repo:               repo,
+			Revision:           revision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.Name,
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &a.Spec.Source,
+			Repos:              helmRepos,
+			Plugins:            plugins,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
 		})
 		return err
 	})
@@ -407,15 +413,17 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
 			kustomizeOptions *appv1.KustomizeOptions,
+			enabledSourceTypes map[string]bool,
 		) error {
 			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-				Repo:             repo,
-				Source:           &app.Spec.Source,
-				AppName:          app.Name,
-				KustomizeOptions: kustomizeOptions,
-				Repos:            helmRepos,
-				NoCache:          true,
-				TrackingMethod:   string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				Repo:               repo,
+				Source:             &app.Spec.Source,
+				AppName:            app.Name,
+				KustomizeOptions:   kustomizeOptions,
+				Repos:              helmRepos,
+				NoCache:            true,
+				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes: enabledSourceTypes,
 			})
 			return err
 		}); err != nil {
