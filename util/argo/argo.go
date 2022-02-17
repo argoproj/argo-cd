@@ -275,12 +275,12 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	enableGenerateManifests, err := settingsMgr.GetEnableManifestGenerationForSourceType()
+	enabledSourceTypes, err := settingsMgr.GetEnabledSourceTypes()
 	if err != nil {
 		return nil, err
 	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, enableGenerateManifests, settingsMgr)...)
+		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, enabledSourceTypes, settingsMgr)...)
 
 	return conditions, nil
 }
@@ -487,19 +487,19 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 			Name:  repoRes.Name,
 			Proxy: repoRes.Proxy,
 		},
-		Repos:                                 helmRepos,
-		Revision:                              spec.Source.TargetRevision,
-		AppName:                               app.Name,
-		Namespace:                             spec.Destination.Namespace,
-		ApplicationSource:                     &spec.Source,
-		Plugins:                               plugins,
-		KustomizeOptions:                      kustomizeOptions,
-		KubeVersion:                           kubeVersion,
-		ApiVersions:                           apiVersions,
-		HelmRepoCreds:                         repositoryCredentials,
-		TrackingMethod:                        string(GetTrackingMethod(settingsMgr)),
-		EnableManifestGenerationForSourceType: enableGenerateManifests,
-		NoRevisionCache:                       true,
+		Repos:              helmRepos,
+		Revision:           spec.Source.TargetRevision,
+		AppName:            app.Name,
+		Namespace:          spec.Destination.Namespace,
+		ApplicationSource:  &spec.Source,
+		Plugins:            plugins,
+		KustomizeOptions:   kustomizeOptions,
+		KubeVersion:        kubeVersion,
+		ApiVersions:        apiVersions,
+		HelmRepoCreds:      repositoryCredentials,
+		TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
+		EnabledSourceTypes: enableGenerateManifests,
+		NoRevisionCache:    true,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

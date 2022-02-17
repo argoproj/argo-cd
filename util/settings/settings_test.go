@@ -1029,7 +1029,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			kubeClient := fake.NewSimpleClientset(cm, argocdSecret)
 			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
-			enableManifestGeneration, err := settingsManager.GetEnableManifestGenerationForSourceType()
+			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
 			require.NoError(t, err)
 
 			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)

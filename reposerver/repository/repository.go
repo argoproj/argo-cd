@@ -157,7 +157,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnableManifestGenerationForSourceType)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -869,7 +869,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnableManifestGenerationForSourceType)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -912,7 +912,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, repoRoot, env, *directory, q.EnableManifestGenerationForSourceType)
+		targetObjs, err = findManifests(appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -1399,7 +1399,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnableManifestGenerationForSourceType)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes)
 		if err != nil {
 			return err
 		}

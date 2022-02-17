@@ -658,7 +658,7 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 	return plugins, nil
 }
 
-func (mgr *SettingsManager) GetEnableManifestGenerationForSourceType() (map[string]bool, error) {
+func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
