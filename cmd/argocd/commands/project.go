@@ -746,7 +746,7 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	//Print scoped clusters
 	scc0 := "<none>"
 	if len(scopedClusters) > 0 {
-		scc0 = scopedRepositories[0].Repo
+		scc0 = scopedClusters[0].Server
 	}
 	fmt.Printf(printProjFmtStr, "Scoped Clusters:", scc0)
 	for i := 1; i < len(scopedClusters); i++ {
