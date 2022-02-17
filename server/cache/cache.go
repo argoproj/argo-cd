@@ -82,8 +82,22 @@ func (c *Cache) GetLastApplicationEvent(a *appv1.Application) (*appv1.Applicatio
 	return &cachedApp, c.cache.GetItem(lastApplicationEventKey(a), &cachedApp)
 }
 
+func (c *Cache) SetLastResourceEvent(a *appv1.Application, rs appv1.ResourceStatus, exp time.Duration) error {
+	return c.cache.SetItem(lastResourceEventKey(a, rs), rs, exp, false)
+}
+
+func (c *Cache) GetLastResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) (appv1.ResourceStatus, error) {
+	res := appv1.ResourceStatus{}
+	return res, c.cache.GetItem(lastResourceEventKey(a, rs), &res)
+}
+
 func lastApplicationEventKey(a *appv1.Application) string {
 	return fmt.Sprintf("app|%s/%s|last-sent-event", a.Namespace, a.Name)
+}
+
+func lastResourceEventKey(a *appv1.Application, rs appv1.ResourceStatus) string {
+	return fmt.Sprintf("app|%s/%s|res|%s/%s/%s/%s/%s|last-sent-event",
+		a.Namespace, a.Name, rs.Group, rs.Version, rs.Kind, rs.Name, rs.Namespace)
 }
 
 func repoConnectionStateKey(repo string) string {

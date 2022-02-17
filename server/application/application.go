@@ -71,6 +71,7 @@ var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
+	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides a Application service
@@ -805,7 +806,9 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
-	logCtx := log.NewEntry(log.New())
+	var (
+		logCtx log.FieldLogger = log.StandardLogger()
+	)
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
 		logCtx.WithError(err).Error("failed to unmarshal event-source config")
@@ -876,7 +879,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 }
 
 func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
-	logCtx := log.NewEntry(log.New()).WithField("application", ae.Application.Name)
+	logCtx := log.WithField("application", ae.Application.Name)
 
 	cachedApp, err := s.cache.GetLastApplicationEvent(&ae.Application)
 	if err != nil || cachedApp == nil {
@@ -892,54 +895,46 @@ func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) boo
 		ae.Application.Status.Conditions[i].LastTransitionTime = nil
 	}
 
-	cachedAppSpec, err := json.Marshal(&cachedApp.Spec)
-	if err != nil {
-		return true
-	}
-	cachedAppStatus, err := json.Marshal(&cachedApp.Status)
-	if err != nil {
-		return true
-	}
-	var cachedAppOperation []byte
-	if cachedApp.Operation != nil {
-		cachedAppOperation, err = json.Marshal(cachedApp.Operation)
-		if err != nil {
-			return true
-		}
-	}
-
-	appSpec, err := json.Marshal(&ae.Application.Spec)
-	if err != nil {
-		return true
-	}
-	appStatus, err := json.Marshal(&ae.Application.Status)
-	if err != nil {
-		return true
-	}
-	var appOperation []byte
-	if ae.Application.Operation != nil {
-		appOperation, err = json.Marshal(ae.Application.Operation)
-		if err != nil {
-			return true
-		}
-	}
-
-	if string(appSpec) != string(cachedAppSpec) {
+	if !reflect.DeepEqual(ae.Application.Spec, cachedApp.Spec) {
 		logCtx.Info("application spec changed")
 		return true
 	}
 
-	if string(appStatus) != string(cachedAppStatus) {
+	if !reflect.DeepEqual(ae.Application.Status, cachedApp.Status) {
 		logCtx.Info("application status changed")
 		return true
 	}
 
-	if string(appOperation) != string(cachedAppOperation) {
+	if !reflect.DeepEqual(ae.Application.Operation, cachedApp.Operation) {
 		logCtx.Info("application operation changed")
 		return true
 	}
 
 	return false
+}
+
+func (s *Server) shouldSendResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) bool {
+	logCtx := log.WithFields(log.Fields{
+		"app":      a.Name,
+		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
+		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
+	})
+
+	cachedRes, err := s.cache.GetLastResourceEvent(a, rs)
+	if err != nil {
+		logCtx.Debug("resource not in cache")
+		return true
+	}
+
+	if reflect.DeepEqual(&cachedRes, &rs) {
+		logCtx.Debug("resource status not changed")
+
+		// status not changed
+		return false
+	}
+
+	logCtx.Info("resource status changed")
+	return true
 }
 
 func (s *Server) streamApplicationEvents(
@@ -948,25 +943,34 @@ func (s *Server) streamApplicationEvents(
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
 ) error {
-	logCtx := log.NewEntry(log.New()).WithField("application", a.Name)
+	var (
+		logCtx         = log.WithField("application", a.Name)
+		manifestGenErr bool
+	)
 
 	logCtx.Info("streaming application events")
-	appEvent, err := s.getApplicationEventPayload(ctx, a, es)
-	if err != nil {
-		return fmt.Errorf("failed to get application event: %w", err)
-	}
 
-	if appEvent == nil {
-		// event did not have an OperationState - skip all events
-		return nil
-	}
-
+	isChildApp := false
 	if a.Labels != nil {
-		parentAppName := a.Labels["app.kubernetes.io/instance"]
-		if parentAppName == "" {
-			if err := stream.Send(appEvent); err != nil {
-				return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
-			}
+		isChildApp = a.Labels["app.kubernetes.io/instance"] != ""
+	}
+
+	if !isChildApp {
+		// application events for child apps would be sent by its parent app
+		// as resource event
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es)
+		if err != nil {
+			return fmt.Errorf("failed to get application event: %w", err)
+		}
+
+		if appEvent == nil {
+			// event did not have an OperationState - skip all events
+			return nil
+		}
+
+		logCtx.Info("sending application event")
+		if err := stream.Send(appEvent); err != nil {
+			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 		}
 	}
 
@@ -976,7 +980,15 @@ func (s *Server) streamApplicationEvents(
 		Revision: a.Status.Sync.Revision,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get application desired state manifests: %w", err)
+		if !strings.Contains(err.Error(), "Manifest generation error") {
+			return fmt.Errorf("failed to get application desired state manifests: %w", err)
+		}
+		// if it's manifest generation error we need to still report the actual state
+		// of the resources, but since we can't get the desired state, we will report
+		// each resource with empty desired state
+		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
+		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
+		manifestGenErr = true // will ignore requiresPruning=true to not delete resources with actual state
 	}
 
 	appTree, err := s.getAppResources(ctx, a)
@@ -992,12 +1004,12 @@ func (s *Server) streamApplicationEvents(
 			"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 		})
 
-		// get resource desired state
-		desiredState, err := getResourceDesiredState(&rs, desiredManifests)
-		if err != nil {
-			logCtx.WithError(err).Errorf("failed to get desired state for resource %s/%s", rs.Namespace, rs.Name)
+		if !s.shouldSendResourceEvent(a, rs) {
 			continue
 		}
+
+		// get resource desired state
+		desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 		// get resource actual state
 		actualState, err := s.GetResource(ctx, &application.ApplicationResourceRequest{
@@ -1010,7 +1022,7 @@ func (s *Server) streamApplicationEvents(
 		})
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
-				logCtx.WithError(err).Errorf("failed to get actual state for resource %s/%s", rs.Namespace, rs.Name)
+				logCtx.WithError(err).Error("failed to get actual state")
 				continue
 			}
 
@@ -1018,15 +1030,20 @@ func (s *Server) streamApplicationEvents(
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr)
 		if err != nil {
-			logCtx.WithError(err).Errorf("failed to get event payload for resource %s/%s", rs.Namespace, rs.Name)
+			logCtx.WithError(err).Error("failed to get event payload")
 			continue
 		}
 
 		logCtx.Info("streaming resource event")
 		if err := stream.Send(ev); err != nil {
-			logCtx.WithError(err).Errorf("failed to send event for resource %s/%s", rs.Namespace, rs.Name)
+			logCtx.WithError(err).Error("failed to send even")
+			continue
+		}
+
+		if err := s.cache.SetLastResourceEvent(a, rs, resourceEventCacheExpiration); err != nil {
+			logCtx.WithError(err).Error("failed to cache resource event")
 			continue
 		}
 	}
@@ -1042,9 +1059,15 @@ func getResourceEventPayload(
 	desiredState *apiclient.Manifest,
 	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
+	manifestGenErr bool,
 ) (*events.Event, error) {
-	var err error
-	errors := []*events.ObjectError{}
+	var (
+		err          error
+		syncStarted  = metav1.Now()
+		syncFinished *metav1.Time
+		errors       = []*events.ObjectError{}
+	)
+
 	object := []byte(actualState.Manifest)
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
@@ -1072,12 +1095,16 @@ func getResourceEventPayload(
 
 			object = manifestWithNamespace
 		}
-	}
-
-	if rs.RequiresPruning {
+	} else if rs.RequiresPruning && !manifestGenErr {
 		// resource should be deleted
 		desiredState.CompiledManifest = ""
 		actualState.Manifest = ""
+	}
+
+	if a.Status.OperationState != nil {
+		syncStarted = a.Status.OperationState.StartedAt
+		syncFinished = a.Status.OperationState.FinishedAt
+		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
 	}
 
 	source := events.ObjectSource{
@@ -1093,11 +1120,10 @@ func getResourceEventPayload(
 		AppName:         a.Name,
 		AppLabels:       a.Labels,
 		SyncStatus:      string(rs.Status),
-		SyncStartedAt:   a.Status.OperationState.StartedAt,
-		SyncFinishedAt:  a.Status.OperationState.FinishedAt,
+		SyncStartedAt:   syncStarted,
+		SyncFinishedAt:  syncFinished,
 	}
 
-	errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
 	if rs.Health != nil {
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
@@ -1174,10 +1200,10 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 }
 
 func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource) (*events.Event, error) {
-	// skip all events if there is no OperationState
-	if a.Status.OperationState == nil {
-		return nil, nil
-	}
+	var (
+		syncStarted  = metav1.Now()
+		syncFinished *metav1.Time
+	)
 
 	obj := appv1.Application{}
 	a.DeepCopyInto(&obj)
@@ -1188,21 +1214,28 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		APIVersion: appv1.SchemeGroupVersion.String(),
 	}
 
-	revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-		Name:     &a.Name,
-		Revision: &a.Status.Sync.Revision,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+	if a.Status.OperationState != nil {
+		syncStarted = a.Status.OperationState.StartedAt
+		syncFinished = a.Status.OperationState.FinishedAt
 	}
 
-	if obj.ObjectMeta.Labels == nil {
-		obj.ObjectMeta.Labels = map[string]string{}
-	}
+	if a.Status.Sync.Revision != "" {
+		revisionMetadata, err := s.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
+			Name:     &a.Name,
+			Revision: &a.Status.Sync.Revision,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+		}
 
-	obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
-	obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
-	obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+		if obj.ObjectMeta.Labels == nil {
+			obj.ObjectMeta.Labels = map[string]string{}
+		}
+
+		obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+		obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+		obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+	}
 
 	object, err := json.Marshal(&obj)
 	if err != nil {
@@ -1227,8 +1260,8 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		AppName:         "",
 		AppLabels:       map[string]string{},
 		SyncStatus:      string(a.Status.Sync.Status),
-		SyncStartedAt:   a.Status.OperationState.StartedAt,
-		SyncFinishedAt:  a.Status.OperationState.FinishedAt,
+		SyncStartedAt:   syncStarted,
+		SyncFinishedAt:  syncFinished,
 		HealthStatus:    &hs,
 		HealthMessage:   &a.Status.Health.Message,
 	}
@@ -1239,11 +1272,16 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 			continue
 		}
 
+		lastSeen := metav1.Now()
+		if cnd.LastTransitionTime != nil {
+			lastSeen = *cnd.LastTransitionTime
+		}
+
 		errs = append(errs, &events.ObjectError{
 			Type:     "sync",
 			Level:    "error",
 			Message:  cnd.Message,
-			LastSeen: *cnd.LastTransitionTime,
+			LastSeen: lastSeen,
 		})
 	}
 
@@ -1262,16 +1300,19 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse) (*apiclient.Manifest, error) {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
 	for _, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal compiled manifest: %w", err)
+			logger.WithError(err).Warnf("failed to unmarshal compiled manifest")
+			continue
 		}
 
 		if u == nil {
-			return nil, fmt.Errorf("no compiled manifest for: %s", m.Path)
+			logger.WithError(err).Warnf("no compiled manifest for: %s", m.Path)
+			continue
 		}
+
 		ns := text.FirstNonEmpty(u.GetNamespace(), rs.Namespace)
 
 		if u.GroupVersionKind().String() == rs.GroupVersionKind().String() &&
@@ -1281,13 +1322,13 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 				m.RawManifest = m.CompiledManifest
 			}
 
-			return m, nil
+			return m
 		}
 	}
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return &apiclient.Manifest{}, nil
+	return &apiclient.Manifest{}
 }
 
 func addDestNamespaceToManifest(resourceManifest []byte, rs *appv1.ResourceStatus) ([]byte, error) {
