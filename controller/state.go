@@ -152,6 +152,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
+	helmOptions, err := m.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, nil, err
+	}
 	ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiGroups, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
@@ -174,6 +179,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		ApiVersions:       argo.APIGroupsToVersions(apiGroups),
 		VerifySignature:   verifySignature,
 		HelmRepoCreds:     permittedHelmCredentials,
+		HelmOptions:       helmOptions,
 	})
 	if err != nil {
 		return nil, nil, err

@@ -28,6 +28,7 @@ message ManifestRequest {
     bool verifySignature = 16;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.

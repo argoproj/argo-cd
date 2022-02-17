@@ -772,6 +772,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 				Values:     `cluster: {slaveCount: 2}`,
 			},
 		},
+		HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
 	})
 	assert.NoError(t, err)
 }
@@ -860,6 +861,23 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "is not allowed")
+	})
+
+	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"s3://my-bucket/my-chart-values.yaml"},
+				},
+			},
+			HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"s3"}},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
 	})
 }
 
@@ -1729,6 +1747,8 @@ func Test_isURLSchemeAllowed(t *testing.T) {
 		})
 	}
 }
+
+var allowedHelmRemoteProtocols = []string{"http", "https"}
 
 func Test_resolveHelmValueFilePath(t *testing.T) {
 	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {
