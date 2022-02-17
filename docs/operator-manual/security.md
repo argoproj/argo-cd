@@ -73,6 +73,11 @@ sensitive information, but might be configured with Config Management Plugins wh
 (e.g. decryption keys). If such plugins are used, extreme care must be taken to ensure the
 repository contents can be trusted at all times.
 
+Optionally the built-in config management tools might be individually disabled.
+If you know that your users will not need a certain config management tool, it's advisable
+to disable that tool.
+See [Tool Detection](../user-guide/tool_detection.md) for more information.
+
 ### Remote bases and helm chart dependencies
 
 Argo CD's repository allow-list only restricts the initial repository which is cloned. However, both
