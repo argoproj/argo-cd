@@ -159,7 +159,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("Error: open does-not-exist-values.yaml: no such file or directory", ""))
+		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
 func TestHelmValuesMultipleUnset(t *testing.T) {

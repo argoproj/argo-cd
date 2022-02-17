@@ -95,7 +95,7 @@ jobs:
           echo "=========== BEGIN COMMIT MESSAGE ============="
           git show ${SOURCE_TAG}
           echo "============ END COMMIT MESSAGE =============="
-          
+
           # Quite dirty hack to get the release notes from the annotated tag
           # into a temporary file.
           RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
@@ -142,7 +142,7 @@ jobs:
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -204,7 +204,7 @@ jobs:
           set -ue
           git clean -fd
           mkdir -p dist/
-          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:${TARGET_VERSION} -t argoproj/argocd:${TARGET_VERSION} .
+          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
@@ -289,6 +289,48 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui" 
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
+        run: |
+          yarn install --cwd ./ui
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            generator -p $folder -o /tmp
+          done
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload SBOM to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /tmp/sbom.tar.gz
+          asset_name: sbom.tar.gz
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
@@ -303,3 +345,4 @@ jobs:
           set -ue
           git push --delete origin ${SOURCE_TAG}
         if: ${{ always() }}
+

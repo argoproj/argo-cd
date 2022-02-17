@@ -83,6 +83,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Kinguin](https://www.kinguin.net/)
 1. [KintoHub](https://www.kintohub.com/)
 1. [KompiTech GmbH](https://www.kompitech.com/)
+1. [KubeSphere](https://github.com/kubesphere)
 1. [LexisNexis](https://www.lexisnexis.com/)
 1. [LINE](https://linecorp.com/en/)
 1. [Lytt](https://www.lytt.co/)

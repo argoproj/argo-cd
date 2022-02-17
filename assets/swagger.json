@@ -3733,6 +3733,9 @@
         "statusBadgeEnabled": {
           "type": "boolean"
         },
+        "statusBadgeRootUrl": {
+          "type": "string"
+        },
         "trackingMethod": {
           "type": "string"
         },
