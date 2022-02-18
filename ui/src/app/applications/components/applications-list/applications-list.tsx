@@ -399,7 +399,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         )}>
                                         {(applications: models.Application[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            let {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
+                                            const res = filterApps(applications, pref, pref.search);
+                                            const {filterResults} = res;
+                                            let {filteredApps} = res;
                                             if (pref.sorter) {
                                                 filteredApps = filteredApps.sort(AppSorters[pref.sorter]);
                                             }
