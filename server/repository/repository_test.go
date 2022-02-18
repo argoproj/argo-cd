@@ -12,12 +12,18 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/server/cache"
@@ -67,7 +73,7 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
-		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, settingsMgr)
+		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, nil, settingsMgr)
 		url := "https://test"
 		repo, _ := s.getRepo(context.TODO(), url)
 		assert.Equal(t, repo.Repo, url)
@@ -78,7 +84,7 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
-		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, settingsMgr)
+		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, nil, settingsMgr)
 		url := "https://test"
 		_, err := s.ValidateAccess(context.TODO(), &repository.RepoAccessQuery{
 			Repo: url,
@@ -96,7 +102,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, nil, settingsMgr)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -113,7 +119,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url).Return(nil, errors.New("some error"))
 		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, nil, settingsMgr)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -130,7 +136,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url).Return(false, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, nil, settingsMgr)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -150,7 +156,7 @@ func TestRepositoryServer(t *testing.T) {
 			Project: "proj",
 		}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, nil, settingsMgr)
 		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:     "test",
@@ -174,7 +180,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("CreateRepository", context.TODO(), mock.Anything).Return(nil, status.Errorf(codes.AlreadyExists, "repository already exists"))
 		db.On("UpdateRepository", context.TODO(), mock.Anything).Return(nil, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, nil, settingsMgr)
 		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:     "test",
@@ -188,6 +194,31 @@ func TestRepositoryServer(t *testing.T) {
 	})
 
 }
+
+var (
+	defaultProj = &appsv1.AppProject{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AppProject",
+			APIVersion: "argoproj.io/v1alpha1",
+		}, ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: testNamespace},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	defaultProjNoSources = &appsv1.AppProject{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AppProject",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: testNamespace},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+)
 
 func TestRepositoryServerListApps(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
@@ -209,6 +240,16 @@ func TestRepositoryServerListApps(t *testing.T) {
 		},
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	newProjLister := func(objects ...runtime.Object) applisters.AppProjectNamespaceLister {
+		fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
+		factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+		projInformer := factory.Argoproj().V1alpha1().AppProjects()
+		for _, obj := range objects {
+			err := projInformer.Informer().GetStore().Add(obj)
+			assert.NoError(t, err)
+		}
+		return projInformer.Lister().AppProjects(testNamespace)
+	}
 
 	t.Run("Test_ListAppsWithoutAppCreateUpdatePrivileges", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
@@ -219,16 +260,17 @@ func TestRepositoryServerListApps(t *testing.T) {
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
 		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+		projLister := newProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, projLister, settingsMgr)
 		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
 			Repo:       "https://test",
 			Revision:   "HEAD",
 			AppName:    "foo",
-			AppProject: "bar",
+			AppProject: "default",
 		})
-		assert.NoError(t, err)
-		assert.Len(t, resp.Items, 0)
+		assert.Nil(t, resp)
+		assert.Equal(t, err.Error(), "rpc error: code = PermissionDenied desc = permission denied")
 	})
 
 	t.Run("Test_ListAppsWithAppCreateUpdatePrivileges", func(t *testing.T) {
@@ -236,6 +278,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 		enforcer := newEnforcer(kubeclientset)
 		enforcer.SetDefaultRole("role:admin")
+		projLister := newProjLister(defaultProj)
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
@@ -246,12 +289,12 @@ func TestRepositoryServerListApps(t *testing.T) {
 			},
 		}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, projLister, settingsMgr)
 		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
 			Repo:       "https://test",
 			Revision:   "HEAD",
 			AppName:    "foo",
-			AppProject: "bar",
+			AppProject: "default",
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.Items, 1)
@@ -259,6 +302,32 @@ func TestRepositoryServerListApps(t *testing.T) {
 		assert.Equal(t, "Kustomize", resp.Items[0].Type)
 	})
 
+	t.Run("Test_ListAppsWithAppCreateUpdatePrivilegesRepoNotAllowed", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		enforcer.SetDefaultRole("role:admin")
+		projLister := newProjLister(defaultProjNoSources)
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+		repoServerClient.On("ListApps", context.TODO(), mock.Anything).Return(&apiclient.AppList{
+			Apps: map[string]string{
+				"path/to/dir": "Kustomize",
+			},
+		}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, projLister, settingsMgr)
+		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
+			Repo:       "https://test",
+			Revision:   "HEAD",
+			AppName:    "foo",
+			AppProject: "default",
+		})
+		assert.Nil(t, resp)
+		assert.Equal(t, err.Error(), "rpc error: code = PermissionDenied desc = permission denied")
+	})
 }
 
 type fixtures struct {

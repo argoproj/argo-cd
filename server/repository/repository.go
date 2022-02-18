@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -32,6 +33,7 @@ type Server struct {
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
+	projLister    applisters.AppProjectNamespaceLister
 	settings      *settings.SettingsManager
 }
 
@@ -41,6 +43,7 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
+	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
@@ -48,6 +51,7 @@ func NewServer(
 		repoClientset: repoClientset,
 		enf:           enf,
 		cache:         cache,
+		projLister:    projLister,
 		settings:      settings,
 	}
 }
@@ -229,13 +233,17 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	// of app discovery. Only allow this to happen if user has privileges to create or update the
 	// application which it wants to retrieve these details for.
 	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
-	for _, action := range []string{rbacpolicy.ActionCreate, rbacpolicy.ActionUpdate} {
-		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, action, appRBACresource) {
-			// return empty list instead of permission denied since app is still in the process of
-			// being formulated in the UI
-			items := make([]*repositorypkg.AppInfo, 0)
-			return &repositorypkg.RepoAppsResponse{Items: items}, nil
-		}
+	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACresource) &&
+		!s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACresource) {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+	// Also ensure the repo is actually allowed in the project in question
+	proj, err := s.projLister.Get(q.AppProject)
+	if err != nil {
+		return nil, err
+	}
+	if !proj.IsSourcePermitted(appsv1.ApplicationSource{RepoURL: q.Repo}) {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
 	}
 
 	// Test the repo
