@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -47,6 +47,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v2/util/http"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -354,16 +355,29 @@ func (c *client) HTTPClient() (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.UserAgent != "" {
+		headers.Set("User-Agent", c.UserAgent)
+	}
+
 	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
+		Transport: &http_util.TransportWithHeader{
+			RoundTripper: &http.Transport{
+				TLSClientConfig: tlsConfig,
+				Proxy:           http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+			Header: headers,
 		},
 	}, nil
 }
@@ -378,15 +392,13 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid(parser.ValidationHelper) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -508,11 +520,14 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 
 	ctx := context.Background()
 
-	for _, kv := range c.Headers {
-		if len(strings.Split(kv, ":"))%2 == 1 {
-			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, vs := range headers {
+		for _, v := range vs {
+			ctx = metadata.AppendToOutgoingContext(ctx, k, v)
 		}
-		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 	}
 
 	if c.UserAgent != "" {
@@ -795,4 +810,16 @@ func isCanceledContextErr(err error) bool {
 		}
 	}
 	return false
+}
+
+func parseHeaders(headerStrings []string) (http.Header, error) {
+	headers := http.Header{}
+	for _, kv := range headerStrings {
+		items := strings.Split(kv, ":")
+		if len(items)%2 == 1 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		headers.Add(items[0], items[1])
+	}
+	return headers, nil
 }

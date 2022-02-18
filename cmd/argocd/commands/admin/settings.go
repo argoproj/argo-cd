@@ -401,11 +401,15 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
-				if len(override.IgnoreDifferences.JSONPointers) == 0 {
+				if len(override.IgnoreDifferences.JSONPointers) == 0 && len(override.IgnoreDifferences.JQPathExpressions) == 0 {
 					_, _ = fmt.Printf("Ignore differences are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
 					return
 				}
 
+				// This normalizer won't verify 'managedFieldsManagers' ignore difference
+				// configurations. This requires access to live resources which is not the
+				// purpose of this command. This will just apply jsonPointers and
+				// jqPathExpressions configurations.
 				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
 				errors.CheckError(err)
 

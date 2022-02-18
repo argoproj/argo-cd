@@ -1,6 +1,8 @@
+import {Checkbox} from 'argo-ui';
 import {useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
+import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
@@ -8,12 +10,12 @@ import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
-    projects: boolean;
     repos: boolean;
     sync: boolean;
     health: boolean;
     namespaces: boolean;
     clusters: boolean;
+    favourite: boolean;
     labels: boolean;
 }
 
@@ -25,18 +27,23 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
     return applications.map(app => ({
         ...app,
         filterResult: {
-            projects: pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project),
             repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
-                pref.clustersFilter.some(
-                    selector =>
-                        (app.spec.destination.server && selector.includes(app.spec.destination.server)) ||
-                        (app.spec.destination.name && selector.includes(app.spec.destination.name))
-                ),
+                pref.clustersFilter.some(filterString => {
+                    const match = filterString.match('^(.*) [(](http.*)[)]$');
+                    if (match?.length === 3) {
+                        const [, name, url] = match;
+                        return url === app.spec.destination.server || name === app.spec.destination.name;
+                    } else {
+                        const inputMatch = filterString.match('^http.*$');
+                        return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
+                    }
+                }),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
     }));
@@ -54,6 +61,7 @@ interface AppFilterProps {
     apps: FilteredApp[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
+    children?: React.ReactNode;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -207,21 +215,37 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
+const FavoriteFilter = (props: AppFilterProps) => {
+    const ctx = React.useContext(Context);
+    return (
+        <div className='filter'>
+            <Checkbox
+                checked={!!props.pref.showFavorites}
+                id='favouriteFilter'
+                onChange={val => {
+                    ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
+                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+                }}
+            />{' '}
+            <label htmlFor='favouriteFilter'>FAVORITES ONLY</label>
+        </div>
+    );
+};
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     const setShown = (val: boolean) => {
         services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
     };
 
     return (
-        <FiltersGroup setShown={setShown} shown={!props.pref.hideFilters}>
+        <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+            <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
-            <div className='filters-container__subgroup'>
-                <LabelsFilter {...props} />
-                <ProjectFilter {...props} />
-                <ClusterFilter {...props} />
-                <NamespaceFilter {...props} />
-            </div>
+            <LabelsFilter {...props} />
+            <ProjectFilter {...props} />
+            <ClusterFilter {...props} />
+            <NamespaceFilter {...props} />
         </FiltersGroup>
     );
 };

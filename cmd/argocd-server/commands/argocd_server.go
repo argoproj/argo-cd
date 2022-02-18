@@ -63,6 +63,7 @@ func NewCommand() *cobra.Command {
 		frameOptions             string
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
+		staticAssetsDir          string
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -95,7 +96,7 @@ func NewCommand() *cobra.Command {
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
-			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
+			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
@@ -130,7 +131,7 @@ func NewCommand() *cobra.Command {
 				BaseHRef:            baseHRef,
 				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
+				AppClientset:        appClientSet,
 				RepoClientset:       repoclientset,
 				DexServerAddr:       dexServerAddress,
 				DisableAuth:         disableAuth,
@@ -139,6 +140,7 @@ func NewCommand() *cobra.Command {
 				Cache:               cache,
 				XFrameOptions:       frameOptions,
 				RedisClient:         redisClient,
+				StaticAssetsDir:     staticAssetsDir,
 			}
 
 			stats.RegisterStackDumper()
@@ -157,9 +159,7 @@ func NewCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().BoolVar(&insecure, "insecure", env.ParseBoolFromEnv("ARGOCD_SERVER_INSECURE", false), "Run server without TLS")
-	var staticAssetsDir string
-	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
-	_ = command.Flags().MarkDeprecated("staticassets", "The --staticassets flag is not longer supported. Static assets are embedded into binary.")
+	command.Flags().StringVar(&staticAssetsDir, "staticassets", env.StringFromEnv("ARGOCD_SERVER_STATIC_ASSETS", "/shared/app"), "Directory path that contains additional static assets")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
@@ -172,7 +172,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
-	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", int(env.ParseDurationFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60*time.Second, 0, math.MaxInt32).Seconds()), "Repo server RPC call timeout seconds.")
+	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")

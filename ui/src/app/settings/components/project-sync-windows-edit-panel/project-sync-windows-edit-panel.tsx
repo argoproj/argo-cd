@@ -14,6 +14,8 @@ import {
     ProjectSyncWindowScheduleEdit
 } from '../project-sync-windows-edit/project-sync-windows-edit';
 
+import timezones from 'timezones-list';
+
 interface ProjectSyncWindowsDefaultParams {
     projName: string;
     window: models.SyncWindow;
@@ -54,6 +56,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                         </div>
                         <ProjectSyncWindowScheduleEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                         <div className='argo-form-row'>
+                            <FormField formApi={api} label='Time zone' componentProps={{options: generateTimezones()}} field='window.timeZone' component={FormSelect} />
+                        </div>
+                        <div className='argo-form-row'>
                             <FormField formApi={api} label='Duration (e.g. "30m" or "1h")' field='window.duration' component={Text} />
                         </div>
                         <div className='argo-form-row'>
@@ -67,4 +72,13 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
             </Form>
         </div>
     );
+
+    function generateTimezones(): string[] {
+        const zones: string[] = [];
+        for (const tz of timezones) {
+            zones.push(tz.tzCode);
+        }
+        zones.sort();
+        return zones;
+    }
 };

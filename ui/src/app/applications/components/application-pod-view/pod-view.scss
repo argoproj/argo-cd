@@ -145,7 +145,15 @@ $num-stats: 2;
                     background-color: $argo-color-gray-6;
                 }
             }
-
+            &__star-icon {
+                background: none;
+                color: #ffce25;
+                display: block;
+                left: 20px;
+                margin: 0px;
+                position: absolute;
+                top: -5px;
+            }
             &__stat-tooltip {
                 text-align: left;
 
@@ -195,6 +203,17 @@ $num-stats: 2;
                         background-color: $argo-color-gray-7;
                     }
                 }
+            }
+        }
+
+        &__quick-start-actions {
+            display: flex;
+            padding-top: 1em;
+            justify-content: center;
+
+            &.disabled {
+                cursor: default !important;
+                color: $argo-color-gray-3 !important;
             }
         }
     }

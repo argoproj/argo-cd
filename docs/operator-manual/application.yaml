@@ -4,7 +4,7 @@ metadata:
   name: guestbook
   # You'll usually want to add your resources to the argocd namespace.
   namespace: argocd
-  # Add a this finalizer ONLY if you want these to cascade delete.
+  # Add this finalizer ONLY if you want these to cascade delete.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -13,11 +13,12 @@ spec:
 
   # Source of the application manifests
   source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: guestbook
+    repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
+    targetRevision: HEAD  # For Helm, this refers to the chart version.
+    path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
 
     # helm specific config
+    chart: chart-name  # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
     helm:
       # Extra parameters to set (same as setting through values.yaml, but these take precedence)
       parameters:
@@ -26,6 +27,11 @@ spec:
       - name: "ingress.annotations.kubernetes\\.io/tls-acme"
         value: "true"
         forceString: true # ensures that value is treated as a string
+
+      # Use the contents of files as parameters (uses Helm's --set-file)
+      fileParameters:
+      - name: config
+        path: files/config.json
 
       # Release name override (defaults to application name)
       releaseName: guestbook
@@ -85,6 +91,9 @@ spec:
 
     # plugin specific config
     plugin:
+      # Only set the plugin name if the plugin is defined in argocd-cm.
+      # If the plugin is defined as a sidecar, omit the name. The plugin will be automatically matched with the
+      # Application according to the plugin's discovery rules.
       name: mypluginname
       # environment variables passed to the plugin
       env:
@@ -94,6 +103,7 @@ spec:
   # Destination cluster and namespace to deploy the application
   destination:
     server: https://kubernetes.default.svc
+    # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: guestbook
 
   # Sync policy
@@ -115,9 +125,16 @@ spec:
         factor: 2 # a factor to multiply the base duration after each failed retry
         maxDuration: 3m # the maximum amount of time allowed for the backoff strategy
 
-  # Ignore differences at the specified json pointers
+  # Will ignore differences between live and desired states during the diff. Note that these configurations are not
+  # used during the sync process.
   ignoreDifferences:
+  # for the specified json pointers
   - group: apps
     kind: Deployment
     jsonPointers:
     - /spec/replicas
+  # for the specified managedFields managers
+  - group: "*"
+    kind: "*"
+    managedFieldsManagers:
+    - kube-controller-manager

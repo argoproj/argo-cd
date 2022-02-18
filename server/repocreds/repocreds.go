@@ -3,6 +3,8 @@ package repocreds
 import (
 	"reflect"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -91,7 +93,7 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		} else if q.Upsert {
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing repository credentials spec is different; use upsert flag to force update")
+			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}
 	return &appsv1.RepoCreds{URL: r.URL}, err

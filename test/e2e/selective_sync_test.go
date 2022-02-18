@@ -22,7 +22,7 @@ func TestSelectiveSync(t *testing.T) {
 		Path("guestbook").
 		SelectedResource(":Service:guestbook-ui").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -39,7 +39,7 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 		Path("hook").
 		SelectedResource(":Pod:pod").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -67,7 +67,7 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
 		PatchFile("guestbook-ui-svc-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -97,7 +97,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
 		PatchFile("guestbook-ui-svc-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).

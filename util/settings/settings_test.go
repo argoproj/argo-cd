@@ -12,6 +12,7 @@ import (
 	testutil "github.com/argoproj/argo-cd/v2/test"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -133,6 +134,54 @@ func TestGetConfigManagementPlugins(t *testing.T) {
 		Init:     &v1alpha1.Command{Command: []string{"kasane", "update"}},
 		Generate: v1alpha1.Command{Command: []string{"kasane", "show"}},
 	}}, plugins)
+}
+
+func TestInClusterServerAddressEnabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"cluster.inClusterEnabled": "true",
+	})
+	argoCDCM, err := settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, true, argoCDCM.Data[inClusterEnabledKey] == "true")
+
+	_, settingsManager = fixtures(map[string]string{
+		"cluster.inClusterEnabled": "false",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, false, argoCDCM.Data[inClusterEnabledKey] == "true")
+}
+
+func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+	assert.Equal(t, true, settings.InClusterEnabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
@@ -305,6 +354,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         - bar`,
 			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
         - bar`,
+			"resource.customizations.ignoreDifferences.all": `managedFieldsManagers: 
+        - kube-controller-manager
+        - argo-rollouts`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -312,7 +364,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 8, len(overrides))
+		assert.Equal(t, 9, len(overrides))
 		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
@@ -332,6 +384,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
+		assert.Equal(t, 2, len(overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers))
+		assert.Equal(t, "kube-controller-manager", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[0])
+		assert.Equal(t, "argo-rollouts", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[1])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
@@ -590,6 +645,15 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
+	})
+	t.Run("GetBinaryUrls", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"help.download.darwin-amd64": "amd64-path",
+			"help.download.unsupported":  "nowhere",
+		})
+		h, err := settingsManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path"}, h.BinaryURLs)
 	})
 }
 
@@ -895,6 +959,22 @@ func Test_GetTLSConfiguration(t *testing.T) {
 	})
 }
 
+func TestDownloadArgoCDBinaryUrls(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"help.download.darwin-amd64": "some-url",
+	})
+	argoCDCM, err := settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
+
+	_, settingsManager = fixtures(map[string]string{
+		"help.download.unsupported": "some-url",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, "some-url", argoCDCM.Data["help.download.unsupported"])
+}
+
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
@@ -946,4 +1026,130 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
+}
+
+func TestGetEnableManifestGeneration(t *testing.T) {
+	testCases := []struct {
+		name    string
+		enabled bool
+		data    map[string]string
+		source  string
+	}{{
+		name:    "default",
+		enabled: true,
+		data:    map[string]string{},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "disabled",
+		enabled: false,
+		data:    map[string]string{"kustomize.enable": `false`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "enabled",
+		enabled: true,
+		data:    map[string]string{"kustomize.enable": `true`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+
+			kubeClient := fake.NewSimpleClientset(cm, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
+			require.NoError(t, err)
+
+			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)
+		})
+	}
+}
+
+func TestGetHelmSettings(t *testing.T) {
+	testCases := []struct {
+		name     string
+		data     map[string]string
+		expected []string
+	}{{
+		name:     "Default",
+		data:     map[string]string{},
+		expected: []string{"http", "https"},
+	}, {
+		name: "Configured Not Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "s3, git",
+		},
+		expected: []string{"s3", "git"},
+	}, {
+		name: "Configured Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "",
+		},
+		expected: nil,
+	}}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "acme",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"clientSecret": []byte("deadbeef"),
+				},
+			}
+			kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			helmSettings, err := settingsManager.GetHelmSettings()
+			assert.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.expected, helmSettings.ValuesFileSchemes)
+		})
+	}
 }

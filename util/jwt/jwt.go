@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	jwtgo "github.com/dgrijalva/jwt-go/v4"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims

@@ -48,6 +48,8 @@ data:
   server.basehref: "/"
   # Used if Argo CD is running behind reverse proxy under subpath different from /
   server.rootpath: "/"
+  # Directory path that contains additional static assets
+  server.staticassets: "/shared/app"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"

@@ -80,7 +80,10 @@ export default class UiTestUtilities {
                 timeout = parseInt(Configuration.TEST_TIMEOUT, 10);
             }
             const element = await driver.wait(until.elementLocated(locator), timeout);
-            await driver.wait(until.elementIsVisible(element), timeout);
+            var isDisplayed = await element.isDisplayed();
+            if (isDisplayed) {
+                await driver.wait(until.elementIsVisible(element), timeout);
+            }
             return element;
         } catch (err) {
             throw err;
