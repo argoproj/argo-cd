@@ -31,7 +31,13 @@ kubectl -n argocd scale deployment/argocd-redis --replicas 0
 
 ### Start local services
 
-Before starting local services, make sure you are present in `argocd` namespace. When you use the virtualized toolchain, starting local services is as simple as running
+The started services assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
+
+When you use the virtualized toolchain, starting local services is as simple as running
 
 ```bash
 make start
