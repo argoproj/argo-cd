@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-git
+  namespace: argocd
+spec:
+  generators:
+    - merge:
+        generators:
+          - clusters:
+              values:
+                kafka: "true"
+                redis: "false"
+          - clusters:
+              selector:
+                matchLabels:
+                  use-kafka: "false"
+              values:
+                kafka: "false"
+          - list:
+              elements:
+                - name: minikube
+                  values.redis: "true"
+        mergeKeys:
+          - name
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      destination:
+        namespace: default
+        server: '{{server}}'
+      project: default
+      source:
+        helm:
+          parameters:
+            - name: kafka
+              value: '{{values.kafka}}'
+            - name: redis
+              value: '{{values.redis}}'
+        path: helm-guestbook
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD

@@ -9,6 +9,7 @@ argocd admin cluster generate-spec CONTEXT [flags]
 ### Options
 
 ```
+      --annotation stringArray             Set metadata annotations (e.g. --annotation key=value)
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --bearer-token string                Authentication token that should be used to access K8S API server
@@ -22,9 +23,11 @@ argocd admin cluster generate-spec CONTEXT [flags]
   -h, --help                               help for generate-spec
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)
       --kubeconfig string                  use a particular kubeconfig file
+      --label stringArray                  Set metadata labels (e.g. --label key=value)
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
   -o, --output string                      Output format. One of: json|yaml (default "yaml")
+      --project string                     project of the cluster
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be used (default "argocd-manager")
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")
@@ -36,7 +39,7 @@ argocd admin cluster generate-spec CONTEXT [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.

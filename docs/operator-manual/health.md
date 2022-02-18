@@ -36,21 +36,19 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  resource.customizations: |
-    argoproj.io/Application:
-      health.lua: |
-        hs = {}
-        hs.status = "Progressing"
-        hs.message = ""
-        if obj.status ~= nil then
-          if obj.status.health ~= nil then
-            hs.status = obj.status.health.status
-            if obj.status.health.message ~= nil then
-              hs.message = obj.status.health.message
-            end
-          end
+  resource.customizations.health.argoproj.io_Application: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = ""
+    if obj.status ~= nil then
+      if obj.status.health ~= nil then
+        hs.status = obj.status.health.status
+        if obj.status.health.message ~= nil then
+          hs.message = obj.status.health.message
         end
-        return hs
+      end
+    end
+    return hs
 ```
 
 ## Custom Health Checks

@@ -24,6 +24,7 @@ argocd app [flags]
 ```
       --as string                      Username to impersonate for the operation
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS
       --client-key string              Path to a client key file for TLS
@@ -47,7 +48,7 @@ argocd app [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
@@ -69,6 +70,7 @@ argocd app [flags]
 * [argocd app actions](argocd_app_actions.md)	 - Manage Resource actions
 * [argocd app create](argocd_app_create.md)	 - Create an application
 * [argocd app delete](argocd_app_delete.md)	 - Delete an application
+* [argocd app delete-resource](argocd_app_delete-resource.md)	 - Delete resource in an application
 * [argocd app diff](argocd_app_diff.md)	 - Perform a diff against the target and live state.
 * [argocd app edit](argocd_app_edit.md)	 - Edit application
 * [argocd app get](argocd_app_get.md)	 - Get application details
@@ -79,7 +81,7 @@ argocd app [flags]
 * [argocd app patch](argocd_app_patch.md)	 - Patch application
 * [argocd app patch-resource](argocd_app_patch-resource.md)	 - Patch resource in an application
 * [argocd app resources](argocd_app_resources.md)	 - List resource of application
-* [argocd app rollback](argocd_app_rollback.md)	 - Rollback application to a previous deployed version by History ID
+* [argocd app rollback](argocd_app_rollback.md)	 - Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version
 * [argocd app set](argocd_app_set.md)	 - Set application parameters
 * [argocd app sync](argocd_app_sync.md)	 - Sync an application to its target state
 * [argocd app terminate-op](argocd_app_terminate-op.md)	 - Terminate running operation of an application

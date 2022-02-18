@@ -73,6 +73,10 @@ tests:
     message: Rollout is paused
   inputPath: testdata/suspended_userPause.yaml
 - healthStatus:
+    status: Suspended
+    message: CanaryPauseStep
+  inputPath: testdata/suspended_v1.0_pausedRollout.yaml
+- healthStatus:
     status: Healthy
   inputPath: testdata/canary/healthy_executedAllStepsPreV0.8.yaml
 - healthStatus:

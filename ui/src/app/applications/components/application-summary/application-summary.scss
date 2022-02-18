@@ -62,4 +62,16 @@
     .select {
         padding-bottom: 0;
     }
+
+    .row.application-retry-options {
+        .columns.application-retry-options__item{
+            padding-left: 0;
+            padding-right: 10px;
+        }
+
+        .argo-form-row__error-msg {
+            position: static;
+            line-height: 1;
+        }
+    }
 }

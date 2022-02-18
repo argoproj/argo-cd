@@ -58,7 +58,7 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
 }
 
-// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+// GetJWTTokenFromSpec looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
 func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
 	role, _, err := p.GetRoleByName(roleName)
@@ -312,12 +312,12 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
 	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
 		return false
 	}
 	if un.GetNamespace() != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace(), Name: name})
 	}
 	return true
 }
@@ -354,7 +354,9 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
-		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name)
+		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server)
+		if (dstServerMatched || dstNameMatched) && globMatch(item.Namespace, dst.Namespace) {
 			return true
 		}
 	}

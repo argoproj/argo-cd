@@ -1,0 +1,61 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
+
+package plugin;
+
+import "k8s.io/api/core/v1/generated.proto";
+
+// ManifestRequest is a query for manifest generation.
+message ManifestRequest {
+    // Name of the application for which the request is triggered
+    string appName = 1;
+    string appPath = 2;
+    string repoPath = 3;
+    bool noCache = 4;
+    repeated EnvEntry env = 5;
+}
+
+// EnvEntry represents an entry in the application's environment
+message EnvEntry {
+    // Name is the name of the variable, usually expressed in uppercase
+    string name = 1;
+    // Value is the value of the variable
+    string value = 2;
+}
+
+message ManifestResponse {
+    repeated string manifests = 1;
+    string sourceType = 2;
+}
+
+message RepositoryRequest {
+    string path = 1;
+    repeated EnvEntry env = 2;
+}
+
+message RepositoryResponse {
+    bool isSupported = 1;
+}
+
+message ConfigRequest {
+}
+
+message ConfigResponse {
+    bool allowConcurrency = 1;
+    bool lockRepo = 2;
+}
+
+// ConfigManagementPlugin Service
+service ConfigManagementPluginService {
+    // GenerateManifest generates manifest for application in specified repo name and revision
+    rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+
+    // MatchRepository returns whether or not the given path is supported by the plugin
+    rpc MatchRepository(RepositoryRequest) returns (RepositoryResponse) {
+    }
+
+    // Get configuration of the plugin
+    rpc GetPluginConfig(ConfigRequest) returns (ConfigResponse) {
+    }
+}

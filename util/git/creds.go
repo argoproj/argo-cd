@@ -14,7 +14,7 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -101,6 +101,11 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 // access specific repository via HTTPS.
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
+	if c.username != "" {
+		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", c.username))
+	} else {
+		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", "x-access-token"))
+	}
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at

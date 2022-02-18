@@ -18,6 +18,7 @@ import (
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	terminal "golang.org/x/term"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
@@ -58,15 +59,21 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	return &versionCmd
 }
 
-// AddKubectlFlagsToCmd adds kubectl like flags to a command and returns the ClientConfig interface
+// AddKubectlFlagsToCmd adds kubectl like flags to a persistent flags of a command and returns the ClientConfig interface
 // for retrieving the values.
 func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
+	return AddKubectlFlagsToSet(cmd.PersistentFlags())
+}
+
+// AddKubectlFlagsToSet adds kubectl like flags to a provided flag set and returns the ClientConfig interface
+// for retrieving the values.
+func AddKubectlFlagsToSet(flags *pflag.FlagSet) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, flags, kflags)
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
@@ -122,15 +129,15 @@ func AskToProceed(message string) bool {
 }
 
 // ReadAndConfirmPassword is a helper to read and confirm a password from stdin
-func ReadAndConfirmPassword() (string, error) {
+func ReadAndConfirmPassword(username string) (string, error) {
 	for {
-		fmt.Print("*** Enter new password: ")
+		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Print("\n")
-		fmt.Print("*** Confirm new password: ")
+		fmt.Printf("*** Confirm new password for user %s: ", username)
 		confirmPassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err

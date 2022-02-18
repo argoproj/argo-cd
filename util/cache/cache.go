@@ -31,6 +31,43 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
+func buildRedisClient(redisAddress, password string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+	opts := &redis.Options{
+		Addr:       redisAddress,
+		Password:   password,
+		DB:         redisDB,
+		MaxRetries: maxRetries,
+		TLSConfig:  tlsConfig,
+	}
+
+	client := redis.NewClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
+	})))
+
+	return client
+}
+
+func buildFailoverRedisClient(sentinelMaster, password string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+	opts := &redis.FailoverOptions{
+		MasterName:    sentinelMaster,
+		SentinelAddrs: sentinelAddresses,
+		DB:            redisDB,
+		Password:      password,
+		MaxRetries:    maxRetries,
+		TLSConfig:     tlsConfig,
+	}
+
+	client := redis.NewFailoverClient(opts)
+
+	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
+		*client = *buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+	})))
+
+	return client
+}
+
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	redisAddress := ""
@@ -48,7 +85,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().IntVar(&redisDB, "redisdb", env.ParseNumFromEnv("REDISDB", 0, 0, math.MaxInt32), "Redis database.")
 	cmd.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	cmd.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
-	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt32), "Cache expiration default")
+	cmd.Flags().DurationVar(&defaultCacheExpiration, "default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration default")
 	cmd.Flags().BoolVar(&redisUseTLS, "redis-use-tls", false, "Use TLS when connecting to Redis. ")
 	cmd.Flags().StringVar(&redisClientCertificate, "redis-client-certificate", "", "Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).")
 	cmd.Flags().StringVar(&redisClientKey, "redis-client-key", "", "Path to Redis client key (e.g. /etc/certs/redis/client.crt).")
@@ -84,14 +121,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		password := os.Getenv(envRedisPassword)
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
-			client := redis.NewFailoverClient(&redis.FailoverOptions{
-				MasterName:    sentinelMaster,
-				SentinelAddrs: sentinelAddresses,
-				DB:            redisDB,
-				Password:      password,
-				MaxRetries:    maxRetries,
-				TLSConfig:     tlsConfig,
-			})
+			client := buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 			for i := range opts {
 				opts[i](client)
 			}
@@ -101,13 +131,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := redis.NewClient(&redis.Options{
-			Addr:       redisAddress,
-			Password:   password,
-			DB:         redisDB,
-			MaxRetries: maxRetries,
-			TLSConfig:  tlsConfig,
-		})
+		client := buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
 		for i := range opts {
 			opts[i](client)
 		}

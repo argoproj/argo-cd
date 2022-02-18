@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -150,7 +151,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
 			}
 
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -182,6 +183,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				GithubAppInstallationID:    repoOpts.Repo.GithubAppInstallationId,
 				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
 				Proxy:                      repoOpts.Proxy,
+				Project:                    repoOpts.Repo.Project,
 			}
 			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
 			errors.CheckError(err)
@@ -211,7 +213,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
@@ -226,7 +228,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tOCI\tLFS\tCREDS\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tOCI\tLFS\tCREDS\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, r := range repos {
 		var hasCreds string
 		if !r.HasCredentials() {
@@ -238,7 +240,7 @@ func printRepoTable(repos appsv1.Repositories) {
 				hasCreds = "true"
 			}
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%v\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableOCI, r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%v\t%s\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableOCI, r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message, r.Project)
 	}
 	_ = w.Flush()
 }
@@ -260,7 +262,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List configured repositories",
 		Run: func(c *cobra.Command, args []string) {
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			forceRefresh := false
 			switch refresh {
@@ -309,7 +311,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repoURL := args[0]
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			forceRefresh := false
 			switch refresh {

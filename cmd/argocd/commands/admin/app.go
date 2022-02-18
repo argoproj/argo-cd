@@ -27,7 +27,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -88,9 +89,12 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			app, err := cmdutil.ConstructApp(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
-
+			if len(apps) > 1 {
+				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+			}
+			app := apps[0]
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -258,7 +262,7 @@ func NewReconcileCommand() *cobra.Command {
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60, apiclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
+				repoServerClient := argocdclient.NewRepoServerClientset(repoServerAddress, 60, argocdclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
@@ -322,18 +326,18 @@ func reconcileApplications(
 	kubeClientset kubernetes.Interface,
 	appClientset appclientset.Interface,
 	namespace string,
-	repoServerClient apiclient.Clientset,
+	repoServerClient argocdclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
 ) ([]appReconcileResult, error) {
 
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
-	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
+	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
 		1*time.Hour,
-		namespace,
-		func(options *v1.ListOptions) {},
+		appinformers.WithNamespace(namespace),
+		appinformers.WithTweakListOptions(func(options *v1.ListOptions) {}),
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
@@ -350,7 +354,7 @@ func reconcileApplications(
 		return true
 	}, func(r *http.Request) error {
 		return nil
-	})
+	}, []string{})
 
 	if err != nil {
 		return nil, err
@@ -366,7 +370,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking())
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -408,5 +412,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil)
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil, argo.NewResourceTracking())
 }

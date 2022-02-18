@@ -28,7 +28,7 @@ spec:
         - "true"
   restartPolicy: Never
 `).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

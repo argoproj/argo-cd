@@ -89,7 +89,7 @@ func (c *FakeAppProjects) Update(ctx context.Context, appProject *v1alpha1.AppPr
 // Delete takes name of the appProject and deletes it. Returns an error if one occurs.
 func (c *FakeAppProjects) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(appprojectsResource, c.ns, name), &v1alpha1.AppProject{})
+		Invokes(testing.NewDeleteActionWithOptions(appprojectsResource, c.ns, name, opts), &v1alpha1.AppProject{})
 
 	return err
 }

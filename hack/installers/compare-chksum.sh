@@ -23,4 +23,4 @@ if ! grep -q "${TARGET_FILE}" ${CHKSUM_FILE}; then
 	exit 1
 fi
 
-sha256sum -c ${CHKSUM_FILE}
+shasum -a 256 -c ${CHKSUM_FILE}

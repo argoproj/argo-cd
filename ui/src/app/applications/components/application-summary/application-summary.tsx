@@ -1,26 +1,20 @@
-import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
+import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 
 require('./application-summary.scss');
-
-const urlPattern = new RegExp(
-    new RegExp(
-        // tslint:disable-next-line:max-line-length
-        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
-        'gi'
-    )
-);
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -28,7 +22,7 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
-export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application) => Promise<any>}) => {
+export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
@@ -247,6 +241,15 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             )
         },
         {
+            title: 'RETRY OPTIONS',
+            view: <ApplicationRetryView initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} />,
+            edit: (formApi: FormApi) => (
+                <div>
+                    <ApplicationRetryOptions formApi={formApi} initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field='spec.syncPolicy.retry' />
+                </div>
+            )
+        },
+        {
             title: 'STATUS',
             view: (
                 <span>
@@ -297,7 +300,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         });
     }
 
-    async function setAutoSync(ctx: {popup: PopupApi}, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
+    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             try {
@@ -307,21 +310,31 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     updatedApp.spec.syncPolicy = {};
                 }
                 updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    type: NotificationType.Error
+                });
             } finally {
                 setChangeSync(false);
             }
         }
     }
 
-    async function unsetAutoSync(ctx: {popup: PopupApi}) {
+    async function unsetAutoSync(ctx: ContextApis) {
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             try {
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                 updatedApp.spec.syncPolicy.automated = null;
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
+                    type: NotificationType.Error
+                });
             } finally {
                 setChangeSync(false);
             }
