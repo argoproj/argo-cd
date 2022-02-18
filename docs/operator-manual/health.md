@@ -134,4 +134,6 @@ tests:
   inputPath: testdata/test-resource-definition.yaml
 ```
 
+To test the implemented custom health checks, run `go test -v ./util/lua/`.
+
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
