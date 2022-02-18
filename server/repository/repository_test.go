@@ -189,6 +189,78 @@ func TestRepositoryServer(t *testing.T) {
 
 }
 
+func TestRepositoryServerListApps(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}, &corev1.Secret{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+
+	t.Run("Test_ListAppsWithoutAppCreateUpdatePrivileges", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		enforcer.SetDefaultRole("role:readonly")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
+			Repo:       "https://test",
+			Revision:   "HEAD",
+			AppName:    "foo",
+			AppProject: "bar",
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.Items, 0)
+	})
+
+	t.Run("Test_ListAppsWithAppCreateUpdatePrivileges", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		enforcer.SetDefaultRole("role:admin")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(&v1alpha1.Repository{Repo: url}, nil)
+		repoServerClient.On("ListApps", context.TODO(), mock.Anything).Return(&apiclient.AppList{
+			Apps: map[string]string{
+				"path/to/dir": "Kustomize",
+			},
+		}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, settingsMgr)
+		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
+			Repo:       "https://test",
+			Revision:   "HEAD",
+			AppName:    "foo",
+			AppProject: "bar",
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.Items, 1)
+		assert.Equal(t, "path/to/dir", resp.Items[0].Path)
+		assert.Equal(t, "Kustomize", resp.Items[0].Type)
+	})
+
+}
+
 type fixtures struct {
 	*cache.Cache
 }
