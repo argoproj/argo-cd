@@ -1,0 +1,4 @@
+- when: true
+  description: Application is created.
+  send: [app-created]
+  oncePer: app.metadata.name

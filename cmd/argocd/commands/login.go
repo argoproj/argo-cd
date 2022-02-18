@@ -13,12 +13,13 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -51,20 +52,20 @@ argocd login cd.argoproj.io
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
 
-# Configure "headless" access using Kubernetes API server
-argocd login cd.argoproj.io --headless`,
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core`,
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Headless {
+			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			if globalClientOpts.PortForward {
 				server = "port-forward"
-			} else if globalClientOpts.Headless {
-				server = "headless"
+			} else if globalClientOpts.Core {
+				server = "kubernetes"
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
@@ -90,6 +91,8 @@ argocd login cd.argoproj.io --headless`,
 				ServerAddr:           server,
 				Insecure:             globalClientOpts.Insecure,
 				PlainText:            globalClientOpts.PlainText,
+				ClientCertFile:       globalClientOpts.ClientCertFile,
+				ClientCertKeyFile:    globalClientOpts.ClientCertKeyFile,
 				GRPCWeb:              globalClientOpts.GRPCWeb,
 				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
 				PortForward:          globalClientOpts.PortForward,
@@ -108,8 +111,8 @@ argocd login cd.argoproj.io --headless`,
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !globalClientOpts.Headless {
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+			if !globalClientOpts.Core {
+				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
 				if !sso {
@@ -125,9 +128,7 @@ argocd login cd.argoproj.io --headless`,
 					errors.CheckError(err)
 					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 				}
-				parser := &jwt.Parser{
-					ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-				}
+				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
@@ -146,7 +147,7 @@ argocd login cd.argoproj.io --headless`,
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				Headless:        globalClientOpts.Headless,
+				Core:            globalClientOpts.Core,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,

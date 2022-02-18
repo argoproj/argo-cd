@@ -38,6 +38,9 @@ func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
 // PrintResources prints a single resource in YAML or JSON format to stdout according to the output format
 func PrintResources(output string, out io.Writer, resources ...interface{}) error {
 	for i, resource := range resources {
+		if secret, ok := resource.(*v1.Secret); ok {
+			convertSecretData(secret)
+		}
 		filteredResource, err := omitFields(resource)
 		if err != nil {
 			return err
@@ -78,7 +81,7 @@ func omitFields(resource interface{}) (interface{}, error) {
 	}
 
 	toMap := make(map[string]interface{})
-	err = json.Unmarshal([]byte(string(jsonBytes)), &toMap)
+	err = json.Unmarshal(jsonBytes, &toMap)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +96,8 @@ func omitFields(resource interface{}) (interface{}, error) {
 	return toMap, nil
 }
 
-// ConvertSecretData converts kubernetes secret's data to stringData
-func ConvertSecretData(secret *v1.Secret) {
+// convertSecretData converts kubernetes secret's data to stringData
+func convertSecretData(secret *v1.Secret) {
 	secret.Kind = kube.SecretKind
 	secret.APIVersion = "v1"
 	secret.StringData = map[string]string{}

@@ -264,7 +264,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("")
 	assert.NoError(t, err)
 
-	err = client.Checkout(commitSHA)
+	err = client.Checkout(commitSHA, true)
 	assert.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -302,7 +302,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	assert.NoError(t, err)
 
-	err = client.Checkout(commitSHA)
+	err = client.Checkout(commitSHA, true)
 	assert.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -327,7 +327,6 @@ func TestNewFactory(t *testing.T) {
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
 	defer closer()
-
 	type args struct {
 		url                   string
 		insecureIgnoreHostKey bool
@@ -337,7 +336,6 @@ func TestNewFactory(t *testing.T) {
 		args args
 	}{
 		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
-		{"Azure", args{url: "https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen"}},
 	}
 	for _, tt := range tests {
 
@@ -364,7 +362,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("")
 		assert.NoError(t, err)
 
-		err = client.Checkout(commitSHA)
+		err = client.Checkout(commitSHA, true)
 		assert.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)

@@ -17,6 +17,7 @@ argocd-application-controller [flags]
       --app-state-cache-expiration duration   Cache expiration for app state (default 1h0m0s)
       --as string                             Username to impersonate for the operation
       --as-group stringArray                  Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                         UID to impersonate for the operation
       --certificate-authority string          Path to a cert file for the certificate authority
       --client-certificate string             Path to a client certificate file for TLS
       --client-key string                     Path to a client key file for TLS
@@ -30,6 +31,7 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int         Number of allowed concurrent kubectl fork/execs. Any value less the 1 means no limit. (default 20)
       --logformat string                      Set the logging format. One of: text|json (default "text")
       --loglevel string                       Set the logging level. One of: debug|info|warn|error (default "info")
+      --metrics-application-labels strings    List of Application labels that will be added to the argocd_application_labels metric
       --metrics-cache-expiration duration     Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                      Start metrics server on given port (default 8082)
   -n, --namespace string                      If present, the namespace scope for this CLI request

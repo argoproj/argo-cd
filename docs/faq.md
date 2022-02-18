@@ -86,6 +86,18 @@ data:
       name: stable
 ```
 
+## After deploying my Helm application with Argo CD I cannot see it with `helm ls` and other Helm commands
+
+When deploying a Helm application Argo CD is using Helm 
+only as a template mechanism. It runs `helm template` and
+then deploys the resulting manifests on the cluster instead of doing `helm install`. This means that you cannot use any Helm command
+to view/verify the application. It is fully managed by Argo CD.
+Note that Argo CD supports natively some capabilities that you might miss in Helm (such as the history and rollback commands).
+
+This decision was made so that Argo CD is neutral
+to all manifest generators.
+
+
 ## I've configured [cluster secret](./operator-manual/declarative-setup.md#clusters) but it does not show up in CLI/UI, how do I fix it?
 
 Check if cluster secret has `argocd.argoproj.io/secret-type: cluster` label. If secret has the label but the cluster is
@@ -119,7 +131,8 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 If the tool does this too, this causes confusion. You can change this label by setting
 the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that you use `argocd.argoproj.io/instance`.
 
-!!! note When you make this change your applications will become out of sync and will need re-syncing.
+!!! note 
+    When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 

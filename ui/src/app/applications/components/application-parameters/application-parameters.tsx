@@ -109,7 +109,7 @@ function getParamsEditableItems(
 export const ApplicationParameters = (props: {
     application: models.Application;
     details: models.RepoAppDetails;
-    save?: (application: models.Application) => Promise<any>;
+    save?: (application: models.Application, query: {validate?: boolean}) => Promise<any>;
     noReadonlyMode?: boolean;
 }) => {
     const app = props.application;
@@ -365,7 +365,7 @@ export const ApplicationParameters = (props: {
                     if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
                         input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefinedWithVersion);
                     }
-                    await props.save(input);
+                    await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
             }

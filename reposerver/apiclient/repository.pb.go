@@ -50,6 +50,9 @@ type ManifestRequest struct {
 	VerifySignature      bool                  `protobuf:"varint,16,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
 	HelmRepoCreds        []*v1alpha1.RepoCreds `protobuf:"bytes,17,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
 	NoRevisionCache      bool                  `protobuf:"varint,18,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
+	TrackingMethod       string                `protobuf:"bytes,19,opt,name=trackingMethod,proto3" json:"trackingMethod,omitempty"`
+	EnabledSourceTypes   map[string]bool       `protobuf:"bytes,20,rep,name=enabledSourceTypes,proto3" json:"enabledSourceTypes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	HelmOptions          *v1alpha1.HelmOptions `protobuf:"bytes,21,opt,name=helmOptions,proto3" json:"helmOptions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -193,6 +196,27 @@ func (m *ManifestRequest) GetNoRevisionCache() bool {
 	return false
 }
 
+func (m *ManifestRequest) GetTrackingMethod() string {
+	if m != nil {
+		return m.TrackingMethod
+	}
+	return ""
+}
+
+func (m *ManifestRequest) GetEnabledSourceTypes() map[string]bool {
+	if m != nil {
+		return m.EnabledSourceTypes
+	}
+	return nil
+}
+
+func (m *ManifestRequest) GetHelmOptions() *v1alpha1.HelmOptions {
+	if m != nil {
+		return m.HelmOptions
+	}
+	return nil
+}
+
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
 type TestRepositoryRequest struct {
 	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
@@ -241,7 +265,7 @@ func (m *TestRepositoryRequest) GetRepo() *v1alpha1.Repository {
 	return nil
 }
 
-// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+// TestRepositoryResponse represents the TestRepository response
 type TestRepositoryResponse struct {
 	// Request to verify the signature when generating the manifests (only for Git repositories)
 	VerifiedRepository   bool     `protobuf:"varint,1,opt,name=verifiedRepository,proto3" json:"verifiedRepository,omitempty"`
@@ -290,6 +314,127 @@ func (m *TestRepositoryResponse) GetVerifiedRepository() bool {
 	return false
 }
 
+// ResolveRevisionRequest
+type ResolveRevisionRequest struct {
+	Repo                 *v1alpha1.Repository  `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	App                  *v1alpha1.Application `protobuf:"bytes,2,opt,name=app,proto3" json:"app,omitempty"`
+	AmbiguousRevision    string                `protobuf:"bytes,3,opt,name=ambiguousRevision,proto3" json:"ambiguousRevision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *ResolveRevisionRequest) Reset()         { *m = ResolveRevisionRequest{} }
+func (m *ResolveRevisionRequest) String() string { return proto.CompactTextString(m) }
+func (*ResolveRevisionRequest) ProtoMessage()    {}
+func (*ResolveRevisionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dd8723cfcc820480, []int{3}
+}
+func (m *ResolveRevisionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResolveRevisionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ResolveRevisionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ResolveRevisionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveRevisionRequest.Merge(m, src)
+}
+func (m *ResolveRevisionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResolveRevisionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveRevisionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveRevisionRequest proto.InternalMessageInfo
+
+func (m *ResolveRevisionRequest) GetRepo() *v1alpha1.Repository {
+	if m != nil {
+		return m.Repo
+	}
+	return nil
+}
+
+func (m *ResolveRevisionRequest) GetApp() *v1alpha1.Application {
+	if m != nil {
+		return m.App
+	}
+	return nil
+}
+
+func (m *ResolveRevisionRequest) GetAmbiguousRevision() string {
+	if m != nil {
+		return m.AmbiguousRevision
+	}
+	return ""
+}
+
+// ResolveRevisionResponse
+type ResolveRevisionResponse struct {
+	// returns the resolved revision
+	Revision             string   `protobuf:"bytes,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	AmbiguousRevision    string   `protobuf:"bytes,2,opt,name=ambiguousRevision,proto3" json:"ambiguousRevision,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ResolveRevisionResponse) Reset()         { *m = ResolveRevisionResponse{} }
+func (m *ResolveRevisionResponse) String() string { return proto.CompactTextString(m) }
+func (*ResolveRevisionResponse) ProtoMessage()    {}
+func (*ResolveRevisionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dd8723cfcc820480, []int{4}
+}
+func (m *ResolveRevisionResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ResolveRevisionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ResolveRevisionResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ResolveRevisionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResolveRevisionResponse.Merge(m, src)
+}
+func (m *ResolveRevisionResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ResolveRevisionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResolveRevisionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResolveRevisionResponse proto.InternalMessageInfo
+
+func (m *ResolveRevisionResponse) GetRevision() string {
+	if m != nil {
+		return m.Revision
+	}
+	return ""
+}
+
+func (m *ResolveRevisionResponse) GetAmbiguousRevision() string {
+	if m != nil {
+		return m.AmbiguousRevision
+	}
+	return ""
+}
+
 type ManifestResponse struct {
 	Manifests []string `protobuf:"bytes,1,rep,name=manifests,proto3" json:"manifests,omitempty"`
 	Namespace string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
@@ -308,7 +453,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{3}
+	return fileDescriptor_dd8723cfcc820480, []int{5}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -390,7 +535,7 @@ func (m *ListRefsRequest) Reset()         { *m = ListRefsRequest{} }
 func (m *ListRefsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListRefsRequest) ProtoMessage()    {}
 func (*ListRefsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{4}
+	return fileDescriptor_dd8723cfcc820480, []int{6}
 }
 func (m *ListRefsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -439,7 +584,7 @@ func (m *Refs) Reset()         { *m = Refs{} }
 func (m *Refs) String() string { return proto.CompactTextString(m) }
 func (*Refs) ProtoMessage()    {}
 func (*Refs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{5}
+	return fileDescriptor_dd8723cfcc820480, []int{7}
 }
 func (m *Refs) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -486,6 +631,7 @@ func (m *Refs) GetTags() []string {
 type ListAppsRequest struct {
 	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
 	Revision             string               `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	EnabledSourceTypes   map[string]bool      `protobuf:"bytes,3,rep,name=enabledSourceTypes,proto3" json:"enabledSourceTypes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -495,7 +641,7 @@ func (m *ListAppsRequest) Reset()         { *m = ListAppsRequest{} }
 func (m *ListAppsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListAppsRequest) ProtoMessage()    {}
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{6}
+	return fileDescriptor_dd8723cfcc820480, []int{8}
 }
 func (m *ListAppsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -538,6 +684,13 @@ func (m *ListAppsRequest) GetRevision() string {
 	return ""
 }
 
+func (m *ListAppsRequest) GetEnabledSourceTypes() map[string]bool {
+	if m != nil {
+		return m.EnabledSourceTypes
+	}
+	return nil
+}
+
 // AppList returns the contents of the repo of a ListApps request
 type AppList struct {
 	Apps                 map[string]string `protobuf:"bytes,1,rep,name=apps,proto3" json:"apps,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
@@ -550,7 +703,7 @@ func (m *AppList) Reset()         { *m = AppList{} }
 func (m *AppList) String() string { return proto.CompactTextString(m) }
 func (*AppList) ProtoMessage()    {}
 func (*AppList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{7}
+	return fileDescriptor_dd8723cfcc820480, []int{9}
 }
 func (m *AppList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -594,6 +747,9 @@ type RepoServerAppDetailsQuery struct {
 	KustomizeOptions     *v1alpha1.KustomizeOptions  `protobuf:"bytes,4,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
 	AppName              string                      `protobuf:"bytes,5,opt,name=appName,proto3" json:"appName,omitempty"`
 	NoCache              bool                        `protobuf:"varint,6,opt,name=noCache,proto3" json:"noCache,omitempty"`
+	NoRevisionCache      bool                        `protobuf:"varint,7,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
+	TrackingMethod       string                      `protobuf:"bytes,8,opt,name=trackingMethod,proto3" json:"trackingMethod,omitempty"`
+	EnabledSourceTypes   map[string]bool             `protobuf:"bytes,9,rep,name=enabledSourceTypes,proto3" json:"enabledSourceTypes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
 	XXX_unrecognized     []byte                      `json:"-"`
 	XXX_sizecache        int32                       `json:"-"`
@@ -603,7 +759,7 @@ func (m *RepoServerAppDetailsQuery) Reset()         { *m = RepoServerAppDetailsQ
 func (m *RepoServerAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoServerAppDetailsQuery) ProtoMessage()    {}
 func (*RepoServerAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{8}
+	return fileDescriptor_dd8723cfcc820480, []int{10}
 }
 func (m *RepoServerAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -674,6 +830,27 @@ func (m *RepoServerAppDetailsQuery) GetNoCache() bool {
 	return false
 }
 
+func (m *RepoServerAppDetailsQuery) GetNoRevisionCache() bool {
+	if m != nil {
+		return m.NoRevisionCache
+	}
+	return false
+}
+
+func (m *RepoServerAppDetailsQuery) GetTrackingMethod() string {
+	if m != nil {
+		return m.TrackingMethod
+	}
+	return ""
+}
+
+func (m *RepoServerAppDetailsQuery) GetEnabledSourceTypes() map[string]bool {
+	if m != nil {
+		return m.EnabledSourceTypes
+	}
+	return nil
+}
+
 // RepoAppDetailsResponse application details
 type RepoAppDetailsResponse struct {
 	Type                 string            `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
@@ -690,7 +867,7 @@ func (m *RepoAppDetailsResponse) Reset()         { *m = RepoAppDetailsResponse{}
 func (m *RepoAppDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsResponse) ProtoMessage()    {}
 func (*RepoAppDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{9}
+	return fileDescriptor_dd8723cfcc820480, []int{11}
 }
 func (m *RepoAppDetailsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -770,7 +947,7 @@ func (m *RepoServerRevisionMetadataRequest) Reset()         { *m = RepoServerRev
 func (m *RepoServerRevisionMetadataRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoServerRevisionMetadataRequest) ProtoMessage()    {}
 func (*RepoServerRevisionMetadataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{10}
+	return fileDescriptor_dd8723cfcc820480, []int{12}
 }
 func (m *RepoServerRevisionMetadataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -835,7 +1012,7 @@ func (m *KsonnetAppSpec) Reset()         { *m = KsonnetAppSpec{} }
 func (m *KsonnetAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KsonnetAppSpec) ProtoMessage()    {}
 func (*KsonnetAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{11}
+	return fileDescriptor_dd8723cfcc820480, []int{13}
 }
 func (m *KsonnetAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -904,7 +1081,7 @@ func (m *HelmAppSpec) Reset()         { *m = HelmAppSpec{} }
 func (m *HelmAppSpec) String() string { return proto.CompactTextString(m) }
 func (*HelmAppSpec) ProtoMessage()    {}
 func (*HelmAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{12}
+	return fileDescriptor_dd8723cfcc820480, []int{14}
 }
 func (m *HelmAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -981,7 +1158,7 @@ func (m *KustomizeAppSpec) Reset()         { *m = KustomizeAppSpec{} }
 func (m *KustomizeAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KustomizeAppSpec) ProtoMessage()    {}
 func (*KustomizeAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{13}
+	return fileDescriptor_dd8723cfcc820480, []int{15}
 }
 func (m *KustomizeAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1033,7 +1210,7 @@ func (m *KsonnetEnvironment) Reset()         { *m = KsonnetEnvironment{} }
 func (m *KsonnetEnvironment) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironment) ProtoMessage()    {}
 func (*KsonnetEnvironment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{14}
+	return fileDescriptor_dd8723cfcc820480, []int{16}
 }
 func (m *KsonnetEnvironment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1097,7 +1274,7 @@ func (m *KsonnetEnvironmentDestination) Reset()         { *m = KsonnetEnvironmen
 func (m *KsonnetEnvironmentDestination) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironmentDestination) ProtoMessage()    {}
 func (*KsonnetEnvironmentDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{15}
+	return fileDescriptor_dd8723cfcc820480, []int{17}
 }
 func (m *KsonnetEnvironmentDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1151,7 +1328,7 @@ func (m *DirectoryAppSpec) Reset()         { *m = DirectoryAppSpec{} }
 func (m *DirectoryAppSpec) String() string { return proto.CompactTextString(m) }
 func (*DirectoryAppSpec) ProtoMessage()    {}
 func (*DirectoryAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{16}
+	return fileDescriptor_dd8723cfcc820480, []int{18}
 }
 func (m *DirectoryAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1191,7 +1368,7 @@ func (m *HelmChartsRequest) Reset()         { *m = HelmChartsRequest{} }
 func (m *HelmChartsRequest) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsRequest) ProtoMessage()    {}
 func (*HelmChartsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{17}
+	return fileDescriptor_dd8723cfcc820480, []int{19}
 }
 func (m *HelmChartsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1239,7 +1416,7 @@ func (m *HelmChart) Reset()         { *m = HelmChart{} }
 func (m *HelmChart) String() string { return proto.CompactTextString(m) }
 func (*HelmChart) ProtoMessage()    {}
 func (*HelmChart) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{18}
+	return fileDescriptor_dd8723cfcc820480, []int{20}
 }
 func (m *HelmChart) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1293,7 +1470,7 @@ func (m *HelmChartsResponse) Reset()         { *m = HelmChartsResponse{} }
 func (m *HelmChartsResponse) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsResponse) ProtoMessage()    {}
 func (*HelmChartsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{19}
+	return fileDescriptor_dd8723cfcc820480, []int{21}
 }
 func (m *HelmChartsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1331,15 +1508,20 @@ func (m *HelmChartsResponse) GetItems() []*HelmChart {
 
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "repository.ManifestRequest")
+	proto.RegisterMapType((map[string]bool)(nil), "repository.ManifestRequest.EnabledSourceTypesEntry")
 	proto.RegisterType((*TestRepositoryRequest)(nil), "repository.TestRepositoryRequest")
 	proto.RegisterType((*TestRepositoryResponse)(nil), "repository.TestRepositoryResponse")
+	proto.RegisterType((*ResolveRevisionRequest)(nil), "repository.ResolveRevisionRequest")
+	proto.RegisterType((*ResolveRevisionResponse)(nil), "repository.ResolveRevisionResponse")
 	proto.RegisterType((*ManifestResponse)(nil), "repository.ManifestResponse")
 	proto.RegisterType((*ListRefsRequest)(nil), "repository.ListRefsRequest")
 	proto.RegisterType((*Refs)(nil), "repository.Refs")
 	proto.RegisterType((*ListAppsRequest)(nil), "repository.ListAppsRequest")
+	proto.RegisterMapType((map[string]bool)(nil), "repository.ListAppsRequest.EnabledSourceTypesEntry")
 	proto.RegisterType((*AppList)(nil), "repository.AppList")
 	proto.RegisterMapType((map[string]string)(nil), "repository.AppList.AppsEntry")
 	proto.RegisterType((*RepoServerAppDetailsQuery)(nil), "repository.RepoServerAppDetailsQuery")
+	proto.RegisterMapType((map[string]bool)(nil), "repository.RepoServerAppDetailsQuery.EnabledSourceTypesEntry")
 	proto.RegisterType((*RepoAppDetailsResponse)(nil), "repository.RepoAppDetailsResponse")
 	proto.RegisterType((*RepoServerRevisionMetadataRequest)(nil), "repository.RepoServerRevisionMetadataRequest")
 	proto.RegisterType((*KsonnetAppSpec)(nil), "repository.KsonnetAppSpec")
@@ -1359,94 +1541,107 @@ func init() {
 }
 
 var fileDescriptor_dd8723cfcc820480 = []byte{
-	// 1392 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x18, 0xcb, 0x6e, 0xdb, 0xc6,
-	0xd6, 0x94, 0xe4, 0x87, 0x8e, 0x12, 0x5b, 0x9e, 0x3c, 0x2e, 0xaf, 0xae, 0x23, 0x38, 0x04, 0x6e,
-	0xe0, 0x36, 0x0d, 0x85, 0x28, 0x41, 0x1b, 0x24, 0x40, 0x01, 0xd5, 0x49, 0x1c, 0xc0, 0x49, 0xec,
-	0xd2, 0x69, 0x81, 0x16, 0x41, 0x83, 0x31, 0x75, 0x4c, 0x4d, 0x25, 0x91, 0x13, 0x92, 0x52, 0xe1,
-	0x00, 0x5d, 0x16, 0x5d, 0x74, 0xdd, 0xfe, 0x4e, 0x57, 0x7d, 0x2c, 0xdb, 0x3f, 0x28, 0xf2, 0x09,
-	0xfd, 0x82, 0x62, 0x86, 0xaf, 0x21, 0x45, 0xbb, 0x0b, 0x25, 0xce, 0xc6, 0x9e, 0x39, 0xef, 0x73,
-	0xe6, 0xbc, 0x28, 0xb8, 0xe6, 0x23, 0xf7, 0x02, 0xf4, 0xa7, 0xe8, 0x77, 0xe4, 0x91, 0x85, 0x9e,
-	0x7f, 0xac, 0x1c, 0x4d, 0xee, 0x7b, 0xa1, 0x47, 0x20, 0x83, 0xb4, 0x2e, 0x3a, 0x9e, 0xe3, 0x49,
-	0x70, 0x47, 0x9c, 0x22, 0x8a, 0xd6, 0x86, 0xe3, 0x79, 0xce, 0x08, 0x3b, 0x94, 0xb3, 0x0e, 0x75,
-	0x5d, 0x2f, 0xa4, 0x21, 0xf3, 0xdc, 0x20, 0xc6, 0x1a, 0xc3, 0x3b, 0x81, 0xc9, 0x3c, 0x89, 0xb5,
-	0x3d, 0x1f, 0x3b, 0xd3, 0x9b, 0x1d, 0x07, 0x5d, 0xf4, 0x69, 0x88, 0xfd, 0x98, 0xe6, 0xb1, 0xc3,
-	0xc2, 0xc1, 0xe4, 0xd0, 0xb4, 0xbd, 0x71, 0x87, 0xfa, 0x52, 0xc5, 0xd7, 0xf2, 0x70, 0xc3, 0xee,
-	0x77, 0xa6, 0xdd, 0x0e, 0x1f, 0x3a, 0x82, 0x3f, 0xe8, 0x50, 0xce, 0x47, 0xcc, 0x96, 0xf2, 0x3b,
-	0xd3, 0x9b, 0x74, 0xc4, 0x07, 0x74, 0x46, 0x9a, 0xf1, 0xe7, 0x32, 0xac, 0x3d, 0xa1, 0x2e, 0x3b,
-	0xc2, 0x20, 0xb4, 0xf0, 0xe5, 0x04, 0x83, 0x90, 0x3c, 0x87, 0x9a, 0xf0, 0x43, 0xd7, 0x36, 0xb5,
-	0xad, 0x46, 0xf7, 0x91, 0x99, 0x29, 0x34, 0x13, 0x85, 0xf2, 0xf0, 0xc2, 0xee, 0x9b, 0xd3, 0xae,
-	0xc9, 0x87, 0x8e, 0x29, 0x14, 0x9a, 0x8a, 0x42, 0x33, 0x51, 0x68, 0x5a, 0x69, 0x44, 0x2c, 0x29,
-	0x95, 0xb4, 0x60, 0xc5, 0xc7, 0x29, 0x0b, 0x98, 0xe7, 0xea, 0x95, 0x4d, 0x6d, 0xab, 0x6e, 0xa5,
-	0x77, 0xa2, 0xc3, 0xb2, 0xeb, 0x6d, 0x53, 0x7b, 0x80, 0x7a, 0x75, 0x53, 0xdb, 0x5a, 0xb1, 0x92,
-	0x2b, 0xd9, 0x84, 0x06, 0xe5, 0xfc, 0x31, 0x3d, 0xc4, 0xd1, 0x2e, 0x1e, 0xeb, 0x35, 0xc9, 0xa8,
-	0x82, 0x04, 0x2f, 0xe5, 0xfc, 0x29, 0x1d, 0xa3, 0xbe, 0x28, 0xb1, 0xc9, 0x95, 0x6c, 0x40, 0xdd,
-	0xa5, 0x63, 0x0c, 0x38, 0xb5, 0x51, 0x5f, 0x91, 0xb8, 0x0c, 0x40, 0xbe, 0x85, 0x75, 0xc5, 0xf0,
-	0x03, 0x6f, 0xe2, 0xdb, 0xa8, 0x83, 0x74, 0x7d, 0x6f, 0x3e, 0xd7, 0x7b, 0x45, 0xb1, 0xd6, 0xac,
-	0x26, 0xf2, 0x15, 0x2c, 0xca, 0xa4, 0xd1, 0x1b, 0x9b, 0xd5, 0x37, 0x1a, 0xed, 0x48, 0x2c, 0x71,
-	0x61, 0x99, 0x8f, 0x26, 0x0e, 0x73, 0x03, 0xfd, 0x9c, 0xd4, 0xf0, 0x6c, 0x3e, 0x0d, 0xdb, 0x9e,
-	0x7b, 0xc4, 0x9c, 0x27, 0xd4, 0xa5, 0x0e, 0x8e, 0xd1, 0x0d, 0xf7, 0xa5, 0x70, 0x2b, 0x51, 0x42,
-	0x5e, 0x41, 0x73, 0x38, 0x09, 0x42, 0x6f, 0xcc, 0x5e, 0xe1, 0x1e, 0x97, 0xc9, 0xad, 0x9f, 0x97,
-	0xd1, 0x7c, 0x3a, 0x9f, 0xe2, 0xdd, 0x82, 0x54, 0x6b, 0x46, 0x8f, 0x48, 0x92, 0xe1, 0xe4, 0x10,
-	0x3f, 0x47, 0x5f, 0x66, 0xd7, 0x6a, 0x94, 0x24, 0x0a, 0x28, 0x4a, 0x23, 0x16, 0xdf, 0x02, 0x7d,
-	0x6d, 0xb3, 0x1a, 0xa5, 0x51, 0x0a, 0x22, 0x5b, 0xb0, 0x36, 0x45, 0x9f, 0x1d, 0x1d, 0x1f, 0x30,
-	0xc7, 0xa5, 0xe1, 0xc4, 0x47, 0xbd, 0x29, 0x53, 0xb1, 0x08, 0x26, 0x63, 0x38, 0x3f, 0xc0, 0xd1,
-	0x58, 0x84, 0x7c, 0xdb, 0xc7, 0x7e, 0xa0, 0xaf, 0xcb, 0xf8, 0xee, 0xcc, 0xff, 0x82, 0x52, 0x9c,
-	0x95, 0x97, 0x2e, 0x0c, 0x73, 0x3d, 0x2b, 0xae, 0x94, 0xa8, 0x46, 0x48, 0x64, 0x58, 0x01, 0x6c,
-	0x4c, 0xe0, 0xd2, 0x33, 0x59, 0xce, 0x69, 0x2e, 0x9c, 0x45, 0x61, 0x1b, 0x8f, 0xe0, 0x72, 0x51,
-	0x6d, 0xc0, 0x3d, 0x37, 0x40, 0x62, 0x02, 0x91, 0xc1, 0x63, 0xd8, 0xcf, 0xb0, 0xd2, 0x8a, 0x15,
-	0xab, 0x04, 0x63, 0xfc, 0xaa, 0x41, 0x33, 0x6b, 0x4a, 0xb1, 0x90, 0x0d, 0xa8, 0x8f, 0x63, 0x58,
-	0xa0, 0x6b, 0xf2, 0xe1, 0x32, 0x40, 0xbe, 0xc6, 0x2b, 0xc5, 0x1a, 0xbf, 0x0c, 0x4b, 0x51, 0xf7,
-	0x96, 0x6d, 0xa5, 0x6e, 0xc5, 0xb7, 0x5c, 0x2f, 0xaa, 0x15, 0x7a, 0x51, 0x1b, 0x20, 0x90, 0x25,
-	0xfa, 0xec, 0x98, 0xa3, 0xbe, 0x24, 0xb1, 0x0a, 0x84, 0x18, 0x70, 0x2e, 0xca, 0x08, 0x0b, 0x83,
-	0xc9, 0x28, 0xd4, 0x97, 0x25, 0x45, 0x0e, 0x66, 0x78, 0xb0, 0xf6, 0x98, 0x09, 0x1f, 0x8e, 0x82,
-	0xb3, 0x79, 0x83, 0x0f, 0xa1, 0x26, 0x94, 0x09, 0xc7, 0x0e, 0x7d, 0xea, 0xda, 0x03, 0x4c, 0x62,
-	0x95, 0xde, 0x09, 0x81, 0x5a, 0x48, 0x9d, 0x40, 0xaf, 0x48, 0xb8, 0x3c, 0x1b, 0x3f, 0x68, 0x91,
-	0xa5, 0x3d, 0xce, 0x83, 0x77, 0x3e, 0x06, 0x8c, 0x09, 0x2c, 0xf7, 0x38, 0x17, 0xf6, 0x90, 0x9b,
-	0x50, 0xa3, 0x9c, 0x47, 0x4e, 0x34, 0xba, 0x57, 0x4c, 0x65, 0xe4, 0xc6, 0x24, 0xe2, 0x7f, 0xf0,
-	0xc0, 0x0d, 0x85, 0x64, 0x41, 0xda, 0xfa, 0x08, 0xea, 0x29, 0x88, 0x34, 0xa1, 0x3a, 0xc4, 0x28,
-	0xd7, 0xea, 0x96, 0x38, 0x92, 0x8b, 0xb0, 0x38, 0xa5, 0xa3, 0x49, 0x92, 0x25, 0xd1, 0xe5, 0x6e,
-	0xe5, 0x8e, 0x66, 0xfc, 0x5d, 0x85, 0xff, 0x0a, 0x3b, 0x0f, 0x64, 0x72, 0xf4, 0x38, 0xbf, 0x8f,
-	0x21, 0x65, 0xa3, 0xe0, 0xd3, 0x09, 0xfa, 0xc7, 0x6f, 0x39, 0x1c, 0x0e, 0x2c, 0x45, 0xb9, 0x25,
-	0xcd, 0x7a, 0x0b, 0xa3, 0x27, 0x16, 0x9f, 0xcd, 0x9b, 0xea, 0xdb, 0x99, 0x37, 0x65, 0xfd, 0xbf,
-	0x76, 0x46, 0xfd, 0xff, 0xe4, 0x15, 0x40, 0x59, 0x2c, 0x96, 0x72, 0x8b, 0x85, 0xf1, 0x7d, 0x05,
-	0x2e, 0x0b, 0x2f, 0xb2, 0xe7, 0x4e, 0x3b, 0x8e, 0x28, 0x14, 0x51, 0xfb, 0x51, 0xf2, 0xc8, 0x33,
-	0xb9, 0x0d, 0xcb, 0xc3, 0xc0, 0x73, 0x5d, 0x0c, 0xe3, 0x87, 0x6a, 0xa9, 0x29, 0xb9, 0x1b, 0xa1,
-	0x7a, 0x9c, 0x1f, 0x70, 0xb4, 0xad, 0x84, 0x94, 0x5c, 0x87, 0x9a, 0x68, 0xe6, 0xb2, 0xfb, 0x34,
-	0xba, 0xff, 0x51, 0x59, 0x1e, 0xe1, 0x68, 0x9c, 0xd0, 0x4b, 0x22, 0x72, 0x17, 0xea, 0xa9, 0x67,
-	0x71, 0xe8, 0x36, 0x72, 0x4a, 0x12, 0x64, 0xc2, 0x96, 0x91, 0x0b, 0xde, 0x3e, 0xf3, 0xd1, 0x96,
-	0x0d, 0x76, 0x71, 0x96, 0xf7, 0x7e, 0x82, 0x4c, 0x79, 0x53, 0x72, 0xe3, 0x17, 0x0d, 0xae, 0x66,
-	0xe9, 0x9f, 0x8c, 0x94, 0x27, 0x18, 0xd2, 0x3e, 0x0d, 0xe9, 0xbb, 0x5f, 0x0e, 0xaf, 0xc1, 0xaa,
-	0x3d, 0x40, 0x7b, 0x98, 0x0d, 0xe6, 0x68, 0x47, 0x2c, 0x40, 0x8d, 0xdf, 0x2a, 0xb0, 0x9a, 0x7f,
-	0x08, 0xf1, 0x92, 0x62, 0x18, 0x24, 0x2f, 0x29, 0xce, 0x64, 0x1f, 0xce, 0xa1, 0x3b, 0x65, 0xbe,
-	0xe7, 0x8a, 0x35, 0x26, 0xa9, 0x87, 0x0f, 0x4e, 0x7e, 0x4e, 0xf3, 0x81, 0x42, 0x1e, 0x35, 0x9c,
-	0x9c, 0x04, 0xe2, 0x02, 0x70, 0xea, 0xd3, 0x31, 0x86, 0xe8, 0x8b, 0xa4, 0xaf, 0xbe, 0x81, 0xa4,
-	0x8f, 0x2c, 0xd8, 0x4f, 0xc4, 0x5a, 0x8a, 0x86, 0xd6, 0x0b, 0x58, 0x9f, 0x31, 0xa9, 0xa4, 0xe1,
-	0xdd, 0x56, 0x1b, 0x5e, 0xa3, 0xdb, 0x2e, 0xf1, 0x50, 0x11, 0xa3, 0x36, 0xc4, 0x9f, 0x2b, 0xd0,
-	0x50, 0xf2, 0xb3, 0x34, 0x8c, 0x6d, 0x00, 0xc9, 0xf0, 0x90, 0x8d, 0x30, 0x0a, 0x62, 0xdd, 0x52,
-	0x20, 0x64, 0x58, 0x12, 0x94, 0xdd, 0xf9, 0x82, 0x22, 0x4c, 0x2a, 0x8d, 0x88, 0x98, 0xf3, 0x52,
-	0x75, 0x10, 0xd7, 0x7f, 0x7c, 0x23, 0xdf, 0xc0, 0xea, 0x11, 0x1b, 0xe1, 0x7e, 0x66, 0xc8, 0x92,
-	0x34, 0x64, 0x6f, 0x7e, 0x43, 0x1e, 0xaa, 0x72, 0xad, 0x82, 0x1a, 0xe3, 0x7d, 0x68, 0x16, 0xcb,
-	0x55, 0x18, 0xc9, 0xc6, 0xd4, 0x49, 0xa3, 0x15, 0xdf, 0x8c, 0x1f, 0x35, 0x20, 0xb3, 0xef, 0x71,
-	0x52, 0xd0, 0x87, 0x77, 0x82, 0x64, 0xcf, 0x8d, 0x0a, 0x45, 0x81, 0x90, 0x5d, 0x68, 0xf4, 0x31,
-	0x08, 0x99, 0x2b, 0x0d, 0x8e, 0x9b, 0xc8, 0x7b, 0xa7, 0x3f, 0xfc, 0xfd, 0x8c, 0xc1, 0x52, 0xb9,
-	0x8d, 0xcf, 0xe0, 0xca, 0xa9, 0xd4, 0xca, 0x76, 0xa5, 0xe5, 0xb6, 0xab, 0x53, 0x77, 0x32, 0x83,
-	0x40, 0xb3, 0xd8, 0x8d, 0x8c, 0x97, 0xb0, 0x2e, 0x62, 0xba, 0x3d, 0xa0, 0x7e, 0x78, 0x46, 0x1b,
-	0xd3, 0x3d, 0xa8, 0xa7, 0x2a, 0x4b, 0x63, 0xdd, 0x82, 0x95, 0x69, 0xf2, 0xbd, 0x10, 0xad, 0x4c,
-	0xe9, 0xdd, 0xe8, 0x01, 0x51, 0xed, 0x8d, 0xe7, 0xc6, 0x75, 0x58, 0x64, 0x21, 0x8e, 0x93, 0xa5,
-	0xe5, 0x52, 0xb1, 0xdd, 0x4b, 0x72, 0x2b, 0xa2, 0xe9, 0x7e, 0xb7, 0x08, 0xeb, 0x59, 0xd7, 0x15,
-	0x7f, 0x99, 0x8d, 0x64, 0x0f, 0x9a, 0x3b, 0xf1, 0x97, 0x7a, 0xb2, 0x08, 0x93, 0xff, 0xa9, 0x72,
-	0x0a, 0xdf, 0xec, 0xad, 0x8d, 0x72, 0x64, 0x64, 0x91, 0xb1, 0x40, 0xbe, 0x80, 0xd5, 0xfc, 0x72,
-	0x4e, 0xae, 0xaa, 0x1c, 0xa5, 0xdf, 0x0b, 0x2d, 0xe3, 0x34, 0x92, 0x54, 0xf4, 0x3d, 0x58, 0x49,
-	0x96, 0xdc, 0xbc, 0x8d, 0x85, 0xd5, 0xb7, 0xd5, 0x54, 0x91, 0x02, 0x61, 0x2c, 0x90, 0x8f, 0x23,
-	0x66, 0xb1, 0xb0, 0xcd, 0x32, 0x2b, 0xdb, 0x68, 0xeb, 0x42, 0xc9, 0xea, 0x67, 0x2c, 0x90, 0xe7,
-	0x70, 0x7e, 0x47, 0x76, 0xe8, 0x78, 0x78, 0x93, 0xff, 0xe7, 0x95, 0x9c, 0xb0, 0xcd, 0xe5, 0x5d,
-	0x2b, 0x9f, 0xff, 0xc6, 0x02, 0xf9, 0x49, 0x83, 0x0b, 0x3b, 0x18, 0x16, 0x67, 0x21, 0xb9, 0x51,
-	0xae, 0xe4, 0x84, 0x99, 0xd9, 0x7a, 0x3a, 0x6f, 0xce, 0xe6, 0xc5, 0x1a, 0x0b, 0x64, 0x5f, 0xba,
-	0x9d, 0xe5, 0x1e, 0xb9, 0x52, 0x9a, 0x64, 0x69, 0xf4, 0xda, 0x27, 0xa1, 0x13, 0x57, 0x3f, 0xe9,
-	0xfd, 0xfe, 0xba, 0xad, 0xfd, 0xf1, 0xba, 0xad, 0xfd, 0xf5, 0xba, 0xad, 0x7d, 0x79, 0xeb, 0x5f,
-	0x7e, 0x64, 0x52, 0x7e, 0x0f, 0xa3, 0x9c, 0xd9, 0x23, 0x86, 0x6e, 0x78, 0xb8, 0x24, 0x7f, 0x52,
-	0xba, 0xf5, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf6, 0x7e, 0x8e, 0xd3, 0x2e, 0x13, 0x00, 0x00,
+	// 1594 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0xdd, 0x6f, 0xdb, 0xb6,
+	0x16, 0x8f, 0x6c, 0x27, 0xb1, 0x8f, 0xdb, 0xc4, 0x61, 0xbf, 0x74, 0x75, 0xd3, 0x20, 0xd5, 0xc5,
+	0x2d, 0x72, 0x6f, 0x5b, 0x19, 0x4d, 0x8b, 0xad, 0x68, 0xb1, 0x01, 0x59, 0x9a, 0xa6, 0x43, 0x9a,
+	0x26, 0x53, 0xba, 0x01, 0xdb, 0x8a, 0x15, 0x8c, 0xcc, 0xc8, 0x9c, 0x6d, 0x89, 0x15, 0x65, 0x0f,
+	0x2e, 0xb0, 0x87, 0x3d, 0xed, 0x7d, 0xc0, 0xf6, 0xaf, 0xec, 0x71, 0x4f, 0xfb, 0x78, 0xdc, 0x9f,
+	0x30, 0x74, 0xff, 0xc5, 0x9e, 0x06, 0x52, 0x5f, 0xb4, 0x2c, 0xa7, 0x1d, 0x9c, 0xa6, 0x2f, 0x36,
+	0x79, 0x78, 0xbe, 0x79, 0x78, 0xf8, 0xa3, 0xe0, 0x6a, 0x40, 0x98, 0xcf, 0x49, 0x30, 0x20, 0x41,
+	0x53, 0x0e, 0x69, 0xe8, 0x07, 0x43, 0x65, 0x68, 0xb1, 0xc0, 0x0f, 0x7d, 0x04, 0x19, 0xc5, 0x38,
+	0xef, 0xfa, 0xae, 0x2f, 0xc9, 0x4d, 0x31, 0x8a, 0x38, 0x8c, 0x65, 0xd7, 0xf7, 0xdd, 0x2e, 0x69,
+	0x62, 0x46, 0x9b, 0xd8, 0xf3, 0xfc, 0x10, 0x87, 0xd4, 0xf7, 0x78, 0xbc, 0x6a, 0x76, 0xee, 0x70,
+	0x8b, 0xfa, 0x72, 0xd5, 0xf1, 0x03, 0xd2, 0x1c, 0xdc, 0x6c, 0xba, 0xc4, 0x23, 0x01, 0x0e, 0x49,
+	0x2b, 0xe6, 0x79, 0xe4, 0xd2, 0xb0, 0xdd, 0x3f, 0xb4, 0x1c, 0xbf, 0xd7, 0xc4, 0x81, 0x34, 0xf1,
+	0xa5, 0x1c, 0xdc, 0x70, 0x5a, 0xcd, 0xc1, 0x7a, 0x93, 0x75, 0x5c, 0x21, 0xcf, 0x9b, 0x98, 0xb1,
+	0x2e, 0x75, 0xa4, 0xfe, 0xe6, 0xe0, 0x26, 0xee, 0xb2, 0x36, 0x1e, 0xd3, 0x66, 0x7e, 0x07, 0xb0,
+	0xb8, 0x8b, 0x3d, 0x7a, 0x44, 0x78, 0x68, 0x93, 0xe7, 0x7d, 0xc2, 0x43, 0xf4, 0x14, 0x2a, 0x22,
+	0x0e, 0x5d, 0x5b, 0xd5, 0xd6, 0xea, 0xeb, 0x0f, 0xad, 0xcc, 0xa0, 0x95, 0x18, 0x94, 0x83, 0x67,
+	0x4e, 0xcb, 0x1a, 0xac, 0x5b, 0xac, 0xe3, 0x5a, 0xc2, 0xa0, 0xa5, 0x18, 0xb4, 0x12, 0x83, 0x96,
+	0x9d, 0x66, 0xc4, 0x96, 0x5a, 0x91, 0x01, 0xd5, 0x80, 0x0c, 0x28, 0xa7, 0xbe, 0xa7, 0x97, 0x56,
+	0xb5, 0xb5, 0x9a, 0x9d, 0xce, 0x91, 0x0e, 0xf3, 0x9e, 0xbf, 0x89, 0x9d, 0x36, 0xd1, 0xcb, 0xab,
+	0xda, 0x5a, 0xd5, 0x4e, 0xa6, 0x68, 0x15, 0xea, 0x98, 0xb1, 0x47, 0xf8, 0x90, 0x74, 0x77, 0xc8,
+	0x50, 0xaf, 0x48, 0x41, 0x95, 0x24, 0x64, 0x31, 0x63, 0x8f, 0x71, 0x8f, 0xe8, 0xb3, 0x72, 0x35,
+	0x99, 0xa2, 0x65, 0xa8, 0x79, 0xb8, 0x47, 0x38, 0xc3, 0x0e, 0xd1, 0xab, 0x72, 0x2d, 0x23, 0xa0,
+	0xaf, 0x61, 0x49, 0x71, 0xfc, 0xc0, 0xef, 0x07, 0x0e, 0xd1, 0x41, 0x86, 0xbe, 0x37, 0x5d, 0xe8,
+	0x1b, 0x79, 0xb5, 0xf6, 0xb8, 0x25, 0xf4, 0x05, 0xcc, 0xca, 0xa2, 0xd1, 0xeb, 0xab, 0xe5, 0x13,
+	0xcd, 0x76, 0xa4, 0x16, 0x79, 0x30, 0xcf, 0xba, 0x7d, 0x97, 0x7a, 0x5c, 0x3f, 0x23, 0x2d, 0x3c,
+	0x99, 0xce, 0xc2, 0xa6, 0xef, 0x1d, 0x51, 0x77, 0x17, 0x7b, 0xd8, 0x25, 0x3d, 0xe2, 0x85, 0xfb,
+	0x52, 0xb9, 0x9d, 0x18, 0x41, 0x2f, 0xa0, 0xd1, 0xe9, 0xf3, 0xd0, 0xef, 0xd1, 0x17, 0x64, 0x8f,
+	0xc9, 0xe2, 0xd6, 0xcf, 0xca, 0x6c, 0x3e, 0x9e, 0xce, 0xf0, 0x4e, 0x4e, 0xab, 0x3d, 0x66, 0x47,
+	0x14, 0x49, 0xa7, 0x7f, 0x48, 0x3e, 0x21, 0x81, 0xac, 0xae, 0x85, 0xa8, 0x48, 0x14, 0x52, 0x54,
+	0x46, 0x34, 0x9e, 0x71, 0x7d, 0x71, 0xb5, 0x1c, 0x95, 0x51, 0x4a, 0x42, 0x6b, 0xb0, 0x38, 0x20,
+	0x01, 0x3d, 0x1a, 0x1e, 0x50, 0xd7, 0xc3, 0x61, 0x3f, 0x20, 0x7a, 0x43, 0x96, 0x62, 0x9e, 0x8c,
+	0x7a, 0x70, 0xb6, 0x4d, 0xba, 0x3d, 0x91, 0xf2, 0xcd, 0x80, 0xb4, 0xb8, 0xbe, 0x24, 0xf3, 0xbb,
+	0x3d, 0xfd, 0x0e, 0x4a, 0x75, 0xf6, 0xa8, 0x76, 0xe1, 0x98, 0xe7, 0xdb, 0xf1, 0x49, 0x89, 0xce,
+	0x08, 0x8a, 0x1c, 0xcb, 0x91, 0xd1, 0x55, 0x58, 0x08, 0x03, 0xec, 0x74, 0xa8, 0xe7, 0xee, 0x92,
+	0xb0, 0xed, 0xb7, 0xf4, 0x73, 0x32, 0x13, 0x39, 0x2a, 0x72, 0x00, 0x11, 0x0f, 0x1f, 0x76, 0x49,
+	0x2b, 0xaa, 0xc5, 0x27, 0x43, 0x46, 0xb8, 0x7e, 0x5e, 0x46, 0x71, 0xcb, 0x52, 0x9a, 0x5b, 0xae,
+	0x41, 0x58, 0x5b, 0x63, 0x52, 0x5b, 0x5e, 0x18, 0x0c, 0xed, 0x02, 0x75, 0xa8, 0x03, 0x75, 0x11,
+	0x47, 0x52, 0x0a, 0x17, 0x64, 0x29, 0x7c, 0x38, 0x5d, 0x8e, 0x1e, 0x66, 0x0a, 0x6d, 0x55, 0xbb,
+	0xb1, 0x05, 0x97, 0x26, 0xf8, 0x86, 0x1a, 0x50, 0xee, 0x90, 0xa1, 0xec, 0x69, 0x35, 0x5b, 0x0c,
+	0xd1, 0x79, 0x98, 0x1d, 0xe0, 0x6e, 0x9f, 0xc8, 0x2e, 0x54, 0xb5, 0xa3, 0xc9, 0xdd, 0xd2, 0x1d,
+	0xcd, 0xec, 0xc3, 0x85, 0x27, 0x32, 0xdc, 0xf4, 0x30, 0x9d, 0x46, 0x67, 0x34, 0x1f, 0xc2, 0xc5,
+	0xbc, 0x59, 0xce, 0x7c, 0x8f, 0x13, 0x64, 0x01, 0x92, 0xd5, 0x47, 0x49, 0x2b, 0x5b, 0x95, 0x5e,
+	0x54, 0xed, 0x82, 0x15, 0xf3, 0x9b, 0x12, 0x5c, 0xb4, 0x09, 0xf7, 0xbb, 0x03, 0x92, 0x94, 0xc6,
+	0xe9, 0x34, 0xf7, 0xcf, 0xa1, 0x8c, 0x19, 0x93, 0x19, 0x9d, 0x7a, 0x97, 0x95, 0xf6, 0x69, 0x0b,
+	0xad, 0xe8, 0x3a, 0x2c, 0xe1, 0xde, 0x21, 0x75, 0xfb, 0x7e, 0x9f, 0x27, 0x61, 0xc9, 0x7b, 0xa2,
+	0x66, 0x8f, 0x2f, 0x98, 0x0e, 0x5c, 0x1a, 0x4b, 0x41, 0x9c, 0x4e, 0xf5, 0x0a, 0xd2, 0x72, 0x57,
+	0x50, 0xa1, 0x91, 0xd2, 0x24, 0x23, 0xbf, 0x68, 0xd0, 0xc8, 0x4e, 0x47, 0xac, 0x7e, 0x19, 0x6a,
+	0xbd, 0x98, 0xc6, 0x75, 0x4d, 0xb6, 0x98, 0x8c, 0x30, 0x7a, 0x1b, 0x95, 0xf2, 0xb7, 0xd1, 0x45,
+	0x98, 0x8b, 0x70, 0x46, 0x1c, 0x58, 0x3c, 0x1b, 0x71, 0xb9, 0x92, 0x73, 0x79, 0x05, 0x80, 0xa7,
+	0xe5, 0xae, 0xcf, 0xc9, 0x55, 0x85, 0x82, 0x4c, 0x38, 0x13, 0xf5, 0x2e, 0x9b, 0xf0, 0x7e, 0x37,
+	0xd4, 0xe7, 0x25, 0xc7, 0x08, 0xcd, 0xf4, 0x61, 0xf1, 0x11, 0x15, 0x31, 0x1c, 0xf1, 0xd3, 0x29,
+	0xf6, 0x77, 0xa0, 0x22, 0x8c, 0x89, 0xc0, 0x0e, 0x03, 0xec, 0x39, 0x6d, 0x92, 0xe4, 0x2a, 0x9d,
+	0x23, 0x04, 0x95, 0x10, 0xbb, 0x5c, 0x2f, 0x49, 0xba, 0x1c, 0x9b, 0x3f, 0x96, 0x22, 0x4f, 0x37,
+	0x18, 0xe3, 0x6f, 0x1f, 0xb0, 0x14, 0xb7, 0xd0, 0xf2, 0x78, 0x0b, 0xcd, 0xb9, 0xfc, 0x4f, 0x5a,
+	0xe8, 0xc9, 0x75, 0xb5, 0xf9, 0x0d, 0xc6, 0x84, 0x23, 0xe8, 0x26, 0x54, 0x30, 0x63, 0x51, 0xc2,
+	0xeb, 0xeb, 0x97, 0x55, 0x47, 0x63, 0x16, 0xf1, 0x1f, 0xbb, 0x24, 0x59, 0x8d, 0x77, 0xa1, 0x96,
+	0x92, 0x5e, 0x65, 0xb6, 0xa6, 0x9a, 0xfd, 0x6b, 0x16, 0xfe, 0x25, 0x72, 0x7a, 0x20, 0x0b, 0x79,
+	0x83, 0xb1, 0xfb, 0x24, 0xc4, 0xb4, 0xcb, 0x3f, 0xea, 0x93, 0x60, 0xf8, 0x86, 0xb7, 0xce, 0x85,
+	0xb9, 0xe8, 0x1c, 0xc4, 0x1d, 0xe9, 0xc4, 0x01, 0x5d, 0xac, 0x3e, 0x43, 0x71, 0xe5, 0x37, 0x83,
+	0xe2, 0x8a, 0x50, 0x55, 0xe5, 0x94, 0x50, 0xd5, 0x64, 0x60, 0xad, 0xc0, 0xf5, 0xb9, 0x51, 0xb8,
+	0x5e, 0x00, 0x56, 0xe6, 0x5f, 0x17, 0xac, 0x54, 0x0b, 0xc1, 0x4a, 0xaf, 0xf0, 0xa4, 0xd5, 0x64,
+	0xba, 0xdf, 0x53, 0x0b, 0x78, 0x62, 0xad, 0xbd, 0x8d, 0x33, 0xf7, 0xad, 0xbc, 0x88, 0x99, 0x9f,
+	0xb9, 0x92, 0xde, 0x12, 0xa2, 0xb9, 0x89, 0x7e, 0x1d, 0xe9, 0x91, 0x63, 0x74, 0x1b, 0xe6, 0x3b,
+	0xdc, 0xf7, 0x3c, 0x12, 0xc6, 0x05, 0x6b, 0xa8, 0x91, 0xed, 0x44, 0x4b, 0x1b, 0x8c, 0x1d, 0x30,
+	0xe2, 0xd8, 0x09, 0x2b, 0xba, 0x06, 0x15, 0x01, 0x82, 0xe4, 0x8d, 0x51, 0x5f, 0xbf, 0xa4, 0x8a,
+	0x08, 0xa4, 0x94, 0xf0, 0x4b, 0x26, 0x74, 0x17, 0x6a, 0xe9, 0x0e, 0xc7, 0x25, 0xb4, 0x3c, 0x62,
+	0x24, 0x59, 0x4c, 0xc4, 0x32, 0x76, 0x21, 0xdb, 0xa2, 0x01, 0x71, 0x24, 0xfa, 0x98, 0x1d, 0x97,
+	0xbd, 0x9f, 0x2c, 0xa6, 0xb2, 0x29, 0xbb, 0xf9, 0xb3, 0x06, 0x57, 0xb2, 0xad, 0x49, 0x6a, 0x60,
+	0x97, 0x84, 0xb8, 0x85, 0x43, 0xfc, 0xf6, 0x3b, 0xf9, 0x55, 0x58, 0x70, 0xda, 0xc4, 0xe9, 0x64,
+	0xb0, 0x3f, 0x7a, 0x81, 0xe6, 0xa8, 0xe6, 0xaf, 0x25, 0x58, 0x18, 0xdd, 0x08, 0xb1, 0x93, 0xe2,
+	0x02, 0x4f, 0x76, 0x52, 0x8c, 0xd1, 0x3e, 0x9c, 0x21, 0xde, 0x80, 0x06, 0xbe, 0x27, 0x1e, 0x49,
+	0x49, 0x5f, 0xb8, 0x3e, 0x79, 0x3b, 0xad, 0x2d, 0x85, 0x3d, 0xaa, 0xcb, 0x11, 0x0d, 0xc8, 0x03,
+	0x60, 0x38, 0xc0, 0x3d, 0x12, 0x92, 0x40, 0x1c, 0xfe, 0xf2, 0x09, 0x1c, 0xfe, 0xc8, 0x83, 0xfd,
+	0x44, 0xad, 0xad, 0x58, 0x30, 0x9e, 0xc1, 0xd2, 0x98, 0x4b, 0x05, 0xb5, 0x7f, 0x5b, 0xad, 0xfd,
+	0xfa, 0xfa, 0x4a, 0x41, 0x84, 0x8a, 0x1a, 0xf5, 0x6c, 0xfc, 0x54, 0x82, 0xba, 0x52, 0x9f, 0x85,
+	0x69, 0x5c, 0x01, 0x90, 0x02, 0x0f, 0x68, 0x37, 0xbe, 0x57, 0x6b, 0xb6, 0x42, 0x41, 0x9d, 0x82,
+	0xa4, 0xec, 0x4c, 0xff, 0xb8, 0x28, 0xcc, 0x88, 0xc0, 0x66, 0xd2, 0x34, 0x8f, 0xfb, 0x60, 0x3c,
+	0x43, 0x5f, 0xc1, 0xc2, 0x11, 0xed, 0x92, 0xfd, 0xcc, 0x91, 0x39, 0xe9, 0xc8, 0xde, 0xf4, 0x8e,
+	0x3c, 0x50, 0xf5, 0xda, 0x39, 0x33, 0xe6, 0xff, 0xa1, 0x91, 0x3f, 0xae, 0xc2, 0x49, 0xda, 0xc3,
+	0x6e, 0x9a, 0xad, 0x78, 0x66, 0x7e, 0xaf, 0x01, 0x1a, 0xdf, 0x8f, 0x49, 0x49, 0xef, 0xdc, 0xe1,
+	0xc9, 0x2b, 0x3a, 0x3a, 0x28, 0x0a, 0x05, 0xed, 0x40, 0xbd, 0x45, 0x78, 0x48, 0x3d, 0xe9, 0x70,
+	0xdc, 0x44, 0xfe, 0x77, 0xfc, 0xc6, 0xdf, 0xcf, 0x04, 0x6c, 0x55, 0xda, 0xfc, 0x18, 0x2e, 0x1f,
+	0xcb, 0xad, 0x20, 0x62, 0x6d, 0x04, 0x11, 0x1f, 0x8b, 0xa3, 0x4d, 0x04, 0x8d, 0x7c, 0x37, 0x32,
+	0x9f, 0xc3, 0x92, 0xc8, 0xe9, 0x66, 0x1b, 0x07, 0xe1, 0x29, 0xa1, 0xdc, 0x7b, 0x50, 0x4b, 0x4d,
+	0x16, 0xe6, 0xda, 0x80, 0xea, 0x20, 0xf9, 0x1a, 0x11, 0xc1, 0xdc, 0x74, 0x6e, 0x6e, 0x00, 0x52,
+	0xfd, 0x8d, 0xef, 0x8d, 0x6b, 0x30, 0x4b, 0x43, 0xd2, 0x4b, 0xc0, 0xdb, 0x85, 0x7c, 0xbb, 0x97,
+	0xec, 0x76, 0xc4, 0xb3, 0xfe, 0xe7, 0x2c, 0x2c, 0x65, 0x5d, 0x57, 0xfc, 0x52, 0x87, 0xa0, 0x3d,
+	0x68, 0x6c, 0xc7, 0xdf, 0x01, 0x93, 0xc7, 0x0b, 0xfa, 0xf7, 0x31, 0x0f, 0x7e, 0x63, 0xb9, 0x78,
+	0x31, 0xf2, 0xc8, 0x9c, 0x41, 0x9f, 0xc2, 0xc2, 0xe8, 0xcb, 0x15, 0x5d, 0x51, 0x25, 0x0a, 0x1f,
+	0xd3, 0x86, 0x79, 0x1c, 0x4b, 0xaa, 0xfa, 0x29, 0x2c, 0xe6, 0x9e, 0x71, 0xc8, 0x1c, 0xbd, 0xee,
+	0x8b, 0x9e, 0xb9, 0xc6, 0x7f, 0x8e, 0xe5, 0x49, 0xb5, 0xdf, 0x83, 0x6a, 0xf2, 0xec, 0x19, 0xcd,
+	0x40, 0xee, 0x31, 0x64, 0x34, 0x46, 0xf5, 0x1d, 0x71, 0x73, 0x06, 0xbd, 0x1f, 0x09, 0x0b, 0x58,
+	0x3c, 0x2e, 0xac, 0x80, 0x7d, 0xe3, 0x5c, 0x01, 0xc0, 0x96, 0xa1, 0x9d, 0xdd, 0x96, 0xfd, 0x3f,
+	0x86, 0x06, 0xe8, 0xbf, 0xaf, 0x85, 0x63, 0x0c, 0x33, 0xcf, 0x36, 0x8e, 0x2e, 0xcc, 0x19, 0xf4,
+	0x83, 0x06, 0xe7, 0xb6, 0x49, 0x98, 0xbf, 0x69, 0xd1, 0x8d, 0x62, 0x23, 0x13, 0x6e, 0x64, 0xe3,
+	0xf1, 0xb4, 0x27, 0x62, 0x54, 0xad, 0x39, 0x83, 0xf6, 0x65, 0xd8, 0x59, 0x65, 0xa3, 0xcb, 0x85,
+	0x25, 0x9c, 0x66, 0x6f, 0x65, 0xd2, 0x72, 0x12, 0xea, 0x07, 0x1b, 0xbf, 0xbd, 0x5c, 0xd1, 0x7e,
+	0x7f, 0xb9, 0xa2, 0xfd, 0xf1, 0x72, 0x45, 0xfb, 0xec, 0xd6, 0x2b, 0x3e, 0x90, 0x2b, 0xdf, 0xf2,
+	0x31, 0xa3, 0x4e, 0x97, 0x12, 0x2f, 0x3c, 0x9c, 0x93, 0x9f, 0xc3, 0x6f, 0xfd, 0x1d, 0x00, 0x00,
+	0xff, 0xff, 0x01, 0x70, 0xee, 0x21, 0xea, 0x17, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1465,6 +1660,8 @@ type RepoServerServiceClient interface {
 	GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error)
 	// Returns a bool val if the repository is valid and has proper access
 	TestRepository(ctx context.Context, in *TestRepositoryRequest, opts ...grpc.CallOption) (*TestRepositoryResponse, error)
+	// Returns a valid revision
+	ResolveRevision(ctx context.Context, in *ResolveRevisionRequest, opts ...grpc.CallOption) (*ResolveRevisionResponse, error)
 	// Returns a list of refs (e.g. branches and tags) in the repo
 	ListRefs(ctx context.Context, in *ListRefsRequest, opts ...grpc.CallOption) (*Refs, error)
 	// ListApps returns a list of apps in the repo
@@ -1497,6 +1694,15 @@ func (c *repoServerServiceClient) GenerateManifest(ctx context.Context, in *Mani
 func (c *repoServerServiceClient) TestRepository(ctx context.Context, in *TestRepositoryRequest, opts ...grpc.CallOption) (*TestRepositoryResponse, error) {
 	out := new(TestRepositoryResponse)
 	err := c.cc.Invoke(ctx, "/repository.RepoServerService/TestRepository", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *repoServerServiceClient) ResolveRevision(ctx context.Context, in *ResolveRevisionRequest, opts ...grpc.CallOption) (*ResolveRevisionResponse, error) {
+	out := new(ResolveRevisionResponse)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/ResolveRevision", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1554,6 +1760,8 @@ type RepoServerServiceServer interface {
 	GenerateManifest(context.Context, *ManifestRequest) (*ManifestResponse, error)
 	// Returns a bool val if the repository is valid and has proper access
 	TestRepository(context.Context, *TestRepositoryRequest) (*TestRepositoryResponse, error)
+	// Returns a valid revision
+	ResolveRevision(context.Context, *ResolveRevisionRequest) (*ResolveRevisionResponse, error)
 	// Returns a list of refs (e.g. branches and tags) in the repo
 	ListRefs(context.Context, *ListRefsRequest) (*Refs, error)
 	// ListApps returns a list of apps in the repo
@@ -1575,6 +1783,9 @@ func (*UnimplementedRepoServerServiceServer) GenerateManifest(ctx context.Contex
 }
 func (*UnimplementedRepoServerServiceServer) TestRepository(ctx context.Context, req *TestRepositoryRequest) (*TestRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestRepository not implemented")
+}
+func (*UnimplementedRepoServerServiceServer) ResolveRevision(ctx context.Context, req *ResolveRevisionRequest) (*ResolveRevisionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResolveRevision not implemented")
 }
 func (*UnimplementedRepoServerServiceServer) ListRefs(ctx context.Context, req *ListRefsRequest) (*Refs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRefs not implemented")
@@ -1628,6 +1839,24 @@ func _RepoServerService_TestRepository_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepoServerServiceServer).TestRepository(ctx, req.(*TestRepositoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RepoServerService_ResolveRevision_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveRevisionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoServerServiceServer).ResolveRevision(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repository.RepoServerService/ResolveRevision",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoServerServiceServer).ResolveRevision(ctx, req.(*ResolveRevisionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1735,6 +1964,10 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RepoServerService_TestRepository_Handler,
 		},
 		{
+			MethodName: "ResolveRevision",
+			Handler:    _RepoServerService_ResolveRevision_Handler,
+		},
+		{
 			MethodName: "ListRefs",
 			Handler:    _RepoServerService_ListRefs_Handler,
 		},
@@ -1782,6 +2015,53 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	if m.XXX_unrecognized != nil {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.HelmOptions != nil {
+		{
+			size, err := m.HelmOptions.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xaa
+	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k := range m.EnabledSourceTypes {
+			v := m.EnabledSourceTypes[k]
+			baseI := i
+			i--
+			if v {
+				dAtA[i] = 1
+			} else {
+				dAtA[i] = 0
+			}
+			i--
+			dAtA[i] = 0x10
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintRepository(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintRepository(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x1
+			i--
+			dAtA[i] = 0xa2
+		}
+	}
+	if len(m.TrackingMethod) > 0 {
+		i -= len(m.TrackingMethod)
+		copy(dAtA[i:], m.TrackingMethod)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.TrackingMethod)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x9a
 	}
 	if m.NoRevisionCache {
 		i--
@@ -2020,6 +2300,105 @@ func (m *TestRepositoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	return len(dAtA) - i, nil
 }
 
+func (m *ResolveRevisionRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResolveRevisionRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveRevisionRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.AmbiguousRevision) > 0 {
+		i -= len(m.AmbiguousRevision)
+		copy(dAtA[i:], m.AmbiguousRevision)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.AmbiguousRevision)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.App != nil {
+		{
+			size, err := m.App.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Repo != nil {
+		{
+			size, err := m.Repo.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ResolveRevisionResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResolveRevisionResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveRevisionResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.AmbiguousRevision) > 0 {
+		i -= len(m.AmbiguousRevision)
+		copy(dAtA[i:], m.AmbiguousRevision)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.AmbiguousRevision)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Revision) > 0 {
+		i -= len(m.Revision)
+		copy(dAtA[i:], m.Revision)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.Revision)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ManifestResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2199,6 +2578,28 @@ func (m *ListAppsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k := range m.EnabledSourceTypes {
+			v := m.EnabledSourceTypes[k]
+			baseI := i
+			i--
+			if v {
+				dAtA[i] = 1
+			} else {
+				dAtA[i] = 0
+			}
+			i--
+			dAtA[i] = 0x10
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintRepository(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintRepository(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
 	if len(m.Revision) > 0 {
 		i -= len(m.Revision)
 		copy(dAtA[i:], m.Revision)
@@ -2290,6 +2691,45 @@ func (m *RepoServerAppDetailsQuery) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	if m.XXX_unrecognized != nil {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k := range m.EnabledSourceTypes {
+			v := m.EnabledSourceTypes[k]
+			baseI := i
+			i--
+			if v {
+				dAtA[i] = 1
+			} else {
+				dAtA[i] = 0
+			}
+			i--
+			dAtA[i] = 0x10
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintRepository(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintRepository(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if len(m.TrackingMethod) > 0 {
+		i -= len(m.TrackingMethod)
+		copy(dAtA[i:], m.TrackingMethod)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.TrackingMethod)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if m.NoRevisionCache {
+		i--
+		if m.NoRevisionCache {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
 	}
 	if m.NoCache {
 		i--
@@ -3013,6 +3453,22 @@ func (m *ManifestRequest) Size() (n int) {
 	if m.NoRevisionCache {
 		n += 3
 	}
+	l = len(m.TrackingMethod)
+	if l > 0 {
+		n += 2 + l + sovRepository(uint64(l))
+	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k, v := range m.EnabledSourceTypes {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovRepository(uint64(len(k))) + 1 + 1
+			n += mapEntrySize + 2 + sovRepository(uint64(mapEntrySize))
+		}
+	}
+	if m.HelmOptions != nil {
+		l = m.HelmOptions.Size()
+		n += 2 + l + sovRepository(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -3043,6 +3499,50 @@ func (m *TestRepositoryResponse) Size() (n int) {
 	_ = l
 	if m.VerifiedRepository {
 		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ResolveRevisionRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Repo != nil {
+		l = m.Repo.Size()
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.App != nil {
+		l = m.App.Size()
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.AmbiguousRevision)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ResolveRevisionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Revision)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.AmbiguousRevision)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -3142,6 +3642,14 @@ func (m *ListAppsRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovRepository(uint64(l))
 	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k, v := range m.EnabledSourceTypes {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovRepository(uint64(len(k))) + 1 + 1
+			n += mapEntrySize + 1 + sovRepository(uint64(mapEntrySize))
+		}
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -3198,6 +3706,21 @@ func (m *RepoServerAppDetailsQuery) Size() (n int) {
 	}
 	if m.NoCache {
 		n += 2
+	}
+	if m.NoRevisionCache {
+		n += 2
+	}
+	l = len(m.TrackingMethod)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if len(m.EnabledSourceTypes) > 0 {
+		for k, v := range m.EnabledSourceTypes {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovRepository(uint64(len(k))) + 1 + 1
+			n += mapEntrySize + 1 + sovRepository(uint64(mapEntrySize))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -3960,6 +4483,189 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.NoRevisionCache = bool(v != 0)
+		case 19:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TrackingMethod", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TrackingMethod = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 20:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EnabledSourceTypes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.EnabledSourceTypes == nil {
+				m.EnabledSourceTypes = make(map[string]bool)
+			}
+			var mapkey string
+			var mapvalue bool
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowRepository
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapvaluetemp int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapvaluetemp |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					mapvalue = bool(mapvaluetemp != 0)
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipRepository(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.EnabledSourceTypes[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 21:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HelmOptions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.HelmOptions == nil {
+				m.HelmOptions = &v1alpha1.HelmOptions{}
+			}
+			if err := m.HelmOptions.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])
@@ -4118,6 +4824,276 @@ func (m *TestRepositoryResponse) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.VerifiedRepository = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepository(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResolveRevisionRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepository
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResolveRevisionRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResolveRevisionRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Repo == nil {
+				m.Repo = &v1alpha1.Repository{}
+			}
+			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field App", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.App == nil {
+				m.App = &v1alpha1.Application{}
+			}
+			if err := m.App.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AmbiguousRevision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AmbiguousRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepository(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResolveRevisionResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepository
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResolveRevisionResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResolveRevisionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Revision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Revision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AmbiguousRevision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AmbiguousRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])
@@ -4682,6 +5658,121 @@ func (m *ListAppsRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.Revision = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EnabledSourceTypes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.EnabledSourceTypes == nil {
+				m.EnabledSourceTypes = make(map[string]bool)
+			}
+			var mapkey string
+			var mapvalue bool
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowRepository
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapvaluetemp int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapvaluetemp |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					mapvalue = bool(mapvaluetemp != 0)
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipRepository(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.EnabledSourceTypes[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])
@@ -5105,6 +6196,173 @@ func (m *RepoServerAppDetailsQuery) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.NoCache = bool(v != 0)
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NoRevisionCache", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.NoRevisionCache = bool(v != 0)
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TrackingMethod", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TrackingMethod = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EnabledSourceTypes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.EnabledSourceTypes == nil {
+				m.EnabledSourceTypes = make(map[string]bool)
+			}
+			var mapkey string
+			var mapvalue bool
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowRepository
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapvaluetemp int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRepository
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapvaluetemp |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					mapvalue = bool(mapvaluetemp != 0)
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipRepository(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthRepository
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.EnabledSourceTypes[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])

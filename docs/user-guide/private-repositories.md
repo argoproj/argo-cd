@@ -8,7 +8,7 @@
 
 ## Credentials
 
-If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
+If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTPS and SSH Git credentials.
 
 ### HTTPS Username And Password Credential
 
@@ -39,7 +39,7 @@ or UI:
 > earlier than v1.2
 
 1. Navigate to `Settings/Repositories`
-1. Click `Connect Repo` button and enter HTTP credentials
+1. Click `Connect Repo` button and enter HTTPS credentials
 
 ![connect repo](../assets/connect-repo.png)
 
@@ -50,6 +50,7 @@ Instead of using username and password you might use access token. Following ins
 * [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
 * [GitLab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
 * [Bitbucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+* [Azure Repos](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page)
 
 Then, connect the repository using any non-empty string as username and the access token value as a password. 
 
@@ -141,11 +142,11 @@ Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
-   ![connect repo overview](../assets/repo-add-overview.png)
+    ![connect repo overview](../assets/repo-add-overview.png)
 
 1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-   ![connect repo](../assets/repo-add-github-app.png)
+    ![connect repo](../assets/repo-add-github-app.png)
 
 1. Click `Connect` to test the connection and have the repository added
 
@@ -397,5 +398,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#repositories)
 

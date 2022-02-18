@@ -2,8 +2,6 @@
 
 .paginate {
     position: relative;
-    height: 25px;
-
 
     @media (max-width: map-get($breakpoints, medium)) {
         & {
@@ -23,11 +21,9 @@
     }
 
     &__paginator {
-        ul {
-            display: inline-block;
-            margin: 0;
-            padding: 0;
-        }
+        display: inline-block;
+        padding: 0;
+        margin-bottom: 0;
 
         li {
             display: inline-block;
@@ -50,15 +46,7 @@
     }
 
     &__size-menu {
-        display: flex;
-        width: 100%;
-        justify-content: space-between;
-        align-items: center;
-        position: absolute;
-        z-index: 1;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
+        margin-left: auto;
         li {
             display: block;
         }

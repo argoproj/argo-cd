@@ -66,6 +66,10 @@ export class ProjectsService {
         return requests.get(`/projects/${name}`).then(res => res.body as models.Project);
     }
 
+    public getDetailed(name: string): Promise<models.DetailedProjectsResponse> {
+        return requests.get(`/projects/${name}/detailed`).then(res => res.body as models.DetailedProjectsResponse);
+    }
+
     public getGlobalProjects(name: string): Promise<models.Project[]> {
         return requests.get(`/projects/${name}/globalprojects`).then(res => res.body.items as models.Project[]);
     }

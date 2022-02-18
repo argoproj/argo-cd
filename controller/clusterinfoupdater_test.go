@@ -6,6 +6,11 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/common"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
@@ -37,7 +42,30 @@ func TestClusterSecretUpdater(t *testing.T) {
 		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
-	kubeclientset := fake.NewSimpleClientset()
+	emptyArgoCDConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
 	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)

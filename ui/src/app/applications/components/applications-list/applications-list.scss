@@ -32,40 +32,68 @@
         color: $argo-color-gray-7;
 
         // healthy statuses
-
-        &--comparison-Synced {
-            border-left-color: $argo-success-color;
-        }
-
         &--health-Healthy {
             border-left-color: $argo-success-color;
         }
 
-        // having this higher up ensures that progressing takes precedence
-        &--comparison-OutOfSync {
-            border-left-color: $argo-status-warning-color;
-        }
-
         // intermediate statuses
-
         &--health-Progressing {
             border-left-color: $argo-running-color;
         }
 
-        // failed statuses
+        &--health-Suspended {
+            border-left-color: $argo-suspended-color;
+        }
 
+        // failed statuses
         &--health-Degraded {
             border-left-color: $argo-failed-color;
         }
 
-        &--comparison-Error {
-            border-left-color: $argo-failed-color;
+        &--health-Unknown {
+            border-left-color: $argo-color-gray-4;
+        }
+
+        &--health-Missing {
+            border-left-color: $argo-status-warning-color;
         }
 
         &--actions {
             padding-top: 1em;
         }
     }
+
+    &__sort {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5em;
+
+        &__options {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        &__option {
+            cursor: pointer;
+            line-height: 2em;
+            margin-right: 13px;
+
+            i {
+                margin-right: 3px;
+            }
+        }
+    }
+
+    &__accordion {
+        cursor: pointer;
+        text-align: center;
+        border: none;
+        outline: none;
+        transition: 0.4s;
+        margin-left: 10px;
+    }
+
     &__view-type {
         white-space: nowrap;
         i {
@@ -166,6 +194,29 @@
     &__external-links-icon-container {
         position: relative;
         display: inline-block;
-        width: 28px;
     }
+
+    .filters-group__panel {
+        top: 120px;
+    }
+    @include breakpoint(medium down) {
+        .filters-group__panel {
+            top: 200px;
+        }
+    }
+
+    ul {
+        margin: 0;
+    }
+
+    .chart-group {
+        margin: 0 0.8em;
+    }
+
+    .chart {
+        justify-content: space-evenly;
+    }
+}
+i.menu_icon {
+    vertical-align: middle;
 }

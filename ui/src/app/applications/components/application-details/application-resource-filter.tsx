@@ -1,8 +1,11 @@
 import * as React from 'react';
+import {Checkbox} from 'argo-ui';
 import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
+import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {resources} from '../resources';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
@@ -10,7 +13,15 @@ function toOption(label: string) {
     return {label};
 }
 
-export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTree; onSetFilter: (items: string[]) => void; onClearFilter: () => void}) => {
+export const Filters = (props: {
+    children?: React.ReactNode;
+    pref: AppDetailsPreferences;
+    tree: ApplicationTree;
+    onSetFilter: (items: string[]) => void;
+    onClearFilter: () => void;
+}) => {
+    const ctx = React.useContext(Context);
+
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
@@ -51,7 +62,7 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean; wrap?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: Map<string, string>; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
@@ -60,9 +71,9 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
                 selected={selectedFor(p.prefix)}
                 setSelected={v => setFilters(p.prefix, v)}
                 options={p.options}
+                abbreviations={p.abbreviations}
                 field={!!p.field}
                 radio={!!p.radio}
-                wrap={!!p.wrap}
             />
         );
     };
@@ -76,8 +87,16 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
         .concat(alreadyFilteredOn('kind'))
         .filter(uniq)
         .sort();
+
+    const names = tree.nodes
+        .map(x => x.name)
+        .concat(alreadyFilteredOn('name'))
+        .filter(uniq)
+        .sort();
+
     const namespaces = tree.nodes
         .map(x => x.namespace)
+        .filter(x => !!x)
         .concat(alreadyFilteredOn('namespace'))
         .filter(uniq)
         .sort();
@@ -87,18 +106,17 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
     };
 
     return (
-        <FiltersGroup appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} shown={shown}>
-            <div className='filters-container__text-filters'>
-                {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
-                {ResourceFilter({
-                    label: 'SYNC STATUS',
-                    prefix: 'sync',
-                    options: ['Synced', 'OutOfSync'].map(label => ({
-                        label,
-                        icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                    }))
-                })}
-            </div>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
+            {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
+            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), abbreviations: resources, field: true})}
+            {ResourceFilter({
+                label: 'SYNC STATUS',
+                prefix: 'sync',
+                options: ['Synced', 'OutOfSync'].map(label => ({
+                    label,
+                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                }))
+            })}
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
@@ -107,12 +125,20 @@ export const Filters = (props: {pref: AppDetailsPreferences; tree: ApplicationTr
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
-            <div className='filters-container__subgroup'>
-                {namespaces.length > 1 &&
-                    ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-                {ResourceFilter({label: 'OWNERSHIP', prefix: 'ownership', wrap: true, options: ['Owners', 'Owned'].map(toOption)})}
-                {ResourceFilter({label: 'AGE', prefix: 'createdWithin', options: ['1m', '3m', '5m', '15m', '60m'].map(toOption), radio: true, wrap: true})}
-            </div>
+            {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
+            {(tree.orphanedNodes || []).length > 0 && (
+                <div className='filter'>
+                    <Checkbox
+                        checked={!!pref.orphanedResources}
+                        id='orphanedFilter'
+                        onChange={val => {
+                            ctx.navigation.goto('.', {orphaned: val}, {replace: true});
+                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
+                        }}
+                    />{' '}
+                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                </div>
+            )}
         </FiltersGroup>
     );
 };

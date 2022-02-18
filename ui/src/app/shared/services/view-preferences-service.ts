@@ -1,8 +1,19 @@
 import {BehaviorSubject, Observable} from 'rxjs';
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {SortAppsBy} from '../../applications/components/applications-list/applications-list';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+
+export enum AppsDetailsViewKey {
+    Tree = 'tree',
+    Network = 'network',
+    List = 'list',
+    Pods = 'pods'
+}
+
+export enum SortAppsBy {
+    Name = 'Name',
+    DeploymentTime = 'Deployment Time'
+}
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -10,11 +21,13 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    groupNodes?: boolean;
 }
 
 export interface PodViewPreferences {
@@ -22,7 +35,18 @@ export interface PodViewPreferences {
     hideUnschedulable: boolean;
 }
 
+export interface HealthStatusBarPreferences {
+    showHealthStatusBar: boolean;
+}
+
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
+
+export enum AppsListViewKey {
+    List = 'list',
+    Summary = 'summary',
+    Tiles = 'tiles'
+}
+
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
         return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
@@ -45,6 +69,7 @@ export class AppsListPreferences {
         pref.reposFilter = [];
         pref.syncFilter = [];
         pref.sorter = null;
+        pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
@@ -57,6 +82,9 @@ export class AppsListPreferences {
     public view: AppsListViewType;
     public sorter: SortAppsBy | null;
     public hideFilters: boolean;
+    public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
 }
 
 export interface ViewPreferences {
@@ -65,6 +93,7 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    position: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -97,11 +126,17 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
-        sorter: null
-        hideFilters: false
+        sorter: SortAppsBy.Name,
+        hideFilters: false,
+        showFavorites: false,
+        favoritesAppList: new Array<string>(),
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
-    hideBannerContent: ''
+    hideBannerContent: '',
+    position: ''
 };
 
 export class ViewPreferencesService {
