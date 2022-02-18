@@ -8,10 +8,10 @@ import (
 
 func TestAdd(t *testing.T) {
 	s := NewServer()
-	id := s.Add("foo", "bar")
+	nonce := s.Add("foo", "bar")
 
-	assert.Equal(t, "foo", s.creds[id].Username)
-	assert.Equal(t, "bar", s.creds[id].Password)
+	assert.Equal(t, "foo", s.creds[nonce].Username)
+	assert.Equal(t, "bar", s.creds[nonce].Password)
 }
 
 func TestRemove(t *testing.T) {

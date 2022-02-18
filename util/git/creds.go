@@ -22,9 +22,16 @@ import (
 	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
 )
 
-// In memory cache for storing github APP api token credentials
 var (
+	// In memory cache for storing github APP api token credentials
 	githubAppTokenCache *gocache.Cache
+)
+
+const (
+	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
+	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
+	// githubAccessTokenUsername is a username that is used to with the github access token
+	githubAccessTokenUsername = "x-access-token"
 )
 
 func init() {
@@ -60,7 +67,7 @@ type Creds interface {
 func getGitAskPassEnv(id string) []string {
 	return []string{
 		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
-		fmt.Sprintf("ARGOCD_GIT_ASKPASS_NONCE=%s", id),
+		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
 		"GIT_TERMINAL_PROMPT=0",
 		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
 	}
@@ -181,10 +188,10 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 	}
-	id := c.store.Add(text.FirstNonEmpty(c.username, "x-access-token"), c.password)
-	env = append(env, getGitAskPassEnv(id)...)
+	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
+	env = append(env, getGitAskPassEnv(nonce)...)
 	return argoioutils.NewCloser(func() error {
-		c.store.Remove(id)
+		c.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
 }
@@ -344,10 +351,10 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 
 	}
-	id := g.store.Add("x-access-token", token)
-	env = append(env, getGitAskPassEnv(id)...)
+	nonce := g.store.Add(githubAccessTokenUsername, token)
+	env = append(env, getGitAskPassEnv(nonce)...)
 	return argoioutils.NewCloser(func() error {
-		g.store.Remove(id)
+		g.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
 }
