@@ -195,6 +195,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
 		})
 }
+
 func startCMPServer(configFile string) {
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
