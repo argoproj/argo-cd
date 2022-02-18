@@ -434,10 +434,10 @@ start-e2e-local:
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
+	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
-	ARGOCD_PROCFILE=test/e2e/assets/Procfile \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
