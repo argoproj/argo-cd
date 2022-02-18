@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/util/io/path"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
-		Values: []ResolvedFilePath{"values-production.yaml"},
+		Values: []path.ResolvedFilePath{"values-production.yaml"},
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
@@ -85,7 +86,7 @@ func TestHelmGetParams(t *testing.T) {
 func TestHelmGetParamsValueFiles(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]ResolvedFilePath{"values-production.yaml"})
+	params, err := h.GetParameters([]path.ResolvedFilePath{"values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -95,7 +96,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
+	params, err := h.GetParameters([]path.ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]

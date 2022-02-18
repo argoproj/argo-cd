@@ -11,6 +11,7 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
@@ -286,8 +287,8 @@ type TemplateOpts struct {
 	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
-	SetFile     map[string]ResolvedFilePath
-	Values      []ResolvedFilePath
+	SetFile     map[string]pathutil.ResolvedFilePath
+	Values      []pathutil.ResolvedFilePath
 	SkipCrds    bool
 }
 

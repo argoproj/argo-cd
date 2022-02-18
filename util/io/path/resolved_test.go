@@ -1,4 +1,4 @@
-package helm
+package path
 
 import (
 	"os"
@@ -10,7 +10,7 @@ import (
 )
 
 func Test_resolveSymlinkRecursive(t *testing.T) {
-	testsDir, err := filepath.Abs("./testdata/symlinks")
+	testsDir, err := filepath.Abs("./testdata")
 	if err != nil {
 		panic(err)
 	}

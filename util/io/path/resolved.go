@@ -1,4 +1,4 @@
-package helm
+package path
 
 import (
 	"fmt"
@@ -59,9 +59,8 @@ func isURLSchemeAllowed(scheme string, allowed []string) bool {
 	return isAllowed && scheme != ""
 }
 
-// ResolveFilePath will inspect and resolve a path to a Helm value
-// file, and make sure that its final path is within the boundaries of the
-// path specified in repoRoot.
+// ResolveFilePath will inspect and resolve given file, and make sure that its final path is within the boundaries of
+// the path specified in repoRoot.
 //
 // appPath is the path we're operating in, e.g. where a Helm chart was unpacked
 // to. repoRoot is the path to the root of the repository.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 )
 
 type HelmRepository struct {
@@ -27,7 +28,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []ResolvedFilePath) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -129,7 +130,7 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []ResolvedFilePath) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error) {
 	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
