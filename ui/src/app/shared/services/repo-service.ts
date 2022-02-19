@@ -145,10 +145,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource, appName: string): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string, appProject: string): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
-            .send({source, appName})
+            .send({source, appName, appProject})
             .then(res => res.body as models.RepoAppDetails);
     }
 }

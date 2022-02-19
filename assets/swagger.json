@@ -4118,6 +4118,9 @@
         "appName": {
           "type": "string"
         },
+        "appProject": {
+          "type": "string"
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }

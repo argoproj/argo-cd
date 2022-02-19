@@ -582,7 +582,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.projLister, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
