@@ -140,6 +140,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
+	if err != nil {
+		return nil, nil, err
+	}
 	ts.AddCheckpoint("plugins_ms")
 	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i := range plugins {
@@ -155,6 +159,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
+
+	helmOptions, err := m.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, nil, err
+	}
 	ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
@@ -162,22 +171,24 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 	ts.AddCheckpoint("version_ms")
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              repo,
-		Repos:             permittedHelmRepos,
-		Revision:          revision,
-		NoCache:           noCache,
-		NoRevisionCache:   noRevisionCache,
-		AppLabelKey:       appLabelKey,
-		AppName:           app.Name,
-		Namespace:         app.Spec.Destination.Namespace,
-		ApplicationSource: &source,
-		Plugins:           tools,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       serverVersion,
-		ApiVersions:       argo.APIResourcesToStrings(apiResources, true),
-		VerifySignature:   verifySignature,
-		HelmRepoCreds:     permittedHelmCredentials,
-		TrackingMethod:    string(argo.GetTrackingMethod(m.settingsMgr)),
+		Repo:               repo,
+		Repos:              permittedHelmRepos,
+		Revision:           revision,
+		NoCache:            noCache,
+		NoRevisionCache:    noRevisionCache,
+		AppLabelKey:        appLabelKey,
+		AppName:            app.Name,
+		Namespace:          app.Spec.Destination.Namespace,
+		ApplicationSource:  &source,
+		Plugins:            tools,
+		KustomizeOptions:   kustomizeOptions,
+		KubeVersion:        serverVersion,
+		ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+		VerifySignature:    verifySignature,
+		HelmRepoCreds:      permittedHelmCredentials,
+		TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+		EnabledSourceTypes: enabledSourceTypes,
+		HelmOptions:        helmOptions,
 	})
 	if err != nil {
 		return nil, nil, err

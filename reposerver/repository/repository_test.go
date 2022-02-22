@@ -52,7 +52,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
@@ -112,7 +112,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
@@ -800,6 +800,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 				Values:     `cluster: {slaveCount: 2}`,
 			},
 		},
+		HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
 	})
 	assert.NoError(t, err)
 }
@@ -888,6 +889,23 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "is not allowed")
+	})
+
+	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"s3://my-bucket/my-chart-values.yaml"},
+				},
+			},
+			HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"s3"}},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
 	})
 }
 
@@ -982,15 +1000,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp")
+	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp")
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "testapp", map[string]bool{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -1609,7 +1627,7 @@ func TestFindResources(t *testing.T) {
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
-			})
+			}, map[string]bool{})
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -1626,7 +1644,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
-	})
+	}, map[string]bool{})
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
 		return
@@ -1639,7 +1657,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
-	})
+	}, map[string]bool{})
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
 		return
@@ -1801,6 +1819,8 @@ func Test_isURLSchemeAllowed(t *testing.T) {
 		})
 	}
 }
+
+var allowedHelmRemoteProtocols = []string{"http", "https"}
 
 func Test_resolveHelmValueFilePath(t *testing.T) {
 	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {

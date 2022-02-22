@@ -22,6 +22,7 @@ export interface AppDetailsPreferences {
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    wrapLines: boolean;
     groupNodes?: boolean;
 }
 
@@ -108,7 +109,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false
     },
     appList: {
         view: 'tiles' as AppsListViewType,

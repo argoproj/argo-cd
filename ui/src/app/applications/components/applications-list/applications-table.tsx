@@ -2,7 +2,7 @@ import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -19,6 +19,7 @@ export const ApplicationsTable = (props: {
     deleteApplication: (appName: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
+    const ctxh = React.useContext(Context);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -29,6 +30,16 @@ export const ApplicationsTable = (props: {
         action: () => {
             reset();
             return selectedApp > -1 ? true : false;
+        }
+    });
+    useKeybinding({
+        keys: Key.ENTER,
+        action: () => {
+            if (selectedApp > -1) {
+                ctxh.navigation.goto(`/applications/${props.applications[selectedApp].metadata.name}`);
+                return true;
+            }
+            return false;
         }
     });
 

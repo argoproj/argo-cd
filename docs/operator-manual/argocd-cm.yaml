@@ -205,6 +205,13 @@ data:
       generate:
         command: [kasane, show]
 
+  # A set of settings that allow enabling or disabling the config management tool.
+  # If unset, each defaults to "true".
+  kustomize.enabled: true
+  jsonnet.enabled: true
+  helm.enabled: true
+  ksonnet.enabled: true
+
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
 
@@ -215,6 +222,10 @@ data:
   # Additional Kustomize versions and corresponding binary paths (deprecated)
   kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
   kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
+
+  # Comma delimited list of additional custom remote values file schemes (http are https are allowed by default).
+  # Change to empty value if you want to disable remote values files altogether.
+  helm.valuesFileSchemes: http, https
 
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
@@ -260,3 +271,6 @@ data:
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
+
+  # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
+  cluster.inClusterEnabled: "true"

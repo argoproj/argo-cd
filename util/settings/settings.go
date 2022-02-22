@@ -93,6 +93,8 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
+	// InClusterEnabled indicates whether to allow in-cluster server address
+	InClusterEnabled bool `json:"inClusterEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -392,6 +394,19 @@ const (
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
 	// settingsPasswordPatternKey is the key to configure user password regular expression
 	settingsPasswordPatternKey = "passwordPattern"
+	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
+	inClusterEnabledKey = "cluster.inClusterEnabled"
+	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
+	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
+)
+
+var (
+	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+		v1alpha1.ApplicationSourceTypeKsonnet:   "ksonnet.enable",
+	}
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -649,6 +664,25 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 	return plugins, nil
 }
 
+func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	res := map[string]bool{}
+	for sourceType := range sourceTypeToEnableGenerationKey {
+		res[string(sourceType)] = true
+	}
+	for sourceType, key := range sourceTypeToEnableGenerationKey {
+		if val, ok := argoCDCM.Data[key]; ok && val != "" {
+			res[string(sourceType)] = val == "true"
+		}
+	}
+	// plugin based manifest generation cannot be disabled
+	res[string(v1alpha1.ApplicationSourceTypePlugin)] = true
+	return res, nil
+}
+
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -817,6 +851,25 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 	}
 
 	return diffOptions, nil
+}
+
+// GetHelmSettings returns helm settings
+func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmOptions := &v1alpha1.HelmOptions{}
+	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
+		for _, item := range strings.Split(value, ",") {
+			if item := strings.TrimSpace(item); item != "" {
+				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
+			}
+		}
+	} else {
+		helmOptions.ValuesFileSchemes = []string{"https", "http"}
+	}
+	return helmOptions, nil
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
@@ -1195,6 +1248,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
