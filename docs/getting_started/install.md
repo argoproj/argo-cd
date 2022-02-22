@@ -240,7 +240,7 @@ to the chart's maintainers.
 
 ## Alternative installation methods
 
-You can also an infrastructure tool such as [Terraform](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs), [Pulumi](https://www.pulumi.com/registry/packages/kubernetes/) and [Crossplane](https://github.com/crossplane-contrib/provider-kubernetes) to manage your Argo CD installation.
+You can also use infrastructure tools such as [Terraform](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs), [Pulumi](https://www.pulumi.com/registry/packages/kubernetes/) or [Crossplane](https://github.com/crossplane-contrib/provider-kubernetes) to manage your Argo CD installation.
 
 !!! tip "Use Argo CD to manage itself"
     It is also possible to install an Argo CD instance and manage it with itself like any other Kubernetes application. You might find interesting the [Argo Autopilot project](https://argocd-autopilot.readthedocs.io/en/stable/) that does exactly that (among other features).
