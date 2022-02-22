@@ -697,7 +697,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p))
 }
 
-func printProject(p *v1alpha1.AppProject) {
+func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
 	const printProjFmtStr = "%-29s%s\n"
 
 	fmt.Printf(printProjFmtStr, "Name:", p.Name)
@@ -723,6 +723,16 @@ func printProject(p *v1alpha1.AppProject) {
 		fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
 	}
 
+	//Print scoped repositories
+	scr0 := "<none>"
+	if len(scopedRepositories) > 0 {
+		scr0 = scopedRepositories[0].Repo
+	}
+	fmt.Printf(printProjFmtStr, "Scoped Repositories:", scr0)
+	for i := 1; i < len(scopedRepositories); i++ {
+		fmt.Printf(printProjFmtStr, "", scopedRepositories[i].Repo)
+	}
+
 	// Print allowed cluster resources
 	cwl0 := "<none>"
 	if len(p.Spec.ClusterResourceWhitelist) > 0 {
@@ -731,6 +741,16 @@ func printProject(p *v1alpha1.AppProject) {
 	fmt.Printf(printProjFmtStr, "Allowed Cluster Resources:", cwl0)
 	for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
 		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
+	}
+
+	//Print scoped clusters
+	scc0 := "<none>"
+	if len(scopedClusters) > 0 {
+		scc0 = scopedClusters[0].Server
+	}
+	fmt.Printf(printProjFmtStr, "Scoped Clusters:", scc0)
+	for i := 1; i < len(scopedClusters); i++ {
+		fmt.Printf(printProjFmtStr, "", scopedClusters[i].Server)
 	}
 
 	// Print denied namespaced resources
@@ -774,15 +794,15 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
-			p, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			detailedProject, err := projIf.GetDetailedProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			switch output {
 			case "yaml", "json":
-				err := PrintResource(p, output)
+				err := PrintResource(detailedProject.Project, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printProject(p)
+				printProject(detailedProject.Project, detailedProject.Repositories, detailedProject.Clusters)
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
