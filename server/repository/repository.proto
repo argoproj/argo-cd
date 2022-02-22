@@ -16,6 +16,8 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 message RepoAppsQuery {
 	string repo = 1;
 	string revision = 2;
+	string appName = 3;
+	string appProject = 4;
 }
 
 
@@ -29,6 +31,7 @@ message AppInfo {
 message RepoAppDetailsQuery {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 	string appName = 2;
+	string appProject = 3;
 }
 
 // RepoAppsResponse contains applications of specified repository
