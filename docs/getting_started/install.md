@@ -249,4 +249,4 @@ You can also an infrastructure tool such as [Terraform](https://registry.terrafo
 ## Post installation
 
 After installation, you should take some time to
-[lockdown your installation](operations/security).
+[lockdown your installation](../../operations/security/).

@@ -137,5 +137,5 @@ cd myapps
 curl -sSL -o argocd.exe https://github.com/argoproj/argo-cd/releases/latest/download/argocd-windows-amd64.exe
 ```
 
-Then type `argocd version --client` to verify your CLI. Finally add the `myapps` folder to your Windows PATH variable (or any other folder).
+Then type `argocd version --client` to verify your CLI. Finally add the `myapps` folder to your Windows PATH variable.
 
