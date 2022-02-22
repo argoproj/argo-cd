@@ -43,7 +43,7 @@ export const Help = () => {
                                             &nbsp;
                                             {Object.keys(binaryUrls || {}).map(binaryName => {
                                                 const url = binaryUrls[binaryName];
-                                                const match = binaryName.match(/.*(darwin|windows)-(amd64|arm64)/);
+                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64)/);
                                                 const [platform, arch] = match ? match.slice(1) : ['', ''];
                                                 return (
                                                     <>
@@ -52,10 +52,11 @@ export const Help = () => {
                                                             <i
                                                                 className={classNames('fab', {
                                                                     'fa-windows': platform === 'windows',
-                                                                    'fa-apple': platform === 'darwin'
+                                                                    'fa-apple': platform === 'darwin',
+                                                                    'fa-linux': platform === 'linux'
                                                                 })}
-                                                            />{' '}
-                                                            {platform} {arch && `( ${arch} )`}
+                                                            />
+                                                            {` ${platform}`} {arch && `(${arch})`}
                                                         </a>
                                                     </>
                                                 );
