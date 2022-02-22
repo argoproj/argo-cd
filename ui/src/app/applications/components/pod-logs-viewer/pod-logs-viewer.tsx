@@ -168,6 +168,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
+                        <Tooltip content='Wrap Lines'>
+                            <button
+                                className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
+                                onClick={() => {
+                                    const wrap = prefs.appDetails.wrapLines;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
+                                }}>
+                                <i className='fa fa-paragraph' />
+                            </button>
+                        </Tooltip>
                         <Tooltip content='Show previous logs'>
                             <button
                                 className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
@@ -343,7 +353,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                             />
                                         </Tooltip>
                                     )}
-                                    <pre style={{height: '95%'}}>
+                                    <pre style={{height: '95%', whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'}}>
                                         <div ref={top} style={{height: '1px'}} />
                                         {lines.map((l, i) => {
                                             const lineNum = lastLine - i;
