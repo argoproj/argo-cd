@@ -306,7 +306,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 			return nil, errPermissionDenied
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
-		if !isSourceInHistory(app, q.Source) {
+		if !isSourceInHistory(app, *q.Source) {
 			return nil, errPermissionDenied
 		}
 	}
@@ -546,10 +546,7 @@ func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
 
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
-func isSourceInHistory(app *v1alpha1.Application, source *v1alpha1.ApplicationSource) bool {
-	if source == nil {
-		return true
-	}
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
 	if source.Equals(app.Spec.Source) {
 		return true
 	}
