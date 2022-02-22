@@ -7,17 +7,25 @@
 
 ## Requirements
 
-Argo CD is a Kubernetes-native application, and must be installed into a K8s
+Argo CD is a Kubernetes-native application, and must be installed into a Kubernetes 
 cluster in order to function properly. Regardless of which
 [installation type](#installation-types) or
 [installation methods](#installation-methods)
 you chose, you will need a target cluster running a supported version of
 Kubernetes, and you will need permissions to create resources in this cluster.
+
 Depending on which
 [installation type](#installation-types) you chose, the required permissions
 will vary.
 
-## TL;DR
+You need at least one cluster to install Argo CD, but you can later add other deployment targets that themselves do not need an Argo CD instance.
+
+
+
+## Quick installation for trying out Argo CD
+
+!!! warning 
+    This installation method is only useful for demos and prototypes.
 
 If you are impatient and just want to give Argo CD a quick try, make sure that
 your current `kubectl` context is pointing to the cluster you want to install
@@ -29,10 +37,20 @@ kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 ```
 
 This will install the current stable version of Argo CD into the `argocd`
-namespace of your Kubernetes cluster.
+namespace of your Kubernetes cluster. Then continue reading [the first steps](getting_started/first_steps/).
 
-If you are planning a production-grade installation, please skip this step and
-read further.
+## Production-Grade Installation
+
+When you are ready to use Argo CD in a production environment you have
+several installation options.
+
+For a production setup you should pay attention to extra aspects of your installation such as:
+
+* defining the correct resource limits
+* applying proper security constraints
+* setting up high availability
+* managing Argo CD upgrades
+* monitoring Argo CD itself 
 
 ## Installation types
 
@@ -105,7 +123,7 @@ which requires 3 replicas in order to function properly.
 
 This is the recommended flavour for production environments.
 
-## Installation
+## Installation process
 
 ### Pre-requisites
 
@@ -220,7 +238,15 @@ Also, please note that this is not an officially supported installation method.
 Please direct all questions or problems you face using the Helm chart directly
 to the chart's maintainers.
 
+## Alternative installation methods
+
+You can also an infrastructure tool such as [Terraform](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs), [Pulumi](https://www.pulumi.com/registry/packages/kubernetes/) and [Crossplane](https://github.com/crossplane-contrib/provider-kubernetes) to manage your Argo CD installation.
+
+!!! tip "Use Argo CD to manage itself"
+    It is also possible to install an Argo CD instance and manage it with itself like any other Kubernetes application. You might find interesting the [Argo Autopilot project](https://argocd-autopilot.readthedocs.io/en/stable/) that does exactly that (among other features).
+    It installs Argo CD and sets it up to manage itself.
+
 ## Post installation
 
 After installation, you should take some time to
-[lockdown your installation](/operations/security).
+[lockdown your installation](operations/security).
