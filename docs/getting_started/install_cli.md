@@ -118,4 +118,24 @@ argocd: v1.8.1+c2547dc
 
 ## Install on Windows
 
-To be written.
+You can also use the Argo CD CLI from a Windows machine.
+
+### Installation via WSL
+
+The easiest way to use the CLI from Windows is via the [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/about).
+
+First you need [to install WSL 1 or 2](https://docs.microsoft.com/en-us/windows/wsl/install) on your Windows machine. Then you can install the Argo CD CLI by following the instructions at the [linux section above](#install-on-linux).
+
+### Manual installation
+
+You can install the native Windows CLI to any folder of your choosing. Open a terminal by typing `cmd` in your start menu and enter the following:
+
+```shell
+cd c:\
+md myapps
+cd myapps
+curl -sSL -o argocd.exe https://github.com/argoproj/argo-cd/releases/latest/download/argocd-windows-amd64.exe
+```
+
+Then type `argocd version --client` to verify your CLI. Finally add the `myapps` folder to your Windows PATH variable (or any other folder).
+
