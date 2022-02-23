@@ -7,6 +7,11 @@ ignore:
         reason: >-
           Code is only run client-side in the swagger-ui endpoint. No risk of
           server-side DoS.
-        expires: 2022-03-25T15:07:35.569Z
-        created: 2022-02-23T15:07:35.570Z
+  SNYK-CC-K8S-44:
+    - 'manifests/core-install.yaml > *':
+        reason: >-
+          Argo CD needs wide permissions to manage resources.
+    - 'manifests/install.yaml > *':
+        reason: >-
+          Argo CD needs wide permissions to manage resources.
 patch: {}

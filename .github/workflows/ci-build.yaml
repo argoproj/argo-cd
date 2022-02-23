@@ -444,24 +444,32 @@ jobs:
       - name: Lint docs
         run: |
           make lint-docs
-  snyk-golang:
+  snyk:
     runs-on: ubuntu-latest
     env:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - uses: actions/checkout@master
-      - name: Run Snyk to check for vulnerabilities
+      - name: Run Snyk to check for Go vulnerabilities
         uses: snyk/actions/golang@master
         with:
           args: --severity-threshold=high
-  snyk-node:
-    runs-on: ubuntu-latest
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-    steps:
-      - uses: actions/checkout@master
-      - run: yarn --cwd ui install
-      - name: Run Snyk to check for vulnerabilities
+      - name: Run Snyk to check for Node vulnerabilities
         uses: snyk/actions/node@master
         with:
           args: --file=ui/package.json --severity-threshold=high --policy-path=.snyk
+      - name: Run Snyk to check Kubernetes install.yaml manifest file for issues
+        uses: snyk/actions/iac@master
+        with:
+          file: manifests/install.yaml
+          args: --severity-threshold=high --policy-path=.
+      - name: Run Snyk to check Kubernetes core-install.yaml manifest file for issues
+        uses: snyk/actions/iac@master
+        with:
+          file: manifests/core-install.yaml
+          args: --severity-threshold=high --policy-path=.
+      - name: Run Snyk to check Kubernetes namespace-install.yaml manifest file for issues
+        uses: snyk/actions/iac@master
+        with:
+          file: manifests/namespace-install.yaml
+          args: --severity-threshold=high --policy-path=.
