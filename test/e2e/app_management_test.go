@@ -901,7 +901,9 @@ func TestKsonnetApp(t *testing.T) {
 			defer io.Close(closer)
 
 			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
-				Source: &app.Spec.Source,
+				AppName:    app.Name,
+				AppProject: app.Spec.Project,
+				Source:     &app.Spec.Source,
 			})
 			assert.NoError(t, err)
 

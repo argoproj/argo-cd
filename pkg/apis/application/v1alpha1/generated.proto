@@ -608,6 +608,11 @@ message HelmFileParameter {
   optional string path = 2;
 }
 
+// HelmOptions holds helm options
+message HelmOptions {
+  repeated string valuesFileSchemes = 1;
+}
+
 // HelmParameter is a parameter that's passed to helm template during manifest generation
 message HelmParameter {
   // Name is the name of the Helm parameter

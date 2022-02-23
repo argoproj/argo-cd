@@ -282,6 +282,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		untilTime    string
 		filter       string
 		container    string
+		previous     bool
 	)
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
@@ -311,6 +312,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					UntilTime:    &untilTime,
 					Filter:       &filter,
 					Container:    container,
+					Previous:     previous,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -352,6 +354,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&untilTime, "until-time", "", "Show logs until this time")
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
 	command.Flags().StringVar(&container, "container", "", "Optional container name")
+	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
 
 	return command
 }
@@ -772,7 +775,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true)
+	}, true, &git.NoopCredsStore{})
 	errors.CheckError(err)
 
 	return res.Manifests
