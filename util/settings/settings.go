@@ -402,8 +402,6 @@ const (
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
-	// settingsServerRBACLogEnforceEnable is a temp param, it exists in order to mitigate the breaking change introduced by RBAC enforcing on app pod logs
-	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 )
 
 var (
