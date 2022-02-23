@@ -444,3 +444,24 @@ jobs:
       - name: Lint docs
         run: |
           make lint-docs
+  snyk-golang:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/golang@master
+        with:
+          args: --severity-threshold=high
+  snyk-node:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@master
+      - run: yarn --cwd ui install
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        with:
+          args: --file=ui/package.json --severity-threshold=high --policy-path=.snyk
