@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -24,7 +22,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
@@ -33,6 +33,7 @@ import (
 type ArgoCDRepoServer struct {
 	log           *log.Entry
 	metricsServer *metrics.MetricsServer
+	gitCredsStore git.CredsStore
 	cache         *reposervercache.Cache
 	opts          []grpc.ServerOption
 	initConstants repository.RepoServerInitConstants
@@ -42,7 +43,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList []string = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 
 	// Generate or load TLS server certificates to use with this instance of
@@ -85,6 +86,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		cache:         cache,
 		initConstants: initConstants,
 		opts:          serverOpts,
+		gitCredsStore: gitCredsStore,
 	}, nil
 }
 
@@ -94,7 +96,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking())
+	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking(), a.gitCredsStore)
 	apiclient.RegisterRepoServerServiceServer(server, manifestService)
 
 	healthService := health.NewServer()
