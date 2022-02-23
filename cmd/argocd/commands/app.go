@@ -775,7 +775,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true)
+	}, true, &git.NoopCredsStore{})
 	errors.CheckError(err)
 
 	return res.Manifests
