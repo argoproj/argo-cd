@@ -7,13 +7,11 @@ if obj.status ~= nil then
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
-      end
-      if condition.type == "SubmissionError" and condition.status == "True" then
+      elseif condition.type == "SubmissionError" and condition.status == "True" then
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
-      end
-      if condition.type == "Completed" and condition.status == "True" then
+      elseif condition.type == "Completed" and condition.status == "True" then
         hs.status = "Healthy"
         hs.message = condition.message
         return hs
@@ -22,6 +20,7 @@ if obj.status ~= nil then
   end
 end
 
-hs.status = "Progressing"
-hs.message = "CronWorkflow is working on executing workflows."
+hs.status = "Healthy"
+hs.message = "CronWorkflow is healthy."
+
 return hs
