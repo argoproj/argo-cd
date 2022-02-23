@@ -26,7 +26,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\"}}}"`},
 				},
 			},
 		).
@@ -45,17 +45,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Equal(t, "argocd", output)
 		})
 }
 
@@ -89,17 +79,17 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
+			assert.Equal(t, "argocd", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
+			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Empty(t, output)
 		})
 }
 
