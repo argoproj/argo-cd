@@ -45,10 +45,15 @@ message ConfigResponse {
     bool lockRepo = 2;
 }
 
+message File {
+    bytes chunk = 1;
+}
+
 // ConfigManagementPlugin Service
 service ConfigManagementPluginService {
-    // GenerateManifest generates manifest for application in specified repo name and revision
-    rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    // GenerateManifests receive a stream containing a tgz archive with all required files necessary
+    // to generate manifests
+    rpc GenerateManifest(stream File) returns (ManifestResponse) {
     }
 
     // MatchRepository returns whether or not the given path is supported by the plugin
