@@ -39,7 +39,6 @@ func TestAppType(t *testing.T) {
 func TestAppType_Disabled(t *testing.T) {
 	enableManifestGeneration := map[string]bool{
 		string(v1alpha1.ApplicationSourceTypeKustomize): false,
-		string(v1alpha1.ApplicationSourceTypeKsonnet):   false,
 		string(v1alpha1.ApplicationSourceTypeHelm):      false,
 	}
 	appType, err := AppType(context.Background(), "./testdata/foo", enableManifestGeneration)
