@@ -12,6 +12,10 @@ tests:
       message: "there is a submission error"
     inputPath: testdata/degradedCronWorkflowWithSubmissionError.yaml
   - healthStatus:
-      status: Progressing
-      message: "CronWorkflow is working on executing workflows."
+      status: Healthy
+      message: "CronWorkflow is healthy."
     inputPath: testdata/noConditionsCronWorkflow.yaml
+  - healthStatus:
+      status: Healthy
+      message: "CronWorkflow is healthy."
+    inputPath: testdata/withConditionButHealthyCronWorkflow.yaml
