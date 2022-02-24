@@ -40,6 +40,12 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 
+On Windows, you can use the [Scoop package manager](https://scoop.sh) to install Argo CD CLI from the `main` bucket.
+
+```
+scoop install argocd
+```
+
 ## 3. Access The Argo CD API Server
 
 By default, the Argo CD API server is not exposed with an external IP. To access the API server,
