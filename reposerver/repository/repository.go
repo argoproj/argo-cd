@@ -254,7 +254,7 @@ func (s *Service) runRepoOperation(
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure randomized path replaced with '.' in the error message
-		sanitizer.AddRegexReplacement(regexp.MustCompile(`(`+s.rootDir+`/.*?)/`), ".")
+		sanitizer.AddRegexReplacement(regexp.MustCompile(`(`+regexp.QuoteMeta(s.rootDir)+`/.*?)/`), ".")
 	}
 
 	var gitClient git.Client
