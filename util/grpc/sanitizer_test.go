@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,6 +22,19 @@ func TestSanitizer(t *testing.T) {
 
 	res := s.Replace("error at /my-random/path/sub-dir: something went wrong")
 	assert.Equal(t, "error at ./sub-dir: something went wrong", res)
+}
+
+func TestSanitizer_RegexReplacement(t *testing.T) {
+	s := NewSanitizer()
+
+	ctx := ContextWithSanitizer(context.TODO(), s)
+
+	sanitizer, ok := SanitizerFromContext(ctx)
+	require.True(t, ok)
+
+	sanitizer.AddRegexReplacement(regexp.MustCompile("(/my-random/path)"), ".")
+	res := s.Replace("error at /my-random/path/something: something went wrong")
+	assert.Equal(t, "error at ./something: something went wrong", res)
 }
 
 func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {

@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -46,28 +47,36 @@ func SanitizerFromContext(ctx context.Context) (Sanitizer, bool) {
 type Sanitizer interface {
 	Replace(s string) string
 	AddReplacement(val string, replacement string)
+	AddRegexReplacement(regex *regexp.Regexp, replacement string)
 }
 
 type sanitizer struct {
-	replacements map[string]string
+	replacers []func(in string) string
 }
 
 // NewSanitizer returns a new Sanitizer instance
 func NewSanitizer() *sanitizer {
-	return &sanitizer{
-		replacements: map[string]string{},
-	}
+	return &sanitizer{}
 }
 
 // AddReplacement adds a replacement to the Sanitizer
 func (s *sanitizer) AddReplacement(val string, replacement string) {
-	s.replacements[val] = replacement
+	s.replacers = append(s.replacers, func(in string) string {
+		return strings.Replace(in, val, replacement, -1)
+	})
+}
+
+// AddRegexReplacement adds a replacement to the sanitizer using regexp
+func (s *sanitizer) AddRegexReplacement(regex *regexp.Regexp, replacement string) {
+	s.replacers = append(s.replacers, func(in string) string {
+		return regex.ReplaceAllString(in, replacement)
+	})
 }
 
 // Replace replaces all occurrences of the configured values in the sanitizer with the replacements
 func (s *sanitizer) Replace(val string) string {
-	for k, v := range s.replacements {
-		val = strings.Replace(val, k, v, -1)
+	for _, replacer := range s.replacers {
+		val = replacer(val)
 	}
 	return val
 }

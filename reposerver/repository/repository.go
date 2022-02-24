@@ -158,7 +158,7 @@ func (s *Service) Init() error {
 
 // List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	gitClient, err := s.newClient(ctx, q.Repo)
+	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*
 
 // ListApps lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +252,11 @@ func (s *Service) runRepoOperation(
 	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
 	settings operationSettings) error {
 
+	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
+		// make sure randomized path replaced with '.' in the error message
+		sanitizer.AddRegexReplacement(regexp.MustCompile(`(`+s.rootDir+`/.*?)/`), ".")
+	}
+
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
@@ -262,7 +267,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 	} else {
-		gitClient, revision, err = s.newClientResolveRevision(ctx, repo, revision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
 		if err != nil {
 			return err
 		}
@@ -1663,7 +1668,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		}
 	}
 
-	gitClient, _, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
+	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -1719,14 +1724,10 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
-func (s *Service) newClient(ctx context.Context, repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
+func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
 	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
-	}
-	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
-		// make sure randomized path replaced with '.' in the error message
-		sanitizer.AddReplacement(repoPath, ".")
 	}
 	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, opts...)
@@ -1734,8 +1735,8 @@ func (s *Service) newClient(ctx context.Context, repo *v1alpha1.Repository, opts
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error) {
-	gitClient, err := s.newClient(ctx, repo, opts...)
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error) {
+	gitClient, err := s.newClient(repo, opts...)
 	if err != nil {
 		return nil, "", err
 	}
