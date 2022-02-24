@@ -102,6 +102,7 @@ message RepoServerAppDetailsQuery {
     bool noRevisionCache = 7;
     string trackingMethod = 8;
     map<string, bool> enabledSourceTypes = 9;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
 }
 
 // RepoAppDetailsResponse application details
