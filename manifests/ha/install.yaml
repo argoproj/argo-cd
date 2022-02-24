@@ -10996,6 +10996,8 @@ spec:
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
+        - name: ARGOCD_CONTROLLER_REPLICAS
+          value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
