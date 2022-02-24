@@ -345,17 +345,11 @@ func isTransientNetworkErr(err error) bool {
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
-	if strings.Contains(errorString, "net/http: TLS handshake timeout") {
-		// If error is tlsHandshakeTimeoutError, retry.
-		return true
-	} else if strings.Contains(errorString, "i/o timeout") {
-		// If error is tcp timeoutError, retry.
-		return true
-	} else if strings.Contains(errorString, "connection timed out") {
-		// If err is a net.Dial timeout, retry.
+	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
+		strings.Contains(errorString, "i/o timeout") ||
+		strings.Contains(errorString, "connection timed out") {
 		return true
 	}
-
 	return false
 }
 
