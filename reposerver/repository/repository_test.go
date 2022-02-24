@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
@@ -72,7 +73,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{})
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, os.TempDir())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -82,11 +83,14 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
+	}
+	service.gitRepoInitializer = func(rootPath string) goio.Closer {
+		return io.NopCloser
 	}
 	return service, gitClient
 }
@@ -118,7 +122,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Root").Return(root)
 	})
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -1903,4 +1907,68 @@ func Test_resolveHelmValueFilePath(t *testing.T) {
 		assert.False(t, remote)
 		assert.Equal(t, "", p)
 	})
+}
+
+func TestDirectoryPermissionInitializer(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	file, err := ioutil.TempFile(dir, "")
+	require.NoError(t, err)
+	io.Close(file)
+
+	// remove read permissions
+	assert.NoError(t, os.Chmod(dir, 0000))
+	closer := directoryPermissionInitializer(dir)
+
+	// make sure permission are restored
+	_, err = ioutil.ReadFile(file.Name())
+	require.NoError(t, err)
+
+	// make sure permission are removed by closer
+	io.Close(closer)
+	_, err = ioutil.ReadFile(file.Name())
+	require.Error(t, err)
+}
+
+func initGitRepo(repoPath string, remote string) error {
+	if err := os.Mkdir(repoPath, 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("git", "init", repoPath)
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	cmd = exec.Command("git", "remote", "add", "origin", remote)
+	cmd.Dir = repoPath
+	return cmd.Run()
+}
+
+func TestInit(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	repoPath := path.Join(dir, "repo1")
+	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
+
+	service := newService(".")
+	service.rootDir = dir
+
+	require.NoError(t, service.Init())
+
+	repo1Path, err := service.gitRepoPaths.GetPath(git.NormalizeGitURL("https://github.com/argo-cd/test-repo1"))
+	assert.NoError(t, err)
+	assert.Equal(t, repoPath, repo1Path)
+
+	_, err = ioutil.ReadDir(dir)
+	require.Error(t, err)
+	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }

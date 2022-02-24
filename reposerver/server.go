@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -32,6 +33,7 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log           *log.Entry
+	repoService   *repository.Service
 	metricsServer *metrics.MetricsServer
 	gitCredsStore git.CredsStore
 	cache         *reposervercache.Cache
@@ -65,7 +67,12 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		grpc_logrus.UnaryServerInterceptor(serverLog),
+		grpc_prometheus.UnaryServerInterceptor,
+		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
+		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
+	}
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
@@ -79,6 +86,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
+	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	if err := repoService.Init(); err != nil {
+		return nil, err
+	}
 
 	return &ArgoCDRepoServer{
 		log:           serverLog,
@@ -87,6 +98,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		initConstants: initConstants,
 		opts:          serverOpts,
 		gitCredsStore: gitCredsStore,
+		repoService:   repoService,
 	}, nil
 }
 
@@ -96,8 +108,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking(), a.gitCredsStore)
-	apiclient.RegisterRepoServerServiceServer(server, manifestService)
+	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)
