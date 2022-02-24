@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
@@ -156,14 +158,19 @@
 
 .copySuccess {
     // ARGO_SUCCESS_COLOR
-    background-color: #18BE94 !important;
+    background-color: #18be94 !important;
 }
 .copyFailure {
     // ARGO_FAILED_COLOR
-    background-color: #E96D76 !important;
+    background-color: #e96d76 !important;
 }
 .copyStandard {
-    background-color: #6D7F8B !important;
+    background-color: #6d7f8b !important;
+}
+
+.container-item {
+    font-size: 0.9em;
+    color: $argo-color-teal-5;
 }
 
 code {
