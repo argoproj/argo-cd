@@ -421,6 +421,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				KustomizeOptions: kustomizeOptions,
 				Repos:            helmRepos,
 				NoCache:          true,
+				HelmOptions:      helmOptions,
 			})
 			return err
 		}); err != nil {
