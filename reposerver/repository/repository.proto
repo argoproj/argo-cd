@@ -85,6 +85,7 @@ message RepoServerAppDetailsQuery {
     bool noCache = 6;
     bool noRevisionCache = 7;
     string trackingMethod = 8;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
 }
 
 // RepoAppDetailsResponse application details

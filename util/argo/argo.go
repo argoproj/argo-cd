@@ -252,6 +252,7 @@ func ValidateRepo(
 		// don't use case during application change to make sure to fetch latest git/helm revisions
 		NoRevisionCache: true,
 		TrackingMethod:  string(GetTrackingMethod(settingsMgr)),
+		HelmOptions:     helmOptions,
 	})
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
