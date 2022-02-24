@@ -29,8 +29,8 @@ argocd app sync [APPNAME... | -l selector] [flags]
 ### Options
 
 ```
+      --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing
-      --diff-changes                          Preview difference against the target and live state before syncing app and wait for user confirmation
       --dry-run                               Preview apply without affecting cluster
       --force                                 Use a force apply
   -h, --help                                  help for sync
@@ -38,6 +38,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --label stringArray                     Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
       --prune                                 Allow deleting unexpected resources
       --replace                               Use a kubectl create/replace instead apply
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
@@ -49,7 +50,6 @@ argocd app sync [APPNAME... | -l selector] [flags]
   -l, --selector string                       Sync apps that match this label
       --strategy string                       Sync strategy (one of: apply|hook)
       --timeout uint                          Time out after this many seconds
-      --yes                                   To be used with --diff-changes for auto confirmation to sync app after a preview of diff against the target and live state before syncing app
 ```
 
 ### Options inherited from parent commands

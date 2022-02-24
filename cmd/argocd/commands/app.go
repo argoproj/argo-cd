@@ -842,7 +842,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
-			foundDiffs := false
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
@@ -867,7 +866,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.localRepoRoot = localRepoRoot
 				diffOption.cluster = cluster
 			}
-			findandPrintDiff(app, resources, argoSettings, appName, &foundDiffs, diffOption)
+			foundDiffs := findandPrintDiff(app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
@@ -891,7 +890,9 @@ type DifferenceOption struct {
 	res           *repoapiclient.ManifestResponse
 }
 
-func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, foundDiffs *bool, diffOptions *DifferenceOption) {
+// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
+func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
+	var foundDiffs bool
 	liveObjs, err := liveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
@@ -945,7 +946,7 @@ func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.Mana
 		errors.CheckError(err)
 
 		if diffRes.Modified || item.target == nil || item.live == nil {
-			fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
+			fmt.Printf("\n===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 			var live *unstructured.Unstructured
 			var target *unstructured.Unstructured
 			if item.target != nil && item.live != nil {
@@ -957,11 +958,13 @@ func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.Mana
 				live = item.live
 				target = item.target
 			}
-
-			*foundDiffs = true
+			if !foundDiffs {
+				foundDiffs = true
+			}
 			_ = cli.PrintDiff(item.key.Name, live, target)
 		}
 	}
+	return foundDiffs
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName string) []objKeyLiveTarget {
@@ -1404,7 +1407,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				selectedResources := parseSelectedResources(resources)
 
 				var localObjsStrings []string
-				var diffOption *DifferenceOption
+				diffOption := &DifferenceOption{}
 				if local != "" {
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
@@ -1424,9 +1427,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					argoio.Close(conn)
 					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
-					if diffOption == nil {
-						diffOption = &DifferenceOption{}
-					}
 					errors.CheckError(err)
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
@@ -1489,12 +1489,17 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 					errors.CheckError(err)
 					foundDiffs := false
-					findandPrintDiff(app, resources, argoSettings, appName, &foundDiffs, diffOption)
-					if foundDiffs && !diffChangesConfirm {
-						yesno := cli.AskToProceed("Confirm to Sync Application y/n :")
-						if !yesno {
-							os.Exit(0)
+					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appName)
+					foundDiffs = findandPrintDiff(app, resources, argoSettings, appName, diffOption)
+					if foundDiffs {
+						if !diffChangesConfirm {
+							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n) :", appName))
+							if !yesno {
+								os.Exit(0)
+							}
 						}
+					} else {
+						fmt.Printf("====== No Differences found ======\n")
 					}
 				}
 				ctx := context.Background()
@@ -1538,8 +1543,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
-	command.Flags().BoolVar(&diffChangesConfirm, "yes", false, "To be used with --diff-changes for auto confirmation to sync app after a preview of diff against the target and live state before syncing app")
-	command.Flags().BoolVar(&diffChanges, "diff-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
+	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
+	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	return command
 }
 
