@@ -29,15 +29,13 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // ManifestRequest is a query for manifest generation.
 type ManifestRequest struct {
-	// Name of the application for which the request is triggered
-	AppName              string      `protobuf:"bytes,1,opt,name=appName,proto3" json:"appName,omitempty"`
-	AppPath              string      `protobuf:"bytes,2,opt,name=appPath,proto3" json:"appPath,omitempty"`
-	RepoPath             string      `protobuf:"bytes,3,opt,name=repoPath,proto3" json:"repoPath,omitempty"`
-	NoCache              bool        `protobuf:"varint,4,opt,name=noCache,proto3" json:"noCache,omitempty"`
-	Env                  []*EnvEntry `protobuf:"bytes,5,rep,name=env,proto3" json:"env,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	// Types that are valid to be assigned to Request:
+	//	*ManifestRequest_Metadata
+	//	*ManifestRequest_File
+	Request              isManifestRequest_Request `protobuf_oneof:"request"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
 func (m *ManifestRequest) Reset()         { *m = ManifestRequest{} }
@@ -73,35 +71,108 @@ func (m *ManifestRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ManifestRequest proto.InternalMessageInfo
 
-func (m *ManifestRequest) GetAppName() string {
+type isManifestRequest_Request interface {
+	isManifestRequest_Request()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type ManifestRequest_Metadata struct {
+	Metadata *ManifestRequestMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof" json:"metadata,omitempty"`
+}
+type ManifestRequest_File struct {
+	File *File `protobuf:"bytes,2,opt,name=file,proto3,oneof" json:"file,omitempty"`
+}
+
+func (*ManifestRequest_Metadata) isManifestRequest_Request() {}
+func (*ManifestRequest_File) isManifestRequest_Request()     {}
+
+func (m *ManifestRequest) GetRequest() isManifestRequest_Request {
+	if m != nil {
+		return m.Request
+	}
+	return nil
+}
+
+func (m *ManifestRequest) GetMetadata() *ManifestRequestMetadata {
+	if x, ok := m.GetRequest().(*ManifestRequest_Metadata); ok {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (m *ManifestRequest) GetFile() *File {
+	if x, ok := m.GetRequest().(*ManifestRequest_File); ok {
+		return x.File
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ManifestRequest) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*ManifestRequest_Metadata)(nil),
+		(*ManifestRequest_File)(nil),
+	}
+}
+
+type ManifestRequestMetadata struct {
+	AppName              string      `protobuf:"bytes,1,opt,name=appName,proto3" json:"appName,omitempty"`
+	Checksum             string      `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	Env                  []*EnvEntry `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *ManifestRequestMetadata) Reset()         { *m = ManifestRequestMetadata{} }
+func (m *ManifestRequestMetadata) String() string { return proto.CompactTextString(m) }
+func (*ManifestRequestMetadata) ProtoMessage()    {}
+func (*ManifestRequestMetadata) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b21875a7079a06ed, []int{1}
+}
+func (m *ManifestRequestMetadata) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ManifestRequestMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ManifestRequestMetadata.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ManifestRequestMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ManifestRequestMetadata.Merge(m, src)
+}
+func (m *ManifestRequestMetadata) XXX_Size() int {
+	return m.Size()
+}
+func (m *ManifestRequestMetadata) XXX_DiscardUnknown() {
+	xxx_messageInfo_ManifestRequestMetadata.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ManifestRequestMetadata proto.InternalMessageInfo
+
+func (m *ManifestRequestMetadata) GetAppName() string {
 	if m != nil {
 		return m.AppName
 	}
 	return ""
 }
 
-func (m *ManifestRequest) GetAppPath() string {
+func (m *ManifestRequestMetadata) GetChecksum() string {
 	if m != nil {
-		return m.AppPath
+		return m.Checksum
 	}
 	return ""
 }
 
-func (m *ManifestRequest) GetRepoPath() string {
-	if m != nil {
-		return m.RepoPath
-	}
-	return ""
-}
-
-func (m *ManifestRequest) GetNoCache() bool {
-	if m != nil {
-		return m.NoCache
-	}
-	return false
-}
-
-func (m *ManifestRequest) GetEnv() []*EnvEntry {
+func (m *ManifestRequestMetadata) GetEnv() []*EnvEntry {
 	if m != nil {
 		return m.Env
 	}
@@ -123,7 +194,7 @@ func (m *EnvEntry) Reset()         { *m = EnvEntry{} }
 func (m *EnvEntry) String() string { return proto.CompactTextString(m) }
 func (*EnvEntry) ProtoMessage()    {}
 func (*EnvEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{1}
+	return fileDescriptor_b21875a7079a06ed, []int{2}
 }
 func (m *EnvEntry) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -178,7 +249,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{2}
+	return fileDescriptor_b21875a7079a06ed, []int{3}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -233,7 +304,7 @@ func (m *RepositoryRequest) Reset()         { *m = RepositoryRequest{} }
 func (m *RepositoryRequest) String() string { return proto.CompactTextString(m) }
 func (*RepositoryRequest) ProtoMessage()    {}
 func (*RepositoryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{3}
+	return fileDescriptor_b21875a7079a06ed, []int{4}
 }
 func (m *RepositoryRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -287,7 +358,7 @@ func (m *RepositoryResponse) Reset()         { *m = RepositoryResponse{} }
 func (m *RepositoryResponse) String() string { return proto.CompactTextString(m) }
 func (*RepositoryResponse) ProtoMessage()    {}
 func (*RepositoryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{4}
+	return fileDescriptor_b21875a7079a06ed, []int{5}
 }
 func (m *RepositoryResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -333,7 +404,7 @@ func (m *ConfigRequest) Reset()         { *m = ConfigRequest{} }
 func (m *ConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*ConfigRequest) ProtoMessage()    {}
 func (*ConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{5}
+	return fileDescriptor_b21875a7079a06ed, []int{6}
 }
 func (m *ConfigRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -374,7 +445,7 @@ func (m *ConfigResponse) Reset()         { *m = ConfigResponse{} }
 func (m *ConfigResponse) String() string { return proto.CompactTextString(m) }
 func (*ConfigResponse) ProtoMessage()    {}
 func (*ConfigResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{6}
+	return fileDescriptor_b21875a7079a06ed, []int{7}
 }
 func (m *ConfigResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -428,7 +499,7 @@ func (m *File) Reset()         { *m = File{} }
 func (m *File) String() string { return proto.CompactTextString(m) }
 func (*File) ProtoMessage()    {}
 func (*File) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{7}
+	return fileDescriptor_b21875a7079a06ed, []int{8}
 }
 func (m *File) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -466,6 +537,7 @@ func (m *File) GetChunk() []byte {
 
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "plugin.ManifestRequest")
+	proto.RegisterType((*ManifestRequestMetadata)(nil), "plugin.ManifestRequestMetadata")
 	proto.RegisterType((*EnvEntry)(nil), "plugin.EnvEntry")
 	proto.RegisterType((*ManifestResponse)(nil), "plugin.ManifestResponse")
 	proto.RegisterType((*RepositoryRequest)(nil), "plugin.RepositoryRequest")
@@ -478,40 +550,42 @@ func init() {
 func init() { proto.RegisterFile("cmpserver/plugin/plugin.proto", fileDescriptor_b21875a7079a06ed) }
 
 var fileDescriptor_b21875a7079a06ed = []byte{
-	// 523 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x53, 0xd1, 0x6e, 0xd3, 0x3c,
-	0x14, 0xfe, 0xb3, 0x76, 0xfb, 0xdb, 0xb3, 0x41, 0x8b, 0x05, 0x28, 0x44, 0x5b, 0x55, 0xe5, 0xaa,
-	0x42, 0xa2, 0x11, 0x05, 0x21, 0xae, 0x10, 0x5a, 0x35, 0x26, 0x81, 0x86, 0xaa, 0x8c, 0x0b, 0xc4,
-	0x9d, 0xe7, 0x9e, 0xa5, 0xa6, 0xa9, 0x6d, 0x1c, 0x27, 0xa8, 0x4f, 0xc3, 0xeb, 0x70, 0xc9, 0x23,
-	0xa0, 0xbe, 0x00, 0xaf, 0x80, 0x92, 0xd8, 0x4d, 0xd9, 0x10, 0x57, 0xf5, 0xf7, 0x9d, 0x9e, 0x2f,
-	0xdf, 0x77, 0x8e, 0x0d, 0x27, 0x6c, 0xa5, 0x32, 0xd4, 0x05, 0xea, 0x48, 0xa5, 0x79, 0xc2, 0x85,
-	0xfd, 0x19, 0x2b, 0x2d, 0x8d, 0x24, 0x07, 0x35, 0x0a, 0xc2, 0xe5, 0xcb, 0x6c, 0xcc, 0x65, 0x44,
-	0x15, 0x8f, 0x98, 0xd4, 0x18, 0x15, 0x4f, 0xa3, 0x04, 0x05, 0x6a, 0x6a, 0x70, 0x5e, 0xff, 0x37,
-	0xfc, 0xe6, 0x41, 0xef, 0x82, 0x0a, 0x7e, 0x8d, 0x99, 0x89, 0xf1, 0x4b, 0x8e, 0x99, 0x21, 0x3e,
-	0xfc, 0x4f, 0x95, 0x7a, 0x4f, 0x57, 0xe8, 0x7b, 0x43, 0x6f, 0xd4, 0x8d, 0x1d, 0xb4, 0x95, 0x19,
-	0x35, 0x0b, 0x7f, 0x6f, 0x5b, 0x29, 0x21, 0x09, 0xa0, 0xa3, 0x51, 0xc9, 0xaa, 0xd4, 0xaa, 0x4a,
-	0x5b, 0x5c, 0x76, 0x09, 0x39, 0xa5, 0x6c, 0x81, 0x7e, 0x7b, 0xe8, 0x8d, 0x3a, 0xb1, 0x83, 0x24,
-	0x84, 0x16, 0x8a, 0xc2, 0xdf, 0x1f, 0xb6, 0x46, 0x87, 0x93, 0xfe, 0xd8, 0xa6, 0x38, 0x13, 0xc5,
-	0x99, 0x30, 0x7a, 0x1d, 0x97, 0xc5, 0xf0, 0x39, 0x74, 0x1c, 0x41, 0x08, 0xb4, 0x45, 0x63, 0xab,
-	0x3a, 0x93, 0xfb, 0xb0, 0x5f, 0xd0, 0x34, 0x47, 0xeb, 0xa8, 0x06, 0xe1, 0x0c, 0xfa, 0x4d, 0xac,
-	0x4c, 0x49, 0x91, 0x21, 0x39, 0x86, 0xee, 0xca, 0x72, 0x99, 0xef, 0x0d, 0x5b, 0xa3, 0x6e, 0xdc,
-	0x10, 0x64, 0x00, 0x90, 0xc9, 0x5c, 0x33, 0xfc, 0xb0, 0x56, 0x4e, 0x6c, 0x87, 0x09, 0xdf, 0xc1,
-	0xbd, 0x18, 0x95, 0xcc, 0xb8, 0x91, 0x7a, 0xed, 0x46, 0x45, 0xa0, 0xad, 0xca, 0xc8, 0xd6, 0x50,
-	0x79, 0x76, 0xa1, 0xf6, 0xfe, 0x15, 0xea, 0x05, 0x90, 0x5d, 0x31, 0x6b, 0x70, 0x08, 0x87, 0x3c,
-	0xbb, 0xcc, 0x95, 0x92, 0xda, 0xe0, 0xbc, 0x12, 0xed, 0xc4, 0xbb, 0x54, 0xd8, 0x83, 0x3b, 0x53,
-	0x29, 0xae, 0x79, 0x62, 0x0d, 0x84, 0x1f, 0xe1, 0xae, 0x23, 0xac, 0xc8, 0x63, 0xe8, 0xd3, 0x34,
-	0x95, 0x5f, 0xa7, 0x52, 0xb0, 0x5c, 0x6b, 0x14, 0x6c, 0x6d, 0x95, 0x6e, 0xf1, 0xe5, 0xd6, 0x52,
-	0xc9, 0x96, 0xa5, 0x95, 0x2a, 0x71, 0x27, 0xde, 0xe2, 0xf0, 0x18, 0xda, 0x6f, 0x78, 0x5a, 0xcd,
-	0x97, 0x2d, 0x72, 0xb1, 0xac, 0x44, 0x8e, 0xe2, 0x1a, 0x4c, 0x7e, 0x79, 0x70, 0x52, 0x7f, 0xf8,
-	0x82, 0x0a, 0x9a, 0xe0, 0x0a, 0x85, 0x99, 0x55, 0x49, 0x2f, 0x51, 0x17, 0x9c, 0x21, 0x79, 0x05,
-	0xfd, 0x73, 0x7b, 0xd9, 0xdc, 0x26, 0xc8, 0x91, 0x9b, 0x46, 0xa9, 0x1c, 0xf8, 0x0e, 0xdd, 0xdc,
-	0x54, 0xf8, 0xdf, 0xc8, 0x23, 0x6f, 0xcb, 0x8b, 0x69, 0xd8, 0xa2, 0x99, 0x13, 0x79, 0xe4, 0x1a,
-	0x6e, 0x2d, 0x22, 0x08, 0xfe, 0x56, 0x72, 0x6a, 0xe4, 0x14, 0x7a, 0xe7, 0x68, 0xfd, 0xd5, 0xae,
-	0xc9, 0x03, 0xd7, 0xf0, 0xc7, 0x3c, 0x83, 0x87, 0x37, 0x69, 0xa7, 0x71, 0xfa, 0xfa, 0xfb, 0x66,
-	0xe0, 0xfd, 0xd8, 0x0c, 0xbc, 0x9f, 0x9b, 0x81, 0xf7, 0x69, 0x92, 0x70, 0xb3, 0xc8, 0xaf, 0xc6,
-	0x4c, 0xae, 0x22, 0xaa, 0x13, 0xa9, 0xb4, 0xfc, 0x5c, 0x1d, 0x9e, 0xb0, 0x79, 0x54, 0x4c, 0xa2,
-	0xe6, 0x85, 0x52, 0xc5, 0x59, 0xca, 0x51, 0x98, 0xab, 0x83, 0xea, 0xc9, 0x3d, 0xfb, 0x1d, 0x00,
-	0x00, 0xff, 0xff, 0xd6, 0x3b, 0x23, 0x59, 0xbf, 0x03, 0x00, 0x00,
+	// 556 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0x4d, 0x6f, 0x13, 0x31,
+	0x10, 0xed, 0x36, 0xa1, 0x4d, 0xa6, 0x85, 0x06, 0x0b, 0x68, 0x88, 0xda, 0x10, 0xf9, 0x14, 0x21,
+	0x91, 0x15, 0x01, 0x21, 0x2e, 0x48, 0xa8, 0x55, 0x69, 0x01, 0x15, 0x55, 0x5b, 0x0e, 0x88, 0x9b,
+	0xeb, 0x4c, 0x37, 0x26, 0xbb, 0xb6, 0xb1, 0xbd, 0x8b, 0x72, 0xe2, 0xef, 0x71, 0xe4, 0x27, 0xa0,
+	0xfe, 0x0c, 0x4e, 0x68, 0x3f, 0xdc, 0x94, 0x86, 0x72, 0x8a, 0xe7, 0x8d, 0xe7, 0xcd, 0x7b, 0xe3,
+	0xc9, 0xc2, 0x2e, 0x4f, 0xb5, 0x45, 0x93, 0xa3, 0x09, 0x75, 0x92, 0xc5, 0x42, 0xd6, 0x3f, 0x23,
+	0x6d, 0x94, 0x53, 0x64, 0xad, 0x8a, 0x7a, 0x74, 0xf6, 0xd2, 0x8e, 0x84, 0x0a, 0x99, 0x16, 0x21,
+	0x57, 0x06, 0xc3, 0xfc, 0x69, 0x18, 0xa3, 0x44, 0xc3, 0x1c, 0x4e, 0xaa, 0xbb, 0xf4, 0x3b, 0x6c,
+	0x1d, 0x33, 0x29, 0xce, 0xd1, 0xba, 0x08, 0xbf, 0x66, 0x68, 0x1d, 0x79, 0x05, 0xad, 0x14, 0x1d,
+	0x9b, 0x30, 0xc7, 0xba, 0xc1, 0x20, 0x18, 0x6e, 0x8c, 0x1f, 0x8d, 0x6a, 0xfe, 0x6b, 0x57, 0x8f,
+	0xeb, 0x6b, 0x47, 0x2b, 0xd1, 0x65, 0x09, 0xa1, 0xd0, 0x3c, 0x17, 0x09, 0x76, 0x57, 0xcb, 0xd2,
+	0x4d, 0x5f, 0xfa, 0x46, 0x24, 0x78, 0xb4, 0x12, 0x95, 0xb9, 0xbd, 0x36, 0xac, 0x9b, 0x8a, 0x82,
+	0x5a, 0xd8, 0xbe, 0x81, 0x95, 0x74, 0x61, 0x9d, 0x69, 0xfd, 0x81, 0xa5, 0x58, 0xea, 0x68, 0x47,
+	0x3e, 0x24, 0x3d, 0x68, 0xf1, 0x29, 0xf2, 0x99, 0xcd, 0xd2, 0xb2, 0x4f, 0x3b, 0xba, 0x8c, 0x09,
+	0x85, 0x06, 0xca, 0xbc, 0xdb, 0x18, 0x34, 0x86, 0x1b, 0xe3, 0x8e, 0x6f, 0x7f, 0x20, 0xf3, 0x03,
+	0xe9, 0xcc, 0x3c, 0x2a, 0x92, 0xf4, 0x39, 0xb4, 0x3c, 0x40, 0x08, 0x34, 0xe5, 0xa2, 0x45, 0x79,
+	0x26, 0xf7, 0xe0, 0x56, 0xce, 0x92, 0x0c, 0x6b, 0xf2, 0x2a, 0xa0, 0x27, 0xd0, 0x59, 0x48, 0xb5,
+	0x5a, 0x49, 0x8b, 0x64, 0x07, 0xda, 0x69, 0x8d, 0xd9, 0x6e, 0x30, 0x68, 0x0c, 0xdb, 0xd1, 0x02,
+	0x20, 0x7d, 0x00, 0xab, 0x32, 0xc3, 0xf1, 0xe3, 0x5c, 0x7b, 0xb2, 0x2b, 0x08, 0x7d, 0x0f, 0x77,
+	0x23, 0xd4, 0xca, 0x0a, 0xa7, 0xcc, 0xdc, 0xcf, 0x9f, 0x40, 0x53, 0x33, 0x37, 0xf5, 0x82, 0x8a,
+	0xb3, 0x37, 0xb5, 0xfa, 0x3f, 0x53, 0x2f, 0x80, 0x5c, 0x25, 0xab, 0x05, 0x0e, 0x60, 0x43, 0xd8,
+	0xd3, 0x4c, 0x6b, 0x65, 0x1c, 0x4e, 0x4a, 0xd2, 0x56, 0x74, 0x15, 0xa2, 0x5b, 0x70, 0x7b, 0x5f,
+	0xc9, 0x73, 0x11, 0xd7, 0x02, 0xe8, 0x27, 0xb8, 0xe3, 0x81, 0x9a, 0xe4, 0x31, 0x74, 0x58, 0x92,
+	0xa8, 0x6f, 0xfb, 0x4a, 0xf2, 0xcc, 0x18, 0x94, 0x7c, 0x5e, 0x33, 0x2d, 0xe1, 0xc5, 0xdb, 0x24,
+	0x8a, 0xcf, 0x0a, 0x29, 0xa5, 0xe3, 0x56, 0x74, 0x19, 0xd3, 0x1d, 0x68, 0x16, 0x7b, 0x50, 0xcc,
+	0x97, 0x4f, 0x33, 0x39, 0x2b, 0x49, 0x36, 0xa3, 0x2a, 0x18, 0xff, 0x0e, 0x60, 0xb7, 0x6a, 0x7c,
+	0xcc, 0x24, 0x8b, 0x31, 0x45, 0xe9, 0x4e, 0x4a, 0xa7, 0xa7, 0x68, 0x72, 0xc1, 0x91, 0xbc, 0x85,
+	0xce, 0x61, 0xbd, 0xc0, 0xfe, 0x25, 0xc8, 0xf6, 0x0d, 0xcb, 0xd9, 0xeb, 0x2e, 0x27, 0x2a, 0x3b,
+	0x74, 0x65, 0x18, 0x90, 0x77, 0xc5, 0xe2, 0x3b, 0x3e, 0x5d, 0x8c, 0x8c, 0x3c, 0xf4, 0x05, 0x4b,
+	0x6f, 0xd2, 0xeb, 0xfd, 0x2b, 0xe5, 0xd9, 0xc8, 0x1e, 0x6c, 0x1d, 0x62, 0x2d, 0xb5, 0x32, 0x40,
+	0xee, 0xfb, 0x82, 0xbf, 0x46, 0xdb, 0x7b, 0x70, 0x1d, 0xf6, 0x1c, 0x7b, 0xaf, 0x7f, 0x5c, 0xf4,
+	0x83, 0x9f, 0x17, 0xfd, 0xe0, 0xd7, 0x45, 0x3f, 0xf8, 0x3c, 0x8e, 0x85, 0x9b, 0x66, 0x67, 0x23,
+	0xae, 0xd2, 0x90, 0x99, 0x58, 0x69, 0xa3, 0xbe, 0x94, 0x87, 0x27, 0x7c, 0x12, 0xe6, 0xe3, 0x70,
+	0xf1, 0x01, 0x60, 0x5a, 0xf0, 0x44, 0xa0, 0x74, 0x67, 0x6b, 0xe5, 0x3f, 0xfa, 0xd9, 0x9f, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x66, 0x95, 0xb1, 0x30, 0x1e, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -553,7 +627,7 @@ func (c *configManagementPluginServiceClient) GenerateManifest(ctx context.Conte
 }
 
 type ConfigManagementPluginService_GenerateManifestClient interface {
-	Send(*File) error
+	Send(*ManifestRequest) error
 	CloseAndRecv() (*ManifestResponse, error)
 	grpc.ClientStream
 }
@@ -562,7 +636,7 @@ type configManagementPluginServiceGenerateManifestClient struct {
 	grpc.ClientStream
 }
 
-func (x *configManagementPluginServiceGenerateManifestClient) Send(m *File) error {
+func (x *configManagementPluginServiceGenerateManifestClient) Send(m *ManifestRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
@@ -630,7 +704,7 @@ func _ConfigManagementPluginService_GenerateManifest_Handler(srv interface{}, st
 
 type ConfigManagementPluginService_GenerateManifestServer interface {
 	SendAndClose(*ManifestResponse) error
-	Recv() (*File, error)
+	Recv() (*ManifestRequest, error)
 	grpc.ServerStream
 }
 
@@ -642,8 +716,8 @@ func (x *configManagementPluginServiceGenerateManifestServer) SendAndClose(m *Ma
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *configManagementPluginServiceGenerateManifestServer) Recv() (*File, error) {
-	m := new(File)
+func (x *configManagementPluginServiceGenerateManifestServer) Recv() (*ManifestRequest, error) {
+	m := new(ManifestRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -733,6 +807,84 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.Request != nil {
+		{
+			size := m.Request.Size()
+			i -= size
+			if _, err := m.Request.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ManifestRequest_Metadata) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ManifestRequest_Metadata) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Metadata != nil {
+		{
+			size, err := m.Metadata.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintPlugin(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+func (m *ManifestRequest_File) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ManifestRequest_File) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.File != nil {
+		{
+			size, err := m.File.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintPlugin(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	return len(dAtA) - i, nil
+}
+func (m *ManifestRequestMetadata) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ManifestRequestMetadata) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ManifestRequestMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
 	if len(m.Env) > 0 {
 		for iNdEx := len(m.Env) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -744,30 +896,13 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintPlugin(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x2a
+			dAtA[i] = 0x1a
 		}
 	}
-	if m.NoCache {
-		i--
-		if m.NoCache {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.RepoPath) > 0 {
-		i -= len(m.RepoPath)
-		copy(dAtA[i:], m.RepoPath)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.RepoPath)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.AppPath) > 0 {
-		i -= len(m.AppPath)
-		copy(dAtA[i:], m.AppPath)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.AppPath)))
+	if len(m.Checksum) > 0 {
+		i -= len(m.Checksum)
+		copy(dAtA[i:], m.Checksum)
+		i = encodeVarintPlugin(dAtA, i, uint64(len(m.Checksum)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -1075,20 +1210,52 @@ func (m *ManifestRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
+	if m.Request != nil {
+		n += m.Request.Size()
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ManifestRequest_Metadata) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Metadata != nil {
+		l = m.Metadata.Size()
+		n += 1 + l + sovPlugin(uint64(l))
+	}
+	return n
+}
+func (m *ManifestRequest_File) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.File != nil {
+		l = m.File.Size()
+		n += 1 + l + sovPlugin(uint64(l))
+	}
+	return n
+}
+func (m *ManifestRequestMetadata) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	l = len(m.AppName)
 	if l > 0 {
 		n += 1 + l + sovPlugin(uint64(l))
 	}
-	l = len(m.AppPath)
+	l = len(m.Checksum)
 	if l > 0 {
 		n += 1 + l + sovPlugin(uint64(l))
-	}
-	l = len(m.RepoPath)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	if m.NoCache {
-		n += 2
 	}
 	if len(m.Env) > 0 {
 		for _, e := range m.Env {
@@ -1264,6 +1431,127 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Metadata", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &ManifestRequestMetadata{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Request = &ManifestRequest_Metadata{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field File", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPlugin
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &File{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Request = &ManifestRequest_File{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipPlugin(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthPlugin
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ManifestRequestMetadata) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowPlugin
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ManifestRequestMetadata: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ManifestRequestMetadata: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppName", wireType)
 			}
 			var stringLen uint64
@@ -1296,7 +1584,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppPath", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Checksum", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1324,61 +1612,9 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AppPath = string(dAtA[iNdEx:postIndex])
+			m.Checksum = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RepoPath", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.RepoPath = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NoCache", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.NoCache = bool(v != 0)
-		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Env", wireType)
 			}

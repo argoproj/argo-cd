@@ -3,8 +3,12 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +18,7 @@ import (
 	"github.com/argoproj/pkg/rand"
 
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
+	"github.com/argoproj/argo-cd/v2/util/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
@@ -24,7 +29,7 @@ import (
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.
-const cmpTimeoutBuffer = 100 * time.Millisecond
+const cmpTimeoutBuffer = 500 * time.Millisecond
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -128,7 +133,95 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 }
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	header, err := stream.Recv()
+	if err != nil {
+		return fmt.Errorf("generate manifest error receiving stream header: %s", err)
+	}
+	if header == nil || header.GetMetadata() == nil {
+		return fmt.Errorf("error getting stream metadata: metadata is nil")
+	}
+	tgzMetadata := header.GetMetadata()
+	workDir, err := ioutil.TempDir(os.TempDir(), tgzMetadata.GetAppName())
+	if err != nil {
+		return fmt.Errorf("error creating workDir: %s", err)
+	}
+	defer os.RemoveAll(workDir)
+
+	tgzFile, err := receiveFile(stream, tgzMetadata.GetChecksum(), workDir)
+	if err != nil {
+		return fmt.Errorf("error receiving file: %s", err)
+	}
+	err = files.Untgz(workDir, tgzFile)
+	if err != nil {
+		return fmt.Errorf("error decompressing tgz file: %s", err)
+	}
+	response, err := s.generateManifest(stream.Context(), workDir, tgzMetadata.GetEnv())
+	if err != nil {
+		return fmt.Errorf("error generating manifests: %s", err)
+	}
+	err = stream.SendAndClose(response)
+	if err != nil {
+		return fmt.Errorf("error sending manifest response: %s", err)
+	}
+
+	return nil
+}
+
+// receiveFile will receive the file from the gRPC stream and save it in the dst folder.
+// Returns error if checksum doesn't match the one provided in the fileMetadata.
+// It is responsibility of the caller to close the returned file.
+func receiveFile(stream apiclient.ConfigManagementPluginService_GenerateManifestServer, checksum, dst string) (*os.File, error) {
+	fileBuffer := bytes.Buffer{}
+	hasher := sha256.New()
+	for {
+		ctx := stream.Context()
+		if ctx != nil {
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("stream context error: %s", err)
+			}
+		}
+		req, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("stream Recv error: %s", err)
+		}
+		f := req.GetFile()
+		if f == nil {
+			return nil, fmt.Errorf("stream request file is nil")
+		}
+		_, err = fileBuffer.Write(f.Chunk)
+		if err != nil {
+			return nil, fmt.Errorf("error writing file buffer: %s", err)
+		}
+		_, err = hasher.Write(f.Chunk)
+		if err != nil {
+			return nil, fmt.Errorf("error writing hasher: %s", err)
+		}
+	}
+	if hex.EncodeToString(hasher.Sum(nil)) != checksum {
+		return nil, fmt.Errorf("file checksum validation error")
+	}
+
+	tgzFile, err := ioutil.TempFile(dst, "")
+	if err != nil {
+		return nil, fmt.Errorf("error creating tgz file: %s", err)
+	}
+	_, err = fileBuffer.WriteTo(tgzFile)
+	if err != nil {
+		return nil, fmt.Errorf("error writing tgz file: %s", err)
+	}
+	_, err = tgzFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("tgz seek error: %s", err)
+	}
+	return tgzFile, nil
+}
+
+// generateManifest runs generate command from plugin config file and returns generated manifest files
+func (s *Service) generateManifest(ctx context.Context, workDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
 	defer cancel()
 
@@ -140,15 +233,15 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	config := s.initConstants.PluginConfig
 
-	env := append(os.Environ(), environ(q.Env)...)
+	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(bufferedCtx, config.Spec.Init, q.AppPath, env)
+		_, err := runCommand(bufferedCtx, config.Spec.Init, workDir, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(bufferedCtx, config.Spec.Generate, q.AppPath, env)
+	out, err := runCommand(bufferedCtx, config.Spec.Generate, workDir, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -165,6 +258,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 // MatchRepository checks whether the application repository type is supported by config management plugin server
 func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
+	// ctx = context.Background()
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
 	defer cancel()
 

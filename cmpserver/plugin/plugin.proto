@@ -7,12 +7,16 @@ import "k8s.io/api/core/v1/generated.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
-    // Name of the application for which the request is triggered
+    oneof request {
+        ManifestRequestMetadata metadata = 1;
+        File file = 2;
+    }
+}
+
+message ManifestRequestMetadata {
     string appName = 1;
-    string appPath = 2;
-    string repoPath = 3;
-    bool noCache = 4;
-    repeated EnvEntry env = 5;
+    string checksum = 2;
+    repeated EnvEntry env = 3;
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -53,7 +57,7 @@ message File {
 service ConfigManagementPluginService {
     // GenerateManifests receive a stream containing a tgz archive with all required files necessary
     // to generate manifests
-    rpc GenerateManifest(stream File) returns (ManifestResponse) {
+    rpc GenerateManifest(stream ManifestRequest) returns (ManifestResponse) {
     }
 
     // MatchRepository returns whether or not the given path is supported by the plugin
