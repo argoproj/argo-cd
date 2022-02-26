@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
+	"net/url"
+	"os/exec"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -306,14 +310,54 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 // isRetryableError is a helper method to see whether an error
 // returned from the dynamic client is potentially retryable.
 func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
 	return kerrors.IsInternalError(err) ||
 		kerrors.IsInvalid(err) ||
+		kerrors.IsTooManyRequests(err) ||
 		kerrors.IsServerTimeout(err) ||
 		kerrors.IsServiceUnavailable(err) ||
 		kerrors.IsTimeout(err) ||
 		kerrors.IsUnexpectedObjectError(err) ||
 		kerrors.IsUnexpectedServerError(err) ||
+		isResourceQuotaConflictErr(err) ||
+		isTransientNetworkErr(err) ||
+		isExceededQuotaErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isExceededQuotaErr(err error) bool {
+	return kerrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
+}
+
+func isResourceQuotaConflictErr(err error) bool {
+	return kerrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
+}
+
+func isTransientNetworkErr(err error) bool {
+	switch err.(type) {
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+			return true
+		case *url.Error:
+			// For a URL error, where it replies "connection closed"
+			// retry again.
+			return strings.Contains(err.Error(), "Connection closed by foreign host")
+		}
+	}
+
+	errorString := err.Error()
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
+	}
+	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
+		strings.Contains(errorString, "i/o timeout") ||
+		strings.Contains(errorString, "connection timed out") {
+		return true
+	}
+	return false
 }
 
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
