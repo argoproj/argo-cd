@@ -833,7 +833,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a appv1.Application, eventType watch.EventType) {
+	sendIfPermitted := func(a appv1.Application, eventType watch.EventType, ts string) {
 		if eventType == watch.Bookmark {
 			return // ignore this event
 		}
@@ -852,7 +852,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		err := s.streamApplicationEvents(stream.Context(), &a, es, stream)
+		err := s.streamApplicationEvents(stream.Context(), &a, es, stream, ts)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to stream application events")
 			return
@@ -871,7 +871,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-events:
-			sendIfPermitted(event.Application, event.Type)
+			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			sendIfPermitted(event.Application, event.Type, ts)
 		case <-stream.Context().Done():
 			return nil
 		}
@@ -942,6 +943,7 @@ func (s *Server) streamApplicationEvents(
 	a *appv1.Application,
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
+	ts string,
 ) error {
 	var (
 		logCtx         = log.WithField("application", a.Name)
@@ -958,7 +960,7 @@ func (s *Server) streamApplicationEvents(
 	if !isChildApp {
 		// application events for child apps would be sent by its parent app
 		// as resource event
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
 		if err != nil {
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
@@ -968,7 +970,7 @@ func (s *Server) streamApplicationEvents(
 			return nil
 		}
 
-		logCtx.Info("sending application event")
+		logWithAppStatus(a, logCtx, ts).Info("sending application event")
 		if err := stream.Send(appEvent); err != nil {
 			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 		}
@@ -1030,13 +1032,19 @@ func (s *Server) streamApplicationEvents(
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr, ts)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to get event payload")
 			continue
 		}
 
-		logCtx.Info("streaming resource event")
+		appRes := appv1.Application{}
+		if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
+			logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
+		} else {
+			logCtx.Info("streaming resource event")
+		}
+
 		if err := stream.Send(ev); err != nil {
 			logCtx.WithError(err).Error("failed to send even")
 			continue
@@ -1051,6 +1059,18 @@ func (s *Server) streamApplicationEvents(
 	return nil
 }
 
+func isApp(rs appv1.ResourceStatus) bool {
+	return rs.GroupVersionKind().String() == appv1.ApplicationSchemaGroupVersionKind.String()
+}
+
+func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
+	return logCtx.WithFields(log.Fields{
+		"status":          a.Status.Sync.Status,
+		"resourceVersion": a.ResourceVersion,
+		"ts":              ts,
+	})
+}
+
 func getResourceEventPayload(
 	a *appv1.Application,
 	rs *appv1.ResourceStatus,
@@ -1060,6 +1080,7 @@ func getResourceEventPayload(
 	manifestsResponse *apiclient.ManifestResponse,
 	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
+	ts string,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -1133,7 +1154,7 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
+		Timestamp: ts,
 		Object:    object,
 		Source:    &source,
 		Errors:    errors,
@@ -1199,7 +1220,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	return errs
 }
 
-func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource) (*events.Event, error) {
+func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Application, es *events.EventSource, ts string) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
@@ -1286,7 +1307,7 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 	}
 
 	payload := events.EventPayload{
-		Timestamp: time.Now().Format("2006-01-02T15:04:05.000Z"),
+		Timestamp: ts,
 		Object:    object,
 		Source:    source,
 		Errors:    errs,
