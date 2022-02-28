@@ -134,29 +134,13 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
-	header, err := stream.Recv()
+	workDir, env, err := ReceiveStream(stream.Context(), stream)
 	if err != nil {
-		return fmt.Errorf("generate manifest error receiving stream header: %s", err)
-	}
-	if header == nil || header.GetMetadata() == nil {
-		return fmt.Errorf("error getting stream metadata: metadata is nil")
-	}
-	tgzMetadata := header.GetMetadata()
-	workDir, err := ioutil.TempDir(os.TempDir(), tgzMetadata.GetAppName())
-	if err != nil {
-		return fmt.Errorf("error creating workDir: %s", err)
+		return fmt.Errorf("generate manifest error receiving stream: %s", err)
 	}
 	defer os.RemoveAll(workDir)
 
-	tgzFile, err := receiveFile(stream, tgzMetadata.GetChecksum(), workDir)
-	if err != nil {
-		return fmt.Errorf("error receiving file: %s", err)
-	}
-	err = files.Untgz(workDir, tgzFile)
-	if err != nil {
-		return fmt.Errorf("error decompressing tgz file: %s", err)
-	}
-	response, err := s.generateManifest(stream.Context(), workDir, tgzMetadata.GetEnv())
+	response, err := s.generateManifest(stream.Context(), workDir, env)
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %s", err)
 	}
@@ -164,24 +148,60 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 	if err != nil {
 		return fmt.Errorf("error sending manifest response: %s", err)
 	}
-
 	return nil
+}
+
+// Receiver defines the contract for receiving Application's files
+// over gRPC stream
+type Receiver interface {
+	Recv() (*apiclient.AppStreamRequest, error)
+}
+
+// ReceiveStream will receive the Application's files and the env entries
+// over the gRPC stream. Will return the path where the files are saved
+// and the env entries if no error.
+func ReceiveStream(ctx context.Context, receiver Receiver) (string, []*apiclient.EnvEntry, error) {
+	header, err := receiver.Recv()
+	if err != nil {
+		return "", nil, fmt.Errorf("error receiving stream header: %s", err)
+	}
+	if header == nil || header.GetMetadata() == nil {
+		return "", nil, fmt.Errorf("error getting stream metadata: metadata is nil")
+	}
+	metadata := header.GetMetadata()
+	workDir, err := ioutil.TempDir(os.TempDir(), metadata.GetAppName())
+	if err != nil {
+		return "", nil, fmt.Errorf("error creating workDir: %s", err)
+	}
+
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
+	if err != nil {
+		return "", nil, fmt.Errorf("error receiving file: %s", err)
+	}
+	err = files.Untgz(workDir, tgzFile)
+	if err != nil {
+		return "", nil, fmt.Errorf("error decompressing tgz file: %s", err)
+	}
+	err = os.Remove(tgzFile.Name())
+	if err != nil {
+		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name, err)
+	}
+	return workDir, metadata.GetEnv(), nil
 }
 
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(stream apiclient.ConfigManagementPluginService_GenerateManifestServer, checksum, dst string) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver Receiver, checksum, dst string) (*os.File, error) {
 	fileBuffer := bytes.Buffer{}
 	hasher := sha256.New()
 	for {
-		ctx := stream.Context()
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
 				return nil, fmt.Errorf("stream context error: %s", err)
 			}
 		}
-		req, err := stream.Recv()
+		req, err := receiver.Recv()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -256,55 +276,78 @@ func (s *Service) generateManifest(ctx context.Context, workDir string, envEntri
 	}, err
 }
 
-// MatchRepository checks whether the application repository type is supported by config management plugin server
-func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
-	// ctx = context.Background()
-	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
+// MatchRepository checks whether the application repository type is supported
+// by config management plugin server. The checks are implemented in the following
+// order:
+// 1. If spec.Discover.FileName is provided it finds for a name match in Applications files
+// 2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
+// 3. Otherwise it runs the spec.Discover.Find.Command
+func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
+	workdir, _, err := ReceiveStream(bufferedCtx, stream)
+	if err != nil {
+		return fmt.Errorf("match repository error receiving stream: %s", err)
+	}
+	defer os.RemoveAll(workdir)
 
-	var repoResponse apiclient.RepositoryResponse
+	repoResponse := &apiclient.RepositoryResponse{}
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.FileName, "/")
+		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
-		if err != nil || len(matches) == 0 {
-			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
-			return &repoResponse, err
-		} else if len(matches) > 0 {
-			repoResponse.IsSupported = true
-			return &repoResponse, nil
+		if err != nil {
+			e := fmt.Errorf("error finding filename match for pattern %q: %s", pattern, err)
+			log.Debug(e)
+			return e
 		}
+		if len(matches) > 0 {
+			repoResponse.IsSupported = true
+		}
+		err = stream.SendAndClose(repoResponse)
+		if err != nil {
+			return fmt.Errorf("error closing stream: %s", err)
+		}
+		return nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.Find.Glob, "/")
+		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
-		if err != nil || len(matches) == 0 {
-			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
-			return &repoResponse, err
-		} else if len(matches) > 0 {
-			repoResponse.IsSupported = true
-			return &repoResponse, nil
+		if err != nil {
+			e := fmt.Errorf("error finding glob match for pattern %q: %s", pattern, err)
+			log.Debug(e)
+			return e
 		}
+
+		if len(matches) > 0 {
+			repoResponse.IsSupported = true
+		}
+		err = stream.SendAndClose(repoResponse)
+		if err != nil {
+			return fmt.Errorf("error closing stream: %s", err)
+		}
+		return nil
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(bufferedCtx, config.Spec.Discover.Find.Command, q.Path, os.Environ())
+	find, err := runCommand(bufferedCtx, config.Spec.Discover.Find.Command, workdir, os.Environ())
 	if err != nil {
-		return &repoResponse, err
+		return fmt.Errorf("error running find command: %s", err)
 	}
 
-	var isSupported bool
 	if find != "" {
-		isSupported = true
+		repoResponse.IsSupported = true
 	}
-	return &apiclient.RepositoryResponse{
-		IsSupported: isSupported,
-	}, nil
+	err = stream.SendAndClose(repoResponse)
+	if err != nil {
+		return fmt.Errorf("error closing stream: %s", err)
+	}
+	return nil
 }
 
 // GetPluginConfig returns plugin config

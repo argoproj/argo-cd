@@ -1,11 +1,8 @@
 package repository
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +22,7 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/files"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -1287,128 +1284,21 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	return manifests, nil
 }
 
-// generateManifestsCMP will compact all files in the appPath and send to the cmp-server
-// for manifest generation. Returns a response object with the generated manifests.
+// generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
+// The cmp-server will generate the manifests. Returns a response object with the generated
+// manifests.
 func generateManifestsCMP(ctx context.Context, appPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
 	}
 
-	// compress all files in appPath in tgz
-	tgz, checksum, err := compressFiles(appPath)
+	err = cmp.SendAppFiles(generateManifestStream.Context(), appPath, generateManifestStream, env)
 	if err != nil {
-		return nil, fmt.Errorf("error compressing app files: %s", err)
-	}
-	defer func() {
-		tgz.Close()
-		os.Remove(tgz.Name())
-	}()
-
-	// send generateManifest metadata first
-	mr := buildMetadataManifestRequest(appPath, env, checksum)
-	err = generateManifestStream.Send(mr)
-	if err != nil {
-		return nil, fmt.Errorf("error sending generate manifest metadata to cmp-server: %s", err)
-	}
-
-	// send the tgz file
-	err = sendAppFiles(generateManifestStream, tgz)
-	if err != nil {
-		return nil, fmt.Errorf("error sending app files to cmp-server: %s", err)
+		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
 
 	return generateManifestStream.CloseAndRecv()
-}
-
-// compressFiles will create a tgz file with all contents of appPath
-// directory excluding the .git folder. Returns the file alongside
-// its sha256 hash to be used as checksum.
-func compressFiles(appPath string) (*os.File, string, error) {
-	excluded := []string{".git"}
-	appName := filepath.Base(appPath)
-	tgzFile, err := ioutil.TempFile(os.TempDir(), appName)
-	if err != nil {
-		return nil, "", fmt.Errorf("error creating app temp tgz file: %s", err)
-	}
-	hasher := sha256.New()
-	err = files.Tgz(appPath, excluded, tgzFile, hasher)
-	if err != nil {
-		tgzFile.Close()
-		os.Remove(tgzFile.Name())
-		return nil, "", fmt.Errorf("error creating app tgz file: %s", err)
-	}
-	checksum := hex.EncodeToString(hasher.Sum(nil))
-	return tgzFile, checksum, nil
-}
-
-// sendAppFiles will send the tgz over the gRPC stream using a
-// buffer.
-func sendAppFiles(stream pluginclient.ConfigManagementPluginService_GenerateManifestClient, tgz *os.File) error {
-	// reposition the tgz offset to the beginning of the file for proper read
-	_, err := tgz.Seek(0, coreio.SeekStart)
-	if err != nil {
-		return fmt.Errorf("error processing tgz file: %s", err)
-	}
-	reader := bufio.NewReader(tgz)
-	chunk := make([]byte, 1024)
-	ctx := stream.Context()
-	for {
-		if ctx != nil {
-			if err := ctx.Err(); err != nil {
-				return fmt.Errorf("client stream context error: %s", err)
-			}
-		}
-		n, err := reader.Read(chunk)
-		if err != nil {
-			if err == coreio.EOF {
-				break
-			}
-			return fmt.Errorf("error reading tgz file: %s", err)
-		}
-		payload := buildFileManifestRequest(chunk[:n])
-		err = stream.Send(payload)
-		if err != nil {
-			return fmt.Errorf("error sending tgz chunk: %s", err)
-		}
-	}
-	return nil
-}
-
-// buildFileManifestRequest build the file payload for the ManifestRequest
-func buildFileManifestRequest(chunk []byte) *pluginclient.ManifestRequest {
-	return &pluginclient.ManifestRequest{
-		Request: &pluginclient.ManifestRequest_File{
-			File: &pluginclient.File{
-				Chunk: chunk,
-			},
-		},
-	}
-}
-
-// buildMetadataManifestRequest build the metadata payload for the ManifestRequest
-func buildMetadataManifestRequest(appPath string, env []string, checksum string) *pluginclient.ManifestRequest {
-	return &pluginclient.ManifestRequest{
-		Request: &pluginclient.ManifestRequest_Metadata{
-			Metadata: &pluginclient.ManifestRequestMetadata{
-				AppName:  filepath.Base(appPath),
-				Env:      toEnvEntry(env),
-				Checksum: checksum,
-			},
-		},
-	}
-}
-
-func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
-	envEntry := make([]*pluginclient.EnvEntry, 0)
-	for _, env := range envVars {
-		pair := strings.Split(env, "=")
-		if len(pair) != 2 {
-			continue
-		}
-		envEntry = append(envEntry, &pluginclient.EnvEntry{Name: pair[0], Value: pair[1]})
-	}
-	return envEntry
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {

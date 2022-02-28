@@ -5,8 +5,9 @@ package plugin;
 
 import "k8s.io/api/core/v1/generated.proto";
 
-// ManifestRequest is a query for manifest generation.
-message ManifestRequest {
+// AppStreamRequest is the request object used to send the application's
+// files over a stream.
+message AppStreamRequest {
     oneof request {
         ManifestRequestMetadata metadata = 1;
         File file = 2;
@@ -32,11 +33,6 @@ message ManifestResponse {
     string sourceType = 2;
 }
 
-message RepositoryRequest {
-    string path = 1;
-    repeated EnvEntry env = 2;
-}
-
 message RepositoryResponse {
     bool isSupported = 1;
 }
@@ -57,11 +53,11 @@ message File {
 service ConfigManagementPluginService {
     // GenerateManifests receive a stream containing a tgz archive with all required files necessary
     // to generate manifests
-    rpc GenerateManifest(stream ManifestRequest) returns (ManifestResponse) {
+    rpc GenerateManifest(stream AppStreamRequest) returns (ManifestResponse) {
     }
 
-    // MatchRepository returns whether or not the given path is supported by the plugin
-    rpc MatchRepository(RepositoryRequest) returns (RepositoryResponse) {
+    // MatchRepository returns whether or not the given application is supported by the plugin
+    rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
     }
 
     // Get configuration of the plugin

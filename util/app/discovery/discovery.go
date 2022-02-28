@@ -13,6 +13,7 @@ import (
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 )
@@ -108,13 +109,13 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath string) (io.Close
 				continue
 			}
 
-			resp, err := cmpClient.MatchRepository(ctx, &pluginclient.RepositoryRequest{Path: appPath})
+			isSupported, err := matchRepositoryCMP(ctx, appPath, cmpClient)
 			if err != nil {
 				log.Errorf("repository %s is not the match because %v", appPath, err)
 				continue
 			}
 
-			if !resp.IsSupported {
+			if !isSupported {
 				log.Debugf("Reponse from socket file %s is not supported", file.Name())
 				io.Close(conn)
 			} else {
@@ -128,4 +129,21 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath string) (io.Close
 		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", appPath)
 	}
 	return conn, cmpClient, err
+}
+
+// matchRepositoryCMP will send the appPath to the cmp-server. The cmp-server will
+// inspect the files and return true if the repo is supported for manifest generation.
+// Will return false otherwise.
+func matchRepositoryCMP(ctx context.Context, appPath string, client pluginclient.ConfigManagementPluginServiceClient) (bool, error) {
+	matchRepoStream, err := client.MatchRepository(ctx)
+	if err != nil {
+		return false, fmt.Errorf("error getting stream client: %s", err)
+	}
+
+	err = cmp.SendAppFiles(ctx, appPath, matchRepoStream, []string{})
+	if err != nil {
+		return false, fmt.Errorf("error sending stream: %s", err)
+	}
+	resp, err := matchRepoStream.CloseAndRecv()
+	return resp.GetIsSupported(), err
 }
