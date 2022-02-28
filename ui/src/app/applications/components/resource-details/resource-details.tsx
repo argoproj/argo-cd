@@ -122,7 +122,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 key: 'extension',
                 content: (
                     <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                        <ExtensionComponent tree={tree} resource={state} />
+                        <ExtensionComponent
+                            tree={tree} 
+                            resource={state} 
+                            getResourceFunc={node => services.applications.getResource(application.metadata.name, node)}
+                        />
                     </ErrorBoundary>
                 )
             });
