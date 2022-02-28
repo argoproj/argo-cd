@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	log "github.com/sirupsen/logrus"
 
@@ -135,7 +136,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath string) (io.Close
 // inspect the files and return true if the repo is supported for manifest generation.
 // Will return false otherwise.
 func matchRepositoryCMP(ctx context.Context, appPath string, client pluginclient.ConfigManagementPluginServiceClient) (bool, error) {
-	matchRepoStream, err := client.MatchRepository(ctx)
+	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
 		return false, fmt.Errorf("error getting stream client: %s", err)
 	}
