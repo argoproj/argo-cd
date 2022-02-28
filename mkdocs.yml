@@ -90,7 +90,6 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
-  - user-guide/ksonnet.md
   - user-guide/jsonnet.md
   - user-guide/config-management-plugins.md
   - user-guide/tool_detection.md

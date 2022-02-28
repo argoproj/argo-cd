@@ -400,34 +400,6 @@ func (m *ApplicationSourceJsonnet) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ApplicationSourceJsonnet proto.InternalMessageInfo
 
-func (m *ApplicationSourceKsonnet) Reset()      { *m = ApplicationSourceKsonnet{} }
-func (*ApplicationSourceKsonnet) ProtoMessage() {}
-func (*ApplicationSourceKsonnet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{13}
-}
-func (m *ApplicationSourceKsonnet) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSourceKsonnet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSourceKsonnet) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSourceKsonnet.Merge(m, src)
-}
-func (m *ApplicationSourceKsonnet) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSourceKsonnet) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSourceKsonnet.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSourceKsonnet proto.InternalMessageInfo
-
 func (m *ApplicationSourceKustomize) Reset()      { *m = ApplicationSourceKustomize{} }
 func (*ApplicationSourceKustomize) ProtoMessage() {}
 func (*ApplicationSourceKustomize) Descriptor() ([]byte, []int) {
@@ -1379,34 +1351,6 @@ func (m *KnownTypeField) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_KnownTypeField proto.InternalMessageInfo
-
-func (m *KsonnetParameter) Reset()      { *m = KsonnetParameter{} }
-func (*KsonnetParameter) ProtoMessage() {}
-func (*KsonnetParameter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{48}
-}
-func (m *KsonnetParameter) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *KsonnetParameter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *KsonnetParameter) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_KsonnetParameter.Merge(m, src)
-}
-func (m *KsonnetParameter) XXX_Size() int {
-	return m.Size()
-}
-func (m *KsonnetParameter) XXX_DiscardUnknown() {
-	xxx_messageInfo_KsonnetParameter.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_KsonnetParameter proto.InternalMessageInfo
 
 func (m *KustomizeOptions) Reset()      { *m = KustomizeOptions{} }
 func (*KustomizeOptions) ProtoMessage() {}
@@ -2571,7 +2515,6 @@ func init() {
 	proto.RegisterType((*ApplicationSourceDirectory)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceDirectory")
 	proto.RegisterType((*ApplicationSourceHelm)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceHelm")
 	proto.RegisterType((*ApplicationSourceJsonnet)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceJsonnet")
-	proto.RegisterType((*ApplicationSourceKsonnet)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceKsonnet")
 	proto.RegisterType((*ApplicationSourceKustomize)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceKustomize")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceKustomize.CommonAnnotationsEntry")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSourceKustomize.CommonLabelsEntry")
@@ -2611,7 +2554,6 @@ func init() {
 	proto.RegisterType((*JWTTokens)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.JWTTokens")
 	proto.RegisterType((*JsonnetVar)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.JsonnetVar")
 	proto.RegisterType((*KnownTypeField)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KnownTypeField")
-	proto.RegisterType((*KsonnetParameter)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KsonnetParameter")
 	proto.RegisterType((*KustomizeOptions)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions")
 	proto.RegisterType((*Operation)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Operation")
 	proto.RegisterType((*OperationInitiator)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.OperationInitiator")
@@ -3685,18 +3627,6 @@ func (m *ApplicationSource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x52
 	}
-	if m.Ksonnet != nil {
-		{
-			size, err := m.Ksonnet.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x4a
-	}
 	if m.Kustomize != nil {
 		{
 			size, err := m.Kustomize.MarshalToSizedBuffer(dAtA[:i])
@@ -3946,48 +3876,6 @@ func (m *ApplicationSourceJsonnet) MarshalToSizedBuffer(dAtA []byte) (int, error
 			dAtA[i] = 0xa
 		}
 	}
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSourceKsonnet) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSourceKsonnet) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSourceKsonnet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Parameters) > 0 {
-		for iNdEx := len(m.Parameters) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Parameters[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x12
-		}
-	}
-	i -= len(m.Environment)
-	copy(dAtA[i:], m.Environment)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Environment)))
-	i--
-	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -5793,44 +5681,6 @@ func (m *KnownTypeField) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i -= len(m.Field)
 	copy(dAtA[i:], m.Field)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Field)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *KsonnetParameter) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *KsonnetParameter) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *KsonnetParameter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i -= len(m.Value)
-	copy(dAtA[i:], m.Value)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
-	i--
-	dAtA[i] = 0x1a
-	i -= len(m.Name)
-	copy(dAtA[i:], m.Name)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Component)
-	copy(dAtA[i:], m.Component)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Component)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -8498,10 +8348,6 @@ func (m *ApplicationSource) Size() (n int) {
 		l = m.Kustomize.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
-	if m.Ksonnet != nil {
-		l = m.Ksonnet.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
 	if m.Directory != nil {
 		l = m.Directory.Size()
 		n += 1 + l + sovGenerated(uint64(l))
@@ -8588,23 +8434,6 @@ func (m *ApplicationSourceJsonnet) Size() (n int) {
 	if len(m.Libs) > 0 {
 		for _, s := range m.Libs {
 			l = len(s)
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *ApplicationSourceKsonnet) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Environment)
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Parameters) > 0 {
-		for _, e := range m.Parameters {
-			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
@@ -9286,21 +9115,6 @@ func (m *KnownTypeField) Size() (n int) {
 	l = len(m.Field)
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Type)
-	n += 1 + l + sovGenerated(uint64(l))
-	return n
-}
-
-func (m *KsonnetParameter) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Component)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Name)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Value)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -10409,7 +10223,6 @@ func (this *ApplicationSource) String() string {
 		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
 		`Helm:` + strings.Replace(this.Helm.String(), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
 		`Kustomize:` + strings.Replace(this.Kustomize.String(), "ApplicationSourceKustomize", "ApplicationSourceKustomize", 1) + `,`,
-		`Ksonnet:` + strings.Replace(this.Ksonnet.String(), "ApplicationSourceKsonnet", "ApplicationSourceKsonnet", 1) + `,`,
 		`Directory:` + strings.Replace(this.Directory.String(), "ApplicationSourceDirectory", "ApplicationSourceDirectory", 1) + `,`,
 		`Plugin:` + strings.Replace(this.Plugin.String(), "ApplicationSourcePlugin", "ApplicationSourcePlugin", 1) + `,`,
 		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
@@ -10476,22 +10289,6 @@ func (this *ApplicationSourceJsonnet) String() string {
 		`ExtVars:` + repeatedStringForExtVars + `,`,
 		`TLAs:` + repeatedStringForTLAs + `,`,
 		`Libs:` + fmt.Sprintf("%v", this.Libs) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSourceKsonnet) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForParameters := "[]KsonnetParameter{"
-	for _, f := range this.Parameters {
-		repeatedStringForParameters += strings.Replace(strings.Replace(f.String(), "KsonnetParameter", "KsonnetParameter", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForParameters += "}"
-	s := strings.Join([]string{`&ApplicationSourceKsonnet{`,
-		`Environment:` + fmt.Sprintf("%v", this.Environment) + `,`,
-		`Parameters:` + repeatedStringForParameters + `,`,
 		`}`,
 	}, "")
 	return s
@@ -11036,18 +10833,6 @@ func (this *KnownTypeField) String() string {
 	s := strings.Join([]string{`&KnownTypeField{`,
 		`Field:` + fmt.Sprintf("%v", this.Field) + `,`,
 		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *KsonnetParameter) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&KsonnetParameter{`,
-		`Component:` + fmt.Sprintf("%v", this.Component) + `,`,
-		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Value:` + fmt.Sprintf("%v", this.Value) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -13498,42 +13283,6 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ksonnet", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Ksonnet == nil {
-				m.Ksonnet = &ApplicationSourceKsonnet{}
-			}
-			if err := m.Ksonnet.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Directory", wireType)
@@ -14260,122 +14009,6 @@ func (m *ApplicationSourceJsonnet) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Libs = append(m.Libs, string(dAtA[iNdEx:postIndex]))
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ApplicationSourceKsonnet) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSourceKsonnet: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ApplicationSourceKsonnet: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Environment", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Environment = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Parameters", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Parameters = append(m.Parameters, KsonnetParameter{})
-			if err := m.Parameters[len(m.Parameters)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -20359,152 +19992,6 @@ func (m *KnownTypeField) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Type = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *KsonnetParameter) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: KsonnetParameter: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: KsonnetParameter: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Component", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Component = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Value = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

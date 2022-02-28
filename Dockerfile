@@ -28,7 +28,6 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
@@ -77,7 +76,6 @@ RUN mkdir -p /app/config/gpg/source && \
     chown argocd /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys
 
-# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
 
 USER 999

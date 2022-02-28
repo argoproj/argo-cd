@@ -42,7 +42,6 @@ type VersionMessage struct {
 	GoVersion            string   `protobuf:"bytes,6,opt,name=GoVersion,proto3" json:"GoVersion,omitempty"`
 	Compiler             string   `protobuf:"bytes,7,opt,name=Compiler,proto3" json:"Compiler,omitempty"`
 	Platform             string   `protobuf:"bytes,8,opt,name=Platform,proto3" json:"Platform,omitempty"`
-	KsonnetVersion       string   `protobuf:"bytes,9,opt,name=KsonnetVersion,proto3" json:"KsonnetVersion,omitempty"`
 	KustomizeVersion     string   `protobuf:"bytes,10,opt,name=KustomizeVersion,proto3" json:"KustomizeVersion,omitempty"`
 	HelmVersion          string   `protobuf:"bytes,11,opt,name=HelmVersion,proto3" json:"HelmVersion,omitempty"`
 	KubectlVersion       string   `protobuf:"bytes,12,opt,name=KubectlVersion,proto3" json:"KubectlVersion,omitempty"`
@@ -137,13 +136,6 @@ func (m *VersionMessage) GetCompiler() string {
 func (m *VersionMessage) GetPlatform() string {
 	if m != nil {
 		return m.Platform
-	}
-	return ""
-}
-
-func (m *VersionMessage) GetKsonnetVersion() string {
-	if m != nil {
-		return m.KsonnetVersion
 	}
 	return ""
 }
@@ -346,13 +338,7 @@ func (m *VersionMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x52
 	}
-	if len(m.KsonnetVersion) > 0 {
-		i -= len(m.KsonnetVersion)
-		copy(dAtA[i:], m.KsonnetVersion)
-		i = encodeVarintVersion(dAtA, i, uint64(len(m.KsonnetVersion)))
-		i--
-		dAtA[i] = 0x4a
-	}
+
 	if len(m.Platform) > 0 {
 		i -= len(m.Platform)
 		copy(dAtA[i:], m.Platform)
@@ -461,10 +447,7 @@ func (m *VersionMessage) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovVersion(uint64(l))
 	}
-	l = len(m.KsonnetVersion)
-	if l > 0 {
-		n += 1 + l + sovVersion(uint64(l))
-	}
+
 	l = len(m.KustomizeVersion)
 	if l > 0 {
 		n += 1 + l + sovVersion(uint64(l))
@@ -777,38 +760,6 @@ func (m *VersionMessage) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Platform = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field KsonnetVersion", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowVersion
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthVersion
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthVersion
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.KsonnetVersion = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
