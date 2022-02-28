@@ -1,8 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+helmCharts:
+- name: redis-ha
+  version: 4.12.15
+  repo: https://dandydeveloper.github.io/charts
+  valuesFile: values.yaml
+  namespace: argocd
+  releaseName: argocd
+
 resources:
-- chart/upstream.yaml
 - argocd-redis-ha-proxy-network-policy.yaml
 - argocd-redis-ha-server-network-policy.yaml
 
@@ -281,3 +288,16 @@ patchesJson6902:
     name: argocd-redis-ha-haproxy
   path: overlays/haproxy-service-selector.yaml
 
+patchesStrategicMerge:
+- |-
+    $patch: delete
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: argocd-redis-ha-configmap-test
+- |-
+    $patch: delete
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: argocd-redis-ha-service-test
