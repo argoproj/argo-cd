@@ -423,6 +423,8 @@ func TestExplicitType(t *testing.T) {
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
 	src := ApplicationSource{
+		Helm: &ApplicationSourceHelm{
+		},
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
