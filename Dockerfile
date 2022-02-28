@@ -55,7 +55,6 @@ RUN groupadd -g 999 argocd && \
 
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
-COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
