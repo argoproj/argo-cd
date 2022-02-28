@@ -1,5 +1,5 @@
 ---
-title: Neat-enhancement-idea
+title: Adding support for RBAC CLI/Web requests
 authors:
   - "@chetan-rns" # Authors' github accounts here.
   - "@ishitasequeira"
@@ -18,95 +18,83 @@ last-updated: yyyy-mm-dd
 
 # Neat Enhancement Idea
 
-This is the title of the enhancement. Keep it simple and descriptive. A good title can help
-communicate what the enhancement is and should be considered as part of any review.
-
-
-## Open Questions [optional]
-
-This is where to call out areas of the design that require closure before deciding to implement the
-design.
-
+This is a proposal to add support for creating ApplicationSets via the Argo CD Web CLI, by adding support to the ApplicationSet and API Server backend that respects Argo CD RBAC
 
 ## Summary
 
-The `Summary` is required for producing accurate user-focused documentation
-such as release notes or a development roadmap. It should be possible to collect this information
-before implementation begins in order to avoid requiring implementors to split their attention
-between writing release notes and implementing the feature itself. Before you get started with this document,
-please feel free to have a conversation on this with the maintainers/community on Github that would help
-drive a more organized thought process for the formal proposal here.
+Currently, users can only create ApplicationSets by applying applicationSet configurations using `kubectl`. Creating cli for allowing users to perform operations on ApplicationSet would give users to perform faster operations.
 
 ## Motivation
 
-This section is for explicitly listing the motivation, goals and non-goals of this proposal.
-Describe why the change is important and the benefits to users.
+As ApplicationSet Controller is now part of ArgoCD installation, we would like to allow users to be able to create/update/delete application sets via cli just like argocd.
 
 ### Goals
 
-List the specific goals of the proposal and their measurable results. How will we know that this has succeeded?
+* **Create CLI for users to interact with ApplicationSets**
+
+  Users should be able to create/update/delete ApplicationSets using argocd CLI.
+
+* **Changes to CLI**
+
+  Add a new argocd command option `appset` with `create`, `delete` and `apply` sub-commands.
 
 ### Non-Goals
 
-What is out of scope for this proposal? Listing non-goals helps to focus discussion and make
-progress.
+*
 
 ## Proposal
 
-This is where we get down to details of what the proposal is about.
+This is the high level overview of creation (update/deletion) of an ApplicationSet via Argo CD CLI.
+![High Level Architecture](./backend-support-appset.png)
 
-### Use cases
 
-Add a list of detailed use cases this enhancement intends to take care of.
+User issues `argocd appset create/update/delete` command from CLI, into an Argo CD server on which they are logged-in. The command converts the command request into GRPC and sends it off to Argo CD API Server.
 
-## Use case 1: 
-As a user, I would like to understand the drift. (This is an example)
+#### **Argo CD API Server:**
+The API Server receives Create/Update/Delete request via GRPC and verifies that ApplicationSet controller is installed within the namespace (if not, return an error response back to user).
 
-## Use case 2: 
-As a user, I would like to take an action on the deviation/drift. (This is an example)
+The Api Server sends the GRPC request to the ApplicationSet controller via GRPC including authentication information from the user in the request.
 
-### Implementation Details/Notes/Constraints [optional]
+#### **ApplicationSet controller:**
+ApplicationSet controller receives Create/Update/Delete GRPC. (These next steps will be a create example, but update and delete are similar.)
 
-What are the caveats to the implementation? What are some important details that didn't come across
-above. Go in to as much detail as necessary here. This might be a good place to talk about core
-concepts and how they relate.
+**Pre-generate check:** Application controller will perform various checks before creating ApplicationSet:
 
-You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
+* Ensure user has appropriate RBAC to run the generator:
+    Verify that the user can access the Git repository (for Git generators)
+* Verify that user has cluster access (to see the clusters, for Cluster generator)
+* Verify that the user has permission to create/update/delete (depending on the request type) at least one Application within the RBAC policy. We want to prevent the generators being invoked by users that don't have permissions to create any Applications (since generators or templates might be exploited to DoS the ApplicationSet controller, using a malicious ApplicationSet)
+
+Once the pre-checks have been confirmed, the controller will run the generator, and render the parameters into the template. Upon generating the template, the controller will need to perform some checks before creating the Applications.
+
+**Post-generate check:** Look at the generated Applications (but don't apply them yet!), and verify that user has the required RBAC permissions to perform the required actions
+This is a dynamic (or runtime) check, as it works on the dynamically generated applications; eg. it is not possible to predict the result of these checks without first running the generator, unlike the static checks.
+
+Once all the checks have passed, apply the ApplicationSet and the Applications, to the namespace.
+
 
 ### Detailed examples
 
 ### Security Considerations
 
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  
-
 ### Risks and Mitigations
 
-What are the risks of this proposal and how do we mitigate. Think broadly. 
 
-For example, consider
-both security and how this will impact the larger Kubernetes ecosystem.
+### Use cases
+#### Use case 1: 
+#### Use case 2: 
 
-Consider including folks that also work outside your immediate sub-project.
+
+
+### Implementation Details/Notes/Constraints [optional]
+
 
 
 ### Upgrade / Downgrade Strategy
 
-If applicable, how will the component be upgraded and downgraded? Make sure this is in the test
-plan.
-
-Consider the following in developing an upgrade/downgrade strategy for this enhancement:
-
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to make use of the enhancement?
-
 ## Drawbacks
 
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
 
 ## Alternatives
 
-Similar to the `Drawbacks` section the `Alternatives` section is used to highlight and record other
-possible approaches to delivering the value proposed by an enhancement.
+Rather than using Argo CD's CLI, we could create a new AppSet CLI "appset" that would communicate directly with the ApplicationSet deployment, rather than going through the Argo CD API Server as an intermediary (though if we were adding web UI support, this would still be required regardless).
