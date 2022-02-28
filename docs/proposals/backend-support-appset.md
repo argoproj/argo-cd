@@ -35,7 +35,7 @@ As ApplicationSet Controller is now part of ArgoCD installation, we would like t
 
 * **Changes to CLI**
 
-  Add a new argocd command option `appset` with `create`, `delete` and `update` sub-commands.
+  Add a new argocd command option `appset` with `create`, `delete`, `update` and `list` sub-commands.
 
 ## Proposal
 
