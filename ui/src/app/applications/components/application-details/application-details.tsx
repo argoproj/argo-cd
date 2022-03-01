@@ -35,6 +35,7 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     zoom?: number;
+    filteredGraph?: any[];
 }
 
 interface FilterInput {
@@ -69,7 +70,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0, filteredGraph: []};
     }
 
     private get showOperationState() {
@@ -222,6 +223,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 }
                                 this.setState({zoom: targetZoom});
                             };
+                            const setFilterGraph = (filterGraph: any[]) => {
+                                this.setState({filteredGraph: filterGraph});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -284,7 +288,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <div className='graph-options-panel'>
                                                         {pref.view === 'tree' && (
                                                             <a
@@ -319,6 +323,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={this.state.zoom}
+                                                        filters={pref.resourceFilter}
+                                                        setTreeFilterGraph={setFilterGraph}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -336,7 +342,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
                                                                     page={this.state.page}
