@@ -43,7 +43,7 @@ if [ -d /dist/protoc-include ]; then
     # containerized codegen build
     protoc_include=/dist/protoc-include
 else
-    # local codegen build 
+    # local codegen build
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
 
@@ -121,7 +121,7 @@ clean_swagger() {
 }
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=64
+EXPECTED_COLLISION_COUNT=70
 collect_swagger server ${EXPECTED_COLLISION_COUNT}
 clean_swagger server
 clean_swagger reposerver

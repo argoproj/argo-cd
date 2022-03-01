@@ -23,6 +23,7 @@ import (
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -826,6 +827,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		local         string
 		revision      string
 		localRepoRoot string
+		appManifest   string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -862,14 +864,34 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				localObjs := groupObjsByKey(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 				items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
-			} else if revision != "" {
+			} else if revision != "" || appManifest != "" {
+				var res *repoapiclient.ManifestResponse
 				var unstructureds []*unstructured.Unstructured
-				q := applicationpkg.ApplicationManifestQuery{
-					Name:     &appName,
-					Revision: revision,
+				if revision != "" {
+					q := applicationpkg.ApplicationManifestQuery{
+						Name:     &appName,
+						Revision: revision,
+					}
+					res, err = appIf.GetManifests(context.Background(), &q)
+					errors.CheckError(err)
+				} else if appManifest != "" {
+					apps, err := cmdutil.ConstructApps(appManifest, appName, []string{}, []string{}, []string{}, cmdutil.AppOptions{}, &pflag.FlagSet{})
+					errors.CheckError(err)
+					for _, app := range apps {
+						res, err = appIf.GenerateManifests(context.Background(), &repoapiclient.ManifestRequest{
+							Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
+							AppLabelKey:       argoSettings.AppLabelKey,
+							AppName:           app.Name,
+							Namespace:         app.Spec.Destination.Namespace,
+							ApplicationSource: &app.Spec.Source,
+							KustomizeOptions:  argoSettings.KustomizeOptions,
+							Plugins:           argoSettings.ConfigManagementPlugins,
+						})
+						errors.CheckError(err)
+						// must be just one application
+						continue
+					}
 				}
-				res, err := appIf.GetManifests(context.Background(), &q)
-				errors.CheckError(err)
 				for _, mfst := range res.Manifests {
 					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 					errors.CheckError(err)
@@ -943,6 +965,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
+	command.Flags().StringVar(&appManifest, "app", "", "Compare live app to a local application manifest")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
