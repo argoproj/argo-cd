@@ -225,8 +225,6 @@ replace (
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
-	google.golang.org/grpc => google.golang.org/grpc v1.15.0
-
 	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
 	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
