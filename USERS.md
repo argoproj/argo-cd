@@ -195,4 +195,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Skyscanner](https://www.skyscanner.net/)
 1. [Casavo](https://casavo.com)
 1. [Majid Al Futtaim](https://www.majidalfuttaim.com/)
+1. [Yubo](https://www.yubo.live/)
 1. [ZOZO](https://corp.zozo.com/)
