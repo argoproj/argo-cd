@@ -57,7 +57,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/r3labs/diff v1.1.0
 	github.com/robfig/cron v1.2.0
-	github.com/rs/cors v1.8.0 // indirect
+	github.com/rs/cors v1.8.2 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.5
