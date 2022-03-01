@@ -49,7 +49,7 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (str
 
 	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("error receiving file: %s", err)
+		return "", nil, fmt.Errorf("error receiving tgz file: %s", err)
 	}
 	err = files.Untgz(workDir, tgzFile)
 	if err != nil {
@@ -107,12 +107,12 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 			if err == io.EOF {
 				break
 			}
-			return fmt.Errorf("error reading tgz file: %s", err)
+			return fmt.Errorf("buffer reader error: %s", err)
 		}
 		fr := appFileRequest(chunk[:n])
 		err = sender.Send(fr)
 		if err != nil {
-			return fmt.Errorf("error sending tgz chunk: %s", err)
+			return fmt.Errorf("error sending stream: %s", err)
 		}
 	}
 	return nil
@@ -182,19 +182,19 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		return nil, fmt.Errorf("file checksum validation error")
 	}
 
-	tgzFile, err := ioutil.TempFile(dst, "")
+	file, err := ioutil.TempFile(dst, "")
 	if err != nil {
-		return nil, fmt.Errorf("error creating tgz file: %s", err)
+		return nil, fmt.Errorf("error creating file: %s", err)
 	}
-	_, err = fileBuffer.WriteTo(tgzFile)
+	_, err = fileBuffer.WriteTo(file)
 	if err != nil {
-		return nil, fmt.Errorf("error writing tgz file: %s", err)
+		return nil, fmt.Errorf("error writing file: %s", err)
 	}
-	_, err = tgzFile.Seek(0, io.SeekStart)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		return nil, fmt.Errorf("tgz seek error: %s", err)
+		return nil, fmt.Errorf("seek error: %s", err)
 	}
-	return tgzFile, nil
+	return file, nil
 }
 
 // appFileRequest build the file payload for the ManifestRequest

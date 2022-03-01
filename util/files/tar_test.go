@@ -7,12 +7,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/files"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/files"
 )
 
 func TestTgz(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTgz(t *testing.T) {
 		// given
 		exclusions := []string{}
 		hasher := sha256.New()
-		expectedHash := "5fc2bc3cd06dd65a28afb387460c730f7ecd9c04a5a5fbc98104ee1aac2cfff2"
+		expectedHash := "58489f8b7ccfea9c9233e0f4beaab4b760d78118d4b597e3e989840b54581e10"
 		appDir := getTestAppDir(t)
 
 		// when
@@ -35,7 +36,7 @@ func TestTgz(t *testing.T) {
 		// given
 		exclusions := []string{"README.md"}
 		hasher := sha256.New()
-		expectedHash := "ac9ff2154b5200abdf3d7b0261072d3951a76c1334b1db072873a75bfcd8c291"
+		expectedHash := "4bf33604525ed9d52f440ca9f3f7c0b73b456df62c24854386adf8d64f88efbe"
 		appDir := getTestAppDir(t)
 
 		// when
@@ -49,7 +50,7 @@ func TestTgz(t *testing.T) {
 		// given
 		exclusions := []string{"README.md", "applicationset/latest"}
 		hasher := sha256.New()
-		expectedHash := "978c0b70392d55b5adde1a233165b48fc611216e273e5d9fdce7f665b9962099"
+		expectedHash := "0f14bfa12a46dfbdbf1897c03ab15cd9fedda437165f3c9c0888b0b995feb2a9"
 		appDir := getTestAppDir(t)
 
 		// when
@@ -116,19 +117,8 @@ func getTestAppDir(t *testing.T) string {
 	return filepath.Join(getTestDataDir(t), "app")
 }
 
-// getTestDataDir will return the full path of hte testdata dir
+// getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
-	return filepath.Join(getTestDir(t), "testdata")
-}
-
-// getTestDir will return the full path for the current test
-// file.
-func getTestDir(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("error retrieving directory for the running test")
-	}
-	return filepath.Dir(filename)
+	return filepath.Join(test.GetTestDir(t), "testdata")
 }
