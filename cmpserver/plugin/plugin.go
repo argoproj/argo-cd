@@ -3,12 +3,8 @@ package plugin
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +14,7 @@ import (
 	"github.com/argoproj/pkg/rand"
 
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
-	"github.com/argoproj/argo-cd/v2/util/files"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
@@ -134,7 +130,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
-	workDir, env, err := ReceiveStream(stream.Context(), stream)
+	workDir, env, err := cmp.ReceiveApplicationStream(stream.Context(), stream)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %s", err)
 	}
@@ -149,95 +145,6 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 		return fmt.Errorf("error sending manifest response: %s", err)
 	}
 	return nil
-}
-
-// Receiver defines the contract for receiving Application's files
-// over gRPC stream
-type Receiver interface {
-	Recv() (*apiclient.AppStreamRequest, error)
-}
-
-// ReceiveStream will receive the Application's files and the env entries
-// over the gRPC stream. Will return the path where the files are saved
-// and the env entries if no error.
-func ReceiveStream(ctx context.Context, receiver Receiver) (string, []*apiclient.EnvEntry, error) {
-	header, err := receiver.Recv()
-	if err != nil {
-		return "", nil, fmt.Errorf("error receiving stream header: %s", err)
-	}
-	if header == nil || header.GetMetadata() == nil {
-		return "", nil, fmt.Errorf("error getting stream metadata: metadata is nil")
-	}
-	metadata := header.GetMetadata()
-	workDir, err := ioutil.TempDir(os.TempDir(), metadata.GetAppName())
-	if err != nil {
-		return "", nil, fmt.Errorf("error creating workDir: %s", err)
-	}
-
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
-	if err != nil {
-		return "", nil, fmt.Errorf("error receiving file: %s", err)
-	}
-	err = files.Untgz(workDir, tgzFile)
-	if err != nil {
-		return "", nil, fmt.Errorf("error decompressing tgz file: %s", err)
-	}
-	err = os.Remove(tgzFile.Name())
-	if err != nil {
-		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name, err)
-	}
-	return workDir, metadata.GetEnv(), nil
-}
-
-// receiveFile will receive the file from the gRPC stream and save it in the dst folder.
-// Returns error if checksum doesn't match the one provided in the fileMetadata.
-// It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver Receiver, checksum, dst string) (*os.File, error) {
-	fileBuffer := bytes.Buffer{}
-	hasher := sha256.New()
-	for {
-		if ctx != nil {
-			if err := ctx.Err(); err != nil {
-				return nil, fmt.Errorf("stream context error: %s", err)
-			}
-		}
-		req, err := receiver.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, fmt.Errorf("stream Recv error: %s", err)
-		}
-		f := req.GetFile()
-		if f == nil {
-			return nil, fmt.Errorf("stream request file is nil")
-		}
-		_, err = fileBuffer.Write(f.Chunk)
-		if err != nil {
-			return nil, fmt.Errorf("error writing file buffer: %s", err)
-		}
-		_, err = hasher.Write(f.Chunk)
-		if err != nil {
-			return nil, fmt.Errorf("error writing hasher: %s", err)
-		}
-	}
-	if hex.EncodeToString(hasher.Sum(nil)) != checksum {
-		return nil, fmt.Errorf("file checksum validation error")
-	}
-
-	tgzFile, err := ioutil.TempFile(dst, "")
-	if err != nil {
-		return nil, fmt.Errorf("error creating tgz file: %s", err)
-	}
-	_, err = fileBuffer.WriteTo(tgzFile)
-	if err != nil {
-		return nil, fmt.Errorf("error writing tgz file: %s", err)
-	}
-	_, err = tgzFile.Seek(0, io.SeekStart)
-	if err != nil {
-		return nil, fmt.Errorf("tgz seek error: %s", err)
-	}
-	return tgzFile, nil
 }
 
 // generateManifest runs generate command from plugin config file and returns generated manifest files
@@ -285,13 +192,21 @@ func (s *Service) generateManifest(ctx context.Context, workDir string, envEntri
 func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
-	workdir, _, err := ReceiveStream(bufferedCtx, stream)
+	workdir, _, err := cmp.ReceiveApplicationStream(bufferedCtx, stream)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %s", err)
 	}
 	defer os.RemoveAll(workdir)
 
-	repoResponse := &apiclient.RepositoryResponse{}
+	isSupported, err := s.matchRepository(bufferedCtx, workdir)
+	if err != nil {
+		return fmt.Errorf("match repository error: %s", err)
+	}
+	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
+	return stream.SendAndClose(repoResponse)
+}
+
+func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, error) {
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
@@ -300,16 +215,12 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %s", pattern, err)
 			log.Debug(e)
-			return e
+			return false, e
 		}
 		if len(matches) > 0 {
-			repoResponse.IsSupported = true
+			return true, nil
 		}
-		err = stream.SendAndClose(repoResponse)
-		if err != nil {
-			return fmt.Errorf("error closing stream: %s", err)
-		}
-		return nil
+		return false, nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
@@ -321,33 +232,25 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 		if err != nil {
 			e := fmt.Errorf("error finding glob match for pattern %q: %s", pattern, err)
 			log.Debug(e)
-			return e
+			return false, e
 		}
 
 		if len(matches) > 0 {
-			repoResponse.IsSupported = true
+			return true, nil
 		}
-		err = stream.SendAndClose(repoResponse)
-		if err != nil {
-			return fmt.Errorf("error closing stream: %s", err)
-		}
-		return nil
+		return false, nil
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(bufferedCtx, config.Spec.Discover.Find.Command, workdir, os.Environ())
+	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, os.Environ())
 	if err != nil {
-		return fmt.Errorf("error running find command: %s", err)
+		return false, fmt.Errorf("error running find command: %s", err)
 	}
 
 	if find != "" {
-		repoResponse.IsSupported = true
+		return true, nil
 	}
-	err = stream.SendAndClose(repoResponse)
-	if err != nil {
-		return fmt.Errorf("error closing stream: %s", err)
-	}
-	return nil
+	return false, nil
 }
 
 // GetPluginConfig returns plugin config

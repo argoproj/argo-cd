@@ -141,7 +141,7 @@ func matchRepositoryCMP(ctx context.Context, appPath string, client pluginclient
 		return false, fmt.Errorf("error getting stream client: %s", err)
 	}
 
-	err = cmp.SendAppFiles(ctx, appPath, matchRepoStream, []string{})
+	err = cmp.SendApplicationStream(ctx, appPath, matchRepoStream, []string{})
 	if err != nil {
 		return false, fmt.Errorf("error sending stream: %s", err)
 	}

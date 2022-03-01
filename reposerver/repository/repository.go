@@ -1289,7 +1289,7 @@ func generateManifestsCMP(ctx context.Context, appPath string, env []string, cmp
 		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
 	}
 
-	err = cmp.SendAppFiles(generateManifestStream.Context(), appPath, generateManifestStream, env)
+	err = cmp.SendApplicationStream(generateManifestStream.Context(), appPath, generateManifestStream, env)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
 	}

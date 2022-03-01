@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -33,14 +31,12 @@ func TestMatchRepository(t *testing.T) {
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
-	q := apiclient.RepositoryRequest{}
 	path, err := os.Getwd()
 	require.NoError(t, err)
-	q.Path = path
 
-	res1, err := service.MatchRepository(context.Background(), &q)
+	isSupported, err := service.matchRepository(context.Background(), path)
 	require.NoError(t, err)
-	require.True(t, res1.IsSupported)
+	require.True(t, isSupported)
 }
 
 func Test_Negative_ConfigFile_DoesnotExist(t *testing.T) {
@@ -55,8 +51,7 @@ func TestGenerateManifest(t *testing.T) {
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
-	q := apiclient.ManifestRequest{}
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.generateManifest(context.Background(), "", nil)
 	require.NoError(t, err)
 	require.NotNil(t, res1)
 
