@@ -405,7 +405,6 @@ var (
 		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
 		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
 		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
-		v1alpha1.ApplicationSourceTypeKsonnet:   "ksonnet.enable",
 	}
 )
 

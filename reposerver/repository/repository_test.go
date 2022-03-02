@@ -283,25 +283,6 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
-func TestGenerateKsonnetManifest(t *testing.T) {
-	service := newService("../..")
-
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-				Environment: "dev",
-			},
-		},
-	}
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res.Manifests))
-	assert.Equal(t, "dev", res.Namespace)
-	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
-}
-
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
@@ -1156,24 +1137,6 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
 	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
-}
-
-func TestGetAppDetailsKsonnet(t *testing.T) {
-	service := newService("../..")
-
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{},
-		Source: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-		},
-	})
-
-	assert.NoError(t, err)
-
-	assert.Equal(t, "Ksonnet", res.Type)
-	assert.NotNil(t, res.Ksonnet)
-	assert.Equal(t, "guestbook", res.Ksonnet.Name)
-	assert.Len(t, res.Ksonnet.Environments, 3)
 }
 
 func TestGetHelmCharts(t *testing.T) {
