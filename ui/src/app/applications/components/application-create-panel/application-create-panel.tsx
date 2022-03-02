@@ -9,6 +9,7 @@ import {ApplicationParameters} from '../application-parameters/application-param
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import * as ReactForm from 'react-form';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -218,6 +219,10 @@ export const ApplicationCreatePanel = (props: {
                                                         qeId='application-create-field-sync-policy'
                                                         component={AutoSyncFormField}
                                                     />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={api} field='metadata.finalizers' component={ApplicationCascadeDeletion} />
+                                                    <HelpIcon title='If checked finalizer resources-finalizer.argocd.argoproj.io will be set and application resources deletion will be cascaded' />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
@@ -510,3 +515,24 @@ export const ApplicationCreatePanel = (props: {
         </React.Fragment>
     );
 };
+
+export const ApplicationCascadeDeletion = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+    const {
+        fieldApi: {setValue, setTouched}
+    } = props;
+    const val = ['resources-finalizer.argocd.argoproj.io'] || [];
+    return (
+        <div className='argo-field' style={{borderBottom: '0'}}>
+            <React.Fragment>
+                <Checkbox
+                    id='cascade-on-delete'
+                    onChange={(newVal: boolean) => {
+                        setTouched(true);
+                        setValue(val);
+                    }}
+                />
+                <label htmlFor={`cascade-on-delete`}>Set Finalizer</label>
+            </React.Fragment>
+        </div>
+    );
+});
