@@ -67,6 +67,11 @@ func Untgz(dstPath string, r io.Reader) error {
 
 		target := filepath.Join(dstPath, header.Name)
 
+		// Sanity check to protect against zip-slip
+		if !strings.HasPrefix(target, filepath.Clean(dstPath)+string(os.PathSeparator)) {
+			return fmt.Errorf("illegal filepath in archive: %s", target)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err := createNestedFolders(target)

@@ -65,7 +65,7 @@ func TestTgz(t *testing.T) {
 func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
-		tmpDir, err := ioutil.TempDir(getTestDir(t), "")
+		tmpDir, err := ioutil.TempDir(test.GetTestDir(t), "")
 		if err != nil {
 			t.Fatalf("error creating tmpDir: %s", err)
 		}
