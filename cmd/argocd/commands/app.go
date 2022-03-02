@@ -1493,7 +1493,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					foundDiffs = findandPrintDiff(app, resources, argoSettings, appName, diffOption)
 					if foundDiffs {
 						if !diffChangesConfirm {
-							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n) :", appName))
+							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appName))
 							if !yesno {
 								os.Exit(0)
 							}
