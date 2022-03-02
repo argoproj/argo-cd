@@ -108,7 +108,6 @@ message RepoServerAppDetailsQuery {
 // RepoAppDetailsResponse application details
 message RepoAppDetailsResponse {
 	string type = 1;
-	KsonnetAppSpec ksonnet = 2;
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
@@ -121,14 +120,6 @@ message RepoServerRevisionMetadataRequest {
     string revision = 2;
     // whether to check signature on revision
     bool checkSignature = 3;
-}
-
-// KsonnetAppSpec contains Ksonnet app response
-// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
-message KsonnetAppSpec {
-	string name = 1;
-	map<string, KsonnetEnvironment> environments = 3;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
 }
 
 // HelmAppSpec contains helm app name  in source repo
@@ -147,22 +138,6 @@ message HelmAppSpec {
 message KustomizeAppSpec {
 	// images is a list of available images.
 	repeated string images = 3;
-}
-
-message KsonnetEnvironment {
-    // Name is the user defined name of an environment
-    string name = 1;
-    // KubernetesVersion is the kubernetes version the targeted cluster is running on.
-    string k8sVersion = 2;
-    // Destination stores the cluster address that this environment points to.
-    KsonnetEnvironmentDestination destination = 4;
-}
-
-message KsonnetEnvironmentDestination {
-    // Server is the Kubernetes server that the cluster is running on.
-    string server = 1;
-    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
-    string namespace = 2;
 }
 
 // DirectoryAppSpec contains directory

@@ -53,9 +53,6 @@ func Discover(ctx context.Context, root string, enableGenerateManifests map[stri
 			return err
 		}
 		base := filepath.Base(path)
-		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKsonnet, enableGenerateManifests) {
-			apps[filepath.Dir(dir)] = string(v1alpha1.ApplicationSourceTypeKsonnet)
-		}
 		if strings.HasSuffix(base, "Chart.yaml") && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeHelm, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeHelm)
 		}

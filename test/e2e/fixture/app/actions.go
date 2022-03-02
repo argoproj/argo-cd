@@ -101,11 +101,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 			},
 		},
 	}
-	if a.context.env != "" {
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: a.context.env,
-		}
-	}
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,

@@ -215,8 +215,6 @@ export ARGOCD_E2E_SKIP_OPENSHIFT=${ARGOCD_E2E_SKIP_OPENSHIFT:-false}
 export ARGOCD_E2E_SKIP_HELM=${ARGOCD_E2E_SKIP_HELM:-false}
 # Skip only Helm v2 related tests
 export ARGOCD_E2E_SKIP_HELM2=${ARGOCD_E2E_SKIP_HELM2:-false}
-# Skip Ksonnet tests
-export ARGOCD_E2E_SKIP_KSONNET=${ARGOCD_E2E_SKIP_KSONNET:-false}
 ```
 
 ## Recording tests that ran successfully and restart at point of fail
