@@ -837,7 +837,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
-
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -846,98 +845,34 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
-			liveObjs, err := liveObjects(resources.Items)
-			errors.CheckError(err)
-			items := make([]objKeyLiveTarget, 0)
-
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
 			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
-
-			if local != "" {
-				conn, clusterIf := clientset.NewClusterClientOrDie()
-				defer argoio.Close(conn)
-				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-				errors.CheckError(err)
-				localObjs := groupObjsByKey(getLocalObjects(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-				items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
-			} else if revision != "" {
-				var unstructureds []*unstructured.Unstructured
+			diffOption := &DifferenceOption{}
+			if revision != "" {
 				q := applicationpkg.ApplicationManifestQuery{
 					Name:     &appName,
 					Revision: revision,
 				}
 				res, err := appIf.GetManifests(context.Background(), &q)
 				errors.CheckError(err)
-				for _, mfst := range res.Manifests {
-					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-					errors.CheckError(err)
-					unstructureds = append(unstructureds, obj)
-				}
-				groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-				items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
-			} else {
-				for i := range resources.Items {
-					res := resources.Items[i]
-					var live = &unstructured.Unstructured{}
-					err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-					errors.CheckError(err)
-
-					var target = &unstructured.Unstructured{}
-					err = json.Unmarshal([]byte(res.TargetState), &target)
-					errors.CheckError(err)
-
-					items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
-				}
+				diffOption.res = res
+				diffOption.revision = revision
 			}
-
-			foundDiffs := false
-			for _, item := range items {
-				if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
-					continue
-				}
-				overrides := make(map[string]argoappv1.ResourceOverride)
-				for k := range argoSettings.ResourceOverrides {
-					val := argoSettings.ResourceOverrides[k]
-					overrides[k] = *val
-				}
-
-				// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
-				// compareOptions in the protobuf
-				ignoreAggregatedRoles := false
-				diffConfig, err := argodiff.NewDiffConfigBuilder().
-					WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles).
-					WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
-					WithNoCache().
-					Build()
+			if local != "" {
+				conn, clusterIf := clientset.NewClusterClientOrDie()
+				defer argoio.Close(conn)
+				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 				errors.CheckError(err)
-
-				diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
-				errors.CheckError(err)
-
-				if diffRes.Modified || item.target == nil || item.live == nil {
-					fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
-					var live *unstructured.Unstructured
-					var target *unstructured.Unstructured
-					if item.target != nil && item.live != nil {
-						target = &unstructured.Unstructured{}
-						live = item.live
-						err = json.Unmarshal(diffRes.PredictedLive, target)
-						errors.CheckError(err)
-					} else {
-						live = item.live
-						target = item.target
-					}
-
-					foundDiffs = true
-					_ = cli.PrintDiff(item.key.Name, live, target)
-				}
+				diffOption.local = local
+				diffOption.localRepoRoot = localRepoRoot
+				diffOption.cluster = cluster
 			}
+			foundDiffs := findandPrintDiff(app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
-
 		},
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -947,6 +882,92 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	return command
+}
+
+// DifferenceOption struct to store diff options
+type DifferenceOption struct {
+	local         string
+	localRepoRoot string
+	revision      string
+	cluster       *argoappv1.Cluster
+	res           *repoapiclient.ManifestResponse
+}
+
+// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
+func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
+	var foundDiffs bool
+	liveObjs, err := liveObjects(resources.Items)
+	errors.CheckError(err)
+	items := make([]objKeyLiveTarget, 0)
+	if diffOptions.local != "" {
+		localObjs := groupObjsByKey(getLocalObjects(app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
+	} else if diffOptions.revision != "" {
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
+	} else {
+		for i := range resources.Items {
+			res := resources.Items[i]
+			var live = &unstructured.Unstructured{}
+			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
+			errors.CheckError(err)
+
+			var target = &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(res.TargetState), &target)
+			errors.CheckError(err)
+
+			items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
+		}
+	}
+
+	for _, item := range items {
+		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+			continue
+		}
+		overrides := make(map[string]argoappv1.ResourceOverride)
+		for k := range argoSettings.ResourceOverrides {
+			val := argoSettings.ResourceOverrides[k]
+			overrides[k] = *val
+		}
+
+		// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
+		// compareOptions in the protobuf
+		ignoreAggregatedRoles := false
+		diffConfig, err := argodiff.NewDiffConfigBuilder().
+			WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles).
+			WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
+			WithNoCache().
+			Build()
+		errors.CheckError(err)
+		diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
+		errors.CheckError(err)
+
+		if diffRes.Modified || item.target == nil || item.live == nil {
+			fmt.Printf("\n===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
+			var live *unstructured.Unstructured
+			var target *unstructured.Unstructured
+			if item.target != nil && item.live != nil {
+				target = &unstructured.Unstructured{}
+				live = item.live
+				err = json.Unmarshal(diffRes.PredictedLive, target)
+				errors.CheckError(err)
+			} else {
+				live = item.live
+				target = item.target
+			}
+			if !foundDiffs {
+				foundDiffs = true
+			}
+			_ = cli.PrintDiff(item.key.Name, live, target)
+		}
+	}
+	return foundDiffs
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName string) []objKeyLiveTarget {
@@ -1306,6 +1327,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		local                   string
 		localRepoRoot           string
 		infos                   []string
+		diffChanges             bool
+		diffChangesConfirm      bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector]",
@@ -1387,6 +1410,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				selectedResources := parseSelectedResources(resources)
 
 				var localObjsStrings []string
+				diffOption := &DifferenceOption{}
 				if local != "" {
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
@@ -1406,6 +1430,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					argoio.Close(conn)
 					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+					errors.CheckError(err)
+					diffOption.local = local
+					diffOption.localRepoRoot = localRepoRoot
+					diffOption.cluster = cluster
 				}
 
 				syncOptionsFactory := func() *applicationpkg.SyncOptions {
@@ -1454,6 +1482,29 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						},
 					}
 				}
+				if diffChanges {
+					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					errors.CheckError(err)
+					resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+					errors.CheckError(err)
+					conn, settingsIf := acdClient.NewSettingsClientOrDie()
+					defer argoio.Close(conn)
+					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					errors.CheckError(err)
+					foundDiffs := false
+					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appName)
+					foundDiffs = findandPrintDiff(app, resources, argoSettings, appName, diffOption)
+					if foundDiffs {
+						if !diffChangesConfirm {
+							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appName))
+							if !yesno {
+								os.Exit(0)
+							}
+						}
+					} else {
+						fmt.Printf("====== No Differences found ======\n")
+					}
+				}
 				ctx := context.Background()
 				_, err := appIf.Sync(ctx, &syncReq)
 				errors.CheckError(err)
@@ -1495,6 +1546,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
+	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
+	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	return command
 }
 
