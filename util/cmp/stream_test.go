@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type streamMock struct {
@@ -78,7 +79,7 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 	defer func() {
 		m.done <- true
 	}()
-	err := cmp.SendApplicationStream(context.Background(), basedir, sender, env)
+	err := cmp.SendApplicationStream(ctx, basedir, sender, env)
 	require.NoError(t, err)
 }
 

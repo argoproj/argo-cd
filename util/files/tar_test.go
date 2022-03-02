@@ -20,6 +20,7 @@ func TestTgz(t *testing.T) {
 
 	t.Run("will tgz folder successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		exclusions := []string{}
 		hasher := sha256.New()
 		expectedHash := "58489f8b7ccfea9c9233e0f4beaab4b760d78118d4b597e3e989840b54581e10"
@@ -34,6 +35,7 @@ func TestTgz(t *testing.T) {
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given
+		t.Parallel()
 		exclusions := []string{"README.md"}
 		hasher := sha256.New()
 		expectedHash := "4bf33604525ed9d52f440ca9f3f7c0b73b456df62c24854386adf8d64f88efbe"
@@ -48,6 +50,7 @@ func TestTgz(t *testing.T) {
 	})
 	t.Run("will exclude directories from the exclusion list", func(t *testing.T) {
 		// given
+		t.Parallel()
 		exclusions := []string{"README.md", "applicationset/latest"}
 		hasher := sha256.New()
 		expectedHash := "0f14bfa12a46dfbdbf1897c03ab15cd9fedda437165f3c9c0888b0b995feb2a9"
@@ -97,7 +100,9 @@ func TestUntgz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error during Tgz: %s", err)
 		}
-		tgzFile.Seek(0, io.SeekStart)
+		if _, err := tgzFile.Seek(0, io.SeekStart); err != nil {
+			t.Fatalf("seek error: %s", err)
+		}
 
 		// when
 		err = files.Untgz(tmpDir, tgzFile)

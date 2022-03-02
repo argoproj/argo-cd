@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-
 	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
