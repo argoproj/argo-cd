@@ -32,6 +32,7 @@ spec:
     - /spec/replicas
 ```
 
+Note that the `group` field relates to the [Kubernetes API group](https://kubernetes.io/docs/reference/using-api/#api-groups).
 The above customization could be narrowed to a resource with the specified name and optional namespace:
 
 ```yaml
