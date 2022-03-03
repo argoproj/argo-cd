@@ -1,6 +1,6 @@
 # Cluster Bootstrapping
 
-This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
+This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
 There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
