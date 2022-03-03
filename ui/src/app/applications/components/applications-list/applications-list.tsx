@@ -293,6 +293,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
+    const [isStatusBarShown, showStatusBar] = React.useState(true);
 
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -374,17 +375,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 healthBarPrefs.showHealthStatusBar ? '-o' : ''
                                                                             }`}
                                                                             style={{border: 'none'}}
-                                                                            onClick={() =>
+                                                                            onClick={() => {
+                                                                                showStatusBar(!isStatusBarShown);
                                                                                 services.viewPreferences.updatePreferences({
                                                                                     appList: {
                                                                                         ...pref,
                                                                                         statusBarView: {
                                                                                             ...healthBarPrefs,
-                                                                                            showHealthStatusBar: !healthBarPrefs.showHealthStatusBar
+                                                                                            showHealthStatusBar: isStatusBarShown
                                                                                         }
                                                                                     }
-                                                                                })
-                                                                            }>
+                                                                                });
+                                                                            }}>
                                                                             <i className={`fas fa-ruler-horizontal`} />
                                                                         </button>
                                                                     </Tooltip>
