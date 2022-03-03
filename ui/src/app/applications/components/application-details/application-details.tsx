@@ -36,6 +36,7 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     zoom?: number;
     filteredGraph?: any[];
+    truncateNameOnRight?: boolean;
 }
 
 interface FilterInput {
@@ -70,7 +71,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0, filteredGraph: []};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0, filteredGraph: [], truncateNameOnRight: false};
     }
 
     private get showOperationState() {
@@ -226,6 +227,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
                             };
+                            const toggleNameDirection = () => {
+                                this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -290,6 +294,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <div className='graph-options-panel'>
+                                                        <a
+                                                            className={`group-nodes-button`}
+                                                            onClick={() => {
+                                                                toggleNameDirection();
+                                                            }}
+                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                            <i
+                                                                className={classNames({
+                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                })}
+                                                            />
+                                                        </a>
                                                         {pref.view === 'tree' && (
                                                             <a
                                                                 className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
@@ -323,6 +340,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={this.state.zoom}
+                                                        nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
                                                     />
