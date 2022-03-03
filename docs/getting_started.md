@@ -62,7 +62,7 @@ Kubectl port-forwarding can also be used to connect to the API server without ex
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-The API server can then be accessed using the localhost:8080
+The API server can then be accessed using https://localhost:8080
 
 
 ## 4. Login Using The CLI

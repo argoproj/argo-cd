@@ -222,9 +222,10 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
 ```
 
 ### Requesting additional ID token claims
@@ -243,14 +244,15 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
 ```
 
 !!! warning
@@ -272,15 +274,16 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
-        getUserInfo: true
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
+          getUserInfo: true
 ```
 
 ## Existing OIDC Provider

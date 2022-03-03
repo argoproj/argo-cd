@@ -112,6 +112,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -196,6 +200,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -211,6 +217,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -410,6 +418,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -494,6 +506,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -509,6 +523,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -710,6 +726,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -794,6 +814,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -809,6 +831,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -986,6 +1010,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -1070,6 +1098,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -1085,6 +1115,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -1292,6 +1324,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -1376,6 +1412,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -1391,6 +1429,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -1590,6 +1630,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -1674,6 +1718,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -1689,6 +1735,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -1890,6 +1938,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -1974,6 +2026,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -1989,6 +2043,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -2166,6 +2222,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -2250,6 +2310,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -2265,6 +2327,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -2470,6 +2534,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -2554,6 +2622,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -2569,6 +2639,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -2803,6 +2875,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -2887,6 +2963,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -2902,6 +2980,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -3072,6 +3152,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -3156,6 +3240,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -3171,6 +3257,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -3378,6 +3466,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -3462,6 +3554,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -3477,6 +3571,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -3676,6 +3772,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -3760,6 +3860,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -3775,6 +3877,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -3976,6 +4080,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -4060,6 +4168,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4075,6 +4185,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4252,6 +4364,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -4336,6 +4452,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4351,6 +4469,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4556,6 +4676,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -4640,6 +4764,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4655,6 +4781,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4889,6 +5017,10 @@ spec:
                                                   type: array
                                                 kind:
                                                   type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 namespace:
@@ -4973,6 +5105,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4988,6 +5122,8 @@ spec:
                                                     type: boolean
                                                   releaseName:
                                                     type: string
+                                                  skipCrds:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -5162,6 +5298,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -5246,6 +5386,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -5261,6 +5403,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -5463,6 +5607,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -5547,6 +5695,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -5562,6 +5712,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -5796,6 +5948,10 @@ spec:
                                         type: array
                                       kind:
                                         type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       namespace:
@@ -5880,6 +6036,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
                                         parameters:
                                           items:
                                             properties:
@@ -5895,6 +6053,8 @@ spec:
                                           type: boolean
                                         releaseName:
                                           type: string
+                                        skipCrds:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -6070,6 +6230,10 @@ spec:
                               type: array
                             kind:
                               type: string
+                            managedFieldsManagers:
+                              items:
+                                type: string
+                              type: array
                             name:
                               type: string
                             namespace:
@@ -6154,6 +6318,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingValueFiles:
+                                type: boolean
                               parameters:
                                 items:
                                   properties:
@@ -6169,6 +6335,8 @@ spec:
                                 type: boolean
                               releaseName:
                                 type: string
+                              skipCrds:
+                                type: boolean
                               valueFiles:
                                 items:
                                   type: string
@@ -6761,7 +6929,6 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  creationTimestamp: null
   name: argocd-notifications-cm
 ---
 apiVersion: v1
@@ -7260,7 +7427,6 @@ metadata:
   name: argocd-ssh-known-hosts-cm
 ---
 apiVersion: v1
-data: null
 kind: ConfigMap
 metadata:
   labels:
@@ -8292,6 +8458,8 @@ spec:
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
+        - name: ARGOCD_CONTROLLER_REPLICAS
+          value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:

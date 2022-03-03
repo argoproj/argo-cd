@@ -41,8 +41,7 @@ ADD ./hack/installers installers
 ADD go.mod go.mod
 ADD go.sum go.sum
 
-RUN ./install.sh ksonnet-linux && \
-    ./install.sh helm2-linux && \
+RUN ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
     ./install.sh kustomize-linux && \

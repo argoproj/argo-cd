@@ -331,7 +331,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
+        k3s-version: [v1.23.3, v1.22.6, v1.21.2]
     needs: 
       - build-go
     env:
@@ -376,6 +376,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Add ./dist to PATH
+        run: |
+          echo "$(pwd)/dist" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download
@@ -408,7 +411,7 @@ jobs:
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
-            if test $count -ge 60; then
+            if test $count -ge 120; then
               echo "Timeout"
               exit 1
             fi

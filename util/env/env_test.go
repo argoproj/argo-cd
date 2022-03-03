@@ -1,7 +1,9 @@
 package env
 
 import (
+	"fmt"
 	"io"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -60,6 +62,84 @@ func TestParseNumFromEnv_OutOfRangeValueSet(t *testing.T) {
 	num := ParseNumFromEnv("test", 10, 0, 100)
 
 	assert.Equal(t, 10, num)
+}
+
+func TestParseFloatFromEnv(t *testing.T) {
+	t.Run("Env not set", func(t *testing.T) {
+		closer := setEnv(t, "test", "")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(1.0), f)
+	})
+	t.Run("Parse valid float", func(t *testing.T) {
+		closer := setEnv(t, "test", "2.5")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(2.5), f)
+	})
+	t.Run("Parse valid integer as float", func(t *testing.T) {
+		closer := setEnv(t, "test", "2")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(2.0), f)
+	})
+	t.Run("Parse invalid value", func(t *testing.T) {
+		closer := setEnv(t, "test", "foo")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(1.0), f)
+	})
+	t.Run("Float lesser than allowed", func(t *testing.T) {
+		closer := setEnv(t, "test", "-2.0")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(1.0), f)
+	})
+	t.Run("Float greater than allowed", func(t *testing.T) {
+		closer := setEnv(t, "test", "5.0")
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, 4)
+		assert.Equal(t, float32(1.0), f)
+	})
+	t.Run("Check float overflow returning default value", func(t *testing.T) {
+		closer := setEnv(t, "test", fmt.Sprintf("%f", math.MaxFloat32*2))
+		defer util.Close(closer)
+		f := ParseFloatFromEnv("test", 1, 0, math.MaxFloat32)
+		assert.Equal(t, float32(1.0), f)
+	})
+}
+
+func TestParseInt64FromEnv(t *testing.T) {
+	t.Run("Env not set", func(t *testing.T) {
+		closer := setEnv(t, "test", "")
+		defer util.Close(closer)
+		i := ParseInt64FromEnv("test", 1, 0, math.MaxInt64)
+		assert.Equal(t, int64(1), i)
+	})
+	t.Run("Parse valid int64", func(t *testing.T) {
+		closer := setEnv(t, "test", "3")
+		defer util.Close(closer)
+		i := ParseInt64FromEnv("test", 1, 0, math.MaxInt64)
+		assert.Equal(t, int64(3), i)
+	})
+	t.Run("Parse invalid value", func(t *testing.T) {
+		closer := setEnv(t, "test", "foo")
+		defer util.Close(closer)
+		i := ParseInt64FromEnv("test", 1, 0, math.MaxInt64)
+		assert.Equal(t, int64(1), i)
+	})
+	t.Run("Int64 lesser than allowed", func(t *testing.T) {
+		closer := setEnv(t, "test", "-2")
+		defer util.Close(closer)
+		i := ParseInt64FromEnv("test", 1, 0, math.MaxInt64)
+		assert.Equal(t, int64(1), i)
+	})
+	t.Run("Int64 greater than allowed", func(t *testing.T) {
+		closer := setEnv(t, "test", "5")
+		defer util.Close(closer)
+		i := ParseInt64FromEnv("test", 1, 0, 4)
+		assert.Equal(t, int64(1), i)
+	})
 }
 
 func TestParseDurationFromEnv(t *testing.T) {
