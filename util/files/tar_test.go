@@ -23,7 +23,7 @@ func TestTgz(t *testing.T) {
 		t.Parallel()
 		exclusions := []string{}
 		hasher := sha256.New()
-		expectedHash := "58489f8b7ccfea9c9233e0f4beaab4b760d78118d4b597e3e989840b54581e10"
+		expectedHash := "82c1bc4f878b340d541901faaa172386d2ea3c77abf3401ac7fd5571ef920f3f"
 		appDir := getTestAppDir(t)
 
 		// when
@@ -38,7 +38,7 @@ func TestTgz(t *testing.T) {
 		t.Parallel()
 		exclusions := []string{"README.md"}
 		hasher := sha256.New()
-		expectedHash := "4bf33604525ed9d52f440ca9f3f7c0b73b456df62c24854386adf8d64f88efbe"
+		expectedHash := "b4bc670a2ff74250da027c876565d8a14c17c5cfdb017c7ef89bfc1ac0b1f429"
 		appDir := getTestAppDir(t)
 
 		// when
@@ -53,7 +53,7 @@ func TestTgz(t *testing.T) {
 		t.Parallel()
 		exclusions := []string{"README.md", "applicationset/latest"}
 		hasher := sha256.New()
-		expectedHash := "0f14bfa12a46dfbdbf1897c03ab15cd9fedda437165f3c9c0888b0b995feb2a9"
+		expectedHash := "ee898e268b2e7b5ee6c234fabf3fe0a85c186af98e47ed72159374ed5fdb5706"
 		appDir := getTestAppDir(t)
 
 		// when

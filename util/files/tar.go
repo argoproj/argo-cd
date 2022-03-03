@@ -24,7 +24,7 @@ type tgz struct {
 // list blob.
 func Tgz(srcPath string, exclusions []string, writers ...io.Writer) error {
 	if _, err := os.Stat(srcPath); err != nil {
-		return fmt.Errorf("error inspecting srcPath %q: %s", srcPath, err)
+		return fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
 
 	mw := io.MultiWriter(writers...)
@@ -48,7 +48,7 @@ func Untgz(dstPath string, r io.Reader) error {
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
-		return fmt.Errorf("error reading file: %s", err)
+		return fmt.Errorf("error reading file: %w", err)
 	}
 	defer gzr.Close()
 
@@ -60,7 +60,7 @@ func Untgz(dstPath string, r io.Reader) error {
 		case err == io.EOF:
 			return nil
 		case err != nil:
-			return fmt.Errorf("error while iterating on tar reader: %s", err)
+			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		case header == nil:
 			continue
 		}
@@ -76,22 +76,22 @@ func Untgz(dstPath string, r io.Reader) error {
 		case tar.TypeDir:
 			err := createNestedFolders(target)
 			if err != nil {
-				return fmt.Errorf("error creating nested folders: %s", err)
+				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 		case tar.TypeReg:
 			err := createNestedFolders(filepath.Dir(target))
 			if err != nil {
-				return fmt.Errorf("error creating nested folders: %s", err)
+				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
 			f, err := os.Create(target)
 			if err != nil {
-				return fmt.Errorf("error creating file %q: %s", target, err)
+				return fmt.Errorf("error creating file %q: %w", target, err)
 			}
 			w := bufio.NewWriter(f)
 			if _, err := io.Copy(w, tr); err != nil {
 				f.Close()
-				return fmt.Errorf("error writing tgz file: %s", err)
+				return fmt.Errorf("error writing tgz file: %w", err)
 			}
 			f.Close()
 		}
@@ -105,10 +105,10 @@ func createNestedFolders(path string) error {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			if err := os.MkdirAll(path, 0755); err != nil {
-				return fmt.Errorf("error creating dir %q: %s", path, err)
+				return fmt.Errorf("error creating dir %q: %w", path, err)
 			}
 		} else {
-			return fmt.Errorf("error inspecting nested folder %q: %s", path, err)
+			return fmt.Errorf("error inspecting nested folder %q: %w", path, err)
 		}
 	}
 	return nil
@@ -116,7 +116,7 @@ func createNestedFolders(path string) error {
 
 func (t *tgz) tgzFile(file string, fi os.FileInfo, err error) error {
 	if err != nil {
-		return fmt.Errorf("error walking in %q: %s", t.srcPath, err)
+		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
 	}
 
 	relativePath := strings.TrimPrefix(strings.Replace(file, t.srcPath, "", -1), string(filepath.Separator))
@@ -124,7 +124,7 @@ func (t *tgz) tgzFile(file string, fi os.FileInfo, err error) error {
 	for _, exclusionPattern := range t.exclusions {
 		found, err := filepath.Match(exclusionPattern, relativePath)
 		if err != nil {
-			return fmt.Errorf("error verifying exclusion pattern %q: %s", exclusionPattern, err)
+			return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
 		}
 		if found {
 			if fi.IsDir() {
@@ -140,24 +140,24 @@ func (t *tgz) tgzFile(file string, fi os.FileInfo, err error) error {
 
 	header, err := tar.FileInfoHeader(fi, fi.Name())
 	if err != nil {
-		return fmt.Errorf("error creating a tar file header: %s", err)
+		return fmt.Errorf("error creating a tar file header: %w", err)
 	}
 
 	// update the name to correctly reflect the desired destination when untaring
 	header.Name = relativePath
 
 	if err := t.tarWriter.WriteHeader(header); err != nil {
-		return fmt.Errorf("error writing header: %s", err)
+		return fmt.Errorf("error writing header: %w", err)
 	}
 
 	f, err := os.Open(file)
 	if err != nil {
-		return fmt.Errorf("error opening file %q: %s", fi.Name(), err)
+		return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
 	}
 	defer f.Close()
 
 	if _, err := io.Copy(t.tarWriter, f); err != nil {
-		return fmt.Errorf("error copying tgz file to writters: %s", err)
+		return fmt.Errorf("error copying tgz file to writters: %w", err)
 	}
 
 	return nil

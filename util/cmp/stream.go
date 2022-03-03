@@ -36,7 +36,7 @@ type StreamReceiver interface {
 func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (string, []*pluginclient.EnvEntry, error) {
 	header, err := receiver.Recv()
 	if err != nil {
-		return "", nil, fmt.Errorf("error receiving stream header: %s", err)
+		return "", nil, fmt.Errorf("error receiving stream header: %w", err)
 	}
 	if header == nil || header.GetMetadata() == nil {
 		return "", nil, fmt.Errorf("error getting stream metadata: metadata is nil")
@@ -44,16 +44,16 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (str
 	metadata := header.GetMetadata()
 	workDir, err := ioutil.TempDir(os.TempDir(), metadata.GetAppName())
 	if err != nil {
-		return "", nil, fmt.Errorf("error creating workDir: %s", err)
+		return "", nil, fmt.Errorf("error creating workDir: %w", err)
 	}
 
 	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("error receiving tgz file: %s", err)
+		return "", nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
 	err = files.Untgz(workDir, tgzFile)
 	if err != nil {
-		return "", nil, fmt.Errorf("error decompressing tgz file: %s", err)
+		return "", nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
 	err = os.Remove(tgzFile.Name())
 	if err != nil {
@@ -69,7 +69,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	// compress all files in appPath in tgz
 	tgz, checksum, err := compressFiles(appPath)
 	if err != nil {
-		return fmt.Errorf("error compressing app files: %s", err)
+		return fmt.Errorf("error compressing app files: %w", err)
 	}
 	defer func() {
 		tgz.Close()
@@ -80,13 +80,13 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	mr := appMetadataRequest(appPath, env, checksum)
 	err = sender.Send(mr)
 	if err != nil {
-		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %s", err)
+		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w", err)
 	}
 
 	// send the compressed file
 	err = sendFile(ctx, sender, tgz)
 	if err != nil {
-		return fmt.Errorf("error sending app files to cmp-server: %s", err)
+		return fmt.Errorf("error sending app files to cmp-server: %w", err)
 	}
 	return nil
 }
@@ -99,7 +99,7 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
-				return fmt.Errorf("client stream context error: %s", err)
+				return fmt.Errorf("client stream context error: %w", err)
 			}
 		}
 		n, err := reader.Read(chunk)
@@ -107,12 +107,12 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 			if err == io.EOF {
 				break
 			}
-			return fmt.Errorf("buffer reader error: %s", err)
+			return fmt.Errorf("buffer reader error: %w", err)
 		}
 		fr := appFileRequest(chunk[:n])
 		err = sender.Send(fr)
 		if err != nil {
-			return fmt.Errorf("error sending stream: %s", err)
+			return fmt.Errorf("error sending stream: %w", err)
 		}
 	}
 	return nil
@@ -127,21 +127,21 @@ func compressFiles(appPath string) (*os.File, string, error) {
 	appName := filepath.Base(appPath)
 	tgzFile, err := ioutil.TempFile(os.TempDir(), appName)
 	if err != nil {
-		return nil, "", fmt.Errorf("error creating app temp tgz file: %s", err)
+		return nil, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
 	hasher := sha256.New()
 	err = files.Tgz(appPath, excluded, tgzFile, hasher)
 	if err != nil {
 		tgzFile.Close()
 		os.Remove(tgzFile.Name())
-		return nil, "", fmt.Errorf("error creating app tgz file: %s", err)
+		return nil, "", fmt.Errorf("error creating app tgz file: %w", err)
 	}
 	checksum := hex.EncodeToString(hasher.Sum(nil))
 
 	// reposition the offset to the beginning of the file for proper reads
 	_, err = tgzFile.Seek(0, io.SeekStart)
 	if err != nil {
-		return nil, "", fmt.Errorf("error processing tgz file: %s", err)
+		return nil, "", fmt.Errorf("error processing tgz file: %w", err)
 	}
 	return tgzFile, checksum, nil
 }
@@ -155,7 +155,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
-				return nil, fmt.Errorf("stream context error: %s", err)
+				return nil, fmt.Errorf("stream context error: %w", err)
 			}
 		}
 		req, err := receiver.Recv()
@@ -163,7 +163,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 			if err == io.EOF {
 				break
 			}
-			return nil, fmt.Errorf("stream Recv error: %s", err)
+			return nil, fmt.Errorf("stream Recv error: %w", err)
 		}
 		f := req.GetFile()
 		if f == nil {
@@ -171,11 +171,11 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 		_, err = fileBuffer.Write(f.Chunk)
 		if err != nil {
-			return nil, fmt.Errorf("error writing file buffer: %s", err)
+			return nil, fmt.Errorf("error writing file buffer: %w", err)
 		}
 		_, err = hasher.Write(f.Chunk)
 		if err != nil {
-			return nil, fmt.Errorf("error writing hasher: %s", err)
+			return nil, fmt.Errorf("error writing hasher: %w", err)
 		}
 	}
 	if hex.EncodeToString(hasher.Sum(nil)) != checksum {
@@ -184,15 +184,15 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 
 	file, err := ioutil.TempFile(dst, "")
 	if err != nil {
-		return nil, fmt.Errorf("error creating file: %s", err)
+		return nil, fmt.Errorf("error creating file: %w", err)
 	}
 	_, err = fileBuffer.WriteTo(file)
 	if err != nil {
-		return nil, fmt.Errorf("error writing file: %s", err)
+		return nil, fmt.Errorf("error writing file: %w", err)
 	}
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		return nil, fmt.Errorf("seek error: %s", err)
+		return nil, fmt.Errorf("seek error: %w", err)
 	}
 	return file, nil
 }
