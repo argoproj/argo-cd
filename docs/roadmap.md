@@ -107,6 +107,7 @@ The feature allows specifying dependencies between applications that allow orche
 ### Multi-tenancy improvements
 
 The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
+
 * [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
 * [AppSource](https://github.com/argoproj-labs/appsource)
 
