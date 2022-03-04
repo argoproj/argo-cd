@@ -293,7 +293,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
-    const [isStatusBarShown, showStatusBar] = React.useState(true);
+    const [isStatusBarShown, setStatusBarShown] = React.useState(true);
 
     function refreshApp(appName: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -376,7 +376,6 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             }`}
                                                                             style={{border: 'none'}}
                                                                             onClick={() => {
-                                                                                showStatusBar(!isStatusBarShown);
                                                                                 services.viewPreferences.updatePreferences({
                                                                                     appList: {
                                                                                         ...pref,
@@ -386,6 +385,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                         }
                                                                                     }
                                                                                 });
+                                                                                setStatusBarShown(!isStatusBarShown);
                                                                             }}>
                                                                             <i className={`fas fa-ruler-horizontal`} />
                                                                         </button>
@@ -457,7 +457,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
-                                                                        showHeader={healthBarPrefs.showHealthStatusBar}
+                                                                        showHeader={isStatusBarShown}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
                                                                         emptyState={() => (
