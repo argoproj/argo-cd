@@ -3,8 +3,9 @@ package files_test
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/files"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/util/files"
 )
 
 func TestRelativePath(t *testing.T) {
