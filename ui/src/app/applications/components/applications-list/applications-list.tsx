@@ -375,16 +375,16 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             }`}
                                                                             style={{border: 'none'}}
                                                                             onClick={() => {
+                                                                                healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
                                                                                 services.viewPreferences.updatePreferences({
                                                                                     appList: {
                                                                                         ...pref,
                                                                                         statusBarView: {
                                                                                             ...healthBarPrefs,
-                                                                                            showHealthStatusBar: !healthBarPrefs.showHealthStatusBar
+                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar
                                                                                         }
                                                                                     }
                                                                                 });
-                                                                                healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
                                                                             }}>
                                                                             <i className={`fas fa-ruler-horizontal`} />
                                                                         </button>
