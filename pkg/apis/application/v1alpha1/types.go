@@ -1618,10 +1618,18 @@ func validateRoleName(name string) error {
 	return nil
 }
 
-var invalidChars = regexp.MustCompile("[,\n\r\t]")
+var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
-	if strings.TrimSpace(name) == "" {
+	name = strings.TrimSpace(name)
+	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
+		// Remove surrounding quotes for further inspection of the group name
+		name = name[1 : len(name)-1]
+	} else if strings.Contains(name, ",") {
+		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
+	}
+
+	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
