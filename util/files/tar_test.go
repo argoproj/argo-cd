@@ -1,8 +1,9 @@
 package files_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,51 +18,83 @@ import (
 )
 
 func TestTgz(t *testing.T) {
+	type fixture struct {
+		file *os.File
+	}
+	setup := func(t *testing.T) *fixture {
+		t.Helper()
+		testDir := getTestDataDir(t)
+		f, err := ioutil.TempFile(testDir, "")
+		require.NoError(t, err)
+		return &fixture{
+			file: f,
+		}
+	}
+	teardown := func(f *fixture) {
+		f.file.Close()
+		os.Remove(f.file.Name())
+	}
+	prepareRead := func(f *fixture) {
+		_, err := f.file.Seek(0, io.SeekStart)
+		require.NoError(t, err)
+	}
 
 	t.Run("will tgz folder successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
 		exclusions := []string{}
-		hasher := sha256.New()
-		expectedHash := "82c1bc4f878b340d541901faaa172386d2ea3c77abf3401ac7fd5571ef920f3f"
-		appDir := getTestAppDir(t)
+		f := setup(t)
+		defer teardown(f)
 
 		// when
-		err := files.Tgz(appDir, exclusions, hasher)
+		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
 
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, expectedHash, hex.EncodeToString(hasher.Sum(nil)))
+		prepareRead(f)
+		files, err := read(f.file)
+		require.NoError(t, err)
+		assert.Equal(t, 3, len(files))
+		assert.Contains(t, files, "README.md")
+		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given
 		t.Parallel()
 		exclusions := []string{"README.md"}
-		hasher := sha256.New()
-		expectedHash := "b4bc670a2ff74250da027c876565d8a14c17c5cfdb017c7ef89bfc1ac0b1f429"
-		appDir := getTestAppDir(t)
+		f := setup(t)
+		defer teardown(f)
 
 		// when
-		err := files.Tgz(appDir, exclusions, hasher)
+		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
 
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, expectedHash, hex.EncodeToString(hasher.Sum(nil)))
+		prepareRead(f)
+		files, err := read(f.file)
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(files))
+		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 	t.Run("will exclude directories from the exclusion list", func(t *testing.T) {
 		// given
 		t.Parallel()
 		exclusions := []string{"README.md", "applicationset/latest"}
-		hasher := sha256.New()
-		expectedHash := "ee898e268b2e7b5ee6c234fabf3fe0a85c186af98e47ed72159374ed5fdb5706"
-		appDir := getTestAppDir(t)
+		f := setup(t)
+		defer teardown(f)
 
 		// when
-		err := files.Tgz(appDir, exclusions, hasher)
+		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
 
 		// then
 		assert.NoError(t, err)
-		assert.Equal(t, expectedHash, hex.EncodeToString(hasher.Sum(nil)))
+		prepareRead(f)
+		files, err := read(f.file)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(files))
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 }
 
@@ -114,6 +147,32 @@ func TestUntgz(t *testing.T) {
 		assert.Equal(t, 3, len(filesInfo))
 	})
 
+}
+
+func read(tgz *os.File) ([]string, error) {
+	files := []string{}
+	gzr, err := gzip.NewReader(tgz)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("error while iterating on tar reader: %w", err)
+		}
+		if header == nil {
+			continue
+		}
+		files = append(files, header.Name)
+	}
+	return files, nil
 }
 
 // getTestAppDir will return the full path of the app dir under

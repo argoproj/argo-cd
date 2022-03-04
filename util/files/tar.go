@@ -56,12 +56,13 @@ func Untgz(dstPath string, r io.Reader) error {
 
 	for {
 		header, err := tr.Next()
-		switch {
-		case err == io.EOF:
-			return nil
-		case err != nil:
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
-		case header == nil:
+		}
+		if header == nil {
 			continue
 		}
 
@@ -96,6 +97,7 @@ func Untgz(dstPath string, r io.Reader) error {
 			f.Close()
 		}
 	}
+	return nil
 }
 
 // createAllFolders will create all remaining folders from the given path.
