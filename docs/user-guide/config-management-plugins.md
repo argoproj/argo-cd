@@ -137,8 +137,6 @@ containers:
       name: var-files
     - mountPath: /home/argocd/cmp-server/plugins
       name: plugins
-    - mountPath: /tmp
-      name: tmp
     # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml

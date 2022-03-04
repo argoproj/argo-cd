@@ -116,12 +116,15 @@ func createNestedFolders(path string) error {
 	return nil
 }
 
-func (t *tgz) tgzFile(file string, fi os.FileInfo, err error) error {
+// tgzFile is used as a filepath.WalkFunc implementing the logic to write
+// the given file in the tgz.tarWriter applying the exclusion pattern defined
+// in tgz.exclusions. Only regular files will be added in the tarball.
+func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
 	}
 
-	relativePath := strings.TrimPrefix(strings.Replace(file, t.srcPath, "", -1), string(filepath.Separator))
+	relativePath := RelativePath(path, t.srcPath)
 
 	for _, exclusionPattern := range t.exclusions {
 		found, err := filepath.Match(exclusionPattern, relativePath)
@@ -152,7 +155,7 @@ func (t *tgz) tgzFile(file string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("error writing header: %w", err)
 	}
 
-	f, err := os.Open(file)
+	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
 	}

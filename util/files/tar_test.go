@@ -101,7 +101,7 @@ func TestTgz(t *testing.T) {
 func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
-		tmpDir, err := ioutil.TempDir(test.GetTestDir(t), "")
+		tmpDir, err := ioutil.TempDir(getTestDataDir(t), "")
 		if err != nil {
 			t.Fatalf("error creating tmpDir: %s", err)
 		}
@@ -114,37 +114,57 @@ func TestUntgz(t *testing.T) {
 			t.Errorf("error removing tmpDir: %s", err)
 		}
 	}
-	createTmpFile := func(t *testing.T, basedir string) *os.File {
+	createTgz := func(t *testing.T, destdir string) *os.File {
 		t.Helper()
-		f, err := ioutil.TempFile(basedir, "")
+		f, err := ioutil.TempFile(destdir, "")
 		if err != nil {
-			t.Fatalf("error creating tmpFile in %q: %s", basedir, err)
+			t.Fatalf("error creating tmpFile in %q: %s", destdir, err)
+		}
+		err = files.Tgz(getTestAppDir(t), []string{}, f)
+		if err != nil {
+			t.Fatalf("error during Tgz: %s", err)
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			t.Fatalf("seek error: %s", err)
 		}
 		return f
+	}
+	readFiles := func(t *testing.T, basedir string) []string {
+		t.Helper()
+		names := []string{}
+		err := filepath.Walk(basedir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.Mode().IsRegular() {
+				relativePath := files.RelativePath(path, basedir)
+				names = append(names, relativePath)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("error reading files: %s", err)
+		}
+		return names
 	}
 	t.Run("will untgz successfully", func(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTmpFile(t, tmpDir)
+		tgzFile := createTgz(t, tmpDir)
 		defer tgzFile.Close()
 
-		err := files.Tgz(getTestAppDir(t), []string{}, tgzFile)
-		if err != nil {
-			t.Fatalf("error during Tgz: %s", err)
-		}
-		if _, err := tgzFile.Seek(0, io.SeekStart); err != nil {
-			t.Fatalf("seek error: %s", err)
-		}
+		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err = files.Untgz(tmpDir, tgzFile)
+		err := files.Untgz(destDir, tgzFile)
 
 		// then
 		require.NoError(t, err)
-		filesInfo, err := ioutil.ReadDir(tmpDir)
-		require.NoError(t, err)
-		assert.Equal(t, 3, len(filesInfo))
+		names := readFiles(t, destDir)
+		assert.Equal(t, 3, len(names))
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 	})
 
 }
