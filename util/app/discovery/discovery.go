@@ -145,5 +145,8 @@ func matchRepositoryCMP(ctx context.Context, appPath string, client pluginclient
 		return false, fmt.Errorf("error sending stream: %s", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()
-	return resp.GetIsSupported(), err
+	if err != nil {
+		return false, fmt.Errorf("error receiving stream response: %s", err)
+	}
+	return resp.GetIsSupported(), nil
 }
