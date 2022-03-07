@@ -26,6 +26,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [BioBox Analytics](https://biobox.io)
 1. [BigPanda](https://bigpanda.io)
 1. [BMW Group](https://www.bmwgroup.com/)
+1. [Boozt](https://www.booztgroup.com/)
 1. [Camptocamp](https://camptocamp.com)
 1. [Capital One](https://www.capitalone.com)
 1. [CARFAX](https://www.carfax.com)
