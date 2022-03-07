@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -34,12 +34,6 @@ type pluginOpt func(*CMPServerInitConstants)
 func withDiscover(d Discover) pluginOpt {
 	return func(cic *CMPServerInitConstants) {
 		cic.PluginConfig.Spec.Discover = d
-	}
-}
-
-func withGenerate(c Command) pluginOpt {
-	return func(cic *CMPServerInitConstants) {
-		cic.PluginConfig.Spec.Generate = c
 	}
 }
 
