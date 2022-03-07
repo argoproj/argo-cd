@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
