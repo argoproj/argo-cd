@@ -95,7 +95,7 @@ argocd account generate-token --account <username>
 Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
 The following environments variables are available to control throttling settings:
 
-* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+* `ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
 rejecting login attempts. Default: 5.
 
 * `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
@@ -222,9 +222,10 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
 ```
 
 ### Requesting additional ID token claims
@@ -243,14 +244,15 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
 ```
 
 !!! warning
@@ -272,15 +274,16 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
-        getUserInfo: true
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
+          getUserInfo: true
 ```
 
 ## Existing OIDC Provider
@@ -373,6 +376,21 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 !!! note
    The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.
 
+### Configuring a custom root CA certificate for communicating with the OIDC provider
+
+If your OIDC provider is setup with a certificate which is not signed by one of the well known certificate authorities
+you can provide a custom certificate which will be used in verifying the OIDC provider's TLS certificate when
+communicating with it.  
+Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certificate:
+
+```yaml
+  oidc.config: |
+    ...
+    rootCA: |
+      -----BEGIN CERTIFICATE-----
+      ... encoded certificate data here ...
+      -----END CERTIFICATE-----
+```
 
 
 ## SSO Further Reading

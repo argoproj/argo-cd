@@ -233,6 +233,11 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          ignoreMissingValueFiles:
+                            description: IgnoreMissingValueFiles prevents helm template
+                              from failing when valueFiles do not exist locally by
+                              not appending them to helm template --values
+                            type: boolean
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -253,10 +258,18 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          passCredentials:
+                            description: PassCredentials pass credentials to all domains
+                              (Helm's --pass-credentials)
+                            type: boolean
                           releaseName:
                             description: ReleaseName is the Helm release name to use.
                               If omitted it will use the application name
                             type: string
+                          skipCrds:
+                            description: SkipCrds skips custom resource definition
+                              installation step (Helm's --skip-crds)
+                            type: boolean
                           valueFiles:
                             description: ValuesFiles is a list of Helm value files
                               to use when generating a template
@@ -271,32 +284,6 @@ spec:
                             description: Version is the Helm version to use for templating
                               (either "2" or "3")
                             type: string
-                        type: object
-                      ksonnet:
-                        description: Ksonnet holds ksonnet specific options
-                        properties:
-                          environment:
-                            description: Environment is a ksonnet application environment
-                              name
-                            type: string
-                          parameters:
-                            description: Parameters are a list of ksonnet component
-                              parameter override values
-                            items:
-                              description: KsonnetParameter is a ksonnet component
-                                parameter
-                              properties:
-                                component:
-                                  type: string
-                                name:
-                                  type: string
-                                value:
-                                  type: string
-                              required:
-                              - name
-                              - value
-                              type: object
-                            type: array
                         type: object
                       kustomize:
                         description: Kustomize holds kustomize specific options
@@ -461,6 +448,14 @@ spec:
                       type: array
                     kind:
                       type: string
+                    managedFieldsManagers:
+                      description: ManagedFieldsManagers is a list of trusted managers.
+                        Fields mutated by those managers will take precedence over
+                        the desired state defined in the SCM and won't be displayed
+                        in diffs
+                      items:
+                        type: string
+                      type: array
                     name:
                       type: string
                     namespace:
@@ -586,6 +581,11 @@ spec:
                               type: string
                           type: object
                         type: array
+                      ignoreMissingValueFiles:
+                        description: IgnoreMissingValueFiles prevents helm template
+                          from failing when valueFiles do not exist locally by not
+                          appending them to helm template --values
+                        type: boolean
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -605,10 +605,18 @@ spec:
                               type: string
                           type: object
                         type: array
+                      passCredentials:
+                        description: PassCredentials pass credentials to all domains
+                          (Helm's --pass-credentials)
+                        type: boolean
                       releaseName:
                         description: ReleaseName is the Helm release name to use.
                           If omitted it will use the application name
                         type: string
+                      skipCrds:
+                        description: SkipCrds skips custom resource definition installation
+                          step (Helm's --skip-crds)
+                        type: boolean
                       valueFiles:
                         description: ValuesFiles is a list of Helm value files to
                           use when generating a template
@@ -623,31 +631,6 @@ spec:
                         description: Version is the Helm version to use for templating
                           (either "2" or "3")
                         type: string
-                    type: object
-                  ksonnet:
-                    description: Ksonnet holds ksonnet specific options
-                    properties:
-                      environment:
-                        description: Environment is a ksonnet application environment
-                          name
-                        type: string
-                      parameters:
-                        description: Parameters are a list of ksonnet component parameter
-                          override values
-                        items:
-                          description: KsonnetParameter is a ksonnet component parameter
-                          properties:
-                            component:
-                              type: string
-                            name:
-                              type: string
-                            value:
-                              type: string
-                          required:
-                          - name
-                          - value
-                          type: object
-                        type: array
                     type: object
                   kustomize:
                     description: Kustomize holds kustomize specific options
@@ -950,6 +933,11 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            ignoreMissingValueFiles:
+                              description: IgnoreMissingValueFiles prevents helm template
+                                from failing when valueFiles do not exist locally
+                                by not appending them to helm template --values
+                              type: boolean
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -971,10 +959,18 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            passCredentials:
+                              description: PassCredentials pass credentials to all
+                                domains (Helm's --pass-credentials)
+                              type: boolean
                             releaseName:
                               description: ReleaseName is the Helm release name to
                                 use. If omitted it will use the application name
                               type: string
+                            skipCrds:
+                              description: SkipCrds skips custom resource definition
+                                installation step (Helm's --skip-crds)
+                              type: boolean
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
@@ -989,32 +985,6 @@ spec:
                               description: Version is the Helm version to use for
                                 templating (either "2" or "3")
                               type: string
-                          type: object
-                        ksonnet:
-                          description: Ksonnet holds ksonnet specific options
-                          properties:
-                            environment:
-                              description: Environment is a ksonnet application environment
-                                name
-                              type: string
-                            parameters:
-                              description: Parameters are a list of ksonnet component
-                                parameter override values
-                              items:
-                                description: KsonnetParameter is a ksonnet component
-                                  parameter
-                                properties:
-                                  component:
-                                    type: string
-                                  name:
-                                    type: string
-                                  value:
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
                           type: object
                         kustomize:
                           description: Kustomize holds kustomize specific options
@@ -1329,6 +1299,12 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  ignoreMissingValueFiles:
+                                    description: IgnoreMissingValueFiles prevents
+                                      helm template from failing when valueFiles do
+                                      not exist locally by not appending them to helm
+                                      template --values
+                                    type: boolean
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -1352,11 +1328,19 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  passCredentials:
+                                    description: PassCredentials pass credentials
+                                      to all domains (Helm's --pass-credentials)
+                                    type: boolean
                                   releaseName:
                                     description: ReleaseName is the Helm release name
                                       to use. If omitted it will use the application
                                       name
                                     type: string
+                                  skipCrds:
+                                    description: SkipCrds skips custom resource definition
+                                      installation step (Helm's --skip-crds)
+                                    type: boolean
                                   valueFiles:
                                     description: ValuesFiles is a list of Helm value
                                       files to use when generating a template
@@ -1372,32 +1356,6 @@ spec:
                                     description: Version is the Helm version to use
                                       for templating (either "2" or "3")
                                     type: string
-                                type: object
-                              ksonnet:
-                                description: Ksonnet holds ksonnet specific options
-                                properties:
-                                  environment:
-                                    description: Environment is a ksonnet application
-                                      environment name
-                                    type: string
-                                  parameters:
-                                    description: Parameters are a list of ksonnet
-                                      component parameter override values
-                                    items:
-                                      description: KsonnetParameter is a ksonnet component
-                                        parameter
-                                      properties:
-                                        component:
-                                          type: string
-                                        name:
-                                          type: string
-                                        value:
-                                          type: string
-                                      required:
-                                      - name
-                                      - value
-                                      type: object
-                                    type: array
                                 type: object
                               kustomize:
                                 description: Kustomize holds kustomize specific options
@@ -1690,6 +1648,11 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingValueFiles:
+                                description: IgnoreMissingValueFiles prevents helm
+                                  template from failing when valueFiles do not exist
+                                  locally by not appending them to helm template --values
+                                type: boolean
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -1712,10 +1675,18 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              passCredentials:
+                                description: PassCredentials pass credentials to all
+                                  domains (Helm's --pass-credentials)
+                                type: boolean
                               releaseName:
                                 description: ReleaseName is the Helm release name
                                   to use. If omitted it will use the application name
                                 type: string
+                              skipCrds:
+                                description: SkipCrds skips custom resource definition
+                                  installation step (Helm's --skip-crds)
+                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -1730,32 +1701,6 @@ spec:
                                 description: Version is the Helm version to use for
                                   templating (either "2" or "3")
                                 type: string
-                            type: object
-                          ksonnet:
-                            description: Ksonnet holds ksonnet specific options
-                            properties:
-                              environment:
-                                description: Environment is a ksonnet application
-                                  environment name
-                                type: string
-                              parameters:
-                                description: Parameters are a list of ksonnet component
-                                  parameter override values
-                                items:
-                                  description: KsonnetParameter is a ksonnet component
-                                    parameter
-                                  properties:
-                                    component:
-                                      type: string
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
                             type: object
                           kustomize:
                             description: Kustomize holds kustomize specific options
@@ -2037,6 +1982,11 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingValueFiles:
+                                description: IgnoreMissingValueFiles prevents helm
+                                  template from failing when valueFiles do not exist
+                                  locally by not appending them to helm template --values
+                                type: boolean
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2059,10 +2009,18 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              passCredentials:
+                                description: PassCredentials pass credentials to all
+                                  domains (Helm's --pass-credentials)
+                                type: boolean
                               releaseName:
                                 description: ReleaseName is the Helm release name
                                   to use. If omitted it will use the application name
                                 type: string
+                              skipCrds:
+                                description: SkipCrds skips custom resource definition
+                                  installation step (Helm's --skip-crds)
+                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -2077,32 +2035,6 @@ spec:
                                 description: Version is the Helm version to use for
                                   templating (either "2" or "3")
                                 type: string
-                            type: object
-                          ksonnet:
-                            description: Ksonnet holds ksonnet specific options
-                            properties:
-                              environment:
-                                description: Environment is a ksonnet application
-                                  environment name
-                                type: string
-                              parameters:
-                                description: Parameters are a list of ksonnet component
-                                  parameter override values
-                                items:
-                                  description: KsonnetParameter is a ksonnet component
-                                    parameter
-                                  properties:
-                                    component:
-                                      type: string
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
                             type: object
                           kustomize:
                             description: Kustomize holds kustomize specific options

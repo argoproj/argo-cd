@@ -11,6 +11,7 @@ argocd account [flags]
 ```
       --as string                      Username to impersonate for the operation
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS
       --client-key string              Path to a client key file for TLS
@@ -34,7 +35,7 @@ argocd account [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
@@ -59,5 +60,5 @@ argocd account [flags]
 * [argocd account get](argocd_account_get.md)	 - Get account details
 * [argocd account get-user-info](argocd_account_get-user-info.md)	 - Get user info
 * [argocd account list](argocd_account_list.md)	 - List accounts
-* [argocd account update-password](argocd_account_update-password.md)	 - Update password
+* [argocd account update-password](argocd_account_update-password.md)	 - Update an account's password
 

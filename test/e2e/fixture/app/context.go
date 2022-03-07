@@ -23,6 +23,7 @@ type Context struct {
 	timeout                int
 	name                   string
 	destServer             string
+	destName               string
 	env                    string
 	parameters             []string
 	namePrefix             string
@@ -37,6 +38,8 @@ type Context struct {
 	force                  bool
 	directoryRecurse       bool
 	replace                bool
+	helmPassCredentials    bool
+	helmSkipCrds           bool
 }
 
 func Given(t *testing.T) *Context {
@@ -207,6 +210,11 @@ func (c *Context) DestServer(destServer string) *Context {
 	return c
 }
 
+func (c *Context) DestName(destName string) *Context {
+	c.destName = destName
+	return c
+}
+
 func (c *Context) Env(env string) *Context {
 	c.env = env
 	return c
@@ -288,5 +296,15 @@ func (c *Context) Project(project string) *Context {
 
 func (c *Context) Force() *Context {
 	c.force = true
+	return c
+}
+
+func (c *Context) HelmPassCredentials() *Context {
+	c.helmPassCredentials = true
+	return c
+}
+
+func (c *Context) HelmSkipCrds() *Context {
+	c.helmSkipCrds = true
 	return c
 }

@@ -19,6 +19,7 @@ argocd proj windows update PROJECT ID [flags]
   -h, --help                   help for update
       --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
       --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
+      --time-zone string       Time zone of the sync window. (e.g. --time-zone "America/New_York") (default "UTC")
 ```
 
 ### Options inherited from parent commands
@@ -27,7 +28,7 @@ argocd proj windows update PROJECT ID [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.

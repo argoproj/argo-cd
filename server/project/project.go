@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -109,10 +109,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	claims := jwt.StandardClaims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.RegisteredClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -238,7 +236,7 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 	return list, err
 }
 
-// Get returns a project with scoped resources
+// GetDetailedProject returns a project with scoped resources
 func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery) (*project.DetailedProjectsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err

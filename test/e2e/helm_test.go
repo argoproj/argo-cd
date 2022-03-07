@@ -31,7 +31,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "pre-install"}}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -50,7 +50,7 @@ func TestHelmHookWeight(t *testing.T) {
 	{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "Sync", "helm.sh/hook-weight": "-1"}},
 	{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}
 ]`).
-		Create().
+		CreateApp().
 		IgnoreErrors().
 		Sync().
 		Then().
@@ -64,7 +64,7 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/helm.sh~1hook-delete-policy", "value": "hook-succeeded"}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -104,7 +104,7 @@ func TestHelmRepo(t *testing.T) {
 		Chart("helm").
 		Revision("1.0.0").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -119,12 +119,47 @@ func TestHelmValues(t *testing.T) {
 		Path("helm").
 		When().
 		AddFile("foo.yml", "").
-		Create().
+		CreateApp().
 		AppSet("--values", "foo.yml").
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
 		})
+}
+
+func TestHelmIgnoreMissingValueFiles(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("declarative-apps/invalid-helm.yaml").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.Source.Helm.ValueFiles)
+			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		AppSet("--ignore-missing-value-files").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, true, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		AppUnSet("--ignore-missing-value-files").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+		}).
+		When().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
 func TestHelmValuesMultipleUnset(t *testing.T) {
@@ -133,7 +168,7 @@ func TestHelmValuesMultipleUnset(t *testing.T) {
 		When().
 		AddFile("foo.yml", "").
 		AddFile("baz.yml", "").
-		Create().
+		CreateApp().
 		AppSet("--values", "foo.yml", "--values", "baz.yml").
 		Then().
 		And(func(app *Application) {
@@ -159,7 +194,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--values-literal-file", "testdata/helm/baz.yaml").
 		Then().
 		And(func(app *Application) {
@@ -205,7 +240,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
@@ -224,7 +259,7 @@ func TestHelmCrdHook(t *testing.T) {
 	Given(t).
 		Path("helm-crd").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -237,7 +272,7 @@ func TestHelmReleaseName(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--release-name", "foo").
 		Then().
 		And(func(app *Application) {
@@ -249,7 +284,7 @@ func TestHelmSet(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--helm-set", "foo=bar", "--helm-set", "foo=baz", "--helm-set", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
@@ -261,7 +296,7 @@ func TestHelmSetString(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz", "--helm-set-string", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
@@ -273,7 +308,7 @@ func TestHelmSetFile(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--helm-set-file", "foo=bar.yaml", "--helm-set-file", "foo=baz.yaml").
 		Then().
 		And(func(app *Application) {
@@ -286,7 +321,7 @@ func TestHelmSetEnv(t *testing.T) {
 	Given(t).
 		Path("helm-values").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--helm-set", "foo=$ARGOCD_APP_NAME").
 		Sync().
 		Then().
@@ -301,7 +336,7 @@ func TestHelmSetStringEnv(t *testing.T) {
 	Given(t).
 		Path("helm-values").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--helm-set-string", "foo=$ARGOCD_APP_NAME").
 		Sync().
 		Then().
@@ -318,7 +353,7 @@ func TestKubeVersion(t *testing.T) {
 	Given(t).
 		Path("helm-kube-version").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -336,7 +371,7 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 		Path(".hidden-helm").
 		When().
 		AddFile("foo.yaml", "").
-		Create().
+		CreateApp().
 		AppSet("--values", "foo.yaml").
 		Sync().
 		Then().
@@ -358,8 +393,9 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		// these are slow tests
 		Timeout(30).
 		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
@@ -379,7 +415,8 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests
-		Timeout(30)
+		Timeout(30).
+		HelmPassCredentials()
 	if legacyRepo {
 		ctx.And(func() {
 			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
@@ -411,7 +448,7 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	}
 	ctx.Path(chartPath).
 		When().
-		Create("--helm-version", helmVer).
+		CreateApp("--helm-version", helmVer).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
@@ -422,7 +459,7 @@ func TestHelm3CRD(t *testing.T) {
 	Given(t).
 		Path("helm3-crd").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -440,7 +477,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Chart("helm").
 		Revision("1.0.0").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -470,7 +507,7 @@ func TestHelmOCIRegistry(t *testing.T) {
 		Chart("helm-values").
 		Revision("1.0.0").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -486,7 +523,7 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 		HelmOCIRepoAdded("myrepo").
 		Path("helm-oci-with-dependencies").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -505,7 +542,7 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -521,7 +558,7 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 		HelmoOCICredentialsWithoutUserPassAdded().
 		Path("helm-oci-with-dependencies").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().
@@ -540,7 +577,7 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		When().
 		Sync().

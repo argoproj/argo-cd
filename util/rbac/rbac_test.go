@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -167,7 +168,7 @@ p, mike, *, get, foo/obj, deny
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
@@ -175,7 +176,7 @@ p, mike, *, get, foo/obj, deny
 	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.True(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
@@ -218,7 +219,7 @@ func TestNoPolicy(t *testing.T) {
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -236,9 +237,9 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 }
 
 // TestClaimsEnforcerFuncWithRuntimePolicy tests the ability for claims enforcer function to still
@@ -249,14 +250,14 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 }
 
 // TestInvalidRuntimePolicy tests when an invalid policy is supplied, it falls back to normal enforcement
@@ -267,11 +268,11 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy("", "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", "", "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", "", "role:readonly", "applications", "update", "foo/bar"))
 	badPolicy := "this, is, not, a, good, policy"
-	assert.True(t, enf.EnforceRuntimePolicy(badPolicy, "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy(badPolicy, "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", badPolicy, "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", badPolicy, "role:readonly", "applications", "update", "foo/bar"))
 }
 
 func TestValidatePolicy(t *testing.T) {
@@ -310,7 +311,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
 	// nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin"})
+	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
@@ -318,19 +319,19 @@ func TestEnforceErrorMessage(t *testing.T) {
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewTime(1593035962)})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: jwt.NewTime(1)})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: nil})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
@@ -398,4 +399,43 @@ func TestGlobMatchFunc(t *testing.T) {
 
 	ok, _ = globMatchFunc("arg/123", "arg/*")
 	assert.True(t, ok.(bool))
+}
+
+func TestLoadPolicyLine(t *testing.T) {
+	t.Run("Valid policy line", func(t *testing.T) {
+		policy := `p, foo, bar, baz`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Empty policy line", func(t *testing.T) {
+		policy := ""
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Comment policy line", func(t *testing.T) {
+		policy := "# Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Invalid policy line: single token", func(t *testing.T) {
+		policy := "p"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line: plain text", func(t *testing.T) {
+		policy := "Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line", func(t *testing.T) {
+		policy := "agh, foo, bar"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
 }

@@ -4,11 +4,12 @@
 $header: 120px;
 
 .application-details {
+    height: 100vh;
     &__status-panel {
         position: fixed;
         left: 60px;
         right: 0;
-        z-index: 2;
+        z-index: 3;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
         }
@@ -27,10 +28,14 @@ $header: 120px;
         overflow-x: auto;
         overflow-y: auto;
         margin-top: 115px;
-        min-height: calc(100vh - 2 * 50px - 115px);
+        height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
         }
+    }
+
+    &__sliding-panel-pagination-wrap {
+        margin-top: 1.25em;
     }
 
     &__warning {
@@ -39,14 +44,16 @@ $header: 120px;
     }
 
     &__refreshing-label {
+        color: $white-color;
         position: fixed;
         top: $header + 100px;
-        left: 310px;
-        background-color: $argo-color-gray-4;
+        left: 50%;
+        background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
-        padding: 0 5px;
+        padding: 5px 5px;
         font-size: 0.6em;
+        z-index: 1;
     }
 
     &__tab-content-full-height {
@@ -201,4 +208,65 @@ $header: 120px;
             top: 280px;
         }
     }
+
+    .graph-options-panel {
+        margin-left: 10px;
+        z-index: 1;
+        padding: 5px;
+        display: inline-block;
+        background-color: $argo-color-gray-1;
+        box-shadow: 1px 1px 3px $argo-color-gray-5;
+        position: fixed;
+      
+        a {
+            padding: 5px;
+            margin: 2px;
+            color: $argo-color-gray-6;
+            border: 1px solid transparent;
+            border-radius: 5px;
+
+            &.group-nodes-button {
+                cursor: pointer;
+                position: relative;
+                display: inline-block;
+                vertical-align: middle;
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 1.4;
+                text-align: center;
+                user-select: none;
+                transition: background-color .2s, border .2s, color .2s;
+                text-transform: uppercase;
+                &:hover {
+                    background-color: #d1d5d9;
+                }
+                &:active {
+                    transition: background-color .2s, border .2s, color .2s;
+                    border: 1px $argo-color-teal-5 solid;
+                }
+            }
+        
+            &.group-nodes-button-on {
+                color: $argo-color-gray-1;
+                background-color: $argo-color-gray-6;
+                &:hover {
+                    background-color: $argo-color-gray-5;
+                }
+            }    
+        }
+
+        .zoom-value {
+            user-select: none;
+            margin-top: 3px;
+            margin-right: 6px;
+            margin-left: 4px;
+            font-size: 14px;
+            text-align-last: right;
+            float: right;
+            width: 40px;
+            border: 1px $argo-color-gray-5 solid;
+            background-color: $argo-color-gray-3;
+            padding: 2px;
+        }
+     }  
 }

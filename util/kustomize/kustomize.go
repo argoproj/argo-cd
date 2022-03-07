@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
@@ -30,7 +30,7 @@ type Image = string
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -84,7 +84,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -155,7 +155,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 
-	cmd.Env = os.Environ()
+	env := os.Environ()
+	if envVars != nil {
+		env = append(env, envVars.Environ()...)
+	}
+	cmd.Env = env
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
 		return nil, nil, err
@@ -223,9 +227,16 @@ func IsKustomization(path string) bool {
 	return false
 }
 
+// semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
+// here.
+// https://github.com/Masterminds/semver/blob/49c09bfed6adcffa16482ddc5e5588cffff9883a/version.go#L42
+const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+
 var (
 	unknownVersion = semver.MustParse("v99.99.99")
-	semverRegex    = regexp.MustCompile(semver.SemVerRegex)
+	semverRegex    = regexp.MustCompile(semVerRegex)
 	semVer         *semver.Version
 	semVerLock     sync.Mutex
 )

@@ -132,10 +132,12 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
     }
 
-    public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
+    public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {
         return requests
             .get(`/repositories/${encodeURIComponent(repo)}/apps`)
             .query({revision})
+            .query({appName})
+            .query({appProject})
             .then(res => (res.body.items as models.AppInfo[]) || []);
     }
 
@@ -143,10 +145,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource, appName: string): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string, appProject: string): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
-            .send({source, appName})
+            .send({source, appName, appProject})
             .then(res => res.body as models.RepoAppDetails);
     }
 }

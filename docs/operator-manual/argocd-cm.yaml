@@ -13,6 +13,12 @@ data:
   # Enables application status badge feature
   statusbadge.enabled: "true"
 
+  # Override the Argo CD hostname root URL for both the project and the application status badges.
+  # Here is an example of the application status badge for the app `myapp` to see what is replaced.
+  #    <statusbadge.url>api/badge?name=myapp&revision=true
+  # Provide custom URL to override. You must include the trailing forward slash:
+  statusbadge.url: "https://cd-status.apps.argoproj.io/"
+
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
   # Specifies token expiration duration
@@ -30,6 +36,12 @@ data:
   help.chatUrl: "https://mycorp.slack.com/argo-cd"
   # the text for getting chat help, defaults to "Chat now!"
   help.chatText: "Chat now!"
+  # The URLs to download additional ArgoCD binaries (besides the Linux amd64 binary included by default)
+  # for different OS architectures. If provided, additional download buttons will be displayed on the help page.
+  help.download.linux-arm64: "path-or-url-to-download"
+  help.download.darwin-amd64: "path-or-url-to-download"
+  help.download.darwin-arm64: "path-or-url-to-download"
+  help.download.windows-amd64: "path-or-url-to-download"
 
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
@@ -75,6 +87,16 @@ data:
     - /webhooks/0/clientConfig/caBundle
     jqPathExpressions:
     - .webhooks[0].clientConfig.caBundle
+    managedFieldsManagers:
+    - kube-controller-manager
+
+  # Configuration to define customizations ignoring differences between live and desired states for
+  # all resources (GK).
+  resource.customizations.ignoreDifferences.all: |
+    managedFieldsManagers:
+    - kube-controller-manager
+    jsonPointers:
+    - /spec/replicas
 
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}
@@ -183,6 +205,12 @@ data:
       generate:
         command: [kasane, show]
 
+  # A set of settings that allow enabling or disabling the config management tool.
+  # If unset, each defaults to "true".
+  kustomize.enabled: true
+  jsonnet.enabled: true
+  helm.enabled: true
+
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
 
@@ -193,6 +221,10 @@ data:
   # Additional Kustomize versions and corresponding binary paths (deprecated)
   kustomize.version.v3.5.1: /custom-tools/kustomize_3_5_1
   kustomize.version.v3.5.4: /custom-tools/kustomize_3_5_4
+
+  # Comma delimited list of additional custom remote values file schemes (http are https are allowed by default).
+  # Change to empty value if you want to disable remote values files altogether.
+  helm.valuesFileSchemes: http, https
 
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
@@ -238,3 +270,6 @@ data:
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
+
+  # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
+  cluster.inClusterEnabled: "true"

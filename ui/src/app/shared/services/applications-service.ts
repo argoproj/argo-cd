@@ -129,7 +129,7 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public watch(query?: {name?: string; resourceVersion?: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+    public watch(query?: {name?: string; resourceVersion?: string; projects?: string[]}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
         if (query) {
             if (query.name) {
@@ -143,6 +143,7 @@ export class ApplicationsService {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
+            query?.projects?.forEach(project => search.append('project', project));
         }
         const searchStr = search.toString();
         const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;

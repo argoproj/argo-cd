@@ -7,7 +7,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 require('./application-sync-panel.scss');
@@ -60,7 +60,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 if (resources.length === appResources.length) {
                                     resources = null;
                                 }
-
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
                                     const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
@@ -75,11 +74,23 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
 
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
+                                const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
-                                    syncStrategy.apply = {force: syncFlags.Force || false};
+                                    syncStrategy.apply = {force};
                                 } else {
-                                    syncStrategy.hook = {force: syncFlags.Force || false};
+                                    syncStrategy.hook = {force};
+                                }
+                                if (force) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
                                 }
 
                                 try {
@@ -176,8 +187,10 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
                                                     // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
                                                     // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
-                                                    const indexOfFirstLetter = /[a-z]/i.exec(contentEnd).index;
-                                                    contentEnd = contentEnd.slice(indexOfFirstLetter);
+                                                    const firstLetter = /[a-z]/i.exec(contentEnd);
+                                                    if (firstLetter) {
+                                                        contentEnd = contentEnd.slice(firstLetter.index);
+                                                    }
                                                     const isLongLabel = resKey.length > 68;
                                                     return (
                                                         <div key={resKey} className='application-sync-panel__resource'>

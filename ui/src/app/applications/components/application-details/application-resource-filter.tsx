@@ -1,10 +1,12 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui';
-import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
+import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {resources} from '../resources';
+import * as models from '../../../shared/models';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
@@ -16,6 +18,7 @@ export const Filters = (props: {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
     tree: ApplicationTree;
+    resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
 }) => {
@@ -61,11 +64,19 @@ export const Filters = (props: {
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: Map<string, string>; field?: boolean; radio?: boolean}) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
-            <Filter label={p.label} selected={selectedFor(p.prefix)} setSelected={v => setFilters(p.prefix, v)} options={p.options} field={!!p.field} radio={!!p.radio} />
+            <Filter
+                label={p.label}
+                selected={selectedFor(p.prefix)}
+                setSelected={v => setFilters(p.prefix, v)}
+                options={p.options}
+                abbreviations={p.abbreviations}
+                field={!!p.field}
+                radio={!!p.radio}
+            />
         );
     };
 
@@ -96,15 +107,38 @@ export const Filters = (props: {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
 
+    const getOptionCount = (label: string, filterType: string): number => {
+        switch (filterType) {
+            case 'Sync':
+                return props.resourceNodes.filter(res => res.status === SyncStatuses[label]).length;
+            case 'Health':
+                return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
+            case 'Kind':
+                return props.resourceNodes.filter(res => res.kind === label).length;
+            default:
+                return 0;
+        }
+    };
+
     return (
         <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), field: true})}
+            {ResourceFilter({
+                label: 'KINDS',
+                prefix: 'kind',
+                options: kinds.map(label => ({
+                    label,
+                    count: getOptionCount(label, 'Kind')
+                })),
+                abbreviations: resources,
+                field: true
+            })}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',
                 options: ['Synced', 'OutOfSync'].map(label => ({
                     label,
+                    count: getOptionCount(label, 'Sync'),
                     icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
                 }))
             })}
@@ -113,6 +147,7 @@ export const Filters = (props: {
                 prefix: 'health',
                 options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
                     label,
+                    count: getOptionCount(label, 'Health'),
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}

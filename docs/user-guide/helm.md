@@ -19,7 +19,7 @@ spec:
     helm:
       releaseName: sealed-secrets
   destination:
-    server: https://kubernetes.default.svc
+    server: "https://kubernetes.default.svc"
     namespace: kubeseal
 ```
 
@@ -33,8 +33,8 @@ flag. The flag can be repeated to support multiple values files:
 argocd app set helm-guestbook --values values-production.yaml
 ```
 !!! note
-    Values files must be in the same git repository as the Helm chart. The files can be in a different 
-    location in which case it can be accessed using a relative path relative to the root directory of 
+    Values files must be in the same git repository as the Helm chart. The files can be in a different
+    location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
 ## Helm Parameters
@@ -169,9 +169,11 @@ Or via declarative syntax:
 
 Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using, that's why there are no plugins delivered with the ArgoCD image.
 
-But sometimes it happens you would like to use a custom plugin. One of the cases is that you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use `gs://` protocol for Helm chart repository access.
+But sometimes you want to use a custom plugin. Perhaps you would like to use Google Cloud Storage or Amazon S3 storage to save the Helm charts, for example: https://github.com/hayorov/helm-gcs where you can use `gs://` protocol for Helm chart repository access.
+There are two ways to install custom plugins; you can modify the ArgoCD container image, or you can use a Kubernetes `initContainer`.
 
-In order to do that you have to prepare your own ArgoCD image with installed plugins.
+### Modifying the ArgoCD container image
+One way to use this plugin is to prepare your own ArgoCD image where it is included.
 
 Example `Dockerfile`:
 
@@ -199,6 +201,62 @@ You have to remember about `HELM_PLUGINS` environment property - this is require
 
 After that you have to use your custom image for ArgoCD installation.
 
+### Using `initContainers`
+Another option is to install Helm plugins via Kubernetes `initContainers`.
+Some users find this pattern preferable to maintaining their own version of the ArgoCD container image.
+
+Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
+
+```
+# helm-gcs plugin
+repoServer:
+  volumes:
+    - name: helm
+      emptyDir: {}
+    - name: gcloud
+      secret:
+        secretName: helm-credentials
+  volumeMounts:
+    - mountPath: /helm
+      name: helm
+    - mountPath: /gcloud
+      name: gcloud
+  env:
+    - name: HELM_DATA_HOME
+      value: /helm
+    - name: HELM_CACHE_HOME
+      value: /helm/cache
+    - name: HELM_CONFIG_HOME
+      value: /helm/config
+    - name: HELM_PLUGINS
+      value: /helm/plugins/
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /gcloud/key.json
+  initContainers:
+    - name: install-helm-plugins
+      image: alpine/helm:3.6.3
+      volumeMounts:
+        - mountPath: /helm
+          name: helm
+        - mountPath: /gcloud
+          name: gcloud
+      env:
+        - name: HELM_DATA_HOME
+          value: /helm
+        - name: HELM_CACHE_HOME
+          value: /helm/cache
+        - name: HELM_CONFIG_HOME
+          value: /helm/config
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /gcloud/key.json
+      command: ["/bin/sh", "-c"]
+      args:
+        - apk --no-cache add curl;
+          helm plugin install https://github.com/hayorov/helm-gcs.git;
+          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
+          chmod -R 777 $HELM_DATA_HOME;
+```
+
 ## Helm Version
 
 Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).
@@ -216,4 +274,45 @@ spec:
   source:
     helm:
       version: v3
+```
+
+## Helm `--pass-credentials`
+
+Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
+prevents sending repository credentials to download charts that are being served
+from a different domain than the repository.
+
+If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-pass-credentials
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      passCredentials: true
+```
+
+## Helm `--skip-crds`
+
+Helm installs custom resource definitions in the `crds` folder by default if they are not existing. 
+See the [CRD best practices](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/) for details.
+
+If needed, it is possible to skip the CRD installation step with the `helm-skip-crds` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-crds
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipCrds: true
 ```

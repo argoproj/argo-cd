@@ -17,7 +17,6 @@ require('./application-create-panel.scss');
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
-    {type: 'Ksonnet', field: 'ksonnet'},
     {type: 'Directory', field: 'directory'},
     {type: 'Plugin', field: 'plugin'}
 );
@@ -281,7 +280,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 load={async src =>
                                                                     (src.repoURL &&
                                                                         services.repos
-                                                                            .apps(src.repoURL, src.revision)
+                                                                            .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
                                                                             .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
                                                                             .catch(() => new Array<string>())) ||
                                                                     new Array<string>()
@@ -421,7 +420,7 @@ export const ApplicationCreatePanel = (props: {
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));
@@ -445,9 +444,6 @@ export const ApplicationCreatePanel = (props: {
                                                                 break;
                                                             case 'Kustomize':
                                                                 details = {type, path: details.path, kustomize: {path: ''}};
-                                                                break;
-                                                            case 'Ksonnet':
-                                                                details = {type, path: details.path, ksonnet: {name: '', path: '', environments: {}, parameters: []}};
                                                                 break;
                                                             case 'Plugin':
                                                                 details = {type, path: details.path, plugin: {name: '', env: []}};

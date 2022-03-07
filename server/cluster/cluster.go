@@ -3,20 +3,20 @@ package cluster
 import (
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -139,6 +139,15 @@ func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.Clu
 }
 
 func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
+	if q.Id != nil {
+		q.Server = ""
+		q.Name = ""
+		if q.Id.Type == "name" {
+			q.Name = q.Id.Value
+		} else {
+			q.Server = q.Id.Value
+		}
+	}
 
 	if q.Server != "" {
 		c, err := s.db.GetCluster(ctx, q.Server)
@@ -181,6 +190,15 @@ var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv
 	"clusterResources": func(updated *appv1.Cluster, existing *appv1.Cluster) {
 		updated.ClusterResources = existing.ClusterResources
 	},
+	"labels": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Labels = existing.Labels
+	},
+	"annotations": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Annotations = existing.Annotations
+	},
+	"project": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+		updated.Project = existing.Project
+	},
 }
 
 // Update updates a cluster
@@ -188,6 +206,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	c, err := s.getClusterWith403IfNotExist(ctx, &cluster.ClusterQuery{
 		Server: q.Cluster.Server,
 		Name:   q.Cluster.Name,
+		Id:     q.Id,
 	})
 	if err != nil {
 		return nil, err
@@ -197,23 +216,21 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(c.Project, q.Cluster.Server)); err != nil {
 		return nil, err
 	}
-	// verify that user can do update inside project where cluster will be located
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
-		return nil, err
+
+	if len(q.UpdatedFields) == 0 || sets.NewString(q.UpdatedFields...).Has("project") {
+		// verify that user can do update inside project where cluster will be located
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(q.UpdatedFields) != 0 {
-		existing, err := s.db.GetCluster(ctx, q.Cluster.Server)
-		if err != nil {
-			return nil, err
-		}
-
 		for _, path := range q.UpdatedFields {
 			if updater, ok := clusterFieldsByPath[path]; ok {
-				updater(existing, q.Cluster)
+				updater(c, q.Cluster)
 			}
 		}
-		q.Cluster = existing
+		q.Cluster = c
 	}
 
 	// Test the token we just created before persisting it

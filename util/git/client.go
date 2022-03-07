@@ -58,7 +58,7 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string) error
-	Checkout(revision string) error
+	Checkout(revision string, submoduleEnabled bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
@@ -374,7 +374,7 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Checkout checkout specified revision
-func (m *nativeGitClient) Checkout(revision string) error {
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -395,7 +395,7 @@ func (m *nativeGitClient) Checkout(revision string) error {
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
-		if submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" {
+		if submoduleEnabled {
 			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
 				return err
 			}
@@ -623,7 +623,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.

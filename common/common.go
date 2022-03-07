@@ -42,6 +42,11 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default listener address for ArgoCD components
+const (
+	DefaultAddressAPIServer = "localhost"
+)
+
 // Default paths on the pod's file system
 const (
 	// The default path where TLS certificates for repositories are located
@@ -54,6 +59,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
+	// Default path to cmp server plugin socket file
+	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
+	// Default path to cmp server plugin configuration file
+	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	PluginConfigFileName = "plugin.yaml"
 )
 
 // Argo CD application related constants
@@ -65,6 +76,10 @@ const (
 	ArgoCDUserAgentName = "argocd-client"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
+	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
@@ -183,6 +198,8 @@ const (
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
+	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
+	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
 )
 
 const (
@@ -207,5 +224,14 @@ func GetGnuPGHomePath() string {
 		return DefaultGnuPgHomePath
 	} else {
 		return gnuPgHome
+	}
+}
+
+// GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
+func GetPluginSockFilePath() string {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
 	}
 }

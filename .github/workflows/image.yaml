@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+    types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 env:
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: '1.17.6'
 
 jobs:
   publish:
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
@@ -26,28 +31,36 @@ jobs:
         working-directory: ./src/github.com/argoproj/argo-cd
         id: image
 
-      # build
-      - run: |
-          docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
-          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/argoproj IMAGE_TAG=${{ steps.image.outputs.tag }}
-        working-directory: ./src/github.com/argoproj/argo-cd
-
-      # publish
+      # login
       - run: |
           docker login ghcr.io --username $USERNAME --password $PASSWORD
-          docker push ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
-
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-          docker tag ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} argoproj/argocd:latest
-          docker push argoproj/argocd:latest
+          docker login quay.io --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+        if: github.event_name == 'push'
         env:
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+
+      # build
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+      - run: |
+          IMAGE_PLATFORMS=linux/amd64
+          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
+          then
+            IMAGE_PLATFORMS=linux/amd64,linux/arm64
+          fi
+          echo "Building image for platforms: $IMAGE_PLATFORMS"
+          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
+            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
+            -t quay.io/argoproj/argocd:latest .
+        working-directory: ./src/github.com/argoproj/argo-cd
+
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
+        if: github.event_name == 'push'
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
@@ -55,5 +68,6 @@ jobs:
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
+        if: github.event_name == 'push'
         working-directory: argoproj-deployments/argocd
       # TODO: clean up old images once github supports it: https://github.community/t5/How-to-use-Git-and-GitHub/Deleting-images-from-GitHub-Package-Registry/m-p/41202/thread-id/9811

@@ -1,132 +1,158 @@
-site_name: Argo CD - Declarative GitOps CD for Kubernetes
-repo_url: https://github.com/argoproj/argo-cd
-strict: true
-theme:
-  name: material
-  palette:
-    primary: teal
-  font:
-    text: 'Work Sans'
-  logo: 'assets/logo.png'
-  favicon: 'assets/favicon.png'
-  # language: en-custom
-  custom_dir: overrides
-extra_javascript:
-- assets/versions.js
 extra_css:
 - assets/versions.css
+extra_javascript:
+- assets/versions.js
 google_analytics:
-- 'UA-105170809-2'
-- 'auto'
+- UA-105170809-2
+- auto
 markdown_extensions:
 - codehilite
 - admonition
 - toc:
     permalink: true
 nav:
-  - Overview: index.md
-  - understand_the_basics.md
-  - core_concepts.md
-  - getting_started.md
-  - Operator Manual:
-    - operator-manual/index.md
-    - operator-manual/architecture.md
-    - operator-manual/installation.md
-    - operator-manual/declarative-setup.md
-    - operator-manual/ingress.md
-    - User Management:
-      - operator-manual/user-management/index.md
-      - operator-manual/user-management/auth0.md
-      - operator-manual/user-management/microsoft.md
-      - operator-manual/user-management/okta.md
-      - operator-manual/user-management/onelogin.md
-      - operator-manual/user-management/keycloak.md
-      - operator-manual/user-management/openunison.md
-      - operator-manual/user-management/google.md
-      - operator-manual/rbac.md
-    - operator-manual/security.md
-    - operator-manual/tls.md
-    - operator-manual/cluster-bootstrapping.md
-    - operator-manual/secret-management.md
-    - operator-manual/high_availability.md
-    - operator-manual/disaster_recovery.md
-    - operator-manual/webhook.md
-    - operator-manual/health.md
-    - operator-manual/resource_actions.md
-    - operator-manual/custom_tools.md
-    - operator-manual/custom-styles.md
-    - operator-manual/metrics.md
-    - operator-manual/notifications.md
-    - operator-manual/troubleshooting.md
-    - Server Configuration Parameters:
-      - operator-manual/server-commands/argocd-server.md
-      - operator-manual/server-commands/argocd-application-controller.md
-      - operator-manual/server-commands/argocd-repo-server.md
-      - operator-manual/server-commands/argocd-dex.md
-      - operator-manual/server-commands/additional-configuration-method.md
-    - Upgrading:
-        - operator-manual/upgrading/overview.md
-        - operator-manual/upgrading/2.0-2.1.md
-        - operator-manual/upgrading/1.8-2.0.md
-        - operator-manual/upgrading/1.7-1.8.md
-        - operator-manual/upgrading/1.6-1.7.md
-        - operator-manual/upgrading/1.5-1.6.md
-        - operator-manual/upgrading/1.4-1.5.md
-        - operator-manual/upgrading/1.3-1.4.md
-        - operator-manual/upgrading/1.2-1.3.md
-        - operator-manual/upgrading/1.1-1.2.md
-        - operator-manual/upgrading/1.0-1.1.md
-  - User Guide:
-    - user-guide/index.md
-    - user-guide/application_sources.md
-    - user-guide/kustomize.md
-    - user-guide/helm.md
-    - user-guide/ksonnet.md
-    - user-guide/jsonnet.md
-    - user-guide/config-management-plugins.md
-    - user-guide/tool_detection.md
-    - user-guide/projects.md
-    - user-guide/private-repositories.md
-    - GnuPG verification: user-guide/gpg-verification.md
-    - user-guide/auto_sync.md
-    - user-guide/diffing.md
-    - user-guide/orphaned-resources.md
-    - user-guide/compare-options.md
-    - user-guide/sync-options.md
-    - user-guide/parameters.md
-    - user-guide/build-environment.md
-    - user-guide/tracking_strategies.md
-    - user-guide/resource_tracking.md
-    - user-guide/resource_hooks.md
-    - user-guide/selective_sync.md
-    - user-guide/sync-waves.md
-    - user-guide/sync_windows.md
-    - Generating Applications with ApplicationSet: user-guide/application-set.md
-    - user-guide/ci_automation.md
-    - user-guide/app_deletion.md
-    - user-guide/best_practices.md
-    - user-guide/status-badge.md
-    - user-guide/external-url.md
-    - Command Reference: user-guide/commands/argocd.md
-  - Developer Guide:
-    - developer-guide/index.md
-    - Code Contribution Guide: developer-guide/code-contributions.md
-    - Toolchain Guide: developer-guide/toolchain-guide.md
-    - developer-guide/release-process-and-cadence.md
-    - developer-guide/running-locally.md
-    - developer-guide/debugging-remote-environment.md
-    - developer-guide/use-gitpod.md
-    - developer-guide/api-docs.md
-    - developer-guide/test-e2e.md
-    - developer-guide/dependencies.md
-    - developer-guide/ci.md
-    - developer-guide/releasing.md
-    - developer-guide/site.md
-    - developer-guide/static-code-analysis.md
-    - developer-guide/faq.md
-  - faq.md
-  - security_considerations.md
-  - Support: SUPPORT.md
-  - roadmap.md
-  - Releases ⧉: https://github.com/argoproj/argo-cd/releases
-  - Blog ⧉: https://blog.argoproj.io/
+- Overview: index.md
+- understand_the_basics.md
+- core_concepts.md
+- getting_started.md
+- Operator Manual:
+  - operator-manual/index.md
+  - operator-manual/architecture.md
+  - operator-manual/installation.md
+  - operator-manual/declarative-setup.md
+  - operator-manual/ingress.md
+  - User Management:
+    - operator-manual/user-management/index.md
+    - operator-manual/user-management/auth0.md
+    - operator-manual/user-management/microsoft.md
+    - operator-manual/user-management/okta.md
+    - operator-manual/user-management/onelogin.md
+    - operator-manual/user-management/keycloak.md
+    - operator-manual/user-management/openunison.md
+    - operator-manual/user-management/google.md
+    - operator-manual/rbac.md
+  - operator-manual/security.md
+  - operator-manual/tls.md
+  - operator-manual/cluster-bootstrapping.md
+  - operator-manual/secret-management.md
+  - operator-manual/high_availability.md
+  - operator-manual/disaster_recovery.md
+  - operator-manual/webhook.md
+  - operator-manual/health.md
+  - operator-manual/resource_actions.md
+  - operator-manual/custom_tools.md
+  - operator-manual/custom-styles.md
+  - operator-manual/metrics.md
+  - Notification:
+    - Overview: operator-manual/notifications/index.md
+    - operator-manual/notifications/triggers.md
+    - operator-manual/notifications/templates.md
+    - operator-manual/notifications/functions.md
+    - operator-manual/notifications/catalog.md
+    - operator-manual/notifications/monitoring.md
+    - operator-manual/notifications/subscriptions.md
+    - operator-manual/notifications/troubleshooting-commands.md
+    - operator-manual/notifications/troubleshooting-errors.md
+    - operator-manual/notifications/troubleshooting.md
+    - Notification Services:
+      - operator-manual/notifications/services/alertmanager.md
+      - operator-manual/notifications/services/email.md
+      - operator-manual/notifications/services/github.md
+      - operator-manual/notifications/services/googlechat.md
+      - operator-manual/notifications/services/grafana.md
+      - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/opsgenie.md
+      - operator-manual/notifications/services/overview.md
+      - operator-manual/notifications/services/pushover.md
+      - operator-manual/notifications/services/rocketchat.md
+      - operator-manual/notifications/services/slack.md
+      - operator-manual/notifications/services/teams.md
+      - operator-manual/notifications/services/telegram.md
+      - operator-manual/notifications/services/webhook.md
+  - operator-manual/troubleshooting.md
+  - Server Configuration Parameters:
+    - operator-manual/server-commands/argocd-server.md
+    - operator-manual/server-commands/argocd-application-controller.md
+    - operator-manual/server-commands/argocd-repo-server.md
+    - operator-manual/server-commands/argocd-dex.md
+    - operator-manual/server-commands/additional-configuration-method.md
+  - Upgrading:
+    - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.2-2.3.md
+    - operator-manual/upgrading/2.1-2.2.md
+    - operator-manual/upgrading/2.0-2.1.md
+    - operator-manual/upgrading/1.8-2.0.md
+    - operator-manual/upgrading/1.7-1.8.md
+    - operator-manual/upgrading/1.6-1.7.md
+    - operator-manual/upgrading/1.5-1.6.md
+    - operator-manual/upgrading/1.4-1.5.md
+    - operator-manual/upgrading/1.3-1.4.md
+    - operator-manual/upgrading/1.2-1.3.md
+    - operator-manual/upgrading/1.1-1.2.md
+    - operator-manual/upgrading/1.0-1.1.md
+- User Guide:
+  - user-guide/index.md
+  - user-guide/application_sources.md
+  - user-guide/kustomize.md
+  - user-guide/helm.md
+  - user-guide/jsonnet.md
+  - user-guide/config-management-plugins.md
+  - user-guide/tool_detection.md
+  - user-guide/projects.md
+  - user-guide/private-repositories.md
+  - GnuPG verification: user-guide/gpg-verification.md
+  - user-guide/auto_sync.md
+  - user-guide/diffing.md
+  - user-guide/orphaned-resources.md
+  - user-guide/compare-options.md
+  - user-guide/sync-options.md
+  - user-guide/parameters.md
+  - user-guide/build-environment.md
+  - user-guide/tracking_strategies.md
+  - user-guide/resource_tracking.md
+  - user-guide/resource_hooks.md
+  - user-guide/selective_sync.md
+  - user-guide/sync-waves.md
+  - user-guide/sync_windows.md
+  - Generating Applications with ApplicationSet: user-guide/application-set.md
+  - user-guide/ci_automation.md
+  - user-guide/app_deletion.md
+  - user-guide/best_practices.md
+  - user-guide/status-badge.md
+  - user-guide/external-url.md
+  - Notification subscriptions: user-guide/subscriptions.md
+  - Command Reference: user-guide/commands/argocd.md
+- Developer Guide:
+  - developer-guide/index.md
+  - Code Contribution Guide: developer-guide/code-contributions.md
+  - Toolchain Guide: developer-guide/toolchain-guide.md
+  - developer-guide/release-process-and-cadence.md
+  - developer-guide/running-locally.md
+  - developer-guide/debugging-remote-environment.md
+  - developer-guide/use-gitpod.md
+  - developer-guide/api-docs.md
+  - developer-guide/test-e2e.md
+  - developer-guide/dependencies.md
+  - developer-guide/ci.md
+  - developer-guide/releasing.md
+  - developer-guide/site.md
+  - developer-guide/static-code-analysis.md
+  - developer-guide/faq.md
+- faq.md
+- security_considerations.md
+- Support: SUPPORT.md
+- roadmap.md
+- Releases ⧉: https://github.com/argoproj/argo-cd/releases
+- Blog ⧉: https://blog.argoproj.io/
+repo_url: https://github.com/argoproj/argo-cd
+site_name: Argo CD - Declarative GitOps CD for Kubernetes
+strict: true
+theme:
+  custom_dir: overrides
+  favicon: assets/favicon.png
+  font:
+    text: Work Sans
+  logo: assets/logo.png
+  name: material
+  palette:
+    primary: teal
