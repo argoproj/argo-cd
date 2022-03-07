@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/files"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
@@ -118,18 +119,6 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(cachePath)
 }
 
-func createTempDir() (string, error) {
-	newUUID, err := uuid.NewRandom()
-	if err != nil {
-		return "", err
-	}
-	tempDir := path.Join(os.TempDir(), newUUID.String())
-	if err := os.Mkdir(tempDir, 0755); err != nil {
-		return "", err
-	}
-	return tempDir, nil
-}
-
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
@@ -145,7 +134,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
-	tempDir, err := createTempDir()
+	tempDir, err := files.CreateTempDir()
 	if err != nil {
 		return "", nil, err
 	}
@@ -166,7 +155,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest, err := createTempDir()
+		tempDest, err := files.CreateTempDir()
 		if err != nil {
 			return "", nil, err
 		}

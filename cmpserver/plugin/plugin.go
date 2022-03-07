@@ -25,7 +25,7 @@ import (
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.
-const cmpTimeoutBuffer = 500 * time.Millisecond
+const cmpTimeoutBuffer = 100 * time.Millisecond
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -183,8 +183,9 @@ func (s *Service) generateManifest(ctx context.Context, workDir string, envEntri
 	}, err
 }
 
-// MatchRepository checks whether the application repository type is supported
-// by config management plugin server. The checks are implemented in the following
+// MatchRepository receives the application stream and checks whether
+// the its repository type is supported by config the management plugin
+// server. The checks are implemented in the following
 // order:
 // 1. If spec.Discover.FileName is provided it finds for a name match in Applications files
 // 2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files

@@ -162,7 +162,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	defer f.Close()
 
 	if _, err := io.Copy(t.tarWriter, f); err != nil {
-		return fmt.Errorf("error copying tgz file to writters: %w", err)
+		return fmt.Errorf("error copying tgz file to writers: %w", err)
 	}
 
 	return nil

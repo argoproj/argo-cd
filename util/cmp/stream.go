@@ -42,17 +42,23 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (str
 		return "", nil, fmt.Errorf("error getting stream metadata: metadata is nil")
 	}
 	metadata := header.GetMetadata()
-	workDir, err := ioutil.TempDir(os.TempDir(), metadata.GetAppName())
+	workDir, err := files.CreateTempDir()
 	if err != nil {
 		return "", nil, fmt.Errorf("error creating workDir: %w", err)
 	}
 
 	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
 	if err != nil {
+		if e := os.RemoveAll(workDir); e != nil {
+			log.Warnf("error removing workdir %q: %s", workDir, e)
+		}
 		return "", nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
 	err = files.Untgz(workDir, tgzFile)
 	if err != nil {
+		if e := os.RemoveAll(workDir); e != nil {
+			log.Warnf("error removing workdir %q: %s", workDir, e)
+		}
 		return "", nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
 	err = os.Remove(tgzFile.Name())
@@ -65,16 +71,12 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (str
 // SendApplicationStream will compress the files under the given appPath and send
 // them using the plugin stream sender.
 func SendApplicationStream(ctx context.Context, appPath string, sender StreamSender, env []string) error {
-
 	// compress all files in appPath in tgz
 	tgz, checksum, err := compressFiles(appPath)
 	if err != nil {
 		return fmt.Errorf("error compressing app files: %w", err)
 	}
-	defer func() {
-		tgz.Close()
-		os.Remove(tgz.Name())
-	}()
+	defer cleanup(tgz)
 
 	// send metadata first
 	mr := appMetadataRequest(appPath, env, checksum)
@@ -118,6 +120,18 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 	return nil
 }
 
+func cleanup(f *os.File) {
+	if f == nil {
+		return
+	}
+	if err := f.Close(); err != nil {
+		log.Warnf("error closing file %q: %s", f.Name(), err)
+	}
+	if err := os.Remove(f.Name()); err != nil {
+		log.Warnf("error removing file %q: %s", f.Name(), err)
+	}
+}
+
 // compressFiles will create a tgz file with all contents of appPath
 // directory excluding the .git folder. Returns the file alongside
 // its sha256 hash to be used as checksum. It is the resposibility
@@ -125,22 +139,27 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 func compressFiles(appPath string) (*os.File, string, error) {
 	excluded := []string{".git"}
 	appName := filepath.Base(appPath)
-	tgzFile, err := ioutil.TempFile(os.TempDir(), appName)
+	tempDir, err := files.CreateTempDir()
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
+	}
+	tgzFile, err := ioutil.TempFile(tempDir, appName)
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
 	hasher := sha256.New()
 	err = files.Tgz(appPath, excluded, tgzFile, hasher)
 	if err != nil {
-		tgzFile.Close()
-		os.Remove(tgzFile.Name())
+		cleanup(tgzFile)
 		return nil, "", fmt.Errorf("error creating app tgz file: %w", err)
 	}
 	checksum := hex.EncodeToString(hasher.Sum(nil))
+	hasher.Reset()
 
 	// reposition the offset to the beginning of the file for proper reads
 	_, err = tgzFile.Seek(0, io.SeekStart)
 	if err != nil {
+		cleanup(tgzFile)
 		return nil, "", fmt.Errorf("error processing tgz file: %w", err)
 	}
 	return tgzFile, checksum, nil

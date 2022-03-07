@@ -1,8 +1,12 @@
 package files
 
 import (
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // RelativePath will remove the basePath string from the fullPath
@@ -30,4 +34,20 @@ func RelativePath(fullPath, basePath string) string {
 	}
 	trimmed := strings.TrimPrefix(replaced, string(filepath.Separator))
 	return filepath.Clean(trimmed)
+}
+
+// CreateTempDir will create a temporary directory with CSPRNG
+// entropy in the name to avoid clashes. It is the caller's
+// responsibility to remove the directory after use. Will return
+// the full path of the generated directory.
+func CreateTempDir() (string, error) {
+	newUUID, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+	tempDir := path.Join(os.TempDir(), newUUID.String())
+	if err := os.Mkdir(tempDir, 0755); err != nil {
+		return "", err
+	}
+	return tempDir, nil
 }
