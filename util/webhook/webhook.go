@@ -385,7 +385,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = a.github.Parse(r, github.PushEvent)
+		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
 	case r.Header.Get("X-Hook-UUID") != "":
