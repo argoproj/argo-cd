@@ -76,7 +76,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	if err != nil {
 		return fmt.Errorf("error compressing app files: %w", err)
 	}
-	defer cleanup(tgz)
+	defer closeAndDelete(tgz)
 
 	// send metadata first
 	mr := appMetadataRequest(appPath, env, checksum)
@@ -105,22 +105,23 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
 			}
 		}
 		n, err := reader.Read(chunk)
+		if n > 0 {
+			fr := appFileRequest(chunk[:n])
+			if e := sender.Send(fr); e != nil {
+				return fmt.Errorf("error sending stream: %w", err)
+			}
+		}
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			return fmt.Errorf("buffer reader error: %w", err)
 		}
-		fr := appFileRequest(chunk[:n])
-		err = sender.Send(fr)
-		if err != nil {
-			return fmt.Errorf("error sending stream: %w", err)
-		}
 	}
 	return nil
 }
 
-func cleanup(f *os.File) {
+func closeAndDelete(f *os.File) {
 	if f == nil {
 		return
 	}
@@ -134,7 +135,7 @@ func cleanup(f *os.File) {
 
 // compressFiles will create a tgz file with all contents of appPath
 // directory excluding the .git folder. Returns the file alongside
-// its sha256 hash to be used as checksum. It is the resposibility
+// its sha256 hash to be used as checksum. It is the responsibility
 // of the caller to close the file.
 func compressFiles(appPath string) (*os.File, string, error) {
 	excluded := []string{".git"}
@@ -150,7 +151,7 @@ func compressFiles(appPath string) (*os.File, string, error) {
 	hasher := sha256.New()
 	err = files.Tgz(appPath, excluded, tgzFile, hasher)
 	if err != nil {
-		cleanup(tgzFile)
+		closeAndDelete(tgzFile)
 		return nil, "", fmt.Errorf("error creating app tgz file: %w", err)
 	}
 	checksum := hex.EncodeToString(hasher.Sum(nil))
@@ -159,7 +160,7 @@ func compressFiles(appPath string) (*os.File, string, error) {
 	// reposition the offset to the beginning of the file for proper reads
 	_, err = tgzFile.Seek(0, io.SeekStart)
 	if err != nil {
-		cleanup(tgzFile)
+		closeAndDelete(tgzFile)
 		return nil, "", fmt.Errorf("error processing tgz file: %w", err)
 	}
 	return tgzFile, checksum, nil
@@ -211,6 +212,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 	}
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
+		closeAndDelete(file)
 		return nil, fmt.Errorf("seek error: %w", err)
 	}
 	return file, nil
