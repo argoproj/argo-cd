@@ -9,7 +9,7 @@ import {ApplicationParameters} from '../application-parameters/application-param
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import * as ReactForm from 'react-form';
+import {SetFinalizerOnApplication} from './application-create-setfinalizer';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -515,30 +515,3 @@ export const ApplicationCreatePanel = (props: {
         </React.Fragment>
     );
 };
-
-export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
-    const {
-        fieldApi: {getValue, setValue}
-    } = props;
-    const setval = getValue() || [];
-    const isChecked = setval.indexOf('resources-finalizer.argocd.argoproj.io') === -1 ? false : true;
-    const val = ['resources-finalizer.argocd.argoproj.io'] || [];
-    return (
-        <div className='argo-field' style={{borderBottom: '0'}}>
-            <React.Fragment>
-                <Checkbox
-                    id='set-finalizer'
-                    checked={isChecked}
-                    onChange={() => {
-                        if (!isChecked) {
-                            setValue(val);
-                        } else {
-                            setValue([]);
-                        }
-                    }}
-                />
-                <label htmlFor={`set-finalizer`}>Set Deletion Finalizer</label>
-            </React.Fragment>
-        </div>
-    );
-});
