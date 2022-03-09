@@ -11,7 +11,7 @@ Ports for other architectures, such as arm32 and arm64, are not yet officially
 available but are planned.
 
 Installing and/or using the CLI is completely optional, but recommended. The
-CLI provides a convinient way to interact with Argo CD through its API.
+CLI provides a convenient way to interact with Argo CD through its API.
 
 ## Install on Linux
 
