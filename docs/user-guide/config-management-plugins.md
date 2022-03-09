@@ -82,9 +82,9 @@ application repository is supported by the plugin or not.
       command: [sh, -c, find . -name env.yaml]
 ```
 
-If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an 
-application repository is supported by the plugin or not. The `find` command should return a non-error exit code when 
-the application source type is supported. 
+If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an
+application repository is supported by the plugin or not. The `find` command should return a non-error exit code
+and produce output to stdout when the application source type is supported.
 
 If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set `lockRepo` to `true` so that your plugin will have exclusive access to the
 repository at the time it is executed. Otherwise, two applications synced at the same time may result in a race condition and sync failure.

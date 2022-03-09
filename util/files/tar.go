@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bufio"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -75,12 +74,12 @@ func Untgz(dstPath string, r io.Reader) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := createNestedFolders(target)
+			err := os.MkdirAll(target, 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 		case tar.TypeReg:
-			err := createNestedFolders(filepath.Dir(target))
+			err := os.MkdirAll(filepath.Dir(target), 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -100,22 +99,6 @@ func Untgz(dstPath string, r io.Reader) error {
 	return nil
 }
 
-// createAllFolders will create all remaining folders from the given path.
-// No-op if path already exists.
-func createNestedFolders(path string) error {
-	_, err := os.Stat(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			if err := os.MkdirAll(path, 0755); err != nil {
-				return fmt.Errorf("error creating dir %q: %w", path, err)
-			}
-		} else {
-			return fmt.Errorf("error inspecting nested folder %q: %w", path, err)
-		}
-	}
-	return nil
-}
-
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions. Only regular files will be added in the tarball.
@@ -124,7 +107,10 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
 	}
 
-	relativePath := RelativePath(path, t.srcPath)
+	relativePath, err := RelativePath(path, t.srcPath)
+	if err != nil {
+		return fmt.Errorf("relative path error: %s", err)
+	}
 
 	for _, exclusionPattern := range t.exclusions {
 		found, err := filepath.Match(exclusionPattern, relativePath)
@@ -143,7 +129,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return nil
 	}
 
-	header, err := tar.FileInfoHeader(fi, fi.Name())
+	header, err := tar.FileInfoHeader(fi, "")
 	if err != nil {
 		return fmt.Errorf("error creating a tar file header: %w", err)
 	}

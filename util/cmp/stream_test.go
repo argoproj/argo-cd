@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/files"
 )
 
 type streamMock struct {
@@ -51,12 +53,17 @@ func TestReceiveApplicationStream(t *testing.T) {
 	t.Run("will receive the application stream successfully", func(t *testing.T) {
 		// given
 		streamMock := newStreamMock()
-		defer close(streamMock.messages)
 		appDir := filepath.Join(getTestDataDir(t), "app")
+		workdir, err := files.CreateTempDir()
+		require.NoError(t, err)
+		defer func() {
+			close(streamMock.messages)
+			os.RemoveAll(workdir)
+		}()
 		go streamMock.sendFile(context.Background(), t, appDir, streamMock, []string{"env1", "env2"})
 
 		// when
-		workdir, env, err := cmp.ReceiveApplicationStream(context.Background(), streamMock)
+		env, err := cmp.ReceiveApplicationStream(context.Background(), streamMock, workdir)
 
 		// then
 		require.NoError(t, err)

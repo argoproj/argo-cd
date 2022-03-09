@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/files"
 )
 
@@ -30,47 +31,66 @@ type StreamReceiver interface {
 	Recv() (*pluginclient.AppStreamRequest, error)
 }
 
-// ReceiveApplicationStream will receive the Application's files and the env entries
-// over the gRPC stream. Will return the path where the files are saved
-// and the env entries if no error.
-func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver) (string, []*pluginclient.EnvEntry, error) {
+// ReceiveApplicationStream will receive the Application's files and save them
+// in destDir. Will return the env entries if no error. Env entries will be nil
+// in case of errors.
+func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver, destDir string) ([]*pluginclient.EnvEntry, error) {
 	header, err := receiver.Recv()
 	if err != nil {
-		return "", nil, fmt.Errorf("error receiving stream header: %w", err)
+		return nil, fmt.Errorf("error receiving stream header: %w", err)
 	}
 	if header == nil || header.GetMetadata() == nil {
-		return "", nil, fmt.Errorf("error getting stream metadata: metadata is nil")
+		return nil, fmt.Errorf("error getting stream metadata: metadata is nil")
 	}
 	metadata := header.GetMetadata()
-	workDir, err := files.CreateTempDir()
-	if err != nil {
-		return "", nil, fmt.Errorf("error creating workDir: %w", err)
-	}
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), workDir)
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir)
 	if err != nil {
-		if e := os.RemoveAll(workDir); e != nil {
-			log.Warnf("error removing workdir %q: %s", workDir, e)
-		}
-		return "", nil, fmt.Errorf("error receiving tgz file: %w", err)
+		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(workDir, tgzFile)
+	err = files.Untgz(destDir, tgzFile)
 	if err != nil {
-		if e := os.RemoveAll(workDir); e != nil {
-			log.Warnf("error removing workdir %q: %s", workDir, e)
-		}
-		return "", nil, fmt.Errorf("error decompressing tgz file: %w", err)
+		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
 	err = os.Remove(tgzFile.Name())
 	if err != nil {
 		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
-	return workDir, metadata.GetEnv(), nil
+	return metadata.GetEnv(), nil
+}
+
+// SenderOption defines the function type to by used by specific options
+type SenderOption func(*senderOption)
+
+type senderOption struct {
+	chunkSize int
+}
+
+func newSenderOption(opts ...SenderOption) *senderOption {
+
+	so := &senderOption{
+		chunkSize: common.GetCMPChunkSize(),
+	}
+	for _, opt := range opts {
+		opt(so)
+	}
+	return so
+}
+
+// WithChunkSize defines the chunk size used while sending files over
+// the gRPC stream. Will only overwrite the DefaultChunkSize if the
+// given size is greater than zero.
+func WithChunkSize(size int) SenderOption {
+	return func(opt *senderOption) {
+		if size > 0 {
+			opt.chunkSize = size
+		}
+	}
 }
 
 // SendApplicationStream will compress the files under the given appPath and send
 // them using the plugin stream sender.
-func SendApplicationStream(ctx context.Context, appPath string, sender StreamSender, env []string) error {
+func SendApplicationStream(ctx context.Context, appPath string, sender StreamSender, env []string, opts ...SenderOption) error {
 	// compress all files in appPath in tgz
 	tgz, checksum, err := compressFiles(appPath)
 	if err != nil {
@@ -86,7 +106,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	}
 
 	// send the compressed file
-	err = sendFile(ctx, sender, tgz)
+	err = sendFile(ctx, sender, tgz, opts...)
 	if err != nil {
 		return fmt.Errorf("error sending app files to cmp-server: %w", err)
 	}
@@ -95,9 +115,10 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 
 // sendFile will send the file over the gRPC stream using a
 // buffer.
-func sendFile(ctx context.Context, sender StreamSender, file *os.File) error {
+func sendFile(ctx context.Context, sender StreamSender, file *os.File, opts ...SenderOption) error {
+	opt := newSenderOption(opts...)
 	reader := bufio.NewReader(file)
-	chunk := make([]byte, 1024)
+	chunk := make([]byte, opt.chunkSize)
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
@@ -208,6 +229,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 	}
 	_, err = fileBuffer.WriteTo(file)
 	if err != nil {
+		closeAndDelete(file)
 		return nil, fmt.Errorf("error writing file: %w", err)
 	}
 	_, err = file.Seek(0, io.SeekStart)

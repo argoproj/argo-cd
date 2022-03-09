@@ -137,7 +137,8 @@ func TestUntgz(t *testing.T) {
 				return err
 			}
 			if info.Mode().IsRegular() {
-				relativePath := files.RelativePath(path, basedir)
+				relativePath, err := files.RelativePath(path, basedir)
+				require.NoError(t, err)
 				names = append(names, relativePath)
 			}
 			return nil

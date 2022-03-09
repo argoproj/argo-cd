@@ -10,35 +10,47 @@ import (
 
 func TestRelativePath(t *testing.T) {
 	type testcase struct {
-		name     string
-		fullpath string
-		basepath string
-		expected string
+		name        string
+		fullpath    string
+		basepath    string
+		expected    string
+		expectedErr error
 	}
 	cases := []testcase{
 		{
-			name:     "will return relative path from file path",
-			fullpath: "/home/test/app/readme.md",
-			basepath: "/home/test",
-			expected: "app/readme.md",
+			name:        "will return relative path from file path",
+			fullpath:    "/home/test/app/readme.md",
+			basepath:    "/home/test",
+			expected:    "app/readme.md",
+			expectedErr: nil,
 		},
 		{
-			name:     "will return relative path from dir path",
-			fullpath: "/home/test/app/",
-			basepath: "/home/test",
-			expected: "app",
+			name:        "will return relative path from dir path",
+			fullpath:    "/home/test/app/",
+			basepath:    "/home/test",
+			expected:    "app",
+			expectedErr: nil,
 		},
 		{
-			name:     "will return . if fullpath and basepath are the same",
-			fullpath: "/home/test/app/readme.md",
-			basepath: "/home/test/app/readme.md",
-			expected: ".",
+			name:        "will return . if fullpath and basepath are the same",
+			fullpath:    "/home/test/app/readme.md",
+			basepath:    "/home/test/app/readme.md",
+			expected:    ".",
+			expectedErr: nil,
 		},
 		{
-			name:     "will return full path if basepath does not match",
-			fullpath: "/home/test/app/readme.md",
-			basepath: "/somewhere/else",
-			expected: "/home/test/app/readme.md",
+			name:        "will return error if basepath does not match",
+			fullpath:    "/home/test/app/readme.md",
+			basepath:    "/somewhere/else",
+			expected:    "",
+			expectedErr: files.RelativeOutOfBoundErr,
+		},
+		{
+			name:        "will return relative path from dir path",
+			fullpath:    "/home/test//app/",
+			basepath:    "/home/test",
+			expected:    "app",
+			expectedErr: nil,
 		},
 	}
 	for _, c := range cases {
@@ -48,9 +60,10 @@ func TestRelativePath(t *testing.T) {
 			t.Parallel()
 
 			// when
-			relativePath := files.RelativePath(c.fullpath, c.basepath)
+			relativePath, err := files.RelativePath(c.fullpath, c.basepath)
 
 			// then
+			assert.Equal(t, c.expectedErr, err)
 			assert.Equal(t, c.expected, relativePath)
 		})
 	}

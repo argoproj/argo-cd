@@ -2,7 +2,10 @@ package common
 
 import (
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -200,6 +203,14 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
+	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
+	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
+)
+
+// Config Management Plugin related constants
+const (
+	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
+	DefaultCMPChunkSize = 1024
 )
 
 const (
@@ -234,4 +245,18 @@ func GetPluginSockFilePath() string {
 	} else {
 		return pluginSockFilePath
 	}
+}
+
+// GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
+// If EnvCMPChunkSize is defined but not a valid int, DefaultCMPChunkSize will be returned
+func GetCMPChunkSize() int {
+	if chunkSizeStr := os.Getenv(EnvCMPChunkSize); chunkSizeStr != "" {
+		chunkSize, err := strconv.Atoi(chunkSizeStr)
+		if err != nil {
+			logrus.Warnf("invalid env var value for %s: not a valid int: %s. Default value will be used.", EnvCMPChunkSize, err)
+			return DefaultCMPChunkSize
+		}
+		return chunkSize
+	}
+	return DefaultCMPChunkSize
 }
