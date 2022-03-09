@@ -221,7 +221,7 @@ export const ApplicationCreatePanel = (props: {
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={api} field='metadata.finalizers' component={ApplicationCascadeDeletion} />
+                                                    <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />
                                                     <HelpIcon title='If checked finalizer resources-finalizer.argocd.argoproj.io will be set and application resources deletion will be cascaded' />
                                                 </div>
                                                 <div className='argo-form-row'>
@@ -516,22 +516,28 @@ export const ApplicationCreatePanel = (props: {
     );
 };
 
-export const ApplicationCascadeDeletion = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {setValue, setTouched}
+        fieldApi: {getValue, setValue}
     } = props;
+    const setval = getValue() || [];
+    const isChecked = setval.indexOf('resources-finalizer.argocd.argoproj.io') === -1 ? false : true;
     const val = ['resources-finalizer.argocd.argoproj.io'] || [];
     return (
         <div className='argo-field' style={{borderBottom: '0'}}>
             <React.Fragment>
                 <Checkbox
-                    id='cascade-on-delete'
-                    onChange={(newVal: boolean) => {
-                        setTouched(true);
-                        setValue(val);
+                    id='set-finalizer'
+                    checked={isChecked}
+                    onChange={() => {
+                        if (!isChecked) {
+                            setValue(val);
+                        } else {
+                            setValue([]);
+                        }
                     }}
                 />
-                <label htmlFor={`cascade-on-delete`}>Set Finalizer</label>
+                <label htmlFor={`set-finalizer`}>Set Deletion Finalizer</label>
             </React.Fragment>
         </div>
     );
