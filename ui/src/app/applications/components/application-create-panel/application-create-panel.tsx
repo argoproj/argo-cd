@@ -105,6 +105,7 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
+    const [retry, setRetry] = React.useState(false);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -222,7 +223,13 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                                                    <ApplicationRetryOptions formApi={api} field='spec.syncPolicy.retry' />
+                                                    <ApplicationRetryOptions
+                                                        formApi={api}
+                                                        field='spec.syncPolicy.retry'
+                                                        retry={retry || (api.getFormState().values.spec.syncPolicy && api.getFormState().values.spec.syncPolicy.retry)}
+                                                        setRetry={setRetry}
+                                                        initValues={api.getFormState().values.spec.syncPolicy ? api.getFormState().values.spec.syncPolicy.retry : null}
+                                                    />
                                                 </div>
                                             </div>
                                         );
