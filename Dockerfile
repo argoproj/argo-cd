@@ -67,7 +67,7 @@ RUN ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
     touch /app/config/ssh/ssh_known_hosts && \
-    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts 
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts
 
 RUN mkdir -p /app/config/tls
 RUN mkdir -p /app/config/gpg/source && \
@@ -83,7 +83,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM docker.io/library/node:12.18.4 as argocd-ui
+FROM docker.io/library/node:12.18.4-buster as argocd-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
