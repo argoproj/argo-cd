@@ -23,6 +23,13 @@ This is the proposal to merge codebase of application set into argocd. Applicati
 
 Before starting need to close open PR's of application set and freeze for no more PR's?
 
+1) merge applicationset v0.4.0 into argo cd
+2) make sure it works
+3) freeze PRs
+4) merge changes made to applicationset controller after v0.4.0
+5) close PRs with a message indicating they can be re-opened in argo cd repo
+
+
 While merging need to preserve commit history? 
 
 ## Summary
@@ -92,18 +99,47 @@ Run application set as seperate microservices
 
  ### Implementation Details/Notes/Constraints [optional]
 
-What are the caveats to the implementation? What are some important details that didn't come across
+For Option1  from above
+
+### Merging of os process
+1) Create an invocker that invokes application-controller and application-set controller seperately and both controller run in same os.
+
+2) application-set controller to follow network policies, service account same as of application-controller
+
+3) Exposing via service for appset components like webhook
+
+### Merging of controller code
+
+1)  Creating a new Informer and Lister for Applicationset CRD and Registering the Handler functions copying from application set code.
+
+2) Creating new service for webhooks in applicationset
+
+Option 2 
+
+Running as Microservice.
+
+1) Implementing or removal of repeated codes
+like ClusterUtils in applicationset
+2) Exposing controller via service
+
+
+<!-- What are the caveats to the implementation? What are some important details that didn't come across
 above. Go in to as much detail as necessary here. This might be a good place to talk about core
 concepts and how they relate.
 
-You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
+You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing. -->
 
 ### Detailed examples
 
 ### Security Considerations
 
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  
+Security improvements need to be taken care while merge
+- Examine Logging of application set 
+- May be Make Webhook events to be authenticated
+- Application Set to emit kubernetes events same as argocd
+
+<!-- * How does this proposal impact the security aspects of Argo CD workloads ?
+* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  -->
 
 <!-- ### Risks and Mitigations
 
