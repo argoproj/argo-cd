@@ -31,10 +31,10 @@ type StreamReceiver interface {
 	Recv() (*pluginclient.AppStreamRequest, error)
 }
 
-// ReceiveApplicationStream will receive the Application's files and save them
-// in destDir. Will return the env entries if no error. Env entries will be nil
-// in case of errors.
-func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver, destDir string) ([]*pluginclient.EnvEntry, error) {
+// ReceiveRepoStream will receive the repository files and save them
+// in destDir. Will return the stream metadata if no error. Metadata
+// will be nil in case of errors.
+func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string) (*pluginclient.ManifestRequestMetadata, error) {
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
@@ -56,7 +56,7 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver, dest
 	if err != nil {
 		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
-	return metadata.GetEnv(), nil
+	return metadata, nil
 }
 
 // SenderOption defines the function type to by used by specific options
@@ -94,15 +94,15 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 	}
 }
 
-// SendApplicationStream will compress the files under the given appPath and send
+// SendRepoStream will compress the files under the given repoPath and send
 // them using the plugin stream sender.
-func SendApplicationStream(ctx context.Context, appPath string, sender StreamSender, env []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
 	// compress all files in appPath in tgz
-	tgz, checksum, err := compressFiles(appPath)
+	tgz, checksum, err := compressFiles(repoPath)
 	if err != nil {
-		return fmt.Errorf("error compressing app files: %w", err)
+		return fmt.Errorf("error compressing repo files: %w", err)
 	}
 	defer closeAndDelete(tgz)
 	if opt.tarDoneChan != nil {
@@ -110,8 +110,16 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 		close(opt.tarDoneChan)
 	}
 
+	fi, err := tgz.Stat()
+	if err != nil {
+		return fmt.Errorf("error getting tgz stat: %w", err)
+	}
+	appRelPath, err := files.RelativePath(appPath, repoPath)
+	if err != nil {
+		return fmt.Errorf("error building app relative path: %s", err)
+	}
 	// send metadata first
-	mr := appMetadataRequest(appPath, env, checksum)
+	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())
 	err = sender.Send(mr)
 	if err != nil {
 		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w", err)
@@ -120,7 +128,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	// send the compressed file
 	err = sendFile(ctx, sender, tgz, opt)
 	if err != nil {
-		return fmt.Errorf("error sending app files to cmp-server: %w", err)
+		return fmt.Errorf("error sending tgz file to cmp-server: %w", err)
 	}
 	return nil
 }
@@ -263,13 +271,15 @@ func appFileRequest(chunk []byte) *pluginclient.AppStreamRequest {
 }
 
 // appMetadataRequest build the metadata payload for the ManifestRequest
-func appMetadataRequest(appPath string, env []string, checksum string) *pluginclient.AppStreamRequest {
+func appMetadataRequest(appName, appRelPath string, env []string, checksum string, size int64) *pluginclient.AppStreamRequest {
 	return &pluginclient.AppStreamRequest{
 		Request: &pluginclient.AppStreamRequest_Metadata{
 			Metadata: &pluginclient.ManifestRequestMetadata{
-				AppName:  filepath.Base(appPath),
-				Env:      toEnvEntry(env),
-				Checksum: checksum,
+				AppName:    appName,
+				AppRelPath: appRelPath,
+				Checksum:   checksum,
+				Size_:      size,
+				Env:        toEnvEntry(env),
 			},
 		},
 	}

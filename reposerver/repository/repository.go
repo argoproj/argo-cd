@@ -384,7 +384,12 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
 
 	if tarConcluded && res == nil {
-		res = <-promise.responseCh
+		select {
+		case resp := <-promise.responseCh:
+			res = resp
+		case err := <-promise.errCh:
+			return nil, err
+		}
 	}
 
 	return res, err
@@ -473,7 +478,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		}
 		ch.errCh <- err
-		return
 	}
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
@@ -490,7 +494,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
-	return
 }
 
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
@@ -1322,7 +1325,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, repoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1333,7 +1336,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	if err != nil {
 		return nil, err
 	}
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, env, cmpClient, tarDoneCh)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
 	}
@@ -1351,7 +1354,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
@@ -1359,7 +1362,7 @@ func generateManifestsCMP(ctx context.Context, appPath string, env []string, cmp
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
-	err = cmp.SendApplicationStream(generateManifestStream.Context(), appPath, generateManifestStream, env, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
 	}

@@ -141,12 +141,13 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 		}
 	}()
 
-	env, err := cmp.ReceiveApplicationStream(stream.Context(), stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(stream.Context(), stream, workDir)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %s", err)
 	}
 
-	response, err := s.generateManifest(stream.Context(), workDir, env)
+	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
+	response, err := s.generateManifest(stream.Context(), appPath, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %s", err)
 	}
@@ -158,7 +159,7 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 }
 
 // generateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) generateManifest(ctx context.Context, workDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
+func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
 	defer cancel()
 
@@ -172,13 +173,13 @@ func (s *Service) generateManifest(ctx context.Context, workDir string, envEntri
 
 	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(bufferedCtx, config.Spec.Init, workDir, env)
+		_, err := runCommand(bufferedCtx, config.Spec.Init, appDir, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(bufferedCtx, config.Spec.Generate, workDir, env)
+	out, err := runCommand(bufferedCtx, config.Spec.Generate, appDir, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -214,7 +215,7 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 		}
 	}()
 
-	_, err = cmp.ReceiveApplicationStream(bufferedCtx, stream, workdir)
+	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workdir)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %s", err)
 	}
