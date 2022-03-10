@@ -280,7 +280,7 @@ spec:
                           values:
                             description: Values specifies Helm values to be passed
                               to helm template, typically defined as a block
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           version:
                             description: Version is the Helm version to use for templating
                               (either "2" or "3")
@@ -627,7 +627,7 @@ spec:
                       values:
                         description: Values specifies Helm values to be passed to
                           helm template, typically defined as a block
-                        type: string
+                        x-kubernetes-preserve-unknown-fields: true
                       version:
                         description: Version is the Helm version to use for templating
                           (either "2" or "3")
@@ -981,7 +981,7 @@ spec:
                             values:
                               description: Values specifies Helm values to be passed
                                 to helm template, typically defined as a block
-                              type: string
+                              x-kubernetes-preserve-unknown-fields: true
                             version:
                               description: Version is the Helm version to use for
                                 templating (either "2" or "3")
@@ -1352,7 +1352,7 @@ spec:
                                     description: Values specifies Helm values to be
                                       passed to helm template, typically defined as
                                       a block
-                                    type: string
+                                    x-kubernetes-preserve-unknown-fields: true
                                   version:
                                     description: Version is the Helm version to use
                                       for templating (either "2" or "3")
@@ -1697,7 +1697,7 @@ spec:
                               values:
                                 description: Values specifies Helm values to be passed
                                   to helm template, typically defined as a block
-                                type: string
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is the Helm version to use for
                                   templating (either "2" or "3")
@@ -2031,7 +2031,7 @@ spec:
                               values:
                                 description: Values specifies Helm values to be passed
                                   to helm template, typically defined as a block
-                                type: string
+                                x-kubernetes-preserve-unknown-fields: true
                               version:
                                 description: Version is the Helm version to use for
                                   templating (either "2" or "3")
@@ -10075,7 +10075,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -10177,7 +10176,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -11148,7 +11146,6 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha

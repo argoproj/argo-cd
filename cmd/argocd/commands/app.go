@@ -640,7 +640,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					}
 				}
 				if valuesLiteral {
-					app.Spec.Source.Helm.Values = ""
+					app.Spec.Source.Helm.Values.Values = ""
 					updated = true
 				}
 				for _, valuesFile := range valuesFiles {

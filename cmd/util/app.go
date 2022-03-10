@@ -398,7 +398,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values = opts.values
+		src.Helm.Values.Values = opts.values
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName

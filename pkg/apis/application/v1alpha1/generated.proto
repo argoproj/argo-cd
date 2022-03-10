@@ -197,7 +197,8 @@ message ApplicationSourceHelm {
   optional string releaseName = 3;
 
   // Values specifies Helm values to be passed to helm template, typically defined as a block
-  optional string values = 4;
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional Object values = 4;
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
@@ -689,6 +690,15 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
+}
+
+// +kubebuilder:validation:Type=""
+message Object {
+  // Values as string if Raw == nil
+  optional string values = 1;
+
+  // Raw is Values in raw format if Raw != nil
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension raw = 2;
 }
 
 // Operation contains information about a requested or running operation
