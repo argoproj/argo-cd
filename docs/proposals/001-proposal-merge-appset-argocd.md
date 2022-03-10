@@ -19,6 +19,11 @@ last-updated: 2022-03-09
 
 This is the proposal to merge codebase of application set into argocd. Application Set and Argocd are tightly coupled but yet maintained in different repository, adding to [issues](https://github.com/argoproj/applicationset/issues/528) wrt releases and support .Creating this proposal to finalize approach on merging the codebase
 
+## Open Questions [optional]
+
+Before starting need to close open PR's of application set and freeze for no more PR's?
+
+While merging need to preserve commit history? 
 
 ## Summary
 
@@ -27,6 +32,10 @@ Since Application set is matured enough and bundled with Argocd , need to merge 
 ## Motivation
 
 Motivation is to have Tighter integration of application set into argocd, so that going forward we can have first-class ApplicationSet support in Argo CD.
+
+Merging will solve this two issues
+- Currently have to Deal with two seperate docker images.After merge will have one single image
+- Circular dependency.Since Application set will not vendor argocd after merge,circular dependency will be solved.
 
 ### Goals
 
@@ -63,6 +72,9 @@ since both deals with creaion/deletion of applications one should consider mergi
 
 If we consider scaling beyond number of managed clusters, we can consider sharding based on number of applications and applicationset CRD and each replica to manage shards with some kind of election.Concerns wrt HA can be overcome but need to consider it as part of merging
 
+Kubernetes have different controlllers shipped in a single daemon kube-controller-manager
+
+
 #### Option 2
 
 Run application set as seperate microservices
@@ -78,7 +90,7 @@ Run application set as seperate microservices
 - Apart from controller, appset to have a grpc server,http server.
 
 
-<!-- ### Implementation Details/Notes/Constraints [optional]
+ ### Implementation Details/Notes/Constraints [optional]
 
 What are the caveats to the implementation? What are some important details that didn't come across
 above. Go in to as much detail as necessary here. This might be a good place to talk about core
@@ -93,7 +105,7 @@ You may have a work-in-progress Pull Request to demonstrate the functioning of t
 * How does this proposal impact the security aspects of Argo CD workloads ?
 * Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  
 
-### Risks and Mitigations
+<!-- ### Risks and Mitigations
 
 What are the risks of this proposal and how do we mitigate. Think broadly. 
 
