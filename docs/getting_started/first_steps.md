@@ -12,7 +12,7 @@ The process of exposing the [service](https://kubernetes.io/docs/concepts/servic
 
 ### Using an Ingress (Recommended)
 
-For a production Argo CD installation you should use [a Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) to expose the Argo CD service.
+For a production-grade Argo CD installation you should use [a Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) to expose the Argo CD service.
 
 See the [Ingress guide](../operations/ingress/index.md) for more details.
 
@@ -127,8 +127,7 @@ deployed, and no Kubernetes resources have been created. To [sync](../syncing/in
 argocd app sync guestbook
 ```
 
-This command retrieves the manifests from the [repository](../basics/repos/index.md) and performs a `kubectl apply` of the
-manifests. The guestbook app is now running and you can now view its resource components, logs,
+This command retrieves the manifests from the [repository](../basics/repos/index.md) and performs a `kubectl apply` on the cluster. The guestbook app is now running and you can now view its resource components, logs,
 events, and assessed health status.
 
 ## Use the Web UI to deploy an application
