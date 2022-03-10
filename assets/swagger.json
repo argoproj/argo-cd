@@ -4130,6 +4130,17 @@
         }
       }
     },
+    "runtimeRawExtension": {
+      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.Object `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// External package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// On the wire, the JSON will look something like this:\n{\n\t\"kind\":\"MyAPIObject\",\n\t\"apiVersion\":\"v1\",\n\t\"myPlugin\": {\n\t\t\"kind\":\"PluginA\",\n\t\t\"aOption\":\"foo\",\n\t},\n}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
+      "type": "object",
+      "properties": {
+        "raw": {
+          "description": "Raw is the underlying serialization of this object.\n\nTODO: Determine how to detect ContentType and ContentEncoding of 'Raw' data.",
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "runtimeStreamError": {
       "type": "object",
       "properties": {
@@ -4946,8 +4957,7 @@
           }
         },
         "values": {
-          "type": "string",
-          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
+          "$ref": "#/definitions/v1alpha1Object"
         },
         "version": {
           "type": "string",
@@ -5680,6 +5690,19 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        }
+      }
+    },
+    "v1alpha1Object": {
+      "type": "object",
+      "title": "+kubebuilder:validation:Type=\"\"",
+      "properties": {
+        "raw": {
+          "$ref": "#/definitions/runtimeRawExtension"
+        },
+        "values": {
+          "type": "string",
+          "title": "Values as string if Raw == nil"
         }
       }
     },
