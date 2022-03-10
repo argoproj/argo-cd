@@ -12,13 +12,25 @@ approvers:
   - TBD
 
 creation-date: 2022-03-09
-last-updated: 2022-03-09
+last-updated: 2022-03-10
 ---
 
 # Merging of ApplicationSet codebase into Argo CD
 
 This is the proposal to merge codebase of ApplicationSet into Argo CD. ApplicationSet and Argo CD are closely related but yet maintained in different repositories, adding to [issues](https://github.com/argoproj/applicationset/issues/528) wrt releases and support. Creating this proposal to finalize the approach on merging the codebase
 
+## Open Questions [optional]
+
+Before starting need to close open PR's of application set and freeze for no more PR's?
+
+1) merge applicationset v0.4.0 into argo cd
+2) make sure it works
+3) freeze PRs
+4) merge changes made to applicationset controller after v0.4.0
+5) close PRs with a message indicating they can be re-opened in argo cd repo
+
+
+While merging need to preserve commit history? 
 
 ## Summary
 
@@ -27,6 +39,10 @@ Since ApplicationSet is matured enough and has been graduated from argoprojlab. 
 ## Motivation
 
 Motivation is to have a tighter integration of ApplicationSet into Argo CD. Going forward, we can have first-class ApplicationSet support in Argo CD.
+
+Merging will solve this two issues
+- Currently have to Deal with two seperate docker images.After merge will have one single image
+- Circular dependency.Since Application set will not vendor argocd after merge,circular dependency will be solved.
 
 ### Goals
 
@@ -63,7 +79,9 @@ Since both controllers deal with creaion/deletion of applications one should con
 
 If we consider scaling beyond number of managed clusters, we can consider sharding based on number of applications and ApplicationSet CRD and each replica to manage shards with some kind of election. Concerns wrt HA can be overcome but need to consider it as part of merging
 
+
 #### Option 2 Run ApplicationSet as a seperate process/service
+Kubernetes have different controlllers shipped in a single daemon kube-controller-manager
 
 ### Pros
 - Lot easier to merge
@@ -76,22 +94,41 @@ If we consider scaling beyond number of managed clusters, we can consider shardi
 - Apart from controller, ApplicationSet to have a grpc server,http server.
 
 
-<!-- ### Implementation Details/Notes/Constraints [optional]
+ ### Implementation Details/Notes/Constraints [optional]
 
-What are the caveats to the implementation? What are some important details that didn't come across
-above? Go in to as much detail as necessary here. This might be a good place to talk about core
-concepts and how they relate.
+For Option1  from above
 
-You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
+### Merging of os process
+1) Create an invocker that invokes application-controller and application-set controller seperately and both controller run in same os.
 
-### Detailed examples
+2) application-set controller to follow network policies, service account same as of application-controller
+
+3) Exposing via service for appset components like webhook
+
+### Merging of controller code
+
+1) Creating a new Informer and Lister for Applicationset CRD and Registering the Handler functions copying from application set code.
+
+2) Creating new service for webhooks in applicationset
+
+For Option 2 from above
+
+Running as Microservice.
+
+1) Implementing or removal of repeated codes
+like ClusterUtils in applicationset
+2) Exposing controller via service
+
 
 ### Security Considerations
 
-* How does this proposal impact the security aspects of Argo CD workloads?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust?  
 
-### Risks and Mitigations
+Security improvements need to be taken care while merge
+- Examine Logging of application set 
+- May be Make Webhook events to be authenticated
+- Application Set to emit kubernetes events same as argocd
+
+<!-- ### Risks and Mitigations
 
 What are the risks of this proposal and how do we mitigate. Think broadly. 
 
