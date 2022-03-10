@@ -20,7 +20,13 @@ After you setup your ingress, you should also commit all associated files into G
 
 ### Using a Load balancer
 
-A quick way to expose Argo CD to the whole world is to simply convert the existing ClusterIP service to a Loadbalancer one.
+!!! warning
+    While a Load Balancer is a very easy method to use for exposing Argo CD, we suggest you only employ it for local clusters, product demos and proof-of-concept scenarios. It also opens your Argo CD installation to the whole world. Make sure that you  have a firewall and/or [extra security constraints](../operations/security.md) and know how users will access Argo CD.
+
+A quick way to expose Argo CD to the whole world is to simply convert the existing ClusterIP service to a Loadbalancer one if your Kubernetes cluster supports LoadBalancer services. This is true for most cloud
+platforms, but many bare-metal clusters do not support this out of the box.
+
+If you know that you have access to LoadBalancer services in your cluster you can execute the following:
 
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
@@ -29,11 +35,6 @@ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}
 Then the Argo CD service will get its own separate IP address and optionally a DNS name if you have this option setup.
 
 If you use this method in a permanent manner, beware of the cost impact. A load balancer is usually priced separately on most cloud providers. Make sure you understand the cost implications of this method. An ingress is almost always a cost-effective method if you have multiple services in a single cluster.
-
-
-
-!!! warning
-    While this method is very easy to execute, we suggest you only use it for local clusters, product demos and proof-of-concept scenarios. It also opens your Argo CD installation to the whole world. Make sure that you  have a firewall and/or extra security constraints and know how users will access Argo CD.
 
 ### Using Port forwarding
 
@@ -89,6 +90,8 @@ You can change the admin password using the command:
 ```bash
 argocd account update-password
 ```
+
+In order to change the password of the admin user, you will need to know the current password. If you don't know the current password, you will have to use a different method to reset it.
 
 ### Create an application
 
