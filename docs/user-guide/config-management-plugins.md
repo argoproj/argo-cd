@@ -32,7 +32,7 @@ The following changes are required to configure a new plugin:
                 args: ["sample args"]
               lockRepo: true                 # Defaults to false. See below.
     
-    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
 
 3. [Create an Application which uses your new CMP](#using-a-cmp).
 
