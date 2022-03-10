@@ -1,4 +1,4 @@
-import {Checkbox} from 'argo-ui';
+import {Checkbox, HelpIcon} from 'argo-ui';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
@@ -11,7 +11,7 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
     const isChecked = setval.indexOf(finalizerval) === -1 ? false : true;
     const val = [finalizerval] || [];
     return (
-        <div className='argo-field' style={{borderBottom: '0'}}>
+        <div className='small-12 large-6' style={{borderBottom: '0'}}>
             <React.Fragment>
                 <Checkbox
                     id='set-finalizer'
@@ -25,6 +25,7 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
                     }}
                 />
                 <label htmlFor={`set-finalizer`}>Set Deletion Finalizer</label>
+                <HelpIcon title='If checked finalizer resources-finalizer.argocd.argoproj.io will be set and application resources deletion will be cascaded' />
             </React.Fragment>
         </div>
     );

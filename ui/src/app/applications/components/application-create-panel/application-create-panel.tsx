@@ -222,7 +222,6 @@ export const ApplicationCreatePanel = (props: {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />
-                                                    <HelpIcon title='If checked finalizer resources-finalizer.argocd.argoproj.io will be set and application resources deletion will be cascaded' />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
