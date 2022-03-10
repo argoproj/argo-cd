@@ -275,12 +275,3 @@ func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, er
 	}
 	return false, nil
 }
-
-// GetPluginConfig returns plugin config
-func (s *Service) GetPluginConfig(ctx context.Context, q *apiclient.ConfigRequest) (*apiclient.ConfigResponse, error) {
-	config := s.initConstants.PluginConfig
-	return &apiclient.ConfigResponse{
-		AllowConcurrency: config.Spec.AllowConcurrency,
-		LockRepo:         config.Spec.LockRepo,
-	}, nil
-}

@@ -63,11 +63,11 @@ func ReceiveApplicationStream(ctx context.Context, receiver StreamReceiver, dest
 type SenderOption func(*senderOption)
 
 type senderOption struct {
-	chunkSize int
+	chunkSize   int
+	tarDoneChan chan<- bool
 }
 
 func newSenderOption(opts ...SenderOption) *senderOption {
-
 	so := &senderOption{
 		chunkSize: common.GetCMPChunkSize(),
 	}
@@ -88,15 +88,27 @@ func WithChunkSize(size int) SenderOption {
 	}
 }
 
+func WithTarDoneChan(ch chan<- bool) SenderOption {
+	return func(opt *senderOption) {
+		opt.tarDoneChan = ch
+	}
+}
+
 // SendApplicationStream will compress the files under the given appPath and send
 // them using the plugin stream sender.
 func SendApplicationStream(ctx context.Context, appPath string, sender StreamSender, env []string, opts ...SenderOption) error {
+	opt := newSenderOption(opts...)
+
 	// compress all files in appPath in tgz
 	tgz, checksum, err := compressFiles(appPath)
 	if err != nil {
 		return fmt.Errorf("error compressing app files: %w", err)
 	}
 	defer closeAndDelete(tgz)
+	if opt.tarDoneChan != nil {
+		opt.tarDoneChan <- true
+		close(opt.tarDoneChan)
+	}
 
 	// send metadata first
 	mr := appMetadataRequest(appPath, env, checksum)
@@ -106,7 +118,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 	}
 
 	// send the compressed file
-	err = sendFile(ctx, sender, tgz, opts...)
+	err = sendFile(ctx, sender, tgz, opt)
 	if err != nil {
 		return fmt.Errorf("error sending app files to cmp-server: %w", err)
 	}
@@ -115,8 +127,7 @@ func SendApplicationStream(ctx context.Context, appPath string, sender StreamSen
 
 // sendFile will send the file over the gRPC stream using a
 // buffer.
-func sendFile(ctx context.Context, sender StreamSender, file *os.File, opts ...SenderOption) error {
-	opt := newSenderOption(opts...)
+func sendFile(ctx context.Context, sender StreamSender, file *os.File, opt *senderOption) error {
 	reader := bufio.NewReader(file)
 	chunk := make([]byte, opt.chunkSize)
 	for {

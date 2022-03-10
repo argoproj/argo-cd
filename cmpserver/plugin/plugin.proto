@@ -14,10 +14,19 @@ message AppStreamRequest {
     }
 }
 
+// ManifestRequestMetadata defines the metada related to the file being sent
+// to the CMP server.
 message ManifestRequestMetadata {
+    // appName refers to the ArgoCD Application name
     string appName = 1;
-    string checksum = 2;
-    repeated EnvEntry env = 3;
+    // appRelPath points to the application relative path inside the tarball
+    string appRelPath = 2;
+    // checksum is used to verify the integrity of the file
+    string checksum = 3;
+    // size relates to the file size in bytes
+    int64 size = 4;
+    // env is a list with the environment variables needed to generate manifests
+    repeated EnvEntry env = 5;
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -37,14 +46,6 @@ message RepositoryResponse {
     bool isSupported = 1;
 }
 
-message ConfigRequest {
-}
-
-message ConfigResponse {
-    bool allowConcurrency = 1;
-    bool lockRepo = 2;
-}
-
 message File {
     bytes chunk = 1;
 }
@@ -58,9 +59,5 @@ service ConfigManagementPluginService {
 
     // MatchRepository returns whether or not the given application is supported by the plugin
     rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
-    }
-
-    // Get configuration of the plugin
-    rpc GetPluginConfig(ConfigRequest) returns (ConfigResponse) {
     }
 }
