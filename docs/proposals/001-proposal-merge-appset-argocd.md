@@ -68,20 +68,19 @@ Since the job of the Application Controller is to watch Applications and generat
 
 Since both controllers deal with creaion/deletion of applications one should consider merging the controllers together.
 ### Pros 
--  Running ApplicationSet controller as sts (?) into same os (?) no seperate deployment required
--  ApplicationSet will be more tightly coupled 
--  Can include managing of Applicationset objects into argocd api server. No need to delegate request from Argo CD to ApplicationSet (Controller?) seperately.
--  RBAC of applications that appset is managing can be inherited for ApplicatonSet RBAC
+-  Running ApplicationSet controller into same process as of application controller argocd, no seperate deployment is required
+-  ApplicationSet will be more tightly coupled with Application controller of argocd
+-  Can include managing of Applicationset objects into argocd api server. No need to delegate request from Argo CD to ApplicationSet Controller seperately.Delegation will involve passing of auth etc.
+-  RBAC of applications that applicatione set is managing can be inherited for ApplicatonSet RBAC
 
 ### Cons
 - A lot of work. Technically difficult to merge. A lot of things in Argo CD can break.
-- Concerns wrt HA (please elaborate, ha != scaling), since scaling of ApplicationSet is based on managed clusters
+- Concerns wrt HA, currently workload distribution of Application controller in Argo CD is based on number of managed clusters and same can't be applied to application set. 
 
-If we consider scaling beyond number of managed clusters, we can consider sharding based on number of applications and ApplicationSet CRD and each replica to manage shards with some kind of election. Concerns wrt HA can be overcome but need to consider it as part of merging
+If we consider scaling beyond number of managed clusters, we are considering proposal of sharding based on number of applications in argocd and each replica to manage shards with some kind of election. Concerns wrt HA can be overcome and same can be applied to ApplicationSet CRD  but need to consider it implementing along with merging which can be challenging.
 
 
 #### Option 2 Run ApplicationSet as a seperate process/service
-Kubernetes have different controlllers shipped in a single daemon kube-controller-manager
 
 ### Pros
 - Lot easier to merge
@@ -96,24 +95,28 @@ Kubernetes have different controlllers shipped in a single daemon kube-controlle
 
  ### Implementation Details/Notes/Constraints [optional]
 
-For Option1  from above
+### For Option1  from above
 
 ### Merging of os process
-1) Create an invocker that invokes application-controller and application-set controller seperately and both controller run in same os.
 
+Similar to Kubernetes that have different controlllers shipped in a single daemon kube-controller-manager
+
+Work that may involve in this:
+
+1) Create an invocker or manager that invokes application-controller and application-set controller seperately and both controller run in same os.
 2) application-set controller to follow network policies, service account same as of application-controller
-
 3) Exposing via service for appset components like webhook
 
 ### Merging of controller code
 
-1) Creating a new Informer and Lister for Applicationset CRD and Registering the Handler functions copying from application set code.
+Work that may involve in this:
 
+1) Creating a new Informer and Lister for Applicationset CRD and Registering the Handler functions copying from application set code.
 2) Creating new service for webhooks in applicationset
 
-For Option 2 from above
+### For Option 2 from above
 
-Running as Microservice.
+### Running as Microservice.
 
 1) Implementing or removal of repeated codes
 like ClusterUtils in applicationset
@@ -122,10 +125,10 @@ like ClusterUtils in applicationset
 
 ### Security Considerations
 
+Merging will not cause any security issues 
 
 Security improvements need to be taken care while merge
 - Examine Logging of application set 
-- May be Make Webhook events to be authenticated
 - Application Set to emit kubernetes events same as argocd
 
 <!-- ### Risks and Mitigations
