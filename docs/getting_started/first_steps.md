@@ -8,7 +8,7 @@ After installing the [server component](install.md) and the [Argo CD CLI](instal
 To start using either the CLI or the Web interface you need to expose the `argocd-server` service first. By default, after the initial installation
 this service is only available from within the cluster itself (as ClusterIP).
 
-The process of exposing the [service](https://kubernetes.io/docs/concepts/services-networking/service/) is not specific to Argo CD. As Argo CD is a Kubernetes native application you can follow all familiar ways to expose its service to the outside worlds. If your organization has a well defined policy on how Kubernetes services are exposed, then we advise you to follow that policy first.
+The process of exposing the [service](https://kubernetes.io/docs/concepts/services-networking/service/) is not specific to Argo CD. As Argo CD is a Kubernetes native application you can follow all familiar ways to expose its service to the outside world. If your organization has a well defined policy on how Kubernetes services are exposed, then we advise you to follow that policy first.
 
 ### Using an Ingress (Recommended)
 
