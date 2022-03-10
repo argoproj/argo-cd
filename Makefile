@@ -135,7 +135,6 @@ override LDFLAGS += \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
   -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
   -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
-  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
   -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
 
 ifeq (${STATIC_BUILD}, true)
