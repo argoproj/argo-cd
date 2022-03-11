@@ -17,11 +17,13 @@ last-updated: 2022-03-10
 
 # Merging of ApplicationSet codebase into Argo CD
 
-This is the proposal to merge codebase of ApplicationSet into Argo CD. ApplicationSet and Argo CD are closely related but yet maintained in different repositories, adding to [issues](https://github.com/argoproj/applicationset/issues/528) wrt releases and support. Creating this proposal to finalize the approach on merging the codebase
+This is the proposal to merge codebase of ApplicationSet into Argo CD. ApplicationSet and Argo CD are closely related but yet maintained in different repositories, adding to [issues](https://github.com/argoproj/applicationset/issues/528) wrt releases and support. Creating this proposal to finalize the approach on merging the codebase.
 
-## Open Questions [optional]
+As a part of merging we will add a warning to README.md and PR template of application set. The warning will notify contributors that we are in a process of merging and hold off to big changes (such as new generator)
 
-Before starting need to close open PR's of application set and freeze for no more PR's?
+<!-- ## Open Questions [optional]
+
+ Before starting need to close open PR's of application set and freeze for no more PR's?
 
 1) merge applicationset v0.4.0 into argo cd
 2) make sure it works
@@ -31,7 +33,7 @@ Before starting need to close open PR's of application set and freeze for no mor
 
 
 While merging need to preserve commit history? 
-
+-->
 ## Summary
 
 Since ApplicationSet is matured enough and has been graduated from argoprojlab. It has been included with Argo CD install.yaml. As we work out the releasing of new Argo CD and ApplicationSet, we see the growing need to tightly couple ApplicationSet with Argo CD. Merging ApplicationSet code into argocd will pave the way to introduce backend support of ApplicationSset into Argo CD and eventually CLI/UI. We eed to finalize on an approach on how ApplicationSet to be merged with Argo CD.
