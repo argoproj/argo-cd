@@ -20,11 +20,11 @@ func TestConvertToVersion(t *testing.T) {
 		Tracer: tracing.NopTracer{},
 	}
 	t.Run("AppsDeployment", func(t *testing.T) {
-		newObj, err := kubectl.ConvertToVersion(testingutils.UnstructuredFromFile("testdata/appsdeployment.yaml"), "extensions", "v1beta1")
+		newObj, err := kubectl.ConvertToVersion(testingutils.UnstructuredFromFile("testdata/appsdeployment.yaml"), "apps", "v1")
 		if assert.NoError(t, err) {
 			gvk := newObj.GroupVersionKind()
-			assert.Equal(t, "extensions", gvk.Group)
-			assert.Equal(t, "v1beta1", gvk.Version)
+			assert.Equal(t, "apps", gvk.Group)
+			assert.Equal(t, "v1", gvk.Version)
 		}
 	})
 	t.Run("CustomResource", func(t *testing.T) {

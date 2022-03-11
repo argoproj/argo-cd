@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
@@ -10,7 +10,7 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   resourceVersion: "23207680"
-  selfLink: /apis/extensions/v1beta1/namespaces/argocd/ingresses/argocd-server-ingress
+  selfLink: /apis/networking.k8s.io/v1/namespaces/argocd/ingresses/argocd-server-ingress
   uid: 09927cae-bca1-11e8-bbd2-42010a8a00bb
 spec:
   rules:

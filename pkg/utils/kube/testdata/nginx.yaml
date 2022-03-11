@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
@@ -10,7 +10,7 @@ metadata:
   name: nginx-deployment
   namespace: default
   resourceVersion: "5140192"
-  selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/nginx-deployment
+  selfLink: /apis/apps/v1/namespaces/default/deployments/nginx-deployment
   uid: fd131d5c-8035-11e8-a525-42010a8a006c
 spec:
   progressDeadlineSeconds: 600
