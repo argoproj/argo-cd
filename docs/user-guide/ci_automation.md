@@ -5,7 +5,7 @@ pushed to Git, and the cluster state then syncs to the desired state in git. Thi
 from imperative pipelines which do not traditionally use Git repositories to hold application
 config.
 
-To push new container images into to a cluster managed by Argo CD, the following workflow (or 
+To push new container images into to a cluster managed by Argo CD, the following workflow (or
 variations), might be used:
 
 ## Build And Publish A New Container Image
@@ -46,6 +46,7 @@ that is always compatible with the Argo CD API server.
 export ARGOCD_SERVER=argocd.mycompany.com
 export ARGOCD_AUTH_TOKEN=<JWT token generated from project>
 curl -sSL -o /usr/local/bin/argocd https://${ARGOCD_SERVER}/download/argocd-linux-amd64
+argocd app get --refresh guestbook
 argocd app sync guestbook
 argocd app wait guestbook
 ```
