@@ -54,10 +54,12 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 3, len(files))
+		assert.Equal(t, 8, len(files))
 		assert.Contains(t, files, "README.md")
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, files, "applicationset/readme-symlink")
+		assert.Equal(t, files["applicationset/readme-symlink"], "../README.md")
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given
@@ -74,7 +76,7 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 2, len(files))
+		assert.Equal(t, 7, len(files))
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
@@ -93,7 +95,7 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(files))
+		assert.Equal(t, 5, len(files))
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 }
@@ -114,13 +116,13 @@ func TestUntgz(t *testing.T) {
 			t.Errorf("error removing tmpDir: %s", err)
 		}
 	}
-	createTgz := func(t *testing.T, destdir string) *os.File {
+	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()
-		f, err := ioutil.TempFile(destdir, "")
+		f, err := ioutil.TempFile(destDir, "")
 		if err != nil {
-			t.Fatalf("error creating tmpFile in %q: %s", destdir, err)
+			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
 		}
-		err = files.Tgz(getTestAppDir(t), []string{}, f)
+		err = files.Tgz(fromDir, []string{}, f)
 		if err != nil {
 			t.Fatalf("error during Tgz: %s", err)
 		}
@@ -129,18 +131,23 @@ func TestUntgz(t *testing.T) {
 		}
 		return f
 	}
-	readFiles := func(t *testing.T, basedir string) []string {
+	readFiles := func(t *testing.T, basedir string) map[string]string {
 		t.Helper()
-		names := []string{}
+		names := make(map[string]string)
 		err := filepath.Walk(basedir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.Mode().IsRegular() {
-				relativePath, err := files.RelativePath(path, basedir)
-				require.NoError(t, err)
-				names = append(names, relativePath)
+			link := ""
+			if files.IsSymlink(info) {
+				link, err = os.Readlink(path)
+				if err != nil {
+					return err
+				}
 			}
+			relativePath, err := files.RelativePath(path, basedir)
+			require.NoError(t, err)
+			names[relativePath] = link
 			return nil
 		})
 		if err != nil {
@@ -152,7 +159,7 @@ func TestUntgz(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTgz(t, tmpDir)
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
 		defer tgzFile.Close()
 
 		destDir := filepath.Join(tmpDir, "untgz1")
@@ -163,15 +170,37 @@ func TestUntgz(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		names := readFiles(t, destDir)
-		assert.Equal(t, 3, len(names))
+		assert.Equal(t, 8, len(names))
 		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, names["applicationset/readme-symlink"], "../README.md")
 	})
+	t.Run("will protect agains symlink exploit", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
 
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz2")
+
+		// when
+		err := files.Untgz(destDir, tgzFile)
+
+		// then
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+	})
 }
 
-func read(tgz *os.File) ([]string, error) {
-	files := []string{}
+// read returns a map with the filename as key. In case
+// the file is a symlink, the value will be populated with
+// the target file pointed by the symlink.
+func read(tgz *os.File) (map[string]string, error) {
+	files := make(map[string]string)
 	gzr, err := gzip.NewReader(tgz)
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
@@ -191,7 +220,7 @@ func read(tgz *os.File) ([]string, error) {
 		if header == nil {
 			continue
 		}
-		files = append(files, header.Name)
+		files[header.Name] = header.Linkname
 	}
 	return files, nil
 }

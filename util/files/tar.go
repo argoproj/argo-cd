@@ -61,7 +61,7 @@ func Untgz(dstPath string, r io.Reader) error {
 			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		}
-		if header == nil {
+		if header == nil || header.Name == "." {
 			continue
 		}
 
@@ -72,11 +72,29 @@ func Untgz(dstPath string, r io.Reader) error {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
+		// Sanity check to protect against symlink exploit
+		if IsSymlink(header.FileInfo()) {
+			var linkTarget string
+			if filepath.IsAbs(header.Linkname) {
+				linkTarget = header.Linkname
+			} else {
+				linkTarget = filepath.Join(filepath.Dir(target), header.Linkname)
+			}
+			if !strings.HasPrefix(linkTarget, filepath.Clean(dstPath)+string(os.PathSeparator)) {
+				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
+			}
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err := os.MkdirAll(target, 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
+			}
+		case tar.TypeSymlink:
+			err := os.Symlink(header.Linkname, target)
+			if err != nil {
+				return fmt.Errorf("error creating symlink: %s", err)
 			}
 		case tar.TypeReg:
 			err := os.MkdirAll(filepath.Dir(target), 0755)
@@ -125,11 +143,19 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		}
 	}
 
-	if !fi.Mode().IsRegular() {
+	if !supportedFileMode(fi) {
 		return nil
 	}
 
-	header, err := tar.FileInfoHeader(fi, "")
+	link := ""
+	if IsSymlink(fi) {
+		link, err = os.Readlink(path)
+		if err != nil {
+			return fmt.Errorf("error getting link target: %s", err)
+		}
+	}
+
+	header, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
 		return fmt.Errorf("error creating a tar file header: %w", err)
 	}
@@ -141,15 +167,29 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("error writing header: %w", err)
 	}
 
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
-	}
-	defer f.Close()
+	// Only regular files needs to have their content copied.
+	// Directories and symlinks are header only.
+	if fi.Mode().IsRegular() {
+		f, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
+		}
+		defer f.Close()
 
-	if _, err := io.Copy(t.tarWriter, f); err != nil {
-		return fmt.Errorf("error copying tgz file to writers: %w", err)
+		if _, err := io.Copy(t.tarWriter, f); err != nil {
+			return fmt.Errorf("error copying tgz file to writers: %w", err)
+		}
 	}
 
 	return nil
+}
+
+// supportedFileMode will return true if the file mode is supported.
+// Supported files means that it will be added to the tarball.
+func supportedFileMode(fi os.FileInfo) bool {
+	mode := fi.Mode()
+	if mode.IsRegular() || mode.IsDir() || IsSymlink(fi) {
+		return true
+	}
+	return false
 }

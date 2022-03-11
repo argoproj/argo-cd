@@ -137,7 +137,8 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 	}
 	defer func() {
 		if err := os.RemoveAll(workDir); err != nil {
-			log.Warnf("error removing workDir: %s", err)
+			// we panic here as the workDir may contain sensitive information
+			panic("error removing generate manifest workdir")
 		}
 	}()
 

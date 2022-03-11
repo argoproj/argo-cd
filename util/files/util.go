@@ -2,6 +2,7 @@ package files
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -54,4 +55,10 @@ func CreateTempDir() (string, error) {
 		return "", err
 	}
 	return tempDir, nil
+}
+
+// IsSymlink return true if the given FileInfo relates to a
+// symlink file. Returns false otherwise.
+func IsSymlink(fi os.FileInfo) bool {
+	return fi.Mode()&fs.ModeSymlink == fs.ModeSymlink
 }
