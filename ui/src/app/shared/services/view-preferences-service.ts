@@ -24,6 +24,7 @@ export interface AppDetailsPreferences {
     hideFilters: boolean;
     wrapLines: boolean;
     groupNodes?: boolean;
+    zoom?: number;
 }
 
 export interface PodViewPreferences {
@@ -110,7 +111,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         },
         darkMode: false,
         followLogs: false,
-        wrapLines: false
+        wrapLines: false,
+        zoom: 1.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,
