@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -51,8 +52,12 @@ func (o *Object) UnmarshalJSON(value []byte) error {
 		o.Raw = &runtime.RawExtension{}
 		return o.Raw.UnmarshalJSON(value)
 	default:
-		// default to string
-		o.Values = string(value)
+	   // default to string
+	   s, err := strconv.Unquote(string(value))
+       if err != nil {
+          return err
+       }
+       o.Values = s
 	}
 
 	return nil
