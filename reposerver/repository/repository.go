@@ -369,6 +369,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
+		// The fist channel to send the message will resume this operation.
+		// The main purpose for using channels here is to be able to unlock
+		// the repository as soon as the lock in not required anymore. In
+		// case of CMP the repo is compressed (tgz) and sent to the cmp-server
+		// for manifest generation.
 		select {
 		case err := <-promise.errCh:
 			return err
@@ -383,6 +388,10 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
 
+	// if the tarDoneCh message is sent it means that the manifest
+	// generation is being managed by the cmp-server. In this case
+	// we have to wait for the responseCh to send the manifest
+	// response.
 	if tarConcluded && res == nil {
 		select {
 		case resp := <-promise.responseCh:
