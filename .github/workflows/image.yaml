@@ -3,10 +3,10 @@ name: Image
 on:
   push:
     branches:
-      - master
+      - 'release-*' # Codefresh change instead of `master`
 
 env:
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: "1.16.5"
 
 jobs:
   publish:
@@ -29,31 +29,37 @@ jobs:
       # build
       - run: |
           docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
-          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/argoproj IMAGE_TAG=${{ steps.image.outputs.tag }}
+          make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/codefresh-io IMAGE_TAG=${{ steps.image.outputs.tag }}
         working-directory: ./src/github.com/argoproj/argo-cd
 
       # publish
       - run: |
           docker login ghcr.io --username $USERNAME --password $PASSWORD
-          docker push ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
-
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-          docker tag ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} argoproj/argocd:latest
-          docker push argoproj/argocd:latest
+          docker push ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
         env:
-          USERNAME: ${{ secrets.USERNAME }}
+          USERNAME: ${{ github.repository_owner }}
           PASSWORD: ${{ secrets.TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+
+      # Codefresh step
+      - name: Push docker image to quay repository
+        env:
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+          IMAGE_NAMESPACE: quay.io/codefresh
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker tag ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }} ${IMAGE_NAMESPACE}/argocd:latest
+          docker push ${IMAGE_NAMESPACE}/argocd:latest
 
       # deploy
-      - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
+      - run: git clone "https://$TOKEN@github.com/codefresh-io/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
-          git config --global user.email 'ci@argoproj.com'
-          git config --global user.name 'CI'
+          docker run -v $(pwd):/src -w /src --rm -t lyft/kustomizer:v3.3.0 kustomize edit set image quay.io/argoproj/argocd=ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
+          git config --global user.email 'integration@codefresh.io'
+          git config --global user.name 'CI-Codefresh'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
         working-directory: argoproj-deployments/argocd
       # TODO: clean up old images once github supports it: https://github.community/t5/How-to-use-Git-and-GitHub/Deleting-images-from-GitHub-Package-Registry/m-p/41202/thread-id/9811

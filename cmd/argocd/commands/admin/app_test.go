@@ -91,7 +91,11 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	repoServerClient := mocks.RepoServerServiceClient{}
 	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{
-		Manifests: []string{test.DeploymentManifest},
+		Manifests: []*apiclient.Manifest{
+			{
+				CompiledManifest: test.DeploymentManifest,
+			},
+		},
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 	liveStateCache := cachemocks.LiveStateCache{}

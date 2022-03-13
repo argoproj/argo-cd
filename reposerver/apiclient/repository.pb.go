@@ -15,6 +15,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	_ "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	math "math"
 	math_bits "math/bits"
 )
@@ -298,15 +299,94 @@ func (m *TestRepositoryResponse) GetVerifiedRepository() bool {
 	return false
 }
 
+type Manifest struct {
+	// The processed manifest that needs to be applied to the cluster
+	CompiledManifest string `protobuf:"bytes,1,opt,name=compiledManifest,proto3" json:"compiledManifest,omitempty"`
+	// The pre-processed manifest (for example the kustomization.yaml
+	// when using kustmize or the values.yaml when using helm).
+	RawManifest string `protobuf:"bytes,2,opt,name=rawManifest,proto3" json:"rawManifest,omitempty"`
+	// The path of the raw manifest inside the repo
+	Path string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	// The line in the file where the object starts
+	Line                 int32    `protobuf:"varint,4,opt,name=line,proto3" json:"line,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Manifest) Reset()         { *m = Manifest{} }
+func (m *Manifest) String() string { return proto.CompactTextString(m) }
+func (*Manifest) ProtoMessage()    {}
+func (*Manifest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dd8723cfcc820480, []int{3}
+}
+func (m *Manifest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Manifest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Manifest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Manifest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Manifest.Merge(m, src)
+}
+func (m *Manifest) XXX_Size() int {
+	return m.Size()
+}
+func (m *Manifest) XXX_DiscardUnknown() {
+	xxx_messageInfo_Manifest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Manifest proto.InternalMessageInfo
+
+func (m *Manifest) GetCompiledManifest() string {
+	if m != nil {
+		return m.CompiledManifest
+	}
+	return ""
+}
+
+func (m *Manifest) GetRawManifest() string {
+	if m != nil {
+		return m.RawManifest
+	}
+	return ""
+}
+
+func (m *Manifest) GetPath() string {
+	if m != nil {
+		return m.Path
+	}
+	return ""
+}
+
+func (m *Manifest) GetLine() int32 {
+	if m != nil {
+		return m.Line
+	}
+	return 0
+}
+
 type ManifestResponse struct {
-	Manifests []string `protobuf:"bytes,1,rep,name=manifests,proto3" json:"manifests,omitempty"`
-	Namespace string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	Server    string   `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
+	Manifests []*Manifest `protobuf:"bytes,1,rep,name=manifests,proto3" json:"manifests,omitempty"`
+	Namespace string      `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Server    string      `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
 	// resolved revision
 	Revision   string `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	SourceType string `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	// Raw response of git verify-commit operation (always the empty string for Helm)
 	VerifyResult         string   `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
+	CommitMessage        string   `protobuf:"bytes,8,opt,name=commitMessage,proto3" json:"commitMessage,omitempty"`
+	CommitAuthor         string   `protobuf:"bytes,9,opt,name=commitAuthor,proto3" json:"commitAuthor,omitempty"`
+	CommitDate           *v1.Time `protobuf:"bytes,10,opt,name=commitDate,proto3" json:"commitDate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -316,7 +396,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{3}
+	return fileDescriptor_dd8723cfcc820480, []int{4}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -345,7 +425,7 @@ func (m *ManifestResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ManifestResponse proto.InternalMessageInfo
 
-func (m *ManifestResponse) GetManifests() []string {
+func (m *ManifestResponse) GetManifests() []*Manifest {
 	if m != nil {
 		return m.Manifests
 	}
@@ -387,6 +467,27 @@ func (m *ManifestResponse) GetVerifyResult() string {
 	return ""
 }
 
+func (m *ManifestResponse) GetCommitMessage() string {
+	if m != nil {
+		return m.CommitMessage
+	}
+	return ""
+}
+
+func (m *ManifestResponse) GetCommitAuthor() string {
+	if m != nil {
+		return m.CommitAuthor
+	}
+	return ""
+}
+
+func (m *ManifestResponse) GetCommitDate() *v1.Time {
+	if m != nil {
+		return m.CommitDate
+	}
+	return nil
+}
+
 type ListRefsRequest struct {
 	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
@@ -398,7 +499,7 @@ func (m *ListRefsRequest) Reset()         { *m = ListRefsRequest{} }
 func (m *ListRefsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListRefsRequest) ProtoMessage()    {}
 func (*ListRefsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{4}
+	return fileDescriptor_dd8723cfcc820480, []int{5}
 }
 func (m *ListRefsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -447,7 +548,7 @@ func (m *Refs) Reset()         { *m = Refs{} }
 func (m *Refs) String() string { return proto.CompactTextString(m) }
 func (*Refs) ProtoMessage()    {}
 func (*Refs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{5}
+	return fileDescriptor_dd8723cfcc820480, []int{6}
 }
 func (m *Refs) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -503,7 +604,7 @@ func (m *ListAppsRequest) Reset()         { *m = ListAppsRequest{} }
 func (m *ListAppsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListAppsRequest) ProtoMessage()    {}
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{6}
+	return fileDescriptor_dd8723cfcc820480, []int{7}
 }
 func (m *ListAppsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -558,7 +659,7 @@ func (m *AppList) Reset()         { *m = AppList{} }
 func (m *AppList) String() string { return proto.CompactTextString(m) }
 func (*AppList) ProtoMessage()    {}
 func (*AppList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{7}
+	return fileDescriptor_dd8723cfcc820480, []int{8}
 }
 func (m *AppList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -613,7 +714,7 @@ func (m *RepoServerAppDetailsQuery) Reset()         { *m = RepoServerAppDetailsQ
 func (m *RepoServerAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoServerAppDetailsQuery) ProtoMessage()    {}
 func (*RepoServerAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{8}
+	return fileDescriptor_dd8723cfcc820480, []int{9}
 }
 func (m *RepoServerAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -714,7 +815,7 @@ func (m *RepoAppDetailsResponse) Reset()         { *m = RepoAppDetailsResponse{}
 func (m *RepoAppDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsResponse) ProtoMessage()    {}
 func (*RepoAppDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{9}
+	return fileDescriptor_dd8723cfcc820480, []int{10}
 }
 func (m *RepoAppDetailsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -794,7 +895,7 @@ func (m *RepoServerRevisionMetadataRequest) Reset()         { *m = RepoServerRev
 func (m *RepoServerRevisionMetadataRequest) String() string { return proto.CompactTextString(m) }
 func (*RepoServerRevisionMetadataRequest) ProtoMessage()    {}
 func (*RepoServerRevisionMetadataRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{10}
+	return fileDescriptor_dd8723cfcc820480, []int{11}
 }
 func (m *RepoServerRevisionMetadataRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -859,7 +960,7 @@ func (m *KsonnetAppSpec) Reset()         { *m = KsonnetAppSpec{} }
 func (m *KsonnetAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KsonnetAppSpec) ProtoMessage()    {}
 func (*KsonnetAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{11}
+	return fileDescriptor_dd8723cfcc820480, []int{12}
 }
 func (m *KsonnetAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -928,7 +1029,7 @@ func (m *HelmAppSpec) Reset()         { *m = HelmAppSpec{} }
 func (m *HelmAppSpec) String() string { return proto.CompactTextString(m) }
 func (*HelmAppSpec) ProtoMessage()    {}
 func (*HelmAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{12}
+	return fileDescriptor_dd8723cfcc820480, []int{13}
 }
 func (m *HelmAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1005,7 +1106,7 @@ func (m *KustomizeAppSpec) Reset()         { *m = KustomizeAppSpec{} }
 func (m *KustomizeAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KustomizeAppSpec) ProtoMessage()    {}
 func (*KustomizeAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{13}
+	return fileDescriptor_dd8723cfcc820480, []int{14}
 }
 func (m *KustomizeAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1057,7 +1158,7 @@ func (m *KsonnetEnvironment) Reset()         { *m = KsonnetEnvironment{} }
 func (m *KsonnetEnvironment) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironment) ProtoMessage()    {}
 func (*KsonnetEnvironment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{14}
+	return fileDescriptor_dd8723cfcc820480, []int{15}
 }
 func (m *KsonnetEnvironment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1121,7 +1222,7 @@ func (m *KsonnetEnvironmentDestination) Reset()         { *m = KsonnetEnvironmen
 func (m *KsonnetEnvironmentDestination) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironmentDestination) ProtoMessage()    {}
 func (*KsonnetEnvironmentDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{15}
+	return fileDescriptor_dd8723cfcc820480, []int{16}
 }
 func (m *KsonnetEnvironmentDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1175,7 +1276,7 @@ func (m *DirectoryAppSpec) Reset()         { *m = DirectoryAppSpec{} }
 func (m *DirectoryAppSpec) String() string { return proto.CompactTextString(m) }
 func (*DirectoryAppSpec) ProtoMessage()    {}
 func (*DirectoryAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{16}
+	return fileDescriptor_dd8723cfcc820480, []int{17}
 }
 func (m *DirectoryAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1215,7 +1316,7 @@ func (m *HelmChartsRequest) Reset()         { *m = HelmChartsRequest{} }
 func (m *HelmChartsRequest) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsRequest) ProtoMessage()    {}
 func (*HelmChartsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{17}
+	return fileDescriptor_dd8723cfcc820480, []int{18}
 }
 func (m *HelmChartsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1263,7 +1364,7 @@ func (m *HelmChart) Reset()         { *m = HelmChart{} }
 func (m *HelmChart) String() string { return proto.CompactTextString(m) }
 func (*HelmChart) ProtoMessage()    {}
 func (*HelmChart) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{18}
+	return fileDescriptor_dd8723cfcc820480, []int{19}
 }
 func (m *HelmChart) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1317,7 +1418,7 @@ func (m *HelmChartsResponse) Reset()         { *m = HelmChartsResponse{} }
 func (m *HelmChartsResponse) String() string { return proto.CompactTextString(m) }
 func (*HelmChartsResponse) ProtoMessage()    {}
 func (*HelmChartsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{19}
+	return fileDescriptor_dd8723cfcc820480, []int{20}
 }
 func (m *HelmChartsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1357,6 +1458,7 @@ func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "repository.ManifestRequest")
 	proto.RegisterType((*TestRepositoryRequest)(nil), "repository.TestRepositoryRequest")
 	proto.RegisterType((*TestRepositoryResponse)(nil), "repository.TestRepositoryResponse")
+	proto.RegisterType((*Manifest)(nil), "repository.Manifest")
 	proto.RegisterType((*ManifestResponse)(nil), "repository.ManifestResponse")
 	proto.RegisterType((*ListRefsRequest)(nil), "repository.ListRefsRequest")
 	proto.RegisterType((*Refs)(nil), "repository.Refs")
@@ -2060,6 +2162,59 @@ func (m *TestRepositoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	return len(dAtA) - i, nil
 }
 
+func (m *Manifest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Manifest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Manifest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Line != 0 {
+		i = encodeVarintRepository(dAtA, i, uint64(m.Line))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.Path) > 0 {
+		i -= len(m.Path)
+		copy(dAtA[i:], m.Path)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.Path)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.RawManifest) > 0 {
+		i -= len(m.RawManifest)
+		copy(dAtA[i:], m.RawManifest)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.RawManifest)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.CompiledManifest) > 0 {
+		i -= len(m.CompiledManifest)
+		copy(dAtA[i:], m.CompiledManifest)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.CompiledManifest)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ManifestResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2083,6 +2238,32 @@ func (m *ManifestResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	if m.XXX_unrecognized != nil {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.CommitDate != nil {
+		{
+			size, err := m.CommitDate.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRepository(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x52
+	}
+	if len(m.CommitAuthor) > 0 {
+		i -= len(m.CommitAuthor)
+		copy(dAtA[i:], m.CommitAuthor)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.CommitAuthor)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if len(m.CommitMessage) > 0 {
+		i -= len(m.CommitMessage)
+		copy(dAtA[i:], m.CommitMessage)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.CommitMessage)))
+		i--
+		dAtA[i] = 0x42
 	}
 	if len(m.VerifyResult) > 0 {
 		i -= len(m.VerifyResult)
@@ -2121,9 +2302,14 @@ func (m *ManifestResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	}
 	if len(m.Manifests) > 0 {
 		for iNdEx := len(m.Manifests) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Manifests[iNdEx])
-			copy(dAtA[i:], m.Manifests[iNdEx])
-			i = encodeVarintRepository(dAtA, i, uint64(len(m.Manifests[iNdEx])))
+			{
+				size, err := m.Manifests[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRepository(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
@@ -3116,6 +3302,33 @@ func (m *TestRepositoryResponse) Size() (n int) {
 	return n
 }
 
+func (m *Manifest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.CompiledManifest)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.RawManifest)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.Path)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.Line != 0 {
+		n += 1 + sovRepository(uint64(m.Line))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *ManifestResponse) Size() (n int) {
 	if m == nil {
 		return 0
@@ -3123,8 +3336,8 @@ func (m *ManifestResponse) Size() (n int) {
 	var l int
 	_ = l
 	if len(m.Manifests) > 0 {
-		for _, s := range m.Manifests {
-			l = len(s)
+		for _, e := range m.Manifests {
+			l = e.Size()
 			n += 1 + l + sovRepository(uint64(l))
 		}
 	}
@@ -3146,6 +3359,18 @@ func (m *ManifestResponse) Size() (n int) {
 	}
 	l = len(m.VerifyResult)
 	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.CommitMessage)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	l = len(m.CommitAuthor)
+	if l > 0 {
+		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.CommitDate != nil {
+		l = m.CommitDate.Size()
 		n += 1 + l + sovRepository(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -4249,6 +4474,172 @@ func (m *TestRepositoryResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *Manifest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRepository
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Manifest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Manifest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CompiledManifest", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CompiledManifest = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RawManifest", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RawManifest = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Path = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Line", wireType)
+			}
+			m.Line = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Line |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRepository(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -4282,7 +4673,7 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Manifests", wireType)
 			}
-			var stringLen uint64
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowRepository
@@ -4292,23 +4683,25 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthRepository
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthRepository
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Manifests = append(m.Manifests, string(dAtA[iNdEx:postIndex]))
+			m.Manifests = append(m.Manifests, &Manifest{})
+			if err := m.Manifests[len(m.Manifests)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -4469,6 +4862,106 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.VerifyResult = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitMessage", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CommitMessage = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitAuthor", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CommitAuthor = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitDate", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.CommitDate == nil {
+				m.CommitDate = &v1.Time{}
+			}
+			if err := m.CommitDate.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

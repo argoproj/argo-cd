@@ -6,6 +6,7 @@ package repository;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // ManifestRequest is a query for manifest generation.
@@ -42,8 +43,20 @@ message TestRepositoryResponse {
     bool verifiedRepository = 1;
 }
 
+message Manifest {
+    // The processed manifest that needs to be applied to the cluster
+    string compiledManifest = 1;
+    // The pre-processed manifest (for example the kustomization.yaml 
+    // when using kustmize or the values.yaml when using helm).
+    string rawManifest = 2;
+    // The path of the raw manifest inside the repo
+    string path = 3;
+    // The line in the file where the object starts
+    int32 line = 4;
+}
+
 message ManifestResponse {
-    repeated string manifests = 1;
+    repeated Manifest manifests = 1;
     string namespace = 2;
     string server = 3;
     // resolved revision
@@ -51,6 +64,9 @@ message ManifestResponse {
     string sourceType = 6;
     // Raw response of git verify-commit operation (always the empty string for Helm)
     string verifyResult = 7;
+    string commitMessage = 8;
+    string commitAuthor = 9;
+    k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
 }
 
 message ListRefsRequest {
