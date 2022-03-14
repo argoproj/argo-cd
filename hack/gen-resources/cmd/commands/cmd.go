@@ -127,6 +127,6 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 			}
 		},
 	}
-	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where is argocd running [$KUBE_NAMESPACE]")
+	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where argocd is running [$KUBE_NAMESPACE]")
 	return command
 }
