@@ -63,7 +63,7 @@ jobs:
           push: false
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
 
       - run: |
           IMAGE_PLATFORMS=linux/amd64
@@ -85,7 +85,7 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
