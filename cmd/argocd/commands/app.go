@@ -108,7 +108,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		upsert       bool
 		labels       []string
 		annotations  []string
-		setfinalizer bool
+		setFinalizer bool
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -143,7 +143,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
-				if setfinalizer {
+				if setFinalizer {
 					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
 				}
 				conn, appIf := argocdClient.NewApplicationClientOrDie()
@@ -165,7 +165,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
-	command.Flags().BoolVar(&setfinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
+	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {

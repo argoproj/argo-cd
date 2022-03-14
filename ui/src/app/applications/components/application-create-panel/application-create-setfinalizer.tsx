@@ -8,7 +8,8 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
     } = props;
     const finalizerval = 'resources-finalizer.argocd.argoproj.io';
     const setval = getValue() || [];
-    const isChecked = setval.indexOf(finalizerval) === -1 ? false : true;
+    const index = setval.findIndex((item: string) => item === finalizerval);
+    const isChecked = index < 0 ? false : true;
     const val = [finalizerval] || [];
     return (
         <div className='small-12 large-6' style={{borderBottom: '0'}}>
