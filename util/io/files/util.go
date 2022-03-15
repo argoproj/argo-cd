@@ -35,7 +35,7 @@ var RelativeOutOfBoundErr = errors.New("full path does not contain base path")
 //   return:   .
 func RelativePath(fullPath, basePath string) (string, error) {
 	fp := filepath.Clean(fullPath)
-	if !strings.HasPrefix(fp, basePath) {
+	if !strings.HasPrefix(fp, filepath.Clean(basePath)) {
 		return "", RelativeOutOfBoundErr
 	}
 	return filepath.Rel(basePath, fp)

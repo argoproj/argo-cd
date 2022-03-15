@@ -52,6 +52,27 @@ func TestRelativePath(t *testing.T) {
 			expected:    "app",
 			expectedErr: nil,
 		},
+		{
+			name:        "will handle relative fullpath",
+			fullpath:    "./app/",
+			basepath:    "/home/test",
+			expected:    "",
+			expectedErr: files.RelativeOutOfBoundErr,
+		},
+		{
+			name:        "will handle relative basepath",
+			fullpath:    "/home/test/app/",
+			basepath:    "./test",
+			expected:    "",
+			expectedErr: files.RelativeOutOfBoundErr,
+		},
+		{
+			name:        "will handle relative paths",
+			fullpath:    "./test/app",
+			basepath:    "./test/app",
+			expected:    ".",
+			expectedErr: nil,
+		},
 	}
 	for _, c := range cases {
 		c := c
