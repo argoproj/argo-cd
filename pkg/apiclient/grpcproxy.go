@@ -90,7 +90,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		if err != nil {
 			code = codes.Unknown
 		} else {
-			code = codes.Code(statusInt)
+			code = codes.Code(int32(statusInt))
 		}
 		if code != codes.OK {
 			return nil, status.Error(code, resp.Header.Get("Grpc-Message"))
