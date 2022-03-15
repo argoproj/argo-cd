@@ -2,6 +2,7 @@ package files
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -40,19 +41,24 @@ func RelativePath(fullPath, basePath string) (string, error) {
 	return filepath.Rel(basePath, fp)
 }
 
-// CreateTempDir will create a temporary directory with CSPRNG
-// entropy in the name to avoid clashes and mitigate directory
-// traversal. It is the caller's responsibility to remove the
-// directory after use. Will return the full path of the
-// generated directory.
-func CreateTempDir() (string, error) {
+// CreateTempDir will create a temporary directory in baseDir
+// with CSPRNG entropy in the name to avoid clashes and mitigate
+// directory traversal. If baseDir is empty string, os.TempDir()
+// will be used. It is the caller's responsibility to remove the
+// directory after use. Will return the full path of the generated
+// directory.
+func CreateTempDir(baseDir string) (string, error) {
+	base := baseDir
+	if base == "" {
+		base = os.TempDir()
+	}
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error creating directory name: %s", err)
 	}
-	tempDir := path.Join(os.TempDir(), newUUID.String())
-	if err := os.Mkdir(tempDir, 0755); err != nil {
-		return "", err
+	tempDir := path.Join(base, newUUID.String())
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return "", fmt.Errorf("error creating tempDir: %s", err)
 	}
 	return tempDir, nil
 }

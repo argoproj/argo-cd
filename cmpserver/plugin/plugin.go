@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/pkg/rand"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/files"
@@ -42,6 +43,29 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 	return &Service{
 		initConstants: initConstants,
 	}
+}
+
+func (s *Service) Init() error {
+	workDir := common.GetCMPWorkDir()
+	createWorkdir := func() error {
+		err := os.MkdirAll(workDir, 0700)
+		if err != nil {
+			return fmt.Errorf("error creating workdir %q: %s", workDir, err)
+		}
+		return nil
+	}
+	_, err := os.Stat(workDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return createWorkdir()
+		}
+		return fmt.Errorf("error inspecting workdir %q: %s", workDir, err)
+	}
+	err = os.RemoveAll(workDir)
+	if err != nil {
+		return fmt.Errorf("error removing workdir %q: %s", workDir, err)
+	}
+	return createWorkdir()
 }
 
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
@@ -133,7 +157,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
-	workDir, err := files.CreateTempDir()
+	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
 	if err != nil {
 		return fmt.Errorf("error creating temp dir: %s", err)
 	}
@@ -208,23 +232,23 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
-	workdir, err := files.CreateTempDir()
+	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
 	if err != nil {
 		// we panic here as the workDir may contain sensitive information
 		panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
 	}
 	defer func() {
-		if err := os.RemoveAll(workdir); err != nil {
+		if err := os.RemoveAll(workDir); err != nil {
 			log.Warnf("error removing workdir: %s", err)
 		}
 	}()
 
-	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workdir)
+	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %s", err)
 	}
 
-	isSupported, err := s.matchRepository(bufferedCtx, workdir)
+	isSupported, err := s.matchRepository(bufferedCtx, workDir)
 	if err != nil {
 		return fmt.Errorf("match repository error: %s", err)
 	}

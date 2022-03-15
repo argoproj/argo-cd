@@ -54,7 +54,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 		// given
 		streamMock := newStreamMock()
 		appDir := filepath.Join(getTestDataDir(t), "app")
-		workdir, err := files.CreateTempDir()
+		workdir, err := files.CreateTempDir("")
 		require.NoError(t, err)
 		defer func() {
 			close(streamMock.messages)

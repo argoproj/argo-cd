@@ -133,7 +133,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
-	tempDir, err := files.CreateTempDir()
+	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return "", nil, err
 	}
@@ -154,7 +154,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest, err := files.CreateTempDir()
+		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return "", nil, err
 		}

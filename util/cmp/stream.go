@@ -180,7 +180,7 @@ func closeAndDelete(f *os.File) {
 func compressFiles(appPath string) (*os.File, string, error) {
 	excluded := []string{".git"}
 	appName := filepath.Base(appPath)
-	tempDir, err := files.CreateTempDir()
+	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
 	}
