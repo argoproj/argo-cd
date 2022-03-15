@@ -16,7 +16,7 @@ import (
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/files"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 type streamMock struct {

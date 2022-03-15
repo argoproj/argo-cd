@@ -17,7 +17,7 @@ import (
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/files"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 // StreamSender defines the contract to send App files over stream
