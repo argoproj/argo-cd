@@ -72,19 +72,6 @@ func Untgz(dstPath string, r io.Reader) error {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
-		// Sanity check to protect against symlink exploit
-		if IsSymlink(header.FileInfo()) {
-			var linkTarget string
-			if filepath.IsAbs(header.Linkname) {
-				linkTarget = header.Linkname
-			} else {
-				linkTarget = filepath.Join(filepath.Dir(target), header.Linkname)
-			}
-			if !strings.HasPrefix(linkTarget, filepath.Clean(dstPath)+string(os.PathSeparator)) {
-				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
-			}
-		}
-
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err := os.MkdirAll(target, 0755)
@@ -92,7 +79,17 @@ func Untgz(dstPath string, r io.Reader) error {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 		case tar.TypeSymlink:
-			err := os.Symlink(header.Linkname, target)
+			// Sanity check to protect against symlink exploit
+			var linkTarget string
+			if filepath.IsAbs(header.Linkname) {
+				linkTarget = filepath.Clean(header.Linkname)
+			} else {
+				linkTarget = filepath.Join(filepath.Dir(target), header.Linkname)
+			}
+			if !strings.HasPrefix(linkTarget, filepath.Clean(dstPath)+string(os.PathSeparator)) {
+				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
+			}
+			err := os.Symlink(linkTarget, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %s", err)
 			}

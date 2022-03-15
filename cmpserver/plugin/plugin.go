@@ -131,6 +131,8 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
+	defer cancel()
 	workDir, err := files.CreateTempDir()
 	if err != nil {
 		return fmt.Errorf("error creating temp dir: %s", err)
@@ -138,17 +140,20 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 	defer func() {
 		if err := os.RemoveAll(workDir); err != nil {
 			// we panic here as the workDir may contain sensitive information
-			panic("error removing generate manifest workdir")
+			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
 		}
 	}()
 
-	metadata, err := cmp.ReceiveRepoStream(stream.Context(), stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %s", err)
 	}
 
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
-	response, err := s.generateManifest(stream.Context(), appPath, metadata.GetEnv())
+	if !strings.HasPrefix(appPath, workDir) {
+		return fmt.Errorf("illegal appPath: out of workDir bound")
+	}
+	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %s", err)
 	}
@@ -161,10 +166,7 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 
 // generateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
-	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, cmpTimeoutBuffer)
-	defer cancel()
-
-	if deadline, ok := bufferedCtx.Deadline(); ok {
+	if deadline, ok := ctx.Deadline(); ok {
 		log.Infof("Generating manifests with deadline %v from now", time.Until(deadline))
 	} else {
 		log.Info("Generating manifests with no request-level timeout")
@@ -174,13 +176,13 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 
 	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(bufferedCtx, config.Spec.Init, appDir, env)
+		_, err := runCommand(ctx, config.Spec.Init, appDir, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(bufferedCtx, config.Spec.Generate, appDir, env)
+	out, err := runCommand(ctx, config.Spec.Generate, appDir, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -208,7 +210,8 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 
 	workdir, err := files.CreateTempDir()
 	if err != nil {
-		return fmt.Errorf("error creating temp dir: %s", err)
+		// we panic here as the workDir may contain sensitive information
+		panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
 	}
 	defer func() {
 		if err := os.RemoveAll(workdir); err != nil {

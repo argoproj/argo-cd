@@ -2,6 +2,7 @@ package common
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -205,12 +206,17 @@ const (
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
 	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
+	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
+	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 )
 
 // Config Management Plugin related constants
 const (
 	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
 	DefaultCMPChunkSize = 1024
+
+	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
+	DefaultCMPWorkDirName = "_cmp_server"
 )
 
 const (
@@ -259,4 +265,13 @@ func GetCMPChunkSize() int {
 		return chunkSize
 	}
 	return DefaultCMPChunkSize
+}
+
+// GetCMPWorkDir will return the full path of the work directory used by the CMP server.
+// This directory and all it's contents will be deleted durring CMP bootstrap.
+func GetCMPWorkDir() string {
+	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
+		return filepath.Join(workDir, DefaultCMPWorkDirName)
+	}
+	return filepath.Join(os.TempDir(), DefaultCMPWorkDirName)
 }
