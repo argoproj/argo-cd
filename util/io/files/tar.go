@@ -42,8 +42,15 @@ func Tgz(srcPath string, exclusions []string, writers ...io.Writer) error {
 	return filepath.Walk(srcPath, t.tgzFile)
 }
 
-// Untgz will loop over the tar reader creating the file structure at dstPath
+// Untgz will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non existing directory
 func Untgz(dstPath string, r io.Reader) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
