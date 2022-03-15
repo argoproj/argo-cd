@@ -10,7 +10,6 @@ metadata:
   name: test-md-0
   namespace: test
 spec:
-  paused: true
   clusterName: test
   minReadySeconds: 0
   progressDeadlineSeconds: 600
@@ -25,6 +24,7 @@ spec:
       maxSurge: 1
       maxUnavailable: 0
     type: RollingUpdate
+  rolloutAfter: "0001-01-01T00:00:00Z"
   template:
     metadata:
       labels:

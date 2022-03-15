@@ -1,31 +1,22 @@
-apiVersion: cluster.x-k8s.io/v1beta1
-kind: Cluster
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
 metadata:
-  labels:
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/version: 0.3.11
-    argocd.argoproj.io/instance: test
-    cluster.x-k8s.io/cluster-name: test
-  name: test
+  name: test-fqblw
   namespace: test
 spec:
-  clusterNetwork:
-    pods:
-      cidrBlocks:
-        - 10.20.10.0/19
-    services:
-      cidrBlocks:
-        - 10.10.10.0/19
-  controlPlaneRef:
-    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
-    kind: KubeadmControlPlane
-  infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
-    kind: VSphereCluster
+  replicas: 3
+  rolloutAfter: '2024-03-25T10:31:54Z'
+  rolloutStrategy:
+    rollingUpdate:
+      maxSurge: 1
+    type: RollingUpdate
+  version: v1.28.8
 status:
   conditions:
-    - lastTransitionTime: '2024-04-11T14:07:09Z'
+    - lastTransitionTime: '2020-12-21T07:41:10Z'
       status: 'False'
+      reason: ScalingDown
+      message: "ScalingDown"
       type: Ready
     - lastTransitionTime: '2023-03-27T06:30:54Z'
       status: 'True'

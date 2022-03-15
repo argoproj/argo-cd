@@ -10,10 +10,10 @@ metadata:
   name: test-md-0
   namespace: test
 spec:
-  paused: true
   clusterName: test
   minReadySeconds: 0
   progressDeadlineSeconds: 600
+  rolloutAfter: '2024-03-25T10:31:54Z'
   replicas: 5
   revisionHistoryLimit: 1
   selector:
