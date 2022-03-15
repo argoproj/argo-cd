@@ -1,6 +1,6 @@
 # Cluster Bootstrapping
 
-This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
+This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
 There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
@@ -93,3 +93,21 @@ argocd app sync -l app.kubernetes.io/instance=apps
 ```
 
 View [the example on GitHub](https://github.com/argoproj/argocd-example-apps/tree/master/apps).
+
+
+
+### Cascading deletion
+
+If you want to ensure that child-apps and all of their resources are deleted when the parent-app is deleted make sure to add the appropriate [finalizer](../user-guide/app_deletion.md#about-the-deletion-finalizer) to your `Application` definition
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+ ...
+``` 

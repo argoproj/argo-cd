@@ -29,7 +29,7 @@ func (_m *Client) CleanChartCache(chart string, version string) error {
 }
 
 // ExtractChart provides a mock function with given fields: chart, version
-func (_m *Client) ExtractChart(chart string, version string) (string, io.Closer, error) {
+func (_m *Client) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	ret := _m.Called(chart, version)
 
 	var r0 string

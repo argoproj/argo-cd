@@ -77,8 +77,8 @@ The `.argocd-source` is trying to solve two following main use cases:
 
 - Provide the unified way to "override" application parameters in Git and enable the "write back" feature
 for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd-image-updater).
-- Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj-labs/applicationset)
-(see [git files generator](https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml))
+- Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj/applicationset)
+(see [git files generator](https://github.com/argoproj/applicationset/blob/master/examples/git-generator-files-discovery/git-generator-files.yaml))
 
 > The following is available from v1.9 or later
 

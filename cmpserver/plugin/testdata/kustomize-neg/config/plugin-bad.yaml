@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize
+spec:
+  version: v1.0
+  init:
+    command: [kustomize, version]
+  generate:
+    command: [sh, -c, "cd testdata/kustomize && kustomize build"]
+  discover:
+    find:
+      command: [sh, -c, find . -name kustomization.yaml]
+      glob: "**/*/kustomization.yaml"
+  allowConcurrency: true
+  lockRepo: false

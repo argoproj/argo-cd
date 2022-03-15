@@ -12,19 +12,9 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.16.5'
+  GOLANG_VERSION: '1.17.6'
 
 jobs:
-  build-docker:
-    name: Build Docker image
-    runs-on: ubuntu-latest
-    if: github.head_ref != ''
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build Docker image
-        run: |
-          make image
   check-go:
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-latest
@@ -264,6 +254,7 @@ jobs:
         env:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
+          HOST_ARCH: amd64
         working-directory: ui/
       - name: Run ESLint
         run: yarn lint
@@ -340,7 +331,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k3s-version: [v1.21.2, v1.20.2, v1.19.2, v1.18.9, v1.17.11]
+        k3s-version: [v1.23.3, v1.22.6, v1.21.2]
     needs: 
       - build-go
     env:
@@ -385,10 +376,13 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Add ./dist to PATH
+        run: |
+          echo "$(pwd)/dist" >> $GITHUB_PATH
       - name: Download Go dependencies
         run: |
           go mod download
-          go get github.com/mattn/goreman
+          go install github.com/mattn/goreman@latest
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -400,7 +394,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.4-alpine
+          docker pull redis:6.2.6-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
@@ -417,7 +411,7 @@ jobs:
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
-            if test $count -ge 60; then
+            if test $count -ge 120; then
               echo "Timeout"
               exit 1
             fi

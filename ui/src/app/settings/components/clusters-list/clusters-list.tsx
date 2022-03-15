@@ -1,4 +1,4 @@
-import {DropDownMenu} from 'argo-ui';
+import {DropDownMenu, ErrorNotification, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
@@ -51,13 +51,27 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                                     items={[
                                                                         {
                                                                             title: 'Delete',
-                                                                            action: () =>
-                                                                                services.clusters.delete(cluster.server).finally(() => {
-                                                                                    ctx.navigation.goto('.', {new: null}, {replace: true});
-                                                                                    if (clustersLoaderRef.current) {
-                                                                                        clustersLoaderRef.current.reload();
+                                                                            action: async () => {
+                                                                                const confirmed = await ctx.popup.confirm(
+                                                                                    'Delete cluster?',
+                                                                                    `Are you sure you want to delete cluster: ${cluster.name}`
+                                                                                );
+                                                                                if (confirmed) {
+                                                                                    try {
+                                                                                        await services.clusters.delete(cluster.server).finally(() => {
+                                                                                            ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                                            if (clustersLoaderRef.current) {
+                                                                                                clustersLoaderRef.current.reload();
+                                                                                            }
+                                                                                        });
+                                                                                    } catch (e) {
+                                                                                        ctx.notifications.show({
+                                                                                            content: <ErrorNotification title='Unable to delete cluster' e={e} />,
+                                                                                            type: NotificationType.Error
+                                                                                        });
                                                                                     }
-                                                                                })
+                                                                                }
+                                                                            }
                                                                         }
                                                                     ]}
                                                                 />

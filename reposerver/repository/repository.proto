@@ -29,6 +29,8 @@ message ManifestRequest {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
     string trackingMethod = 19;
+    map<string, bool> enabledSourceTypes = 20;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
@@ -36,10 +38,24 @@ message TestRepositoryRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
-// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+// TestRepositoryResponse represents the TestRepository response
 message TestRepositoryResponse {
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifiedRepository = 1;
+}
+
+// ResolveRevisionRequest
+message ResolveRevisionRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
+    string ambiguousRevision = 3;
+}
+
+// ResolveRevisionResponse
+message ResolveRevisionResponse {
+    // returns the resolved revision
+    string revision = 1;
+    string ambiguousRevision = 2;
 }
 
 message ManifestResponse {
@@ -67,6 +83,7 @@ message Refs {
 message ListAppsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
+    map<string, bool> enabledSourceTypes = 3;
 }
 
 // AppList returns the contents of the repo of a ListApps request
@@ -84,12 +101,13 @@ message RepoServerAppDetailsQuery {
     bool noCache = 6;
     bool noRevisionCache = 7;
     string trackingMethod = 8;
+    map<string, bool> enabledSourceTypes = 9;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
 }
 
 // RepoAppDetailsResponse application details
 message RepoAppDetailsResponse {
 	string type = 1;
-	KsonnetAppSpec ksonnet = 2;
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
@@ -102,14 +120,6 @@ message RepoServerRevisionMetadataRequest {
     string revision = 2;
     // whether to check signature on revision
     bool checkSignature = 3;
-}
-
-// KsonnetAppSpec contains Ksonnet app response
-// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
-message KsonnetAppSpec {
-	string name = 1;
-	map<string, KsonnetEnvironment> environments = 3;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
 }
 
 // HelmAppSpec contains helm app name  in source repo
@@ -128,22 +138,6 @@ message HelmAppSpec {
 message KustomizeAppSpec {
 	// images is a list of available images.
 	repeated string images = 3;
-}
-
-message KsonnetEnvironment {
-    // Name is the user defined name of an environment
-    string name = 1;
-    // KubernetesVersion is the kubernetes version the targeted cluster is running on.
-    string k8sVersion = 2;
-    // Destination stores the cluster address that this environment points to.
-    KsonnetEnvironmentDestination destination = 4;
-}
-
-message KsonnetEnvironmentDestination {
-    // Server is the Kubernetes server that the cluster is running on.
-    string server = 1;
-    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
-    string namespace = 2;
 }
 
 // DirectoryAppSpec contains directory
@@ -173,6 +167,10 @@ service RepoServerService {
 
     // Returns a bool val if the repository is valid and has proper access
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
+    }
+
+    // Returns a valid revision
+    rpc ResolveRevision(ResolveRevisionRequest) returns (ResolveRevisionResponse) {
     }
     
     // Returns a list of refs (e.g. branches and tags) in the repo

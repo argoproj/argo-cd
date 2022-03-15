@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -33,6 +35,8 @@ type Server struct {
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
+	appLister     applisters.ApplicationNamespaceLister
+	projLister    applisters.AppProjectNamespaceLister
 	settings      *settings.SettingsManager
 }
 
@@ -42,6 +46,8 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
+	appLister applisters.ApplicationNamespaceLister,
+	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
@@ -49,14 +55,20 @@ func NewServer(
 		repoClientset: repoClientset,
 		enf:           enf,
 		cache:         cache,
+		appLister:     appLister,
+		projLister:    projLister,
 		settings:      settings,
 	}
 }
 
+var (
+	errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
+)
+
 func (s *Server) getRepo(ctx context.Context, url string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url)
 	if err != nil {
-		return nil, status.Error(codes.PermissionDenied, "permission denied")
+		return nil, errPermissionDenied
 	}
 	return repo, nil
 }
@@ -118,6 +130,15 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
+	}
+
+	// getRepo does not return an error for unconfigured repositories, so we are checking here
+	exists, err := s.db.RepositoryExists(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
 
 	// For backwards compatibility, if we have no repo type set assume a default
@@ -204,14 +225,29 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 	})
 }
 
-// ListApps returns list of apps in the repo
+// ListApps performs discovery of a git repository for potential sources of applications. Used
+// as a convenience to the UI for auto-complete.
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
 	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	claims := ctx.Value("claims")
+	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	// This endpoint causes us to clone git repos & invoke config management tooling for the purposes
+	// of app discovery. Only allow this to happen if user has privileges to create or update the
+	// application which it wants to retrieve these details for.
+	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
+	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACresource) &&
+		!s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACresource) {
+		return nil, errPermissionDenied
+	}
+	// Also ensure the repo is actually allowed in the project in question
+	if err := s.isRepoPermittedInProject(q.Repo, q.AppProject); err != nil {
 		return nil, err
 	}
 
@@ -236,6 +272,9 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	return &repositorypkg.RepoAppsResponse{Items: items}, nil
 }
 
+// GetAppDetails shows parameter values to various config tools (e.g. helm/kustomize values)
+// This is used by UI for parameter form fields during app create & edit pages.
+// It is also used when showing history of parameters used in previous syncs in the app history.
 func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
@@ -244,9 +283,38 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	claims := ctx.Value("claims")
+	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
+
+	app, err := s.appLister.Get(q.AppName)
+	appRBACObj := createRBACObject(q.AppProject, q.AppName)
+	// ensure caller has read privileges to app
+	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACObj); err != nil {
+		return nil, err
+	}
+	if apierr.IsNotFound(err) {
+		// app doesn't exist since it still is being formulated. verify they can create the app
+		// before we reveal repo details
+		if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACObj); err != nil {
+			return nil, err
+		}
+	} else {
+		// if we get here we are returning repo details of an existing app
+		if q.AppProject != app.Spec.Project {
+			return nil, errPermissionDenied
+		}
+		// verify caller is not making a request with arbitrary source values which were not in our history
+		if !isSourceInHistory(app, *q.Source) {
+			return nil, errPermissionDenied
+		}
+	}
+	// Ensure the repo is actually allowed in the project in question
+	if err := s.isRepoPermittedInProject(q.Source.RepoURL, q.AppProject); err != nil {
+		return nil, err
+	}
+
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
@@ -264,11 +332,16 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+	helmOptions, err := s.settings.GetHelmSettings()
+	if err != nil {
+		return nil, err
+	}
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
 	})
 }
@@ -309,8 +382,8 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	var repo *appsv1.Repository
 	var err error
 
-	// check we can connect to the repo, copying any existing creds
-	{
+	// check we can connect to the repo, copying any existing creds (not supported for project scoped repositories)
+	if q.Repo.Project == "" {
 		repo := q.Repo.DeepCopy()
 		if !repo.HasCredentials() {
 			creds, err := s.db.GetRepositoryCredentials(ctx, repo.Repo)
@@ -463,4 +536,34 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 		Repo: repo,
 	})
 	return err
+}
+
+func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
+	proj, err := s.projLister.Get(projName)
+	if err != nil {
+		return err
+	}
+	if !proj.IsSourcePermitted(appsv1.ApplicationSource{RepoURL: repo}) {
+		return status.Errorf(codes.PermissionDenied, "repository '%s' not permitted in project '%s'", repo, projName)
+	}
+	return nil
+}
+
+// isSourceInHistory checks if the supplied application source is either our current application
+// source, or was something which we synced to previously.
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
+	if source.Equals(app.Spec.Source) {
+		return true
+	}
+	// Iterate history. When comparing items in our history, use the actual synced revision to
+	// compare with the supplied source.targetRevision in the request. This is because
+	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
+	// history[].revision will contain the explicit SHA
+	for _, h := range app.Status.History {
+		h.Source.TargetRevision = h.Revision
+		if source.Equals(h.Source) {
+			return true
+		}
+	}
+	return false
 }

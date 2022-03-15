@@ -51,7 +51,7 @@ more with other Kubernetes tools and Argo CD is never confused about the owner o
 
 ## Choosing a tracking method
 
-To actually select your preferred tracking method edit the `resourceTrackingMethod` value contained inside the `argo-cm` configmap.
+To actually select your preferred tracking method edit the `resourceTrackingMethod` value contained inside the `argocd-cm` configmap.
 
 ```yaml
 apiVersion: v1

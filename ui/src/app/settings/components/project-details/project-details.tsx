@@ -506,7 +506,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 </span>
                                             </div>
                                             <div className='columns small-2'>
-                                                {window.kind}:{window.schedule}:{window.duration}
+                                                {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
                                             </div>
                                             <div className='columns small-2'>{(window.applications || ['-']).join(',')}</div>
                                             <div className='columns small-2'>{(window.namespaces || ['-']).join(',')}</div>

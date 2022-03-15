@@ -1,15 +1,16 @@
 import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
+import * as moment from 'moment';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
-import {AppContext} from '../../shared/context';
+import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {COLORS, ErrorNotification, Revision} from '../../shared/components';
-import {ContextApis} from '../../shared/context';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -21,6 +22,8 @@ export interface NodeId {
     name: string;
     group: string;
 }
+
+export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
 type ActionMenuItem = MenuItem & {disabled?: boolean};
 
@@ -309,6 +312,79 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getActionItems(
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    tree: appModels.ApplicationTree,
+    appContext: AppContext,
+    appChanged: BehaviorSubject<appModels.Application>,
+    isQuickStart: boolean
+): Observable<ActionMenuItem[]> {
+    let menuItems: Observable<ActionMenuItem[]>;
+    const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+    const items: MenuItem[] = [
+        ...((isRoot && [
+            {
+                title: 'Sync',
+                iconClassName: 'fa fa-sync',
+                action: () => showDeploy(nodeKey(resource), appContext)
+            }
+        ]) ||
+            []),
+        {
+            title: 'Delete',
+            iconClassName: 'fa fa-times-circle',
+            action: async () => {
+                return deletePopup(appContext.apis, resource, application, appChanged);
+            }
+        }
+    ];
+    if (!isQuickStart) {
+        items.unshift({
+            title: 'Details',
+            iconClassName: 'fa fa-info-circle',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+        });
+    }
+
+    if (findChildPod(resource, tree)) {
+        items.push({
+            title: 'Logs',
+            iconClassName: 'fa fa-align-left',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+        });
+    }
+    if (isQuickStart) {
+        return from([items]);
+    }
+    const resourceActions = services.applications
+        .getResourceActions(application.metadata.name, resource)
+        .then(actions => {
+            return items.concat(
+                actions.map(action => ({
+                    title: action.name,
+                    disabled: !!action.disabled,
+                    action: async () => {
+                        try {
+                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                            if (confirmed) {
+                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                            }
+                        } catch (e) {
+                            appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
+                }))
+            );
+        })
+        .catch(() => items);
+    menuItems = merge(from([items]), from(resourceActions));
+    return menuItems;
+}
+
 export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -322,60 +398,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
-        const items: MenuItem[] = [
-            {
-                title: 'Details',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)}, {replace: true})
-            },
-            ...((isRoot && [
-                {
-                    title: 'Sync',
-                    action: () => showDeploy(nodeKey(resource), appContext)
-                }
-            ]) ||
-                []),
-            {
-                title: 'Delete',
-                action: async () => {
-                    return deletePopup(appContext.apis, resource, application, appChanged);
-                }
-            }
-        ];
-        if (findChildPod(resource, tree)) {
-            items.push({
-                title: 'Logs',
-                action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-            });
-        }
-        const resourceActions = services.applications
-            .getResourceActions(application.metadata.name, resource)
-            .then(actions =>
-                items.concat(
-                    actions.map(action => ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    }))
-                )
-            )
-            .catch(() => items);
-        menuItems = merge(from([items]), from(resourceActions));
+        menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -396,6 +419,45 @@ export function renderResourceMenu(
                         </li>
                     ))}
                 </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceButtons(
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    tree: appModels.ApplicationTree,
+    appContext: AppContext,
+    appChanged: BehaviorSubject<appModels.Application>
+): React.ReactNode {
+    let menuItems: Observable<ActionMenuItem[]>;
+    menuItems = getActionItems(resource, application, tree, appContext, appChanged, true);
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <div className='pod-view__node__quick-start-actions'>
+                    {items.map((item, i) => (
+                        <ActionButton
+                            disabled={item.disabled}
+                            key={i}
+                            action={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}
+                            icon={item.iconClassName}
+                            tooltip={
+                                item.title
+                                    .toString()
+                                    .charAt(0)
+                                    .toUpperCase() + item.title.toString().slice(1)
+                            }
+                        />
+                    ))}
+                </div>
             )}
         </DataLoader>
     );
@@ -595,6 +657,20 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     }
 };
 
+export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
+    if (!annotations) {
+        return urls;
+    }
+    const extLinks = urls || [];
+    const extLink: string = annotations[ExternalLinkAnnotation];
+    if (extLink) {
+        if (!extLinks.includes(extLink)) {
+            extLinks.push(extLink);
+        }
+    }
+    return extLinks;
+}
+
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (application.metadata.deletionTimestamp && !application.operation) {
@@ -730,9 +806,6 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
-        return app.spec.source.ksonnet.parameters.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }
@@ -768,7 +841,7 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
         current = 'Inactive';
     } else {
         for (const w of state.windows) {
-            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration) {
+            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration && w.timeZone === window.timeZone) {
                 current = 'Active';
                 break;
             } else {
@@ -843,8 +916,10 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
         color = COLORS.sync_window.allow;
     }
 
+    const ctx = React.useContext(Context);
+
     return (
-        <a href={`/settings/projects/${project}?tab=windows`} style={{color}}>
+        <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{color}}>
             <i className={className} style={{color}} /> SyncWindow
         </a>
     );
@@ -907,12 +982,18 @@ export function getContainerName(pod: any, containerIndex: number): string {
     return container.name;
 }
 
+export function isYoungerThanXMinutes(pod: any, x: number): boolean {
+    const createdAt = moment(pod.createdAt, 'YYYY-MM-DDTHH:mm:ssZ');
+    const xMinutesAgo = moment().subtract(x, 'minutes');
+    return createdAt.isAfter(xMinutesAgo);
+}
+
 export const BASE_COLORS = [
     '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
+    '#DE7EAE', // pink
+    '#FF9500', // orange
     '#4B0082', // purple
+    '#F5d905', // yellow
     '#964B00' // brown
 ];
 

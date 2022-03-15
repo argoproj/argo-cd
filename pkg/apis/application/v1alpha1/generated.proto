@@ -160,9 +160,6 @@ message ApplicationSource {
   // Kustomize holds kustomize specific options
   optional ApplicationSourceKustomize kustomize = 8;
 
-  // Ksonnet holds ksonnet specific options
-  optional ApplicationSourceKsonnet ksonnet = 9;
-
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
@@ -207,6 +204,15 @@ message ApplicationSourceHelm {
 
   // Version is the Helm version to use for templating (either "2" or "3")
   optional string version = 6;
+
+  // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
+  optional bool passCredentials = 7;
+
+  // IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
+  optional bool ignoreMissingValueFiles = 8;
+
+  // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
+  optional bool skipCrds = 9;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -219,15 +225,6 @@ message ApplicationSourceJsonnet {
 
   // Additional library search dirs
   repeated string libs = 3;
-}
-
-// ApplicationSourceKsonnet holds ksonnet specific options
-message ApplicationSourceKsonnet {
-  // Environment is a ksonnet application environment name
-  optional string environment = 1;
-
-  // Parameters are a list of ksonnet component parameter override values
-  repeated KsonnetParameter parameters = 2;
 }
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
@@ -599,6 +596,11 @@ message HelmFileParameter {
   optional string path = 2;
 }
 
+// HelmOptions holds helm options
+message HelmOptions {
+  repeated string valuesFileSchemes = 1;
+}
+
 // HelmParameter is a parameter that's passed to helm template during manifest generation
 message HelmParameter {
   // Name is the name of the Helm parameter
@@ -680,15 +682,6 @@ message KnownTypeField {
   optional string type = 2;
 }
 
-// KsonnetParameter is a ksonnet component parameter
-message KsonnetParameter {
-  optional string component = 1;
-
-  optional string name = 2;
-
-  optional string value = 3;
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -764,11 +757,18 @@ message OrphanedResourcesMonitorSettings {
   repeated OrphanedResourceKey ignore = 2;
 }
 
-// TODO: describe this type
+// OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
+// the desired state and live state
 message OverrideIgnoreDiff {
+  // JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
   repeated string jSONPointers = 1;
 
+  // JQPathExpressions is a JQ path list that will be evaludated during the diff process
   repeated string jqPathExpressions = 2;
+
+  // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+  // desired state defined in the SCM and won't be displayed in diffs
+  repeated string managedFieldsManagers = 3;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -1017,6 +1017,10 @@ message ResourceIgnoreDifferences {
   repeated string jsonPointers = 5;
 
   repeated string jqPathExpressions = 6;
+
+  // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+  // desired state defined in the SCM and won't be displayed in diffs
+  repeated string managedFieldsManagers = 7;
 }
 
 // ResourceNetworkingInfo holds networking resource related information
@@ -1329,6 +1333,9 @@ message SyncWindow {
 
   // ManualSync enables manual syncs when they would otherwise be blocked
   optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

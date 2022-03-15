@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	fmt "fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -399,9 +400,6 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
 		Kustomize: &ApplicationSourceKustomize{
 			NamePrefix: "foo",
 		},
@@ -425,9 +423,7 @@ func TestExplicitType(t *testing.T) {
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
+		Helm:      &ApplicationSourceHelm{},
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
@@ -840,7 +836,6 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
 		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
-		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
 	}
@@ -945,24 +940,6 @@ func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceJsonnet{}, true},
 		{"ExtVars", &ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}, false},
 		{"TLAs", &ApplicationSourceJsonnet{TLAs: []JsonnetVar{{}}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.source.IsZero())
-		})
-	}
-}
-
-func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
-	tests := []struct {
-		name   string
-		source *ApplicationSourceKsonnet
-		want   bool
-	}{
-		{"Nil", nil, true},
-		{"Empty", &ApplicationSourceKsonnet{}, true},
-		{"Environment", &ApplicationSourceKsonnet{Environment: "foo"}, false},
-		{"Parameters", &ApplicationSourceKsonnet{Parameters: []KsonnetParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1127,13 +1104,14 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
+			TimeZone:     timeZone,
 		}
 	}
 
@@ -1154,8 +1132,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchFirst",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11, time.UTC),
 			matchingIndex:  0,
@@ -1164,8 +1142,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchSecond",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(15, time.UTC),
 			matchingIndex:  1,
@@ -1174,8 +1152,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchBoth",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "3h"),
-				syncWindow("allow", "* 11 * * *", "3h"),
+				syncWindow("allow", "* 10 * * *", "3h", ""),
+				syncWindow("allow", "* 11 * * *", "3h", ""),
 			},
 			currentTime:    timeWithHour(12, time.UTC),
 			expectedLength: 2,
@@ -1183,8 +1161,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchNone",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17, time.UTC),
 			expectedLength: 0,
@@ -1192,8 +1170,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchFirst-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11-4, utcM4Zone), // 11AM UTC is 7AM EDT
 			matchingIndex:  0,
@@ -1202,8 +1180,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchSecond-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(15-4, utcM4Zone),
 			matchingIndex:  1,
@@ -1212,11 +1190,50 @@ func TestSyncWindows_Active(t *testing.T) {
 		{
 			name: "MatchNone-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17-4, utcM4Zone),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(16, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(20, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchNone-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(22, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(3, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 
@@ -1245,13 +1262,14 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) *SyncWindow {
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
 			Applications: []string{},
 			Namespaces:   []string{},
+			TimeZone:     timeZone,
 		}
 	}
 
@@ -1272,8 +1290,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchFirst",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 5 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 5 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(6, time.UTC),
 			matchingIndex:  0,
@@ -1282,8 +1300,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchSecond",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11, time.UTC),
 			matchingIndex:  1,
@@ -1292,8 +1310,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchBoth",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17, time.UTC),
 			expectedLength: 2,
@@ -1301,8 +1319,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchNone",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "4h"),
-				syncWindow("allow", "* 11 * * *", "4h"),
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
 			},
 			currentTime:    timeWithHour(12, time.UTC),
 			expectedLength: 0,
@@ -1310,8 +1328,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchFirst-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 5 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 5 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(6-4, utcM4Zone), // 6AM UTC is 2AM EDT
 			matchingIndex:  0,
@@ -1320,8 +1338,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchSecond-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(11-4, utcM4Zone),
 			matchingIndex:  1,
@@ -1330,20 +1348,68 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		{
 			name: "MatchBoth-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "2h"),
-				syncWindow("allow", "* 14 * * *", "2h"),
+				syncWindow("allow", "* 10 * * *", "2h", ""),
+				syncWindow("allow", "* 14 * * *", "2h", ""),
 			},
 			currentTime:    timeWithHour(17-4, utcM4Zone),
 			expectedLength: 2,
 		},
 		{
-			name: "MatchNone",
+			name: "MatchNone-NonUTC",
 			syncWindow: SyncWindows{
-				syncWindow("allow", "* 10 * * *", "4h"),
-				syncWindow("allow", "* 11 * * *", "4h"),
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
 			},
 			currentTime:    timeWithHour(12-4, utcM4Zone),
 			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 5 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(11, time.UTC), // 6AM UTC is 2AM EDT
+			matchingIndex:  0,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchSecond-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(16, time.UTC),
+			matchingIndex:  1,
+			expectedLength: 1,
+		},
+		{
+			name: "MatchBoth-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2h", "America/New_York"),
+				syncWindow("allow", "* 14 * * *", "2h", "America/New_York"),
+			},
+			currentTime:    timeWithHour(6, time.UTC),
+			expectedLength: 2,
+		},
+		{
+			name: "MatchNone-TimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "4h", ""),
+				syncWindow("allow", "* 11 * * *", "4h", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchFirst-PositiveTimeZoneSpecified",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 8 * * *", "2h", "Asia/Dhaka"),
+				syncWindow("allow", "* 12 * * *", "2h", "Asia/Dhaka"),
+			},
+			currentTime:    timeWithHour(7, time.UTC),
+			matchingIndex:  0,
+			expectedLength: 1,
 		},
 	}
 
@@ -1377,23 +1443,24 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		n    []string
 		c    []string
 		m    bool
+		t    string
 		want string
 	}{
-		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error"},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError"},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError"},
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", ""},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m))
+				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
@@ -1432,6 +1499,12 @@ func TestSyncWindows_Matches(t *testing.T) {
 		assert.Equal(t, 1, len(*windows))
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
+	t.Run("MatchClusterName", func(t *testing.T) {
+		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
+		windows := proj.Spec.SyncWindows.Matches(app)
+		assert.Equal(t, 1, len(*windows))
+		proj.Spec.SyncWindows[0].Clusters = nil
+	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
@@ -1451,140 +1524,313 @@ func TestSyncWindows_Matches(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
-	t.Run("ManualSync_ActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("AutoSync_ActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("_ActiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
+	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(true).
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("AutoSync_ActiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("ManualSync_InactiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		canSync := proj.Spec.SyncWindows.CanSync(true)
-		assert.False(t, canSync)
-	})
-	t.Run("AutoSync_InactiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
+	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(false)
-		assert.False(t, canSync)
-	})
-	t.Run("ManualSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		proj.Spec.SyncWindows[0].ManualSync = true
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("AutoSync_InactiveAllowWithManualSyncEnabled", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		proj.Spec.SyncWindows[0].ManualSync = true
-		canSync := proj.Spec.SyncWindows.CanSync(false)
-		assert.False(t, canSync)
-	})
-	t.Run("ManualSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withInactiveDenyWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(true)
-		assert.False(t, canSync)
-	})
-	t.Run("AutoSync_InactiveAllowAndInactiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Schedule = "0 0 1 * *"
-		proj.Spec.SyncWindows[0].Duration = "1m"
-		deny := &SyncWindow{Kind: "deny", Schedule: "0 0 1 * *", Duration: "1m"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
-		canSync := proj.Spec.SyncWindows.CanSync(false)
-		assert.False(t, canSync)
-	})
-	t.Run("ManualSync_ActiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		canSync := proj.Spec.SyncWindows.CanSync(true)
-		assert.False(t, canSync)
-	})
-	t.Run("AutoSync_ActiveDeny", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		canSync := proj.Spec.SyncWindows.CanSync(false)
-		assert.False(t, canSync)
-	})
-	t.Run("ManualSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		proj.Spec.SyncWindows[0].ManualSync = true
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.True(t, canSync)
 	})
-	t.Run("AutoSync_ActiveDenyWithManualSyncEnabled", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		proj.Spec.SyncWindows[0].ManualSync = true
+	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withInactiveDenyWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(false)
-		assert.False(t, canSync)
+
+		// then
+		assert.True(t, canSync)
 	})
-	t.Run("ManualSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		proj.Spec.SyncWindows[0].ManualSync = true
-		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
 		assert.False(t, canSync)
 	})
-	t.Run("AutoSync_MultipleActiveDenyWithManualSyncEnabledOnOne", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		proj.Spec.SyncWindows[0].Kind = "deny"
-		proj.Spec.SyncWindows[0].Schedule = "* * * * *"
-		proj.Spec.SyncWindows[0].ManualSync = true
-		deny2 := &SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "2h"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny2)
+	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
 		assert.False(t, canSync)
 	})
-	t.Run("ManualSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(true).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.True(t, canSync)
+	})
+	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
 		assert.False(t, canSync)
 	})
-	t.Run("AutoSync_ActiveDenyAndActiveAllow", func(t *testing.T) {
-		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", Schedule: "1 * * * *", Duration: "1h"}
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(false).
+			withInactiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInactiveAllowWindow(false).
+			withInactiveDenyWindow(false).
+			build()
+
+		// when
 		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.True(t, canSync)
+	})
+	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(true).
+			withActiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withActiveDenyWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.False(t, canSync)
+	})
+	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withActiveDenyWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(true)
+
+		// then
+		assert.True(t, canSync)
+	})
+	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withActiveDenyWindow(true).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
 		assert.False(t, canSync)
 	})
 }
@@ -1727,31 +1973,31 @@ func TestSyncWindow_Active(t *testing.T) {
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{})
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{})
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"})
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{})
+		err := e.Update("", "", []string{}, []string{}, []string{}, "")
 		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
-		err := e.Update("", "10h", []string{}, []string{}, []string{})
+		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
-		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{})
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
 		assert.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
 	})
@@ -1792,20 +2038,62 @@ func TestApplicationStatus_GetConditions(t *testing.T) {
 	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
-func newTestProjectWithSyncWindows() *AppProject {
-	p := &AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{SyncWindows: SyncWindows{}}}
+type projectBuilder struct {
+	proj *AppProject
+}
 
-	window := &SyncWindow{
-		Kind:         "allow",
-		Schedule:     "* * * * *",
+func newProjectBuilder() *projectBuilder {
+	return &projectBuilder{
+		proj: newTestProject(),
+	}
+}
+
+func (b *projectBuilder) build() *AppProject {
+	return b.proj
+}
+
+func (b *projectBuilder) withActiveAllowWindow(allowManual bool) *projectBuilder {
+	window := newSyncWindow("allow", "* * * * *", allowManual)
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
+	return b
+}
+
+func (b *projectBuilder) withInactiveAllowWindow(allowManual bool) *projectBuilder {
+	window := newSyncWindow("allow", inactiveCronSchedule(), allowManual)
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
+	return b
+}
+
+func (b *projectBuilder) withActiveDenyWindow(allowManual bool) *projectBuilder {
+	window := newSyncWindow("deny", "* * * * *", allowManual)
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
+	return b
+}
+
+func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilder {
+	window := newSyncWindow("deny", inactiveCronSchedule(), allowManual)
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
+	return b
+}
+
+func inactiveCronSchedule() string {
+	hourPlus10, _, _ := time.Now().Add(10 * time.Hour).Clock()
+	return fmt.Sprintf("0 %d * * *", hourPlus10)
+}
+
+func newSyncWindow(kind, schedule string, allowManual bool) *SyncWindow {
+	return &SyncWindow{
+		Kind:         kind,
+		Schedule:     schedule,
 		Duration:     "1h",
 		Applications: []string{"app1"},
 		Namespaces:   []string{"public"},
+		ManualSync:   allowManual,
 	}
-	p.Spec.SyncWindows = append(p.Spec.SyncWindows, window)
-	return p
+}
+
+func newTestProjectWithSyncWindows() *AppProject {
+	return newProjectBuilder().withActiveAllowWindow(false).build()
 }
 
 func newTestApp() *Application {
@@ -1815,6 +2103,7 @@ func newTestApp() *Application {
 			Destination: ApplicationDestination{
 				Namespace: "default",
 				Server:    "cluster1",
+				Name:      "clusterName",
 			},
 		},
 	}
@@ -2164,22 +2453,6 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	}
 }
 
-func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
-	src := ApplicationSource{Path: "."}
-
-	assert.True(t, src.AllowsConcurrentProcessing())
-}
-
-func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
-		Parameters: []KsonnetParameter{{
-			Name: "test", Component: "test", Value: "1",
-		}},
-	}}
-
-	assert.False(t, src.AllowsConcurrentProcessing())
-}
-
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 		NameSuffix: "test",
@@ -2254,4 +2527,68 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 
 	settings.Warn = pointer.BoolPtr(true)
 	assert.True(t, settings.IsWarn())
+}
+
+func Test_validatePolicy_projIsNotRegex(t *testing.T) {
+	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
+	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
+	assert.Error(t, err)
+
+	err = validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some.project/*, allow")
+	assert.NoError(t, err)
+
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+}
+
+func Test_validatePolicy_ValidResource(t *testing.T) {
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
+	assert.NoError(t, err)
+}
+
+func TestEnvsubst(t *testing.T) {
+	env := Env{
+		&EnvEntry{"foo", "bar"},
+	}
+
+	assert.Equal(t, "bar", env.Envsubst("$foo"))
+	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
+}
+
+func Test_validateGroupName(t *testing.T) {
+	tcs := []struct {
+		name      string
+		groupname string
+		isvalid   bool
+	}{
+		{"Just a double quote", "\"", false},
+		{"Just two double quotes", "\"\"", false},
+		{"Normal group name", "foo", true},
+		{"Quoted with commas", "\"foo,bar,baz\"", true},
+		{"Quoted without commas", "\"foo\"", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", true},
+		{"Empty group name", "", false},
+		{"Empty group name with quotes", "\"\"", false},
+		{"Unquoted with comma", "foo,bar,baz", false},
+		{"Improperly quoted 1", "\"foo,bar,baz", false},
+		{"Improperly quoted 2", "foo,bar,baz\"", false},
+		{"Runaway quote in unqouted string", "foo,bar\",baz", false},
+		{"Runaway quote in quoted string", "\"foo,\"bar,baz\"", false},
+		{"Invalid characters unqouted", "foo\nbar", false},
+		{"Invalid characters qouted", "\"foo\nbar\"", false},
+		{"Runaway quote 1", "\"foo", false},
+		{"Runaway quote 2", "foo\"", false},
+	}
+	for _, tt := range tcs {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGroupName(tt.groupname)
+			if tt.isvalid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
 }

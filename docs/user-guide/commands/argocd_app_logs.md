@@ -17,6 +17,7 @@ argocd app logs APPNAME [flags]
       --kind string         Resource kind
       --name string         Resource name
       --namespace string    Resource namespace
+  -p, --previous            Specify if the previously terminated container logs should be returned
       --since-seconds int   A relative time in seconds before the current time from which to show logs
       --tail int            The number of lines from the end of the logs to show
       --until-time string   Show logs until this time
@@ -28,7 +29,7 @@ argocd app logs APPNAME [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.

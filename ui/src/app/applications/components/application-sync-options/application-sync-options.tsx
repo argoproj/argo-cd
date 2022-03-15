@@ -6,6 +6,7 @@ import * as ReactForm from 'react-form';
 require('./application-sync-options.scss');
 
 export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
+export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
@@ -89,6 +90,7 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
     props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
+    props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 

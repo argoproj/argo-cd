@@ -15,7 +15,7 @@ func TestCanAccessInsecureSSHRepo(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("config-map").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded))
@@ -28,7 +28,7 @@ func TestCanAccessSSHRepo(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeSSH).
 		Path("config-map").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded))

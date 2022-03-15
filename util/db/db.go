@@ -27,8 +27,12 @@ type ArgoDB interface {
 		handleAddEvent func(cluster *appv1.Cluster),
 		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error
-	// Get returns a cluster from a query
+	// GetCluster returns a cluster by given server url
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
+	// GetClusterServersByName returns a cluster server urls by given cluster name
+	GetClusterServersByName(ctx context.Context, name string) ([]string, error)
+	// GetProjectClusters return project scoped clusters by given project name
+	GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error)
 	// UpdateCluster updates a cluster
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
@@ -41,6 +45,10 @@ type ArgoDB interface {
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
+	// GetProjectRepositories returns project scoped repositories by given project name
+	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	// RepositoryExists returns whether a repository is configured for the given URL
+	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config

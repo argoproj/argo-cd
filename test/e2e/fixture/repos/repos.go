@@ -2,6 +2,7 @@ package repos
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -153,11 +154,24 @@ func AddSSHCredentials() {
 
 // PushChartToOCIRegistry adds a helm chart to helm OCI registry
 func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
-	chartAbsPath, err := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
-	errors.CheckError(err)
+	// create empty temp directory to extract chart from the registry
+	tempDest, err1 := ioutil.TempDir("", "helm")
+	errors.CheckError(err1)
+	defer func() { _ = os.RemoveAll(tempDest) }()
+
+	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
+	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
-	errors.FailOnErr(fixture.Run("", "helm", "chart", "save", chartAbsPath, fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
-	errors.FailOnErr(fixture.Run("", "helm", "chart", "push", fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+	errors.FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
+	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
+	errors.FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"push",
+		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
+		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
+	))
 
 }

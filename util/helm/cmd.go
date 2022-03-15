@@ -11,6 +11,7 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
@@ -76,7 +77,7 @@ func (c *Cmd) Init() (string, error) {
 	return "", nil
 }
 
-func (c *Cmd) Login(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -114,7 +115,7 @@ func (c *Cmd) Login(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 
@@ -141,7 +142,7 @@ func (c *Cmd) Logout(repo string, creds Creds) (string, error) {
 	return c.run(args...)
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return "", err
@@ -192,6 +193,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		args = append(args, "--key-file", keyFile.Name())
 	}
 
+	if c.helmPassCredentialsSupported && passCredentials {
+		args = append(args, "--pass-credentials")
+	}
+
 	args = append(args, name, url)
 
 	return c.run(args...)
@@ -213,7 +218,7 @@ func writeToTmp(data []byte) (string, io.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{c.pullCommand, "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -249,20 +254,22 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		defer io.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
+	if passCredentials && c.helmPassCredentialsSupported {
+		args = append(args, "--pass-credentials")
+	}
 
 	return c.run(args...)
 }
 
-func (c *Cmd) ChartPull(repo string, chart string, version string) (string, error) {
-	return c.run("chart", "pull", fmt.Sprintf("%s/%s:%s", repo, chart, version))
-}
-
-func (c *Cmd) ChartExport(repo string, chartName string, version string, destination string) (string, error) {
-	args := []string{"chart", "export"}
-	chartURL := fmt.Sprintf(repo + "/" + chartName + ":" + version)
-	args = append(args, chartURL, "--destination", destination)
-
-	return c.run(args...)
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string) (string, error) {
+	return c.run(
+		"pull",
+		fmt.Sprintf("oci://%s/%s", repo, chart),
+		"--version",
+		version,
+		"--destination",
+		destination,
+	)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
@@ -280,8 +287,9 @@ type TemplateOpts struct {
 	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
-	SetFile     map[string]string
-	Values      []string
+	SetFile     map[string]pathutil.ResolvedFilePath
+	Values      []pathutil.ResolvedFilePath
+	SkipCrds    bool
 }
 
 var (
@@ -316,18 +324,22 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for key, val := range opts.SetFile {
-		args = append(args, "--set-file", key+"="+cleanSetParameters(val))
+		args = append(args, "--set-file", key+"="+cleanSetParameters(string(val)))
 	}
 	for _, val := range opts.Values {
-		args = append(args, "--values", val)
+		args = append(args, "--values", string(val))
 	}
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
 	}
-	if c.HelmVer.additionalTemplateArgs != nil {
-		args = append(args, c.HelmVer.additionalTemplateArgs...)
+	if c.HelmVer.includeCrds && !opts.SkipCrds {
+		args = append(args, "--include-crds")
 	}
 
+	return c.run(args...)
+}
+
+func (c *Cmd) Freestyle(args ...string) (string, error) {
 	return c.run(args...)
 }
 
