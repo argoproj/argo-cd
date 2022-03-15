@@ -68,3 +68,25 @@ func CreateTempDir(baseDir string) (string, error) {
 func IsSymlink(fi os.FileInfo) bool {
 	return fi.Mode()&fs.ModeSymlink == fs.ModeSymlink
 }
+
+// Inbound will validate if the given candidate path is inside
+// the baseDir. This is useful to make sure that possible symlink
+// candidates are not targeting a file outside of baseDir boundaries.
+// candidate can be absolute path or relative path. baseDir must be
+// absolute path.
+func Inbound(candidate, baseDir string) bool {
+	if !filepath.IsAbs(baseDir) {
+		return false
+	}
+	var linkTarget string
+	if filepath.IsAbs(candidate) {
+		linkTarget = filepath.Clean(candidate)
+	} else {
+		linkTarget = filepath.Join(baseDir, candidate)
+	}
+	realpath, err := filepath.EvalSymlinks(linkTarget)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(realpath, filepath.Clean(baseDir)+string(os.PathSeparator))
+}
