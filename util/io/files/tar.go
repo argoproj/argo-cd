@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type tgz struct {
@@ -74,6 +75,9 @@ func Untgz(dstPath string, r io.Reader) error {
 		target := filepath.Join(dstPath, header.Name)
 		// Sanity check to protect against zip-slip
 		if !Inbound(target, dstPath) {
+			return fmt.Errorf("illegal filepath in archive: %s", target)
+		}
+		if !strings.HasPrefix(target, filepath.Clean(dstPath)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
