@@ -174,7 +174,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 <i className='fa fa-download' />
                             </button>
                         </Tooltip>
-                        <DropDownMenu
+                        {props.containerGroups?.length > 0 && <DropDownMenu
                             anchor={() => (
                                 <Tooltip content='Containers'>
                                     <button className='argo-button argo-button--base'>
@@ -183,7 +183,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 </Tooltip>
                             )}
                             items={containerItems}
-                        />
+                        />}
                         <Tooltip content='Follow'>
                             <button
                                 className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
