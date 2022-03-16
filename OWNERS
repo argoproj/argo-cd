@@ -10,6 +10,7 @@ approvers:
 - jgwest
 - mayzhang2000
 - rbreeze
+- pasha-codefresh
 
 reviewers:
 - dthomson25
@@ -20,7 +21,6 @@ reviewers:
 - hblixt
 - chetan-rns
 - wanghong230
-- pasha-codefresh
 - ciiay
 - leoluz
 - crenshaw-dev
