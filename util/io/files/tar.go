@@ -85,10 +85,17 @@ func Untgz(dstPath string, r io.Reader) error {
 			}
 		case tar.TypeSymlink:
 			// Sanity check to protect against symlink exploit
-			if !Inbound(header.Linkname, dstPath) {
-				return fmt.Errorf("illegal filepath in symlink: %s", header.Linkname)
+			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			realPath, err := filepath.EvalSymlinks(linkTarget)
+			if os.IsNotExist(err) {
+				realPath = linkTarget
+			} else if err != nil {
+				return fmt.Errorf("error checking symlink realpath: %s", err)
 			}
-			err := os.Symlink(header.Linkname, target)
+			if !Inbound(realPath, dstPath) {
+				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
+			}
+			err = os.Symlink(realPath, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %s", err)
 			}
