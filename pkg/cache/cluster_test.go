@@ -109,8 +109,9 @@ func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
 
 func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resource {
 	hierarchy := make([]*Resource, 0)
-	cluster.IterateHierarchy(kube.GetResourceKey(un), func(child *Resource, _ map[kube.ResourceKey]*Resource) {
+	cluster.IterateHierarchy(kube.GetResourceKey(un), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 		hierarchy = append(hierarchy, child)
+		return true
 	})
 	return hierarchy[1:]
 }
@@ -795,4 +796,69 @@ func testDeploy() *appsv1.Deployment {
 			},
 		},
 	}
+}
+
+func TestIterateHierachy(t *testing.T) {
+	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	t.Run("IterateAll", func(t *testing.T) {
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return true
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+			keys)
+	})
+
+	t.Run("ExitAtRoot", func(t *testing.T) {
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return false
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+			keys)
+	})
+
+	t.Run("ExitAtSecondLevelChild", func(t *testing.T) {
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return child.ResourceKey().Kind != kube.ReplicaSetKind
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+			},
+			keys)
+	})
+
+	t.Run("ExitAtThirdLevelChild", func(t *testing.T) {
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return child.ResourceKey().Kind != kube.PodKind
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testPod())),
+			},
+			keys)
+	})
 }

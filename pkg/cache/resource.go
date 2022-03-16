@@ -85,15 +85,16 @@ func newResourceKeySet(set map[kube.ResourceKey]bool, keys ...kube.ResourceKey) 
 	return newSet
 }
 
-func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents map[kube.ResourceKey]bool, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource)) {
+func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents map[kube.ResourceKey]bool, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
 	for childKey, child := range ns {
 		if r.isParentOf(ns[childKey]) {
 			if parents[childKey] {
 				key := r.ResourceKey()
-				action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
+				_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
 			} else {
-				action(nil, child, ns)
-				child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
+				if action(nil, child, ns) {
+					child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
+				}
 			}
 		}
 	}
