@@ -622,6 +622,11 @@ export interface Event {
     reportingInstance: string;
 }
 
+export interface EventMessage<T> {
+    type: string;
+    event: T;
+}
+
 export interface EventList extends ItemsList<Event> {}
 
 export interface ProjectRole {

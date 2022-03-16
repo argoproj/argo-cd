@@ -1004,6 +1004,18 @@ message ResourceDiff {
   optional bool modified = 12;
 }
 
+// ResourceEventWatchEvent contains information about application change.
+message ResourceEventWatchEvent {
+  optional string type = 1;
+
+  // Event is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context.
+  optional k8s.io.api.core.v1.Event event = 2;
+}
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
   optional string group = 1;

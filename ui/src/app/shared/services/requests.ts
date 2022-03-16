@@ -3,6 +3,7 @@ import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
 import {filter} from 'rxjs/operators';
+import {EventMessage} from '../models';
 
 type Callback = (data: any) => void;
 
@@ -72,6 +73,40 @@ export default {
         return Observable.create((observer: Observer<any>) => {
             let eventSource = new EventSource(`${apiRoot()}${url}`);
             eventSource.onmessage = msg => observer.next(msg.data);
+            eventSource.onerror = e => () => {
+                observer.error(e);
+                onError.next(e);
+            };
+
+            // EventSource does not provide easy way to get notification when connection closed.
+            // check readyState periodically instead.
+            const interval = setInterval(() => {
+                if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
+                    observer.error('connection got closed unexpectedly');
+                }
+            }, 500);
+            return () => {
+                clearInterval(interval);
+                eventSource.close();
+                eventSource = null;
+            };
+        });
+    },
+
+    loadEventSourceMap<T>(url: string, getKey: (arg0: T) => string): Observable<Map<string, T>> {
+        const map = new Map<string, T>();
+
+        return new Observable<Map<string, T>>((observer: Observer<Map<string, T>>) => {
+            let eventSource = new EventSource(`${apiRoot()}${url}`);
+            eventSource.onmessage = (msg: MessageEvent) => {
+                const eventMsg = JSON.parse(msg.data).result as EventMessage<T>;
+                if (eventMsg.type === 'DELETED') {
+                    map.delete(getKey(eventMsg.event));
+                } else {
+                    map.set(getKey(eventMsg.event), eventMsg.event);
+                }
+                observer.next(map);
+            };
             eventSource.onerror = e => () => {
                 observer.error(e);
                 onError.next(e);

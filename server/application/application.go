@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"k8s.io/client-go/informers"
 	"math"
 	"reflect"
 	"sort"
@@ -75,6 +76,7 @@ type Server struct {
 	appLister      applisters.ApplicationNamespaceLister
 	appInformer    cache.SharedIndexInformer
 	appBroadcaster *broadcasterHandler
+	appEventBroadcaster *eventBroadcasterHandler
 	repoClientset  apiclient.Clientset
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
@@ -93,6 +95,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationNamespaceLister,
 	appInformer cache.SharedIndexInformer,
+	eventInformer cache.SharedIndexInformer,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -103,23 +106,26 @@ func NewServer(
 	projInformer cache.SharedIndexInformer,
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
+	eventBroadcaster := &eventBroadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
+	eventInformer.AddEventHandler(eventBroadcaster)
 	return &Server{
-		ns:             namespace,
-		appclientset:   appclientset,
-		appLister:      appLister,
-		appInformer:    appInformer,
-		appBroadcaster: appBroadcaster,
-		kubeclientset:  kubeclientset,
-		cache:          cache,
-		db:             db,
-		repoClientset:  repoClientset,
-		kubectl:        kubectl,
-		enf:            enf,
-		projectLock:    projectLock,
-		auditLogger:    argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		settingsMgr:    settingsMgr,
-		projInformer:   projInformer,
+		ns:                  namespace,
+		appclientset:        appclientset,
+		appLister:           appLister,
+		appInformer:         appInformer,
+		appBroadcaster:      appBroadcaster,
+		appEventBroadcaster: eventBroadcaster,
+		kubeclientset:       kubeclientset,
+		cache:               cache,
+		db:                  db,
+		repoClientset:       repoClientset,
+		kubectl:             kubectl,
+		enf:                 enf,
+		projectLock:         projectLock,
+		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		settingsMgr:         settingsMgr,
+		projInformer:        projInformer,
 	}
 }
 
@@ -745,6 +751,70 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
+func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws application.ApplicationService_WatchResourceEventsServer) error {
+	if q.Name == nil || *q.Name == "" {
+		return fmt.Errorf("must provide an application name")
+	}
+	a, appGetErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(context.Background(), *q.Name, metav1.GetOptions{})
+	claims := ws.Context().Value("claims")
+	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil
+	}
+	if appGetErr != nil {
+		return appGetErr
+	}
+
+	var config *rest.Config
+	config, err := s.getApplicationClusterConfig(context.Background(), a)
+	if err != nil {
+		return err
+	}
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	eventFactory := informers.NewSharedInformerFactory(kubeClientset, 0)
+	eventInformer := eventFactory.Core().V1().Events().Informer()
+
+	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
+	// caller has RBAC privileges permissions to view it
+	sendIfPermitted := func(event v1.Event, eventType watch.EventType) {
+		group := strings.Split(event.InvolvedObject.APIVersion, "/")[0]
+		_, err := s.getAppResourceNoEnforce(context.Background(), a, group, event.InvolvedObject.Kind, event.InvolvedObject.Namespace, event.InvolvedObject.Name)
+		if err != nil {
+			return
+		}
+		err = ws.Send(&appv1.ResourceEventWatchEvent{
+			Type:        eventType,
+			Event: event,
+		})
+		if err != nil {
+			return
+		}
+	}
+
+	appEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
+	appUnsubscribe := s.appEventBroadcaster.Subscribe(appEvents)
+	defer appUnsubscribe()
+
+	resourceEventBroadcaster := &eventBroadcasterHandler{}
+	eventInformer.AddEventHandler(resourceEventBroadcaster)
+	resourceEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
+	resourceUnsubscribe := resourceEventBroadcaster.Subscribe(resourceEvents)
+	defer resourceUnsubscribe()
+
+	for {
+		select {
+		case event := <-appEvents:
+			sendIfPermitted(event.Event, event.Type)
+		case event := <-resourceEvents:
+			sendIfPermitted(event.Event, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
+}
+
 func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
 	logCtx := log.NewEntry(log.New())
 	if q.Name != nil {
@@ -946,20 +1016,28 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(ctx, a)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	found := tree.FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
+	found, err := s.getAppResourceNoEnforce(ctx, a, q.Group, q.Kind, q.Namespace, q.ResourceName)
 	if found == nil {
-		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
+		return nil, nil, nil, err
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return found, config, a, nil
+}
+
+func (s *Server) getAppResourceNoEnforce(ctx context.Context, a *appv1.Application, group, kind, namespace, name string) (*appv1.ResourceNode, error) {
+	tree, err := s.getAppResources(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+
+	found := tree.FindNode(group, kind, namespace, name)
+	if found == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
+	}
+	return found, nil
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {

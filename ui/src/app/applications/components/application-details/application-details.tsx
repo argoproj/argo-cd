@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -24,8 +24,9 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
-import {ResourceStatus} from '../../../shared/models';
+import {Event, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {ApplicationEventsPanel} from '../application-events-panel/application-events-panel';
 
 require('./application-details.scss');
 
@@ -83,6 +84,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private get selectedRollbackDeploymentIndex() {
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
+    }
+
+    private get showApplicationEvents() {
+        return new URLSearchParams(this.props.history.location.search).get('events') === 'true';
     }
 
     private get selectedNodeInfo() {
@@ -285,6 +290,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
                                             />
                                         </div>
+                                        <div>
+                                            <ApplicationEventsPanel app={application} />
+                                        </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
@@ -422,6 +430,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 />
                                             )}
                                         </SlidingPanel>
+                                        <SlidingPanel isShown={this.showApplicationEvents} onClose={() => this.setApplicationEventsPanelVisible(false)}>
+                                            <div className='application-resource-events'>
+                                                <ObservableQuery>
+                                                    {() => (
+                                                        <DataLoader input='test' load={() => services.applications.watchEvents(application.metadata.name)}>
+                                                            {(allEvents: Event[]) => <EventsList events={allEvents} />}
+                                                        </DataLoader>
+                                                    )}
+                                                </ObservableQuery>
+                                            </div>
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                                             {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
                                         </SlidingPanel>
@@ -548,6 +567,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         this.appChanged.next(app);
                     }
                 }
+            },
+            {
+                iconClassName: 'fa fa-events',
+                title: <ActionMenuItem actionLabel='Events' />,
+                action: () => this.setApplicationEventsPanelVisible(true)
             }
         ];
     }
@@ -672,6 +696,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private setOperationStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
+    }
+
+    private setApplicationEventsPanelVisible(isVisible: boolean) {
+        this.appContext.apis.navigation.goto('.', {events: isVisible}, {replace: true});
     }
 
     private setConditionsStatusVisible(isVisible: boolean) {

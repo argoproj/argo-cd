@@ -55,6 +55,13 @@ func init() {
 		}
 		return event.Application.Name, nil
 	})
+	forward_ApplicationService_WatchResourceEvents_0 = http.NewStreamForwarder(func(message proto.Message) (string, error) {
+		event, ok := message.(*v1alpha1.ResourceEventWatchEvent)
+		if !ok {
+			return "", errors.New("unexpected message type")
+		}
+		return event.Event.Name, nil
+	})
 	forward_ApplicationService_List_0 = http.UnaryForwarder
 	forward_ApplicationService_ManagedResources_0 = http.UnaryForwarder
 }

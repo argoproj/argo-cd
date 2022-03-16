@@ -45,6 +45,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
@@ -160,6 +161,7 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
+	eventInformer  cache.SharedIndexInformer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh           chan struct{}
@@ -227,6 +229,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
+	eventFactory := informers.NewSharedInformerFactory(opts.KubeClientset, 0)
+	eventInformer := eventFactory.Core().V1().Events().Informer()
+
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
@@ -254,6 +259,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projLister:       projLister,
 		appInformer:      appInformer,
 		appLister:        appLister,
+		eventInformer:    eventInformer,
 		policyEnforcer:   policyEnf,
 		userStateStorage: userStateStorage,
 		staticAssets:     http.FS(staticFS),
@@ -358,6 +364,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+	go a.eventInformer.Run(ctx.Done())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -369,7 +376,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced, a.eventInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
@@ -382,7 +389,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 }
 
 func (a *ArgoCDServer) Initialized() bool {
-	return a.projInformer.HasSynced() && a.appInformer.HasSynced()
+	return a.projInformer.HasSynced() && a.appInformer.HasSynced() && a.eventInformer.HasSynced()
 }
 
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
@@ -596,6 +603,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		a.AppClientset,
 		a.appLister,
 		a.appInformer,
+		a.eventInformer,
 		a.RepoClientset,
 		a.Cache,
 		kubectl,

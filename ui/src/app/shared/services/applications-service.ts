@@ -312,6 +312,16 @@ export class ApplicationsService {
             .then(res => (res.body as models.EventList).items || []);
     }
 
+    public watchEvents(applicationName: string): Observable<models.Event[]> {
+        return requests
+            .loadEventSourceMap<models.Event>(`/stream/applications/${applicationName}/events`, event => event.metadata.uid)
+            .pipe(
+                map(data => {
+                    return Array.from(data.values()).sort((a, b) => Date.parse(a.eventTime) - Date.parse(b.eventTime));
+                })
+            );
+    }
+
     public resourceEvents(
         applicationName: string,
         resource: {

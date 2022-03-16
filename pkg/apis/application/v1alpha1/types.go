@@ -925,6 +925,18 @@ type ApplicationWatchEvent struct {
 	Application Application `json:"application" protobuf:"bytes,2,opt,name=application"`
 }
 
+// ResourceEventWatchEvent contains information about application change.
+type ResourceEventWatchEvent struct {
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+
+	// Event is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context.
+	Event v1.Event `json:"event" protobuf:"bytes,2,opt,name=event"`
+}
+
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type ApplicationList struct {

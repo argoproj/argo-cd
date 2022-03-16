@@ -3259,6 +3259,47 @@
         }
       }
     },
+    "/api/v1/stream/applications/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Watch returns stream of application change events",
+        "operationId": "ApplicationService_WatchResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ResourceEventWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ResourceEventWatchEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [
@@ -6140,6 +6181,18 @@
         "targetState": {
           "type": "string",
           "title": "TargetState contains the JSON serialized resource manifest defined in the Git/Helm"
+        }
+      }
+    },
+    "v1alpha1ResourceEventWatchEvent": {
+      "description": "ResourceEventWatchEvent contains information about application change.",
+      "type": "object",
+      "properties": {
+        "event": {
+          "$ref": "#/definitions/v1Event"
+        },
+        "type": {
+          "type": "string"
         }
       }
     },
