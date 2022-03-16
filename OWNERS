@@ -11,6 +11,8 @@ approvers:
 - keithchong
 - mayzhang2000
 - rbreeze
+- leoluz
+- crenshaw-dev
 
 reviewers:
 - dthomson25
@@ -23,6 +25,4 @@ reviewers:
 - wanghong230
 - pasha-codefresh
 - ciiay
-- leoluz
-- crenshaw-dev
 - saumeya
