@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type tgz struct {
@@ -77,13 +76,10 @@ func Untgz(dstPath string, r io.Reader) error {
 		if !Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
-		if !strings.HasPrefix(target, filepath.Clean(dstPath)+string(os.PathSeparator)) {
-			return fmt.Errorf("illegal filepath in archive: %s", target)
-		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := os.MkdirAll(target, 0755)
+			err := os.MkdirAll(target, 0755) // lgtm[go/zipslip]
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
