@@ -235,7 +235,8 @@ type ApplicationSourceHelm struct {
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values specifies Helm values to be passed to helm template, typically defined as a block
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Values Object `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// +patchStrategy=replace
+	Values StringOrObject `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating (either "2" or "3")

@@ -9,6 +9,10 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import * as jsYaml from 'js-yaml';
+import { helpTip } from '../utils';
+
+let isValuesRaw = false;
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -115,6 +119,12 @@ export const ApplicationParameters = (props: {
     const app = props.application;
     const source = props.application.spec.source;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
+    let appValues : string;
+    if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
+        isValuesRaw = typeof(app.spec.source.helm.values) === "string" ? false : true
+        appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
+        app.spec.source.helm.values = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
+    }
 
     let attributes: EditablePanelItem[] = [];
 
@@ -192,28 +202,37 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        attributes.push({
+          attributes.push({
             title: 'VALUES',
             view: app.spec.source.helm && (
                 <Expandable>
-                    <pre>{app.spec.source.helm.values}</pre>
+                    <pre>{appValues}</pre>
                 </Expandable>
             ),
-            edit: (formApi: FormApi) => (
-                <div>
-                    <pre>
-                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                    </pre>
-                    {props.details.helm.values && (
-                        <div>
-                            <label>values.yaml</label>
-                            <Expandable>
-                                <pre>{props.details.helm.values}</pre>
-                            </Expandable>
-                        </div>
-                    )}
-                </div>
-            )
+            edit: (formApi: FormApi) => {
+                if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
+                    if (isValuesRaw && typeof(app.spec.source.helm.values)!= "string") {
+                        app.spec.source.helm.values   =  jsYaml.safeDump(app.spec.source.helm.values); // set values to string
+                    } else if (isValuesRaw && typeof(app.spec.source.helm.values) === "string") {
+                        app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values); // load values as json
+                    }
+                }
+                return (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                        </pre>
+                        {appValues && (
+                            <div>
+                                <label>values.yaml</label>
+                                <Expandable>
+                                    <pre>{appValues}</pre>
+                                </Expandable>
+                            </div>
+                        )}
+                    </div>
+                )
+            }
         });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
@@ -304,7 +323,11 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
     }
-
+    if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
+        if (isValuesRaw && typeof(app.spec.source.helm.values) === "string" ) {
+            app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values) // Load values as json
+        }
+    }
     return (
         <EditablePanel
             save={
@@ -323,6 +346,14 @@ export const ApplicationParameters = (props: {
                     if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
                         input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefinedWithVersion);
                     }
+
+                    if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
+                        if (isValuesRaw && typeof(input.spec.source.helm.values) === "string") {
+                            input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values) // Load values as json
+                            app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values)
+                        }
+                    }
+
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })

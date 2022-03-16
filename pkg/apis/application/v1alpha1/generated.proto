@@ -198,7 +198,8 @@ message ApplicationSourceHelm {
 
   // Values specifies Helm values to be passed to helm template, typically defined as a block
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional Object values = 4;
+  // +patchStrategy=replace
+  optional StringOrObject values = 4;
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
@@ -690,15 +691,6 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
-}
-
-// +kubebuilder:validation:Type=""
-message Object {
-  // Values as string if Raw == nil
-  optional string values = 1;
-
-  // Raw is Values in raw format if Raw != nil
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension raw = 2;
 }
 
 // Operation contains information about a requested or running operation
@@ -1206,6 +1198,17 @@ message RevisionMetadata {
 message SignatureKey {
   // The ID of the key in hexadecimal notation
   optional string keyID = 1;
+}
+
+// +patchStrategy=replace
+// +protobuf.options.(gogoproto.goproto_stringer)=false
+// +kubebuilder:validation:Type=""
+message StringOrObject {
+  // Values as string if Raw == nil
+  optional string values = 1;
+
+  // Raw is Values in raw format if Raw != nil
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension raw = 2;
 }
 
 // SyncOperation contains details about a sync operation.

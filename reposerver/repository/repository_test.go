@@ -641,7 +641,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 			},
 		},
 	})
@@ -703,7 +703,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 			},
 		},
 	})
@@ -801,7 +801,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 			},
 		},
 		HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
@@ -821,7 +821,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./util/helm/testdata/redis",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../../../../../minio/values.yaml"},
-					Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				},
 			},
 		})
@@ -838,7 +838,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
-					Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				},
 			},
 		})
@@ -854,7 +854,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/my-chart-values.yaml"},
-					Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				},
 			},
 		})
@@ -870,7 +870,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:    argoappv1.Object{Values: `cluster: {slaveCount: 2}`} ,
+					Values:    argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`} ,
 				},
 			},
 		})
@@ -887,7 +887,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
-					Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				},
 			},
 		})
@@ -934,7 +934,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				FileParameters: []argoappv1.HelmFileParameter{
 					argoappv1.HelmFileParameter{
 						Name: "passwordContent",
@@ -961,7 +961,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.Object{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				FileParameters: []argoappv1.HelmFileParameter{
 					argoappv1.HelmFileParameter{
 						Name: "passwordContent",

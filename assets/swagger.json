@@ -4957,7 +4957,7 @@
           }
         },
         "values": {
-          "$ref": "#/definitions/v1alpha1Object"
+          "$ref": "#/definitions/v1alpha1StringOrObject"
         },
         "version": {
           "type": "string",
@@ -5690,19 +5690,6 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
-        }
-      }
-    },
-    "v1alpha1Object": {
-      "type": "object",
-      "title": "+kubebuilder:validation:Type=\"\"",
-      "properties": {
-        "raw": {
-          "$ref": "#/definitions/runtimeRawExtension"
-        },
-        "values": {
-          "type": "string",
-          "title": "Values as string if Raw == nil"
         }
       }
     },
@@ -6479,6 +6466,19 @@
         "keyID": {
           "type": "string",
           "title": "The ID of the key in hexadecimal notation"
+        }
+      }
+    },
+    "v1alpha1StringOrObject": {
+      "type": "object",
+      "title": "+patchStrategy=replace\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+kubebuilder:validation:Type=\"\"",
+      "properties": {
+        "raw": {
+          "$ref": "#/definitions/runtimeRawExtension"
+        },
+        "values": {
+          "type": "string",
+          "title": "Values as string if Raw == nil"
         }
       }
     },
