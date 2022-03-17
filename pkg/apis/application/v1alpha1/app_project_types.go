@@ -313,11 +313,15 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string) bool {
-	if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace() != "") {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server})
+}
+
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination) bool {
+	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
 		return false
 	}
-	if un.GetNamespace() != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: server, Namespace: un.GetNamespace()})
+	if namespace != "" {
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
 	}
 	return true
 }
