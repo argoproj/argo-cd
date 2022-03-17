@@ -4,6 +4,8 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+GEN_RESOURCES_CLI_NAME=argocd-resources-gen
+
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
@@ -133,7 +135,6 @@ override LDFLAGS += \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
   -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
   -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
-  -X ${PACKAGE}.gitTreeState=${GIT_TREE_STATE}\
   -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
 
 ifeq (${STATIC_BUILD}, true)
@@ -177,7 +178,7 @@ gogen: ensure-gopath
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: ensure-gopath
+protogen: ensure-gopath mod-vendor-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
@@ -222,13 +223,17 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
+.PHONY: gen-resources-cli-local
+gen-resources-cli-local: clean-debug
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
+
 .PHONY: release-cli
-release-cli: clean-debug image
-	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
+release-cli: clean-debug build-ui
 	make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all
+	make BIN_NAME=argocd-darwin-arm64 GOOS=darwin GOARCH=arm64 argocd-all
+	make BIN_NAME=argocd-linux-amd64 GOOS=linux argocd-all
+	make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all
 	make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all
-	docker cp tmp-argocd-linux:/usr/local/bin/argocd ${DIST_DIR}/argocd-linux-amd64
-	docker rm tmp-argocd-linux
 
 .PHONY: test-tools-image
 test-tools-image:
@@ -260,17 +265,20 @@ repo-server:
 controller:
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
 
+.PHONY: build-ui
+build-ui:
+	docker build -t argocd-ui --target argocd-ui .
+	find ./ui/dist -type f -not -name gitkeep -delete
+	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
 # The "dev" image builds the binaries from the users desktop environment (instead of in Docker)
 # which speeds up builds. Dockerfile.dev needs to be copied into dist to perform the build, since
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
-image:
+image: build-ui
 	docker build -t argocd-base --target argocd-base .
-	docker build -t argocd-ui --target argocd-ui .
-	find ./ui/dist -type f -not -name gitkeep -delete
-	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -409,7 +417,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local:
+start-e2e-local: mod-vendor-local dep-ui-local
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -425,6 +433,7 @@ start-e2e-local:
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
+	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -500,10 +509,6 @@ serve-docs-local:
 serve-docs:
 	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
 
-.PHONY: lint-docs
-lint-docs:
-	#  https://github.com/dkhamsing/awesome_bot
-	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --white-list `cat docs/url-allow-list | grep -v "#" | tr "\n" ','` --skip-save-results --
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
@@ -526,7 +531,6 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 .PHONY: install-test-tools-local
 install-test-tools-local:
 	./hack/install.sh kustomize-linux
-	./hack/install.sh ksonnet-linux
 	./hack/install.sh helm2-linux
 	./hack/install.sh helm-linux
 

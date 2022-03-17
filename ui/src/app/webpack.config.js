@@ -88,6 +88,10 @@ const config = {
                 {
                     from: 'node_modules/redoc/bundles/redoc.standalone.js',
                     to: 'assets/scripts/redoc.standalone.js'
+                },
+                {
+                    from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
+                    to: 'assets/fonts'
                 }
             ]
         }),

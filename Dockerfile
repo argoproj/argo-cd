@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:21.04
+ARG BASE_IMAGE=docker.io/library/ubuntu:21.10
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.16.11 as builder
+FROM docker.io/library/golang:1.17.6 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -28,7 +28,6 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh ksonnet-linux
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
 RUN ./install.sh kustomize-linux
@@ -54,10 +53,8 @@ RUN groupadd -g 999 argocd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
-COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
@@ -78,7 +75,6 @@ RUN mkdir -p /app/config/gpg/source && \
     chown argocd /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys
 
-# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
 
 USER 999
@@ -92,7 +88,7 @@ FROM docker.io/library/node:12.18.4 as argocd-ui
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
 
-RUN yarn install
+RUN yarn install --network-timeout 200000
 
 ADD ["ui/", "."]
 
@@ -103,7 +99,7 @@ RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTION
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM docker.io/library/golang:1.16.11 as argocd-build
+FROM docker.io/library/golang:1.17.6 as argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

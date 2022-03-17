@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go/v4"
+	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -296,15 +296,13 @@ type ServiceAccountClaims struct {
 }
 
 // Valid satisfies the jwt.Claims interface to enable JWT parsing
-func (sac *ServiceAccountClaims) Valid(helper *jwt.ValidationHelper) error {
+func (sac *ServiceAccountClaims) Valid() error {
 	return nil
 }
 
 // ParseServiceAccountToken parses a Kubernetes service account token
 func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims ServiceAccountClaims
 	_, _, err := parser.ParseUnverified(token, &claims)
 	if err != nil {

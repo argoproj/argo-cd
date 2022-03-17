@@ -23,6 +23,8 @@ export interface NodeId {
     group: string;
 }
 
+export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
+
 type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export function nodeKey(node: NodeId) {
@@ -655,6 +657,20 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
     }
 };
 
+export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
+    if (!annotations) {
+        return urls;
+    }
+    const extLinks = urls || [];
+    const extLink: string = annotations[ExternalLinkAnnotation];
+    if (extLink) {
+        if (!extLinks.includes(extLink)) {
+            extLinks.push(extLink);
+        }
+    }
+    return extLinks;
+}
+
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
     if (application.metadata.deletionTimestamp && !application.operation) {
@@ -790,9 +806,6 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
-        return app.spec.source.ksonnet.parameters.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }
@@ -977,10 +990,10 @@ export function isYoungerThanXMinutes(pod: any, x: number): boolean {
 
 export const BASE_COLORS = [
     '#0DADEA', // blue
-    '#95D58F', // green
-    '#F4C030', // orange
-    '#FF6262', // red
+    '#DE7EAE', // pink
+    '#FF9500', // orange
     '#4B0082', // purple
+    '#F5d905', // yellow
     '#964B00' // brown
 ];
 

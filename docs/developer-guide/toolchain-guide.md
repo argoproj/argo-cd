@@ -29,7 +29,7 @@ The Docker version must be fairly recent, and support multi-stage builds. You sh
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.16**.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.17**.
 
 * We will assume that your Go workspace is at `~/go`.
 
@@ -62,12 +62,6 @@ We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-req
 * `chore` - Your PR improves any internals of Argo CD, such as the build process, unit tests, etc
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
-
-### Contributor License Agreement
-
-Every contributor to Argo CD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.
-
-You can read the current version of the CLA [here](https://cla-assistant.io/argoproj/argo-cd).
 
 ### PR template checklist
 

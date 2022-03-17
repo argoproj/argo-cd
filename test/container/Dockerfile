@@ -1,12 +1,12 @@
-FROM redis:6.2.4 as redis
+FROM redis:6.2.6 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.16.11 as golang
+FROM golang:1.17.6 as golang
 
 FROM registry:2.7.1 as registry
 
-FROM ubuntu:21.04
+FROM ubuntu:21.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -41,17 +41,16 @@ ADD ./hack/installers installers
 ADD go.mod go.mod
 ADD go.sum go.sum
 
-RUN ./install.sh ksonnet-linux && \
-    ./install.sh helm2-linux && \
+RUN ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
     ./install.sh kustomize-linux && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
-    go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph && \
-    go get github.com/jstemmer/go-junit-report && \
+    go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest && \
+    go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
     rm -rf /tmp/helm2 && \

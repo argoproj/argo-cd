@@ -36,9 +36,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/component-base/metrics/prometheus/workqueue"
-
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -319,6 +316,19 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if isManagedResource {
 			level = CompareWithRecent
 		}
+
+		// Additional check for debug level so we don't need to evaluate the
+		// format string in case of non-debug scenarios
+		if log.GetLevel() >= log.DebugLevel {
+			var resKey string
+			if ref.Namespace != "" {
+				resKey = ref.Namespace + "/" + ref.Name
+			} else {
+				resKey = "(cluster-scoped)/" + ref.Name
+			}
+			log.Debugf("Refreshing app %s for change in cluster of object %s of type %s/%s", appName, resKey, ref.APIVersion, ref.Kind)
+		}
+
 		ctrl.requestAppRefresh(appName, &level, nil)
 	}
 }

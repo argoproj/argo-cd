@@ -89,6 +89,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		AppLabelKey:        appInstanceLabelKey,
 		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
 			BuildOptions: argoCDSettings.KustomizeBuildOptions,
 		},

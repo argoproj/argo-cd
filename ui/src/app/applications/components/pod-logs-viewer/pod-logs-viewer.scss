@@ -23,7 +23,7 @@
     &__filter {
         display: flex;
         margin-left: auto;
-        width: 350px;
+        width: 320px;
     }
 
     &__menu {
@@ -107,10 +107,33 @@
             width: 3ch;
             min-width: 3ch;
         }
+        &__timestamp {
+            padding-left: 5px;
+            padding-right: 5px;
+            span {
+                display: none;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+            width: 3ch;
+            min-width: 3ch;
+        }
     }
 
     &--pod-name-visible {
         .pod-logs-viewer__line__pod {
+            span {
+                display: inherit;
+            }
+            i {
+                display: none;
+            }
+            width: 30ch;
+            min-width: 30ch;
+        }
+    }
+    &--pod-timestamp-visible {
+        .pod-logs-viewer__line__timestamp {
             span {
                 display: inherit;
             }
@@ -129,6 +152,18 @@
         transform: translateY(2em);
         z-index: 1;
     }
+}
+
+.copySuccess {
+    // ARGO_SUCCESS_COLOR
+    background-color: #18BE94 !important;
+}
+.copyFailure {
+    // ARGO_FAILED_COLOR
+    background-color: #E96D76 !important;
+}
+.copyStandard {
+    background-color: #6D7F8B !important;
 }
 
 code {

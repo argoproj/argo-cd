@@ -1,17 +1,24 @@
 package oidc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	gooidc "github.com/coreos/go-oidc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestInferGrantType(t *testing.T) {
@@ -178,4 +185,56 @@ func TestIsValidRedirect(t *testing.T) {
 			assert.Equal(t, res, tt.valid)
 		})
 	}
+}
+
+func TestGenerateAppState(t *testing.T) {
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	expectedReturnURL := "http://argocd.example.com/"
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature}, "", "")
+	require.NoError(t, err)
+	generateResponse := httptest.NewRecorder()
+	state, err := app.generateAppState(expectedReturnURL, generateResponse)
+	require.NoError(t, err)
+
+	t.Run("VerifyAppState_Successful", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedReturnURL, returnURL)
+	})
+
+	t.Run("VerifyAppState_Failed", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
+		assert.Error(t, err)
+	})
+}
+
+func TestGenerateAppState_NoReturnURL(t *testing.T) {
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
+	key, err := cdSettings.GetServerEncryptionKey()
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	encrypted, err := crypto.Encrypt([]byte("123"), key)
+	require.NoError(t, err)
+
+	app, err := NewClientApp(cdSettings, "", "/argo-cd")
+	require.NoError(t, err)
+
+	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
+	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
+	assert.NoError(t, err)
+	assert.Equal(t, "/argo-cd", returnURL)
 }

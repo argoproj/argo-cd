@@ -72,6 +72,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -154,6 +155,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -232,6 +234,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -314,6 +317,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -400,6 +404,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -477,6 +482,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:

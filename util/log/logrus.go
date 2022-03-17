@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	adapter "github.com/bombsimon/logrusr"
+	adapter "github.com/bombsimon/logrusr/v2"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 
@@ -18,9 +18,9 @@ const (
 )
 
 func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
-	return adapter.NewLoggerWithFormatter(fieldLogger, func(val interface{}) string {
+	return adapter.New(fieldLogger, adapter.WithFormatter(func(val interface{}) string {
 		return fmt.Sprintf("%v", val)
-	})
+	}))
 }
 
 // NewWithCurrentConfig create logrus logger by using current configuration

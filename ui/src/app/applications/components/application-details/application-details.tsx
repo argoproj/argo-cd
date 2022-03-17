@@ -10,7 +10,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
@@ -25,6 +25,7 @@ import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
+import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
 
@@ -33,7 +34,7 @@ interface ApplicationDetailsState {
     revision?: string;
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
-    showCompactNodes?: boolean;
+    filteredGraph?: any[];
 }
 
 interface FilterInput {
@@ -68,7 +69,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, showCompactNodes: false};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: []};
     }
 
     private get showOperationState() {
@@ -97,8 +98,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView() {
-        this.setState({showCompactNodes: !this.state.showCompactNodes});
+    private toggleCompactView(pref: AppDetailsPreferences) {
+        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
+    }
+
+    private getPageTitle(view: string) {
+        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+        switch (view) {
+            case Tree:
+                return 'Application Details Tree';
+            case Network:
+                return 'Application Details Network';
+            case Pods:
+                return 'Application Details Pods';
+            case List:
+                return 'Application Details List';
+        }
+        return '';
     }
 
     public render() {
@@ -195,47 +211,65 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         part + ' '
                                     )
                                 );
-
+                            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+                            const zoomNum = (pref.zoom * 100).toFixed(0);
+                            const setZoom = (s: number) => {
+                                let targetZoom: number = pref.zoom + s;
+                                if (targetZoom <= 0.05) {
+                                    targetZoom = 0.1;
+                                } else if (targetZoom > 2.0) {
+                                    targetZoom = 2.0;
+                                }
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, zoom: targetZoom}});
+                            };
+                            const setFilterGraph = (filterGraph: any[]) => {
+                                this.setState({filteredGraph: filterGraph});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
-                                        title='Application Details'
+                                        title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
+                                        useTitleOnly={true}
+                                        topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                            breadcrumbs: [
+                                                {title: 'Applications', path: '/applications'},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                            ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
                                                             title='Tree'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Tree});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                            className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Pods});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
                                                             title='Network'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Network});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: List});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
                                                     </div>
@@ -253,16 +287,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    {pref.view === 'tree' && (
-                                                        <button
-                                                            className={`argo-button argo-button--base${!this.state.showCompactNodes ? '-o' : ''}`}
-                                                            style={{border: 'none', width: '160px'}}
-                                                            onClick={() => this.toggleCompactView()}>
-                                                            <i className={classNames('fa fa-object-group')} style={{width: '15px', marginRight: '5px'}} />
-                                                            Group Nodes
-                                                        </button>
-                                                    )}
+                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                    <div className='graph-options-panel'>
+                                                        {pref.view === 'tree' && (
+                                                            <a
+                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                title='Group Nodes'
+                                                                onClick={() => this.toggleCompactView(pref)}>
+                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                            </a>
+                                                        )}
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                            <i className='fa fa-search-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                            <i className='fa fa-search-minus fa-fw' />
+                                                        </a>
+                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                    </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -272,13 +314,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
-                                                        showCompactNodes={this.state.showCompactNodes}
+                                                        showCompactNodes={pref.groupNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                        zoom={pref.zoom}
+                                                        filters={pref.resourceFilter}
+                                                        setTreeFilterGraph={setFilterGraph}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -296,7 +341,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <div>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
                                                                     page={this.state.page}
@@ -576,7 +621,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications', {}, {replace: true});
+        this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
