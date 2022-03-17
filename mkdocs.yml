@@ -47,7 +47,12 @@ nav:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md
+    - operator-manual/notifications/functions.md
     - operator-manual/notifications/catalog.md
+    - operator-manual/notifications/monitoring.md
+    - operator-manual/notifications/subscriptions.md
+    - operator-manual/notifications/troubleshooting-commands.md
+    - operator-manual/notifications/troubleshooting-errors.md
     - operator-manual/notifications/troubleshooting.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
@@ -90,7 +95,6 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
-  - user-guide/ksonnet.md
   - user-guide/jsonnet.md
   - user-guide/config-management-plugins.md
   - user-guide/tool_detection.md

@@ -164,8 +164,6 @@ type ApplicationSource struct {
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
-	// Ksonnet holds ksonnet specific options
-	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
@@ -180,9 +178,6 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	// Kustomize with parameters requires changing kustomization.yaml file
 	case a.Kustomize != nil:
 		return a.Kustomize.AllowsConcurrentProcessing()
-	// Kustomize with parameters requires changing params.libsonnet file
-	case a.Ksonnet != nil:
-		return a.Ksonnet.AllowsConcurrentProcessing()
 	}
 	return true
 }
@@ -208,7 +203,6 @@ func (a *ApplicationSource) IsZero() bool {
 			a.TargetRevision == "" &&
 			a.Helm.IsZero() &&
 			a.Kustomize.IsZero() &&
-			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero()
 }
@@ -219,7 +213,6 @@ type ApplicationSourceType string
 const (
 	ApplicationSourceTypeHelm      ApplicationSourceType = "Helm"
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
-	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
@@ -449,31 +442,6 @@ type ApplicationSourceJsonnet struct {
 // IsZero returns true if the JSonnet options of an application are considered to be empty
 func (j *ApplicationSourceJsonnet) IsZero() bool {
 	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
-}
-
-// ApplicationSourceKsonnet holds ksonnet specific options
-type ApplicationSourceKsonnet struct {
-	// Environment is a ksonnet application environment name
-	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
-	// Parameters are a list of ksonnet component parameter override values
-	Parameters []KsonnetParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
-}
-
-// KsonnetParameter is a ksonnet component parameter
-type KsonnetParameter struct {
-	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
-	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
-}
-
-// AllowsConcurrentProcessing returns true if multiple processes can run ksonnet builds on the same source at the same time
-func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
-	return len(k.Parameters) == 0
-}
-
-// IsZero returns true if the KSonnet options of an application are considered to be empty
-func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -1618,10 +1586,18 @@ func validateRoleName(name string) error {
 	return nil
 }
 
-var invalidChars = regexp.MustCompile("[,\n\r\t]")
+var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
-	if strings.TrimSpace(name) == "" {
+	name = strings.TrimSpace(name)
+	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
+		// Remove surrounding quotes for further inspection of the group name
+		name = name[1 : len(name)-1]
+	} else if strings.Contains(name, ",") {
+		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
+	}
+
+	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
@@ -2088,6 +2064,11 @@ type ConfigManagementPlugin struct {
 	LockRepo bool     `json:"lockRepo,omitempty" protobuf:"bytes,4,name=lockRepo"`
 }
 
+// HelmOptions holds helm options
+type HelmOptions struct {
+	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -2251,9 +2232,6 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	}
 	if source.Helm != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeHelm)
-	}
-	if source.Ksonnet != nil {
-		appTypes = append(appTypes, ApplicationSourceTypeKsonnet)
 	}
 	if source.Directory != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeDirectory)

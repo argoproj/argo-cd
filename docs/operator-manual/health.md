@@ -62,7 +62,9 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
+Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
+
+The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
@@ -133,5 +135,7 @@ tests:
     message: Expected message
   inputPath: testdata/test-resource-definition.yaml
 ```
+
+To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.

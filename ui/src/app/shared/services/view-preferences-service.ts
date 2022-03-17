@@ -1,4 +1,6 @@
+import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
+
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
@@ -22,7 +24,9 @@ export interface AppDetailsPreferences {
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    wrapLines: boolean;
     groupNodes?: boolean;
+    zoom: number;
 }
 
 export interface PodViewPreferences {
@@ -108,7 +112,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false,
+        zoom: 1.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -168,6 +174,6 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return Object.assign({}, DEFAULT_PREFERENCES, preferences);
+        return deepMerge(DEFAULT_PREFERENCES, preferences);
     }
 }

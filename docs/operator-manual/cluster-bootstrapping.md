@@ -1,6 +1,6 @@
 # Cluster Bootstrapping
 
-This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
+This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
 There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
@@ -77,6 +77,8 @@ argocd app sync apps
 The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
+
+> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 

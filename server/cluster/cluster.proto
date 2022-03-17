@@ -6,9 +6,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster";
 // Cluster Service API performs CRUD actions against cluster resources 
 package cluster;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // ClusterID holds a cluster server URL or cluster name

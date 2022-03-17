@@ -20,8 +20,6 @@ type CommitMetadata struct {
 type AppDetail struct {
 	// AppDetail Type
 	Type string
-	// Ksonnet details
-	Ksonnet *apiclient.KsonnetAppSpec
 	// Helm details
 	Helm *CustomHelmAppSpec
 	// Kustomize details

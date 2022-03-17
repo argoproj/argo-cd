@@ -121,7 +121,7 @@ If the manifest generation has no side effects then requests are processed in pa
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in app directory.
 
-  * **Multiple Kustomize or Ksonnet applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
+  * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
 
 ### Webhook and Manifest Paths Annotation

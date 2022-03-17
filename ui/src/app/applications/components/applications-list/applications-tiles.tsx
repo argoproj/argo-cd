@@ -121,6 +121,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                                         <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                                             <button
+                                                                className='large-text-height'
                                                                 onClick={e => {
                                                                     e.stopPropagation();
                                                                     favList?.includes(app.metadata.name)

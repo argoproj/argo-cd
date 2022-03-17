@@ -1,7 +1,13 @@
 package cache
 
 import (
+	"errors"
+	"net"
+	"net/url"
 	"testing"
+
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/stretchr/testify/assert"
 
@@ -11,6 +17,12 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
+
+type netError string
+
+func (n netError) Error() string   { return string(n) }
+func (n netError) Timeout() bool   { return false }
+func (n netError) Temporary() bool { return false }
 
 func TestHandleModEvent_HasChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
@@ -92,4 +104,48 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	})
 
 	assert.Len(t, clustersCache.clusters, 0)
+}
+
+func TestIsRetryableError(t *testing.T) {
+	var (
+		tlsHandshakeTimeoutErr net.Error = netError("net/http: TLS handshake timeout")
+		ioTimeoutErr           net.Error = netError("i/o timeout")
+		connectionTimedout     net.Error = netError("connection timed out")
+	)
+	t.Run("Nil", func(t *testing.T) {
+		assert.False(t, isRetryableError(nil))
+	})
+	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
+		assert.False(t, isRetryableError(apierr.NewConflict(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierr.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
+	})
+	t.Run("ExceededQuotaErr", func(t *testing.T) {
+		assert.False(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
+	})
+	t.Run("TooManyRequestsDNS", func(t *testing.T) {
+		assert.True(t, isRetryableError(apierr.NewTooManyRequests("", 0)))
+	})
+	t.Run("DNSError", func(t *testing.T) {
+		assert.True(t, isRetryableError(&net.DNSError{}))
+	})
+	t.Run("OpError", func(t *testing.T) {
+		assert.True(t, isRetryableError(&net.OpError{}))
+	})
+	t.Run("UnknownNetworkError", func(t *testing.T) {
+		assert.True(t, isRetryableError(net.UnknownNetworkError("")))
+	})
+	t.Run("ConnectionClosedErr", func(t *testing.T) {
+		assert.False(t, isRetryableError(&url.Error{Err: errors.New("")}))
+		assert.True(t, isRetryableError(&url.Error{Err: errors.New("Connection closed by foreign host")}))
+	})
+	t.Run("TLSHandshakeTimeout", func(t *testing.T) {
+		assert.True(t, isRetryableError(tlsHandshakeTimeoutErr))
+	})
+	t.Run("IOHandshakeTimeout", func(t *testing.T) {
+		assert.True(t, isRetryableError(ioTimeoutErr))
+	})
+	t.Run("ConnectionTimeout", func(t *testing.T) {
+		assert.True(t, isRetryableError(connectionTimedout))
+	})
 }
