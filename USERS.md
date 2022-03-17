@@ -200,3 +200,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [ZOZO](https://corp.zozo.com/)
 1. [Stuart](https://stuart.com/)
+1. [Spores Labs](https://spores.app)
