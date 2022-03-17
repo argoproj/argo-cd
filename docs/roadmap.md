@@ -6,11 +6,11 @@
     - [Input Forms UI Refresh](#input-forms-ui-refresh)
     - [Web Shell](#web-shell)
     - [Helm values from external repo](#helm-values-from-external-repo)
-    - [Config Management Tools Integrations UI/CLI](#config-management-tools-integrations-uicli)
+    - [Support multiple sources for an Application](#support-multiple-sources-for-an-application)
+    - [Config Management Tools Enhancements: Integrations UI/CLI & CMP Security Improvements](#config-management-tools-enhancements-integrations-uicli--cmp-security-improvements)
   - [v2.5 and beyond](#v25-and-beyond)
     - [First class support for ApplicationSet resources](#first-class-support-for-applicationset-resources)
     - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
-    - [Support multiple sources for an Application](#support-multiple-sources-for-an-application)
     - [Sharding application controller](#sharding-application-controller)
     - [Add support for secrets in Application parameters](#add-support-for-secrets-in-application-parameters)
     - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
@@ -57,10 +57,16 @@ Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.c
 
 The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
 
-### Config Management Tools Integrations UI/CLI
+### Support multiple sources for an Application
 
-The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/pull/5927). The Argo CD UI/CLI
+Support more than one source for creating an Application [#8322](https://github.com/argoproj/argo-cd/pull/8322).
+
+### Config Management Tools Enhancements: Integrations UI/CLI & CMP Security Improvements
+
+The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/parameterized-config-management-plugins.md). The Argo CD UI/CLI
 should provide first class experience for configured third-party config management tools: [#5734](https://github.com/argoproj/argo-cd/issues/5734).
+
+In addition to better user experience enhanced config management plugins implementation should provide better Argo CD tenant isolation and security.
 
 ## v2.5 and beyond
 
@@ -72,10 +78,6 @@ The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD
 
 The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
 
-
-### Support multiple sources for an Application
-
-Support more than one source for creating an Application [#8322](https://github.com/argoproj/argo-cd/pull/8322).
 
 ### Sharding application controller 
 
