@@ -278,13 +278,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 }
 
 func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
-	repoURL, err := url.Parse(c.repoURL)
+	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, err
 	}
-	repoURL.Path = path.Join(repoURL.Path, "index.yaml")
 
-	req, err := http.NewRequest("GET", repoURL.String(), nil)
+	req, err := http.NewRequest("GET", indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -370,4 +369,15 @@ func IsHelmOciRepo(repoURL string) bool {
 	parsed, err := url.Parse(repoURL)
 	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
 	return err == nil && parsed.Host == ""
+}
+
+func getIndexURL(rawURL string) (string, error) {
+	indexFile := "index.yaml"
+	repoURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	repoURL.Path = path.Join(repoURL.Path, indexFile)
+	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
+	return repoURL.String(), nil
 }
