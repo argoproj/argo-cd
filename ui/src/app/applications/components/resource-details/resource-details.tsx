@@ -66,13 +66,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     offset: 0,
                     title: 'CONTAINERS',
                     containers: podState.spec.containers || []
-                },
-                {
+                }
+            ];
+            if (podState.spec.initContainers?.length > 0) {
+                containerGroups.push({
                     offset: (podState.spec.containers || []).length,
                     title: 'INIT CONTAINERS',
                     containers: podState.spec.initContainers || []
-                }
-            ];
+                });
+            }
+
+            const onClickContainer = (group: any, i: number) => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext);
+
             tabs = tabs.concat([
                 {
                     key: 'logs',
@@ -80,37 +85,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     title: 'LOGS',
                     content: (
                         <div className='application-details__tab-content-full-height'>
-                            <div className='row'>
-                                <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
-                                        <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}</p>}
-                                            {group.containers.map((container: any, i: number) => (
-                                                <div
-                                                    className='application-details__container'
-                                                    key={container.name}
-                                                    onClick={() => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext)}>
-                                                    {group.offset + i === selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                    <span title={container.name}>{container.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer
-                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                        group={node.group}
-                                        kind={node.kind}
-                                        name={node.name}
-                                        namespace={podState.metadata.namespace}
-                                        applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
-                                        page={{number: page, untilTimes}}
-                                        setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
-                                    />
-                                </div>
-                            </div>
+                            <PodsLogsViewer
+                                podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                group={node.group}
+                                kind={node.kind}
+                                name={node.name}
+                                namespace={podState.metadata.namespace}
+                                applicationName={application.metadata.name}
+                                containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                page={{number: page, untilTimes}}
+                                setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                                containerGroups={containerGroups}
+                                onClickContainer={onClickContainer}
+                            />
                         </div>
                     )
                 }
