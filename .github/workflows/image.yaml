@@ -13,6 +13,11 @@ env:
   GOLANG_VERSION: '1.17.6'
 
 jobs:
+  snyk:
+    name: Run Snyk scans
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
   publish:
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
@@ -72,15 +77,34 @@ jobs:
             IMAGE_PLATFORMS=linux/amd64,linux/arm64
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
-          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
+          docker buildx build --platform $IMAGE_PLATFORMS \
             --cache-from "type=local,src=/tmp/.buildx-cache" \
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
 
+      - name: Run Snyk scans
+        if: github.event_name == 'push'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          npm install -g snyk
+
+          # Run with high threshold to fail build.
+          snyk test --org=argoproj --all-projects --exclude=docs,site --severity-threshold=high --policy-path=.snyk
+          snyk iac test manifests/install.yaml --org=argoproj --severity-threshold=high --policy-path=.snyk
+          snyk container test quay.io/argoproj/argocd:latest --org=argoproj --file=Dockerfile --severity-threshold=high
+
+      - name: Push the image
+        if: github.event_name == 'push'
+        run: |
+          docker push ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
+          docker push quay.io/argoproj/argocd:latest
+
         # Temp fix
         # https://github.com/docker/build-push-action/issues/252
         # https://github.com/moby/buildkit/issues/1896
+
       - name: Clean up build cache
         run: |
           rm -rf /tmp/.buildx-cache
