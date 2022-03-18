@@ -104,7 +104,6 @@ type watchOpts struct {
 	health    bool
 	operation bool
 	suspended bool
-	delete    bool
 }
 
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
@@ -1224,6 +1223,18 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 	return selectedResources
 }
 
+func getWatchOpts(watch watchOpts) watchOpts {
+	// if no opts are defined should wait for sync,health,operation
+	if (watch == watchOpts{}) {
+		return watchOpts{
+			sync:      true,
+			health:    true,
+			operation: true,
+		}
+	}
+	return watch
+}
+
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1248,13 +1259,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if (watch == watchOpts{}) {
-				watch = watchOpts{
-					sync:      true,
-					health:    true,
-					operation: true,
-				}
-			}
+			watch = getWatchOpts(watch)
 			selectedResources := parseSelectedResources(resources)
 			appNames := args
 			acdClient := headless.NewClientOrDie(clientOpts, c)

@@ -3,6 +3,8 @@ package commands
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -41,6 +43,34 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		t.Fatal("History should be found")
 	}
 
+}
+
+func TestDefaultWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, true, opts.health)
+	assert.Equal(t, true, opts.operation)
+	assert.Equal(t, false, opts.suspended)
+}
+
+func TestOverrideWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      true,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, false, opts.health)
+	assert.Equal(t, false, opts.operation)
+	assert.Equal(t, false, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
