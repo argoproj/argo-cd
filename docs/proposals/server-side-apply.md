@@ -34,6 +34,7 @@ describes how ArgoCD can leverage SSA during syncs.
 * [Goals](#goals)
 * [Non-Goals](#non-goals)
 * [Proposal](#proposal)
+    * [Non-Functional Requirements](#non-functional-requirements)
     * [Use cases](#use-cases)
         * [[UC-1]: enable SSA at the controller level](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side)
         * [[UC-2]: enable SSA at the Application level](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side)
@@ -104,28 +105,39 @@ common issue when syncing CRDs with large schemas.
 
 ## Goals
 
+All following goals should be achieve in order to conclude this proposal:
+
 - Provide the ability for users to define if they want to use SSA during syncs
   ([ISSUE-2267][6])
   - Users should be able to enable SSA at the controller level (via binary flag)
+    (see [UC-1](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side))
   - Users should be able to enable SSA for a given Application (via syncOptions)
-  - Users should be able to enable SSA at resource level (via annotation)
-- Diffing needs to support strategic merge patch ([ISSUE-2268][7])
+    (see [UC-2](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side))
+  - Users should be able to enable SSA at resource level (via annotation) (see
+    [UC-3](#uc-3-as-a-user-i-would-like-enable-ssa-at-the-resource-level-so-only-a-single-manifest-is-applied-server-side)
+- Diffing needs to support strategic merge patch (see [ISSUE-2268][7])
 - Allow Admission Controllers to execute even when there is no diff for a
-  particular resource. (Needs investigation)
+  particular resource. (Needs investigation) ([more details][2])
 - ArgoCD should respect field ownership and provide a configuration to allow
-  users to define the behavior in case of conflicts
-- ArgoCD should register itself with a proper manager.
+  users to define the behavior in case of conflicts (see [Q-1](#q-1-how-to-handle-conflicts) outcome)
+- ArgoCD should register itself with a proper manager (see [non-functional
+  requirements](#non-functional-requirements))
 
 ## Non-Goals
 
-What is out of scope for this proposal?
-Listing non-goals helps to focus discussion and make progress
+TBD
 
 ## Proposal
 
 Change ArgoCD controller to accept new parameter to enable Server-Side Apply
-during syncs. ArgoCD must register itself with a pre-defined manager
-(suggestion: `argocd-controller`).
+during syncs. Changes are necessary in ArgoCD as well as in
+gitops-engine library.
+
+### Non-Functional Requirements
+
+- ArgoCD must register itself with a pre-defined manager (suggestion:
+  `argocd-controller`). It shouldn't rely on the default value defined in the
+  kubectl code. ([more details][11])
 
 ### Use cases
 
@@ -133,15 +145,25 @@ The following use cases should be implemented:
 
 #### [UC-1]: As a user, I would like enable SSA at the controller level so all Application are applied server-side
 
+Implement a binary flag to configure ArgoCD to run all syncs using SSA.
+(suggestion: `--server-side-apply=true`). Default value should be `false`.
+
 #### [UC-2]: As a user, I would like enable SSA at the Application level so all resources are applied server-side
 
 Implement a new syncOption to allow users to enable SSA at the application
 level (Suggestion `ServerSideApply=true`). UI needs to be updated to support
-this new sync option.
+this new sync option. If not informed, the controller should keep the current
+behaviour (client-side).
 
 #### [UC-3]: As a user, I would like enable SSA at the resource level so only a single manifest is applied server-side
 
+Leverage the existing `argocd.argoproj.io/sync-options` annotation allowing the
+`ServerSideApply=true` to be informed at the resource level. Must not impact
+other sync-options informed in the annotation (make sure this annotation
+supports providing multiple options).
+
 ### Security Considerations
+
 TBD
 
 ### Risks and Mitigations
@@ -169,3 +191,4 @@ Slight increase in ArgoCD code base complexity.
 [8]: https://kubernetes.io/blog/2021/08/06/server-side-apply-ga/
 [9]: https://kubernetes.io/blog/2020/04/01/kubernetes-1.18-feature-server-side-apply-beta-2/
 [10]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013641708
+[11]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013289982
