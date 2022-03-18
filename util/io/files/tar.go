@@ -79,7 +79,7 @@ func Untgz(dstPath string, r io.Reader) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := os.MkdirAll(target, 0755) // lgtm[go/zipslip]
+			err := os.MkdirAll(target, 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
