@@ -13,11 +13,6 @@ env:
   GOLANG_VERSION: '1.17.6'
 
 jobs:
-  snyk:
-    name: Run Snyk scans
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
   publish:
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
