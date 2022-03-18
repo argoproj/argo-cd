@@ -28,7 +28,12 @@ Related Issues:
 
 ## Summary
 
-Currently, Argo CD supports Applications with only a single ApplicationSource. In certain scenarios, it would be useful to support more than one source for the application. For example, consider a need to create multiple applications with the same manifests. Today we would have to copy manifest files from one application to another.
+Currently, Argo CD supports Applications with only a single ApplicationSource. In certain scenarios, it would be useful to support more than one source for the application. For example, consider a need to create multiple deployments of the same application and manifests but manifests can come from different sources. Today we would have to copy manifest files from one application to another.
+
+For example, from [one of the comments on this proposal PR](https://github.com/argoproj/argo-cd/pull/8322/files#r799624767)
+```
+An independent support of the Helm charts and their values files. This opens a door to such highly requested scenarios like multiple deployments of the same (possibly external) Helm chart with different values files or an independent migration to a newer Helm chart version for the same applications installed in Test and Production environments.
+```
 
 Creating applications from multiple sources would allow users to configure multiple services stored at various sources within the same application.
 
@@ -57,7 +62,7 @@ The UI should allow users to add multiple sources while creating the application
 The cli would need to support adding a list of resources instead of just one while creating the application. Also, just like `--values` field for adding values files, we would need an option to allow external value files to the application. We would need a separate proposal for changes to cli.
 
 ### Non-goals
-* Allow reconciliation from Argo CD Application resources that are located at various sources. We believe this would be possible with some adaptions in the reconcilation workflow.
+* 
 
 ## Proposal
 
@@ -226,6 +231,4 @@ Downgrading would not be easily possible once users start to make use of the fea
 ## Drawbacks
 
 * Downgrade/rollback would not be easily possible
-
-## Alternatives
 
