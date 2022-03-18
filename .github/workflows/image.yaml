@@ -65,20 +65,7 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
         if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
 
-      - run: |
-          IMAGE_PLATFORMS=linux/amd64
-          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
-          then
-            IMAGE_PLATFORMS=linux/amd64,linux/arm64
-          fi
-          echo "Building image for platforms: $IMAGE_PLATFORMS"
-          docker buildx build --platform $IMAGE_PLATFORMS \
-            --cache-from "type=local,src=/tmp/.buildx-cache" \
-            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
-            -t quay.io/argoproj/argocd:latest .
-        working-directory: ./src/github.com/argoproj/argo-cd
-
-      - name: Run Snyk scans
+      - name: Run non-container Snyk scans
         if: github.event_name == 'push'
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -88,6 +75,25 @@ jobs:
           # Run with high threshold to fail build.
           snyk test --org=argoproj --all-projects --exclude=docs,site --severity-threshold=high --policy-path=.snyk
           snyk iac test manifests/install.yaml --org=argoproj --severity-threshold=high --policy-path=.snyk
+
+      - run: |
+          IMAGE_PLATFORMS=linux/amd64
+          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
+          then
+            IMAGE_PLATFORMS=linux/amd64,linux/arm64
+          fi
+          echo "Building image for platforms: $IMAGE_PLATFORMS"
+          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
+            -t quay.io/argoproj/argocd:latest .
+        working-directory: ./src/github.com/argoproj/argo-cd
+
+      - name: Run container Snyk scan
+        if: github.event_name == 'push'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
           snyk container test quay.io/argoproj/argocd:latest --org=argoproj --file=Dockerfile --severity-threshold=high
 
       - name: Push the image
