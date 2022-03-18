@@ -23,10 +23,38 @@ creation-date: 2022-03-17
 resources in Kubernetes in the server instead of the client. This proposal
 describes how ArgoCD can leverage SSA during syncs.
 
-## Open Questions [optional]
+* Open Questions
+    * [Q-1] How to handle conflicts?
+    * [Q-2] Should we support multiple managers?
+* Summary
+* Motivation
+    * Better interoperability with Admission Controllers 
+    * Better resource conflict management
+    * Better resource conflict management
+* Goals
+* Non-Goals
+* Proposal
+    * Use cases
+        * [UC-1]: enable SSA at the controller level
+        * [UC-2]: enable SSA at the Application level
+        * [UC-3]: enable SSA at the resource level
+    * Security Considerations
+    * Risks and Mitigations
+    * Upgrade / Downgrade
+* Drawbacks
 
-* Should Server-Side Apply support in ArgoCD be implemented allowing multiple
-  managers for the same controller?
+---
+
+## Open Questions
+
+### [Q-1] How to handle conflicts?
+When SSA is enabled, the server may return field conflicts with other managers.
+What ArgoCD controller should do in case of conflict? Just force the sync and
+log warnings (like some other controllers do?)
+
+### [Q-2] Should we support multiple managers?
+Should Server-Side Apply support in ArgoCD be implemented allowing multiple
+managers for the same controller? ([more details][10])
 
 ## Summary
 
@@ -96,68 +124,40 @@ Listing non-goals helps to focus discussion and make progress
 ## Proposal
 
 Change ArgoCD controller to accept new parameter to enable Server-Side Apply
-during syncs.
+during syncs. ArgoCD must register itself with a pre-defined manager
+(suggestion: `argocd-controller`).
 
 ### Use cases
 
 The following use cases should be implemented:
 
-#### [UC-1]: As a user, I would like enable SSA at the controller level so\
-all Application are applied server-side
+#### [UC-1]: As a user, I would like enable SSA at the controller level so all Application are applied server-side
 
-#### Use case 2: As a user, I would like to take an action on the
-deviation/drift. (This is an example)
+#### [UC-2]: As a user, I would like enable SSA at the Application level so all resources are applied server-side
 
-### Implementation Details/Notes/Constraints [optional] What are the caveats to
-the implementation? What are some important details that didn't come across
-above. Go in to as much detail as necessary here. This might be a good place to
-talk about core concepts and how they relate. concepts and how they relate. You
-may have a work-in-progress Pull Request to demonstrate the functioning of the
-enhancement you are proposing. You may have a work-in-progress Pull Request to
-demonstrate the functioning of the enhancement you are proposing.
+Implement a new syncOption to allow users to enable SSA at the application
+level (Suggestion `ServerSideApply=true`). UI needs to be updated to support
+this new sync option.
 
-### Detailed examples
+#### [UC-3]: As a user, I would like enable SSA at the resource level so only a single manifest is applied server-side
 
 ### Security Considerations
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the
-  enhancement more robust ?  
-    * Are there any unresolved follow-ups that need to be done to make the
-      enhancement more robust ?  
+TBD
 
 ### Risks and Mitigations
-What are the risks of this proposal and how do we mitigate. Think broadly. What
-are the risks of this proposal and how do we mitigate. Think broadly. For
-example, consider both security and how this will impact the larger Kubernetes
-ecosystem. both security and how this will impact the larger Kubernetes
-ecosystem. Consider including folks that also work outside your immediate
-sub-project. Consider including folks that also work outside your immediate
-sub-project.
+ArgoCD must check if the target Kubernetes cluster has full support for SSA. The
+feature turned [GA in Kubernetes 1.22][8]. Full support for managed fields was
+introduced as [beta in Kubernetes 1.18][9]. The implementation must check that
+the target kubernetes cluster is running at least version 1.18. If SSA is
+enabled and target cluster version < 1.18 ArgoCD should log warning and fallback
+to client sync.
 
 ### Upgrade / Downgrade
-Strategy If applicable, how will the component be upgraded and downgraded? Make
-sure this is in the test plan.
-Plan.
-Consider the following in developing an
-upgrade/downgrade strategy for this enhancement:
-Consider the following in developing an upgrade/downgrade strategy for this
-enhancement:
-- What changes (in invocations, configurations, API use, etc.) is an existing
-  cluster required to make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing
-  cluster required to make on upgrade in order to make use of the enhancement?
-  make on upgrade in order to make use of the enhancement?
+No CRD update necessary as `syncOption` field in Application resource is non-typed
+(string array). Upgrade will only require ArgoCD controller update.
 
 ## Drawbacks
-The idea is to find the best form of an argument why this enhancement should
-_not_ be implemented. The idea is to find the best form of an argument why this
-enhancement should _not_ be implemented.
-
-## Alternatives
-Similar to the `Drawbacks` section the `Alternatives` section is used to
-highlight and record other possible approaches to delivering the value proposed
-by an enhancement. possible approaches to delivering the value proposed by an
-enhancement.
+Slight increase in ArgoCD code base complexity.
 
 [1]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
 [2]: https://github.com/argoproj/argo-cd/issues/2267#issuecomment-920445236
@@ -166,3 +166,6 @@ enhancement.
 [5]: https://github.com/argoproj/argo-cd/issues/804
 [6]: https://github.com/argoproj/argo-cd/issues/2267
 [7]: https://github.com/argoproj/argo-cd/issues/2268
+[8]: https://kubernetes.io/blog/2021/08/06/server-side-apply-ga/
+[9]: https://kubernetes.io/blog/2020/04/01/kubernetes-1.18-feature-server-side-apply-beta-2/
+[10]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013641708
