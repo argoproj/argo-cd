@@ -78,27 +78,32 @@ CRDs with large schemas.
 
 - Provide the ability for users to define if they want to use SSA during syncs
   ([ISSUE-2267][6])
+  - Users should be able to enable SSA at the controller level (via binary flag)
+  - Users should be able to enable SSA for a given Application (via syncOptions)
+  - Users should be able to enable SSA at resource level (via annotation)
 - Diffing needs to support strategic merge patch ([ISSUE-2268][7])
 - Allow Admission Controllers to execute even when there is no diff for a
   particular resource. (Needs investigation)
 - ArgoCD should respect field ownership and provide a configuration to allow
   users to define the behavior in case of conflicts
+- ArgoCD should register itself with a proper manager.
 
 ## Non-Goals
+
 What is out of scope for this proposal?
 Listing non-goals helps to focus discussion and make progress
 
 ## Proposal
-This is where we get down to details of what the proposal is about.
-This is where we get down to details of what the proposal is about.
+
+Change ArgoCD controller to accept new parameter to enable Server-Side Apply
+during syncs.
 
 ### Use cases
-Add a list of detailed use cases this enhancement intends to take
-care of. Add a list of detailed use cases this enhancement intends to take care
-of.
 
-#### Use case 1: As a user, I would like to understand the drift. (This is an
-example)
+The following use cases should be implemented:
+
+#### [UC-1]: As a user, I would like enable SSA at the controller level so\
+all Application are applied server-side
 
 #### Use case 2: As a user, I would like to take an action on the
 deviation/drift. (This is an example)
@@ -128,7 +133,6 @@ ecosystem. both security and how this will impact the larger Kubernetes
 ecosystem. Consider including folks that also work outside your immediate
 sub-project. Consider including folks that also work outside your immediate
 sub-project.
-
 
 ### Upgrade / Downgrade
 Strategy If applicable, how will the component be upgraded and downgraded? Make
