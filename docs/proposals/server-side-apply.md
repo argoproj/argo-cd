@@ -23,25 +23,25 @@ creation-date: 2022-03-17
 resources in Kubernetes in the server instead of the client. This proposal
 describes how ArgoCD can leverage SSA during syncs.
 
-* Open Questions
-    * [Q-1] How to handle conflicts?
-    * [Q-2] Should we support multiple managers?
-* Summary
-* Motivation
-    * Better interoperability with Admission Controllers 
-    * Better resource conflict management
-    * Better resource conflict management
-* Goals
-* Non-Goals
-* Proposal
-    * Use cases
-        * [UC-1]: enable SSA at the controller level
-        * [UC-2]: enable SSA at the Application level
-        * [UC-3]: enable SSA at the resource level
-    * Security Considerations
-    * Risks and Mitigations
-    * Upgrade / Downgrade
-* Drawbacks
+* [Open Questions](#open-questions)
+    * [[Q-1] How to handle conflicts?](#q-1-how-to-handle-conflicts)
+    * [[Q-2] Should we support multiple managers?](#q-2-should-we-support-multiple-managers)
+* [ Summary ](#summary)
+* [Motivation](#motivation)
+    * [Better interoperability with Admission Controllers](#better-interoperability-with-admission-controllers)
+    * [Better resource conflict management](#better-resource-conflict-management)
+    * [Better CRD support](#better-crd-support)
+* [Goals](#goals)
+* [Non-Goals](#non-goals)
+* [Proposal](#proposal)
+    * [Use cases](#use-cases)
+        * [[UC-1]: enable SSA at the controller level](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side)
+        * [[UC-2]: enable SSA at the Application level](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side)
+        * [[UC-3]: enable SSA at the resource level](#uc-3-as-a-user-i-would-like-enable-ssa-at-the-resource-level-so-only-a-single-manifest-is-applied-server-side)
+    * [Security Considerations](#security-considerations)
+    * [Risks and Mitigations](#risks-and-mitigations)
+    * [Upgrade / Downgrade](#upgrade--downgrade)
+* [Drawbacks](#drawbacks)
 
 ---
 
@@ -96,11 +96,11 @@ Server-Side Apply will better handle and identify conflicts during syncs by
 analyzing the `managedFields` metadata available in all Kubernetes resources
 (since kubernetes 1.18). 
 
-### Better resource conflict management
+### Better CRD support
 
 By not having to rely on the `last-applied-configuration` annotation, SSA would
-help with failing syncs caused by exceeded annotation size limit when syncing
-CRDs with large schemas.
+help with failing syncs caused by exceeded annotation size limit. This is a
+common issue when syncing CRDs with large schemas.
 
 ## Goals
 
