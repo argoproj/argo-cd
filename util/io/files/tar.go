@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type tgz struct {
@@ -73,9 +72,8 @@ func Untgz(dstPath string, r io.Reader) error {
 		}
 
 		target := filepath.Join(dstPath, header.Name)
-
 		// Sanity check to protect against zip-slip
-		if !strings.HasPrefix(target, filepath.Clean(dstPath)+string(os.PathSeparator)) {
+		if !Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
@@ -87,16 +85,17 @@ func Untgz(dstPath string, r io.Reader) error {
 			}
 		case tar.TypeSymlink:
 			// Sanity check to protect against symlink exploit
-			var linkTarget string
-			if filepath.IsAbs(header.Linkname) {
-				linkTarget = filepath.Clean(header.Linkname)
-			} else {
-				linkTarget = filepath.Join(filepath.Dir(target), header.Linkname)
+			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			realPath, err := filepath.EvalSymlinks(linkTarget)
+			if os.IsNotExist(err) {
+				realPath = linkTarget
+			} else if err != nil {
+				return fmt.Errorf("error checking symlink realpath: %s", err)
 			}
-			if !strings.HasPrefix(linkTarget, filepath.Clean(dstPath)+string(os.PathSeparator)) {
+			if !Inbound(realPath, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
-			err := os.Symlink(linkTarget, target)
+			err = os.Symlink(realPath, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %s", err)
 			}
