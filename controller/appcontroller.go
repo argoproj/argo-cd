@@ -1214,10 +1214,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.Name, &appv1.ApplicationTree{}); err != nil {
-			log.Warn("failed to set app resource tree: %v", err)
+			log.Warnf("failed to set app resource tree: %v", err)
 		}
 		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
-			log.Warn("failed to set app managed resources tree: %v", err)
+			log.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		return
 	}

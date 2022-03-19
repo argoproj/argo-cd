@@ -141,7 +141,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 			appName = res.AppName
 		}
 		_ = action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
-	}).Return(true)
+	}).Return(nil)
 	return ctrl
 }
 
