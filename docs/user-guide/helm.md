@@ -46,7 +46,7 @@ a `values.yaml`. For example, `service.type` is a common parameter which is expo
 helm template . --set service.type=LoadBalancer
 ```
 
-Similarly, Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
+Similarly, Argo CD can override values in the `values.yaml` parameters using `argocd app set` command,
 in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
