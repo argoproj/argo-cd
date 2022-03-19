@@ -7,21 +7,33 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 )
 
-func Discover(root string) (map[string]string, error) {
+func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enableGenerateManifests map[string]bool) bool {
+	if enableGenerateManifests == nil {
+		return true
+	}
+	enabled, ok := enableGenerateManifests[string(sourceType)]
+	if !ok {
+		return true
+	}
+	return enabled
+}
+
+func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[string]bool) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(root)
+	conn, _, err := DetectConfigManagementPlugin(ctx, repoPath)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -30,25 +42,22 @@ func Discover(root string) (map[string]string, error) {
 		return apps, nil
 	}
 
-	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return nil
 		}
-		dir, err := filepath.Rel(root, filepath.Dir(path))
+		dir, err := filepath.Rel(repoPath, filepath.Dir(path))
 		if err != nil {
 			return err
 		}
 		base := filepath.Base(path)
-		if base == "params.libsonnet" && strings.HasSuffix(dir, "components") {
-			apps[filepath.Dir(dir)] = string(v1alpha1.ApplicationSourceTypeKsonnet)
-		}
-		if strings.HasSuffix(base, "Chart.yaml") {
+		if strings.HasSuffix(base, "Chart.yaml") && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeHelm, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeHelm)
 		}
-		if kustomize.IsKustomization(base) {
+		if kustomize.IsKustomization(base) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKustomize, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeKustomize)
 		}
 		return nil
@@ -56,8 +65,8 @@ func Discover(root string) (map[string]string, error) {
 	return apps, err
 }
 
-func AppType(path string) (string, error) {
-	apps, err := Discover(path)
+func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool) (string, error) {
+	apps, err := Discover(ctx, path, enableGenerateManifests)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +82,7 @@ func AppType(path string) (string, error) {
 // 3. check isSupported(path)?
 // 4.a if no then close connection
 // 4.b if yes then return conn for detected plugin
-func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+func DetectConfigManagementPlugin(ctx context.Context, repoPath string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	var conn io.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
@@ -89,7 +98,7 @@ func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
 			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
-			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, 5)
+			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
 			if err != nil {
@@ -97,13 +106,13 @@ func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 				continue
 			}
 
-			resp, err := cmpClient.MatchRepository(context.Background(), &pluginclient.RepositoryRequest{Path: appPath})
+			isSupported, err := matchRepositoryCMP(ctx, repoPath, cmpClient)
 			if err != nil {
-				log.Errorf("repository %s is not the match because %v", appPath, err)
+				log.Errorf("repository %s is not the match because %v", repoPath, err)
 				continue
 			}
 
-			if !resp.IsSupported {
+			if !isSupported {
 				log.Debugf("Reponse from socket file %s is not supported", file.Name())
 				io.Close(conn)
 			} else {
@@ -114,7 +123,27 @@ func DetectConfigManagementPlugin(appPath string) (io.Closer, pluginclient.Confi
 	}
 
 	if !connFound {
-		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", appPath)
+		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", repoPath)
 	}
 	return conn, cmpClient, err
+}
+
+// matchRepositoryCMP will send the repoPath to the cmp-server. The cmp-server will
+// inspect the files and return true if the repo is supported for manifest generation.
+// Will return false otherwise.
+func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclient.ConfigManagementPluginServiceClient) (bool, error) {
+	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
+	if err != nil {
+		return false, fmt.Errorf("error getting stream client: %s", err)
+	}
+
+	err = cmp.SendRepoStream(ctx, repoPath, repoPath, matchRepoStream, []string{})
+	if err != nil {
+		return false, fmt.Errorf("error sending stream: %s", err)
+	}
+	resp, err := matchRepoStream.CloseAndRecv()
+	if err != nil {
+		return false, fmt.Errorf("error receiving stream response: %s", err)
+	}
+	return resp.GetIsSupported(), nil
 }

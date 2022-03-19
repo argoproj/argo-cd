@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +18,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/hash"
@@ -138,12 +138,16 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	return nil
 }
 
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
+	trackingKey := appLabelKey
+	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
+		trackingKey = trackingMethod + ":" + trackingKey
+	}
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res)
 
 	if err != nil {
 		return err
@@ -158,7 +162,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
 		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
-		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, appLabelKey, appName)
+		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
@@ -173,7 +177,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
@@ -185,11 +189,11 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, c
 		res.CacheEntryHash = hash
 	}
 
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string) error {
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string) error {
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, trackingMethod appv1.TrackingMethod) string {

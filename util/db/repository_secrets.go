@@ -83,7 +83,7 @@ func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL st
 		return nil, err
 	}
 
-	repository, err := s.secretToRepository(secret)
+	repository, err := secretToRepository(secret)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (s *secretsRepositoryBackend) ListRepositories(ctx context.Context, repoTyp
 	}
 
 	for _, secret := range secrets {
-		r, err := s.secretToRepository(secret)
+		r, err := secretToRepository(secret)
 		if err != nil {
 			if r != nil {
 				modifiedTime := metav1.Now()
@@ -291,7 +291,7 @@ func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*
 	return helmRepoCreds, nil
 }
 
-func (s *secretsRepositoryBackend) secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
+func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	repository := &appsv1.Repository{
 		Name:                       string(secret.Data["name"]),
 		Repo:                       string(secret.Data["url"]),

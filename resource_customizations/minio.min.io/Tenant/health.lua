@@ -21,6 +21,11 @@ if obj.status ~= nil then
             health_status.message = obj.status.currentState
             return health_status
         end
+        if obj.status.currentState == "Restarting MinIO" then
+            health_status.status = "Progressing"
+            health_status.message = obj.status.currentState
+            return health_status
+        end
         if obj.status.currentState == "Statefulset not controlled by operator" then
             health_status.status = "Degraded"
             health_status.message = obj.status.currentState

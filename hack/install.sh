@@ -9,6 +9,7 @@ mkdir -p $DOWNLOADS
 ARCHITECTURE=""
 case $(uname -m) in
     x86_64)                     ARCHITECTURE="amd64" ;;
+    arm64)                      ARCHITECTURE="arm64" ;;
     arm|armv7l|armv8l|aarch64)  dpkg --print-architecture | grep -q "arm64" && ARCHITECTURE="arm64" || ARCHITECTURE="arm" ;;
 esac
 

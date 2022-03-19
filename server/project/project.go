@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -109,10 +109,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	claims := jwt.StandardClaims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.RegisteredClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

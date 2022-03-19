@@ -92,11 +92,13 @@ func NewCommand() *cobra.Command {
 			appclientsetConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+			vers := common.GetVersion()
+			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
-			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
+			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
@@ -131,7 +133,7 @@ func NewCommand() *cobra.Command {
 				BaseHRef:            baseHRef,
 				RootPath:            rootPath,
 				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
+				AppClientset:        appClientSet,
 				RepoClientset:       repoclientset,
 				DexServerAddr:       dexServerAddress,
 				DisableAuth:         disableAuth,

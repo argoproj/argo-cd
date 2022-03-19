@@ -13,7 +13,7 @@ E.g. via the CLI:
 
 ```bash
 argocd app create APPNAME \
-  --jsonnet-ext-str 'app=${ARGOCD_APP_NAME}' \
+  --jsonnet-ext-var-str 'app=${ARGOCD_APP_NAME}' \
   --jsonnet-tla-str 'ns=${ARGOCD_APP_NAMESPACE}' \
   --jsonnet-libs 'vendor'
 ```

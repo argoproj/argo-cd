@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -159,6 +159,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
+	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
@@ -196,11 +197,14 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
+// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
+var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
 func normalizeLabels(prefix string, appLabels []string) []string {
 	results := []string{}
 	for _, label := range appLabels {
 		//prometheus labels don't accept dash in their name
-		curr := strings.ReplaceAll(label, "-", "_")
+		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
 		result := fmt.Sprintf("%s_%s", prefix, curr)
 		results = append(results, result)
 	}

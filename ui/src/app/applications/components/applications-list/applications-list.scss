@@ -167,12 +167,15 @@
         position: absolute;
         top: 1em;
         right: 1em;
+
+        .large-text-height {
+            line-height: 1.5;
+        }
     }
 
     &__external-links-icon-container {
         position: relative;
         display: inline-block;
-        width: 28px;
     }
 
     .filters-group__panel {
@@ -195,4 +198,7 @@
     .chart {
         justify-content: space-evenly;
     }
+}
+i.menu_icon {
+    vertical-align: middle;
 }

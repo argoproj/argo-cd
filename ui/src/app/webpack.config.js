@@ -27,20 +27,27 @@ const config = {
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: {react: require.resolve('react')}
+        alias: { react: require.resolve('react') }
     },
 
     module: {
-        rules: [
-            {
+        rules: [{
                 test: /\.tsx?$/,
-                loaders: [...(isProd ? [] : ['react-hot-loader/webpack']), `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`]
+                loaders: `esbuild-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
+                options: {
+                    loader: 'tsx',
+                    target: 'es2015'
+                }
             },
             {
                 enforce: 'pre',
                 exclude: [/node_modules\/react-paginate/, /node_modules\/monaco-editor/],
                 test: /\.js$/,
-                loaders: [...(isProd ? ['babel-loader'] : []), 'source-map-loader']
+                loaders: 'esbuild-loader',
+                options: {
+                    loader: 'jsx',
+                    target: 'es2015'
+                }
             },
             {
                 test: /\.scss$/,
@@ -59,14 +66,14 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
+            'process.env.HOST_ARCH': JSON.stringify(process.env.HOST_ARCH || 'amd64'),
             'SYSTEM_INFO': JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest'
             })
         }),
-        new HtmlWebpackPlugin({template: 'src/app/index.html'}),
+        new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
         new CopyWebpackPlugin({
-            patterns: [
-                {
+            patterns: [{
                     from: 'src/assets',
                     to: 'assets'
                 },
@@ -81,6 +88,10 @@ const config = {
                 {
                     from: 'node_modules/redoc/bundles/redoc.standalone.js',
                     to: 'assets/scripts/redoc.standalone.js'
+                },
+                {
+                    from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
+                    to: 'assets/fonts'
                 }
             ]
         }),

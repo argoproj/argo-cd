@@ -17,7 +17,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -47,7 +47,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla").
 		When().
-		Create("--jsonnet-tla-str", "name=testing-tla", "--jsonnet-tla-code", "replicas=0").
+		CreateApp("--jsonnet-tla-str", "name=testing-tla", "--jsonnet-tla-code", "replicas=0").
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -77,7 +77,7 @@ func TestJsonnetTlaEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-tla-cm").
 		When().
-		Create("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-tla-code", "bar='$ARGOCD_APP_NAME'").
+		CreateApp("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-tla-code", "bar='$ARGOCD_APP_NAME'").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -91,7 +91,7 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-ext-var").
 		When().
-		Create("--jsonnet-ext-var-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-ext-var-code", "bar='$ARGOCD_APP_NAME'").
+		CreateApp("--jsonnet-ext-var-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-ext-var-code", "bar='$ARGOCD_APP_NAME'").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -107,7 +107,7 @@ func TestJsonnetNestedDirWithImports(t *testing.T) {
 	Given(t).
 		Path("jsonnet-nested-dir-with-imports/apps").
 		When().
-		Create("--directory-recurse").
+		CreateApp("--directory-recurse").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

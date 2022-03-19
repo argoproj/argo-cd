@@ -3,8 +3,6 @@ package admin
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/test"
-
 	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -21,8 +19,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -90,7 +89,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	clusterCache := clustermocks.ClusterCache{}
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	repoServerClient := mocks.RepoServerServiceClient{}
-	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{
+	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&argocdclient.ManifestResponse{
 		Manifests: []string{test.DeploymentManifest},
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}

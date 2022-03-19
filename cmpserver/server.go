@@ -1,6 +1,7 @@
 package cmpserver
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -72,7 +73,8 @@ func (a *ArgoCDCMPServer) Run() {
 	signal.Notify(a.stopCh, syscall.SIGINT, syscall.SIGTERM)
 	go a.Shutdown(config.Address())
 
-	grpcServer := a.CreateGRPC()
+	grpcServer, err := a.CreateGRPC()
+	errors.CheckError(err)
 	err = grpcServer.Serve(listener)
 	errors.CheckError(err)
 
@@ -82,12 +84,16 @@ func (a *ArgoCDCMPServer) Run() {
 }
 
 // CreateGRPC creates new configured grpc server
-func (a *ArgoCDCMPServer) CreateGRPC() *grpc.Server {
+func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
 	pluginService := plugin.NewService(a.initConstants)
+	err := pluginService.Init()
+	if err != nil {
+		return nil, fmt.Errorf("error initializing plugin service: %s", err)
+	}
 	apiclient.RegisterConfigManagementPluginServiceServer(server, pluginService)
 
 	healthService := health.NewServer()
@@ -96,7 +102,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() *grpc.Server {
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
 
-	return server
+	return server, nil
 }
 
 func (a *ArgoCDCMPServer) Shutdown(address string) {
