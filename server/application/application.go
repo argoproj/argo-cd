@@ -764,18 +764,6 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 		return appGetErr
 	}
 
-	var config *rest.Config
-	config, err := s.getApplicationClusterConfig(context.Background(), a)
-	if err != nil {
-		return err
-	}
-	kubeClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	eventFactory := informers.NewSharedInformerFactory(kubeClientset, 0)
-	eventInformer := eventFactory.Core().V1().Events().Informer()
-
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(event v1.Event, eventType watch.EventType) {
@@ -793,9 +781,21 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 		}
 	}
 
-	appEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
-	appUnsubscribe := s.appEventBroadcaster.Subscribe(appEvents)
-	defer appUnsubscribe()
+	//appEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
+	//appUnsubscribe := s.appEventBroadcaster.Subscribe(appEvents)
+	//defer appUnsubscribe()
+
+	var config *rest.Config
+	config, err := s.getApplicationClusterConfig(context.Background(), a)
+	if err != nil {
+		return err
+	}
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	eventFactory := informers.NewSharedInformerFactory(kubeClientset, 0)
+	eventInformer := eventFactory.Core().V1().Events().Informer()
 
 	resourceEventBroadcaster := &eventBroadcasterHandler{}
 	eventInformer.AddEventHandler(resourceEventBroadcaster)
@@ -805,8 +805,8 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 
 	for {
 		select {
-		case event := <-appEvents:
-			sendIfPermitted(event.Event, event.Type)
+		//case event := <-appEvents:
+		//	sendIfPermitted(event.Event, event.Type)
 		case event := <-resourceEvents:
 			sendIfPermitted(event.Event, event.Type)
 		case <-ws.Context().Done():
