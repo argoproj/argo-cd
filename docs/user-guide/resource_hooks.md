@@ -69,14 +69,18 @@ The following policies define when the hook will be deleted.
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. This is the default deletion policy. |
 
-As an alternative to hook deletion policies, both Jobs and Argo Workflows support the
-[`ttlSecondsAfterFinished`](https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/)
-field in the spec, which let their respective controllers delete the Job/Workflow after it completes.
+### Sync Status with Jobs/Workflows with Time to Live (ttl)
 
-```yaml
-spec:
-  ttlSecondsAfterFinished: 600
-```
+Jobs support the [`ttlSecondsAfterFinished`](https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/)
+field in the spec, which let their respective controllers delete the Job after it completes. Argo Workflows support a 
+[`ttlStrategy`](https://argoproj.github.io/argo-workflows/fields/#ttlstrategy) property that also allow a Workflow to be 
+cleaned up depending on the ttl strategy chosen.
+
+Using either of the properties above can lead to Applications being OutOfSync. This is because Argo CD will detect a difference 
+between the Job or Workflow defined in the git repository and what's on the cluster since the ttl properties cause deletion of the resource after completion.
+
+However, using deletion hooks instead of the ttl approaches mentioned above will prevent Applications from having a status of 
+OutOfSync even though the Job or Workflow was deleted after completion.
 
 ## Using A Hook To Send A Slack Message
 
