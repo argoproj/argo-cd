@@ -66,6 +66,7 @@ jobs:
 
       - name: Run non-container Snyk scans
         if: github.event_name == 'push'
+        working-directory: ./src/github.com/argoproj/argo-cd
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
@@ -90,6 +91,7 @@ jobs:
 
       - name: Run container Snyk scan
         if: github.event_name == 'push'
+        working-directory: ./src/github.com/argoproj/argo-cd
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
