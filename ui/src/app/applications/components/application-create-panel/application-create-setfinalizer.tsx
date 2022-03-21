@@ -6,9 +6,9 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
     const {
         fieldApi: {getValue, setValue}
     } = props;
-    const finalizerval = 'resources-finalizer.argocd.argoproj.io';
-    const setval = getValue() || [];
-    const index = setval.findIndex((item: string) => item === finalizerval);
+    const finalizerVal = 'resources-finalizer.argocd.argoproj.io';
+    const currentValue = getValue() || [];
+    const index = currentValue.findIndex((item: string) => item === finalizerVal);
     const isChecked = index < 0 ? false : true;
     return (
         <div className='small-12 large-6' style={{borderBottom: '0'}}>
@@ -17,19 +17,18 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
                     id='set-finalizer'
                     checked={isChecked}
                     onChange={(state: boolean) => {
+                        const value = getValue() || [];
                         if (!state) {
-                            const v = getValue() || [];
-                            const index2 = v.findIndex((item: string) => item === finalizerval);
-                            if (index2 >= 0) {
-                                const u = v.slice();
-                                u.splice(index2, 1);
-                                setValue(u);
+                            const i = value.findIndex((item: string) => item === finalizerVal);
+                            if (i >= 0) {
+                                const tmp = value.slice();
+                                tmp.splice(i, 1);
+                                setValue(tmp);
                             }
                         } else {
-                            const v = getValue() || [];
-                            const c = v.slice();
-                            c.push(finalizerval);
-                            setValue(c);
+                            const tmp = value.slice();
+                            tmp.push(finalizerVal);
+                            setValue(tmp);
                         }
                     }}
                 />
