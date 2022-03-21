@@ -1127,8 +1127,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations: null
   labels:
-    annotations: null
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
     app.kubernetes.io/part-of: argocd

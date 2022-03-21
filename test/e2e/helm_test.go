@@ -202,7 +202,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.Source.Helm.Values)
+			assert.Equal(t, string(data), app.Spec.Source.Helm.Values.Values)
 		}).
 		When().
 		AppUnSet("--values-literal").

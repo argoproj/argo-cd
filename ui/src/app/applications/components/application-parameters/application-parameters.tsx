@@ -10,7 +10,6 @@ import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import * as jsYaml from 'js-yaml';
-import { helpTip } from '../utils';
 
 let isValuesRaw = false;
 
@@ -119,9 +118,10 @@ export const ApplicationParameters = (props: {
     const app = props.application;
     const source = props.application.spec.source;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
+    /* tslint:disable:prettier*/
     let appValues : string;
     if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-        isValuesRaw = typeof(app.spec.source.helm.values) !== "string"
+        isValuesRaw = typeof(app.spec.source.helm.values) !== 'string'; // nolint
         appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
         app.spec.source.helm.values = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
     }
@@ -211,9 +211,9 @@ export const ApplicationParameters = (props: {
             ),
             edit: (formApi: FormApi) => {
                 if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-                    if (isValuesRaw && typeof(app.spec.source.helm.values) !== "string") {
+                    if (isValuesRaw && typeof(app.spec.source.helm.values) !== 'string') {
                         app.spec.source.helm.values   =  jsYaml.safeDump(app.spec.source.helm.values); // set values to string
-                    } else if (isValuesRaw && typeof(app.spec.source.helm.values) === "string") {
+                    } else if (isValuesRaw && typeof(app.spec.source.helm.values) === 'string') {
                         app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values); // load values as json
                     }
                 }
@@ -324,7 +324,7 @@ export const ApplicationParameters = (props: {
         });
     }
     if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-        if (isValuesRaw && typeof(app.spec.source.helm.values) === "string" ) {
+        if (isValuesRaw && typeof(app.spec.source.helm.values) === 'string' ) {
             app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values) // Load values as json
         }
     }
@@ -348,9 +348,9 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-                        if (isValuesRaw && typeof(input.spec.source.helm.values) === "string") {
-                            input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values) // Load values as json
-                            app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values)
+                        if (isValuesRaw && typeof(input.spec.source.helm.values) === 'string') {
+                            input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
+                            app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values);
                         }
                     }
 
