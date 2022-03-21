@@ -313,6 +313,11 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	return a
 }
 
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
+	return a
+}
+
 func (a *Actions) And(block func()) *Actions {
 	a.context.t.Helper()
 	block()
