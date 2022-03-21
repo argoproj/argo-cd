@@ -121,7 +121,7 @@ export const ApplicationParameters = (props: {
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
     let appValues : string;
     if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-        isValuesRaw = typeof(app.spec.source.helm.values) === "string" ? false : true
+        isValuesRaw = typeof(app.spec.source.helm.values) !== "string"
         appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
         app.spec.source.helm.values = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
     }
@@ -211,7 +211,7 @@ export const ApplicationParameters = (props: {
             ),
             edit: (formApi: FormApi) => {
                 if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
-                    if (isValuesRaw && typeof(app.spec.source.helm.values)!= "string") {
+                    if (isValuesRaw && typeof(app.spec.source.helm.values) !== "string") {
                         app.spec.source.helm.values   =  jsYaml.safeDump(app.spec.source.helm.values); // set values to string
                     } else if (isValuesRaw && typeof(app.spec.source.helm.values) === "string") {
                         app.spec.source.helm.values   =  jsYaml.safeLoad(app.spec.source.helm.values); // load values as json

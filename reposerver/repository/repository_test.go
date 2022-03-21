@@ -870,7 +870,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:    argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`} ,
+					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
 				},
 			},
 		})
