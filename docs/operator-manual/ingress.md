@@ -74,6 +74,18 @@ The Contour ingress controller can terminate TLS ingress traffic at the edge.
 
 The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
 
+This can also be done by creating and applying a no-tls.yaml file with 
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        command: 
+          - argocd-server
+          - --insecure
+```
+
 It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-internal` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
 
 This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
