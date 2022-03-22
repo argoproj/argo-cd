@@ -509,10 +509,6 @@ serve-docs-local:
 serve-docs:
 	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
 
-.PHONY: lint-docs
-lint-docs:
-	#  https://github.com/dkhamsing/awesome_bot
-	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --allow-timeout --allow-ssl --allow 502,500,429,400 --white-list `cat docs/url-allow-list | grep -v "#" | tr "\n" ','` --skip-save-results --
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
