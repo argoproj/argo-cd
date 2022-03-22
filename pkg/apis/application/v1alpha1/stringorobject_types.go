@@ -41,7 +41,7 @@ func (o StringOrObject) MarshalJSON() ([]byte, error) {
 		if o.Values != "" {
 			return json.Marshal(o.Values)
 		}
-		return []byte(""), nil
+		return []byte("null"), nil
 	}
 	return o.Raw.MarshalJSON()
 }
