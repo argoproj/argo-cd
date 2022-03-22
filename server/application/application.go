@@ -488,6 +488,21 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
+		tree, err := s.getAppResources(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+			if n.ResourceRef.UID == q.ResourceUID && n.ResourceRef.Name == q.ResourceName && n.ResourceRef.Namespace == q.ResourceNamespace {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.ResourceName, *q.Name)
+		}
+
 		namespace = q.ResourceNamespace
 		var config *rest.Config
 		config, err = s.getApplicationClusterConfig(ctx, a)
@@ -937,7 +952,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 	return &tree, err
 }
 
-func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
+func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appLister.Get(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -952,7 +967,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	}
 
 	found := tree.FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
-	if found == nil {
+	if found == nil || found.ResourceRef.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
@@ -963,7 +978,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1023,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1048,7 +1063,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1319,7 +1334,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
@@ -1609,7 +1624,7 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1660,7 +1675,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Group:        q.Group,
 	}
 	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
-	res, config, a, err := s.getAppResource(ctx, actionRequest, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
