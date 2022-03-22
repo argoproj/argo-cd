@@ -887,7 +887,7 @@ func TestPermissions(t *testing.T) {
 		When().
 		IgnoreErrors().
 		// ensure app is not created if project permissions are missing
-		CreateApp().
+		Create().
 		Then().
 		Expect(Error("", sourceError)).
 		Expect(Error("", destinationError)).
@@ -898,7 +898,7 @@ func TestPermissions(t *testing.T) {
 			projActions.AddDestination("*", "*")
 			projActions.AddSource("*")
 		}).
-		CreateApp().
+		Create().
 		Sync().
 		Then().
 		// make sure application resource actiions are successful
