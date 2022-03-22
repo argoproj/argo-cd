@@ -13,6 +13,7 @@ approvers:
 - rbreeze
 - leoluz
 - crenshaw-dev
+- pasha-codefresh
 
 reviewers:
 - dthomson25
@@ -24,6 +25,5 @@ reviewers:
 - hblixt
 - chetan-rns
 - wanghong230
-- pasha-codefresh
 - ciiay
 - saumeya

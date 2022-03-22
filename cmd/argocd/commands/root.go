@@ -37,6 +37,7 @@ func NewCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 		DisableAutoGenTag: true,
+		SilenceUsage:      true,
 	}
 
 	command.AddCommand(NewCompletionCommand())
