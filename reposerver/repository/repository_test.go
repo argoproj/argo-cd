@@ -666,6 +666,41 @@ func TestGenerateHelmWithValues(t *testing.T) {
 
 }
 
+func TestGenerateHelmWithRawValues(t *testing.T) {
+	service := newService("../..")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: "./util/helm/testdata/redis",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				Values:     argoappv1.StringOrObject{Raw: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)}},
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(2), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+
+}
+
 func TestHelmWithMissingValueFiles(t *testing.T) {
 	service := newService("../..")
 	missingValuesFile := "values-prod-overrides.yaml"
