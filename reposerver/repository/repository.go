@@ -963,8 +963,8 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	}
 
 	res := apiclient.ManifestResponse{
-		Manifests:     resManifests,
-		SourceType:    string(appSourceType),
+		Manifests:  resManifests,
+		SourceType: string(appSourceType),
 	}
 
 	if gitClient != nil {
