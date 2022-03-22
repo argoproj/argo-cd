@@ -8,7 +8,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.6.0
+	github.com/argoproj/gitops-engine v0.6.1-0.20220316000647-723667dff7d5
 	github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/bombsimon/logrusr/v2 v2.0.1

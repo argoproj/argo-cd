@@ -130,8 +130,8 @@ github.com/antonmedv/expr v1.8.9/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj/gitops-engine v0.6.0 h1:Tnh6kUUVuBV0m3gueYIymAeErWl9XNN9O9JcOoNM0vU=
-github.com/argoproj/gitops-engine v0.6.0/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
+github.com/argoproj/gitops-engine v0.6.1-0.20220316000647-723667dff7d5 h1:QZvSvXHKx/hKTvbw3EK+u9JDVlo6UvC4+IVqNIGbcUo=
+github.com/argoproj/gitops-engine v0.6.1-0.20220316000647-723667dff7d5/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998 h1:V9RDg+IZeebnm3XjkfkbN07VM21Fu1Cy/RJNoHO++VM=
 github.com/argoproj/notifications-engine v0.3.1-0.20220127183449-91deed20b998/go.mod h1:5mKv7zEgI3NO0L+fsuRSwBSY9EIXSuyIsDND8O8TTIw=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=

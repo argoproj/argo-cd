@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -421,8 +422,12 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
+				if !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
+					return false
+				}
 				nodes = append(nodes, child)
+				return true
 			})
 			if err != nil {
 				return nil, err
@@ -432,16 +437,18 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
 				belongToAnotherApp := false
 				if appName != "" {
 					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
 						belongToAnotherApp = true
 					}
 				}
-				if !belongToAnotherApp {
-					orphanedNodes = append(orphanedNodes, child)
+				if belongToAnotherApp || !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
+					return false
 				}
+				orphanedNodes = append(orphanedNodes, child)
+				return true
 			})
 			if err != nil {
 				return nil, err
@@ -1291,6 +1298,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
+
+		if err := ctrl.cache.SetAppResourcesTree(app.Name, &appv1.ApplicationTree{}); err != nil {
+			log.Warnf("failed to set app resource tree: %v", err)
+		}
+		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+			log.Warnf("failed to set app managed resources tree: %v", err)
+		}
 		return
 	}
 
