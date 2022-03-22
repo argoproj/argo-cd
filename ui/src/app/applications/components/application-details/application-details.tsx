@@ -212,7 +212,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     )
                                 );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
-                            const zoomNum = ((pref.zoom || 1.0) * 100).toFixed(0);
+                            const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
                                 let targetZoom: number = pref.zoom + s;
                                 if (targetZoom <= 0.05) {
@@ -321,7 +321,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                        zoom={pref.zoom || 1.0}
+                                                        zoom={pref.zoom}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
                                                     />

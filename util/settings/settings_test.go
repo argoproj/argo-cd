@@ -193,6 +193,22 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
+func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, false, serverRBACLogEnforceEnable)
+}
+
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, true, serverRBACLogEnforceEnable)
+}
+
 func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},

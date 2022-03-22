@@ -7,7 +7,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/account";
 
 package account;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 message UpdatePasswordRequest {

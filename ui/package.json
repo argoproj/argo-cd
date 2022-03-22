@@ -88,7 +88,7 @@
     "jest-junit": "^6.4.0",
     "jest-transform-css": "^2.0.0",
     "monaco-editor-webpack-plugin": "^6.0.0",
-    "node-sass": "^6.0.1",
+    "node-sass": "^7.0.1",
     "postcss": "^8.2.13",
     "prettier": "1.19",
     "raw-loader": "^0.5.1",
