@@ -35,6 +35,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -820,7 +821,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	require.NoError(t, err)
 
 	logs, err := cdClient.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
-		Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Name: &appName, Namespace: DeploymentNamespace(),
+		Group: pointer.StringPtr("apps"), Kind: pointer.StringPtr("Deployment"), Name: &appName, Namespace: DeploymentNamespace(),
 	})
 	require.NoError(t, err)
 	_, err = logs.Recv()
@@ -865,7 +866,7 @@ func TestPermissions(t *testing.T) {
 		When().
 		IgnoreErrors().
 		// ensure app is not created if project permissions are missing
-		CreateApp().
+		Create().
 		Then().
 		Expect(Error("", sourceError)).
 		Expect(Error("", destinationError)).
@@ -876,7 +877,7 @@ func TestPermissions(t *testing.T) {
 			projActions.AddDestination("*", "*")
 			projActions.AddSource("*")
 		}).
-		CreateApp().
+		Create().
 		Sync().
 		Then().
 		// make sure application resource actiions are successful
