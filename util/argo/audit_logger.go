@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appset "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type AuditLogger struct {
@@ -128,6 +129,16 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 		UID:             proj.ObjectMeta.UID,
 	}
 	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
+}
+
+func (l *AuditLogger) LogAppSetEvent(appset *appset.ApplicationSet, info EventInfo, message string) {
+	objectMeta := ObjectRef{
+		Name:            appset.ObjectMeta.Name,
+		Namespace:       appset.ObjectMeta.Namespace,
+		ResourceVersion: appset.ObjectMeta.ResourceVersion,
+		UID:             appset.ObjectMeta.UID,
+	}
+	l.logEvent(objectMeta, appset.GroupVersionKind(), info, message, nil)
 }
 
 func NewAuditLogger(ns string, kIf kubernetes.Interface, component string) *AuditLogger {

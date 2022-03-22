@@ -21,12 +21,15 @@ var (
 		application.ApplicationFullName: "manifests/crds/application-crd.yaml",
 		application.AppProjectFullName:  "manifests/crds/appproject-crd.yaml",
 	}
+	kindToAppsetCRDPath = map[string]string{
+		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+	}
 )
 
-func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
+func getCustomResourceDefinitions(path string) map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
-		"paths=./pkg/apis/application/...",
+		"paths="+path,
 		"crd:trivialVersions=true",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
@@ -38,6 +41,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/webhook")
 	deleteFile("config/argoproj.io_applications.yaml")
 	deleteFile("config/argoproj.io_appprojects.yaml")
+	deleteFile("config/argoproj.io_applicationsets.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
@@ -99,9 +103,35 @@ func checkErr(err error) {
 }
 
 func main() {
-	crds := getCustomResourceDefinitions()
+	crdsapp := getCustomResourceDefinitions("./pkg/apis/application/...")
 	for kind, path := range kindToCRDPath {
-		crd := crds[kind]
+		crd := crdsapp[kind]
+		if crd == nil {
+			panic(fmt.Sprintf("CRD of kind %s was not generated", kind))
+		}
+
+		jsonBytes, err := json.Marshal(crd)
+		checkErr(err)
+
+		var r unstructured.Unstructured
+		err = json.Unmarshal(jsonBytes, &r.Object)
+		checkErr(err)
+
+		// clean up crd yaml before marshalling
+		unstructured.RemoveNestedField(r.Object, "status")
+		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
+		jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
+		checkErr(err)
+
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		checkErr(err)
+
+		err = ioutil.WriteFile(path, yamlBytes, 0644)
+		checkErr(err)
+	}
+	crdsappset := getCustomResourceDefinitions("./pkg/apis/applicationset/...")
+	for kind, path := range kindToAppsetCRDPath {
+		crd := crdsappset[kind]
 		if crd == nil {
 			panic(fmt.Sprintf("CRD of kind %s was not generated", kind))
 		}

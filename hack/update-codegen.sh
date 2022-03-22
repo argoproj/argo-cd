@@ -37,3 +37,10 @@ bash -x ${TARGET_SCRIPT} "deepcopy,client,informer,lister" \
   "application:v1alpha1" \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt
 [ -e ./v2 ] && rm -rf v2
+
+[ -e ./v2 ] || ln -s . v2
+bash -x ${TARGET_SCRIPT} "deepcopy" \
+  github.com/argoproj/argo-cd/v2/pkg/client github.com/argoproj/argo-cd/v2/pkg/apis \
+  "applicationset:v1alpha1" \
+  --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt
+[ -e ./v2 ] && rm -rf v2
