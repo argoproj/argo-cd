@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -203,7 +202,6 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
-	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
@@ -220,9 +218,9 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 			},
 		},
 		Namespace:     "",
-		CommitDate:    &commitDate,
-		CommitMessage: "test",
-		CommitAuthor:  "author",
+		CommitDate:    nil,
+		CommitMessage: "",
+		CommitAuthor:  "",
 		Server:        "",
 		Revision:      "1.1.0",
 		SourceType:    "Helm",
@@ -277,7 +275,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
 					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
-					Libs:    []string{"./vendor"},
+					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},
@@ -740,7 +738,6 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 // This is a Helm first-class app with a values file inside the repo directory
 // (`~/go/src/github.com/argoproj/argo-cd/reposerver/repository`), so it is allowed
 func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
-	commitDate := metav1.NewTime(time.Time{})
 	service := newService(".")
 	source := &argoappv1.ApplicationSource{
 		Chart:          "my-chart",
@@ -765,9 +762,9 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:        "",
 		Revision:      "1.1.0",
 		SourceType:    "Helm",
-		CommitDate:    &commitDate,
-		CommitMessage: "test",
-		CommitAuthor:  "author",
+		CommitDate:    nil,
+		CommitMessage: "",
+		CommitAuthor:  "",
 	}, response)
 }
 

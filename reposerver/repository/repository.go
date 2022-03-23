@@ -328,8 +328,12 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // Returns a ManifestResponse, or an error, but not both
 func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var manifestGenResult *apiclient.ManifestResponse
+	var err error
+	var gitClient git.Client
 
-	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	if q.Repo.Type == "git" {
+		gitClient, _, err = s.newClientResolveRevision(q.Repo, q.Revision)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -959,11 +963,14 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	}
 
 	res := apiclient.ManifestResponse{
-		Manifests:     resManifests,
-		SourceType:    string(appSourceType),
-		CommitMessage: commitMessage,
-		CommitAuthor:  commitAuthor,
-		CommitDate:    &metav1.Time{Time: commitDate},
+		Manifests:  resManifests,
+		SourceType: string(appSourceType),
+	}
+
+	if gitClient != nil {
+		res.CommitMessage = commitMessage
+		res.CommitAuthor = commitAuthor
+		res.CommitDate = &metav1.Time{Time: commitDate}
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace
@@ -1378,7 +1385,8 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	// Jsonnet Imports relative to the repository path
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
-		jpath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, p, nil)
+		// the jsonnet library path is relative to the repository root, not application path
+		jpath, _, err := pathutil.ResolveFilePath(repoRoot, repoRoot, p, nil)
 		if err != nil {
 			return nil, err
 		}
