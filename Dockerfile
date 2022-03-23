@@ -111,7 +111,8 @@ RUN go mod download
 # Perform the build
 COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
-ARG TARGETOS TARGETARCH
+ARG TARGETOS
+ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
 
 ####################################################################################################
