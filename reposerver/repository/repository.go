@@ -1385,7 +1385,8 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	// Jsonnet Imports relative to the repository path
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
-		jpath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, p, nil)
+		// the jsonnet library path is relative to the repository root, not application path
+		jpath, _, err := pathutil.ResolveFilePath(repoRoot, repoRoot, p, nil)
 		if err != nil {
 			return nil, err
 		}
