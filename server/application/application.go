@@ -1151,6 +1151,7 @@ func getResourceEventPayload(
 		SyncStatus:      string(rs.Status),
 		SyncStartedAt:   syncStarted,
 		SyncFinishedAt:  syncFinished,
+		Cluster:         a.Spec.Destination.Server,
 	}
 
 	if rs.Health != nil {
