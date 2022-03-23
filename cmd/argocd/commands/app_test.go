@@ -192,6 +192,63 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 
 }
 
+func TestFilterResources(t *testing.T) {
+
+	t.Run("Filter by ns", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by kind", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by name", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+}
+
 func TestFormatSyncPolicy(t *testing.T) {
 
 	t.Run("Policy not defined", func(t *testing.T) {
