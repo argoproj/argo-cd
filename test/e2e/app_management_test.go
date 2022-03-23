@@ -1081,13 +1081,13 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment"})
 	assertError(err, expectedError)
 
-	_, err = cdClient.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
-		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment",
+	_, err = cdClient.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment", Action: "restart",
 	})
 	assertError(err, expectedError)
 
-	_, err = cdClient.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
-		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment", Action: "restart",
+	_, err = cdClient.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
+		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment",
 	})
 	assertError(err, expectedError)
 }
