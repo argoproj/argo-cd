@@ -12,7 +12,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.17.6'
+  GOLANG_VERSION: '1.17'
 
 jobs:
   check-go:
