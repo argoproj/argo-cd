@@ -85,6 +85,14 @@ Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.c
 
 The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
 
+### Support multiple sources for an Application
+
+Support more than one source for creating an Application [#8322](https://github.com/argoproj/argo-cd/pull/8322).
+
+### Sharding application controller 
+
+Application controller to scale automatically to provide high availability[#8340](https://github.com/argoproj/argo-cd/issues/8340).
+
 ### Add support for secrets in Application parameters
 
 The feature allows referencing secrets in Application parameters. [#1786](https://github.com/argoproj/argo-cd/issues/1786).
@@ -107,6 +115,7 @@ The feature allows specifying dependencies between applications that allow orche
 ### Multi-tenancy improvements
 
 The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
+
 * [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
 * [AppSource](https://github.com/argoproj-labs/appsource)
 

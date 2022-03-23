@@ -2556,3 +2556,39 @@ func TestEnvsubst(t *testing.T) {
 	assert.Equal(t, "bar", env.Envsubst("$foo"))
 	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
 }
+
+func Test_validateGroupName(t *testing.T) {
+	tcs := []struct {
+		name      string
+		groupname string
+		isvalid   bool
+	}{
+		{"Just a double quote", "\"", false},
+		{"Just two double quotes", "\"\"", false},
+		{"Normal group name", "foo", true},
+		{"Quoted with commas", "\"foo,bar,baz\"", true},
+		{"Quoted without commas", "\"foo\"", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", true},
+		{"Empty group name", "", false},
+		{"Empty group name with quotes", "\"\"", false},
+		{"Unquoted with comma", "foo,bar,baz", false},
+		{"Improperly quoted 1", "\"foo,bar,baz", false},
+		{"Improperly quoted 2", "foo,bar,baz\"", false},
+		{"Runaway quote in unqouted string", "foo,bar\",baz", false},
+		{"Runaway quote in quoted string", "\"foo,\"bar,baz\"", false},
+		{"Invalid characters unqouted", "foo\nbar", false},
+		{"Invalid characters qouted", "\"foo\nbar\"", false},
+		{"Runaway quote 1", "\"foo", false},
+		{"Runaway quote 2", "foo\"", false},
+	}
+	for _, tt := range tcs {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGroupName(tt.groupname)
+			if tt.isvalid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
