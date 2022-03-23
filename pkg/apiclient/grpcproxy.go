@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -38,8 +39,12 @@ func (noopCodec) Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-func (noopCodec) String() string {
+func (noopCodec) Name() string {
 	return "bytes"
+}
+
+func init() {
+	encoding.RegisterCodec(&noopCodec{})
 }
 
 func toFrame(msg []byte) []byte {
@@ -107,7 +112,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		return nil, nil, err
 	}
 	proxySrv := grpc.NewServer(
-		grpc.CustomCodec(&noopCodec{}),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
