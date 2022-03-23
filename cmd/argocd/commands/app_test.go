@@ -248,3 +248,93 @@ func TestFilterResources(t *testing.T) {
 
 	})
 }
+
+func TestFormatSyncPolicy(t *testing.T) {
+
+	t.Run("Policy not defined", func(t *testing.T) {
+		app := v1alpha1.Application{}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "<none>" {
+			t.Fatalf("Incorrect policy \"%s\", should be <none>", policy)
+		}
+	})
+
+	t.Run("Auto policy", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto" {
+			t.Fatalf("Incorrect policy \"%s\", should be Auto", policy)
+		}
+	})
+
+	t.Run("Auto policy with prune", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto-Prune" {
+			t.Fatalf("Incorrect policy \"%s\", should be Auto-Prune", policy)
+		}
+	})
+
+}
+
+func TestFormatConditionSummary(t *testing.T) {
+	t.Run("No conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "<none>" {
+			t.Fatalf("Incorrect summary \"%s\", should be <none>", summary)
+		}
+	})
+
+	t.Run("Few conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type2",
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "type1(2),type2" {
+			t.Fatalf("Incorrect summary \"%s\", should be type1(2),type2", summary)
+		}
+	})
+}
