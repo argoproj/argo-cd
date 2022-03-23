@@ -1,0 +1,84 @@
+syntax = "proto2";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/events";
+
+// Events Service
+//
+// Events Service API provides a generic event-source that allows
+// listening for argo-cd events natively from argo-events.
+package generic;
+
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+// Eventing service
+service Eventing {
+    rpc StartEventSource(EventSource) returns (stream Event) {
+		option (google.api.http).get = "/api/v1/stream/events";
+	}
+}
+
+message EventSource {
+    // The event source name.
+    required string name = 1;
+    // The event source configuration value.
+    optional bytes config = 2;
+}
+
+/**
+* Represents an event
+*/
+message Event {
+    // The event source name.
+    required string name = 1;
+    // The event payload.
+    required bytes payload = 2;
+}
+
+/**
+* The actual object that will be send
+* with each event.
+*/
+message EventPayload {
+    // The timestamp of the event
+    required string timestamp = 1 [(gogoproto.nullable) = false];
+    // The object that the event is about
+    required bytes object = 2;
+    // The object source information
+    required ObjectSource source = 3;
+    // The errors of this object
+    repeated ObjectError errors = 4;
+}
+
+/**
+* Holds information about the object source
+*/
+message ObjectSource {
+    optional string desiredManifest = 1 [(gogoproto.nullable) = false];
+    optional string actualManifest = 2 [(gogoproto.nullable) = false];
+    optional string gitManifest = 3 [(gogoproto.nullable) = false];
+    optional string repoURL = 4 [(gogoproto.nullable) = false];
+    optional string path = 5 [(gogoproto.nullable) = false];
+    optional string revision = 6 [(gogoproto.nullable) = false];
+    optional string commitMessage = 7 [(gogoproto.nullable) = false];
+    optional string commitAuthor = 8 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 9;
+    optional string appName = 10 [(gogoproto.nullable) = false];
+    map<string, string> appLabels = 11 [(gogoproto.nullable) = false];
+    optional string syncStatus = 12 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncStartedAt = 13 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
+    optional string healthStatus = 15;
+    optional string healthMessage = 16;
+}
+
+/**
+* Holds error information
+*/
+message ObjectError {
+    optional string type = 1 [(gogoproto.nullable) = false];
+    optional string level = 2 [(gogoproto.nullable) = false];
+    optional string message = 3 [(gogoproto.nullable) = false];
+    optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 4 [(gogoproto.nullable) = false];
+} 

@@ -184,7 +184,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
-	targetObjs, err := unmarshalManifests(manifestInfo.Manifests)
+	targetObjs, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
 
 	if err != nil {
 		return nil, nil, err

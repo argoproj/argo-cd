@@ -756,10 +756,10 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
-	}, true)
+	}, true, nil)
 	errors.CheckError(err)
 
-	return res.Manifests
+	return res.GetCompiledManifests()
 }
 
 type resourceInfoProvider struct {
@@ -851,7 +851,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				res, err := appIf.GetManifests(context.Background(), &q)
 				errors.CheckError(err)
-				for _, mfst := range res.Manifests {
+				for _, mfst := range res.GetCompiledManifests() {
 					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 					errors.CheckError(err)
 					unstructureds = append(unstructureds, obj)
@@ -1336,7 +1336,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						log.Fatal(err)
 					}
 
-					for _, mfst := range res.Manifests {
+					for _, mfst := range res.GetCompiledManifests() {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
 						for key, selectedValue := range selectedLabels {
@@ -1935,7 +1935,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
-					for _, mfst := range res.Manifests {
+					for _, mfst := range res.GetCompiledManifests() {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
