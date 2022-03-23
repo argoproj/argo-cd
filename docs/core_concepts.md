@@ -1,6 +1,6 @@
 # Core Concepts
 
-Let's assume you're familiar with core Git, Docker, Kubernetes, Continuous Delivery, and GitOps concepts.
+Let's assume you're familiar with core Git, Docker, Kubernetes, Continuous Delivery, and GitOps concepts. Let's familiarize ourselves with the concepts that are specific to Argo CD
 
 * **Application** A group of Kubernetes resources as defined by a manifest. This is a Custom Resource Definition (CRD).
 * **Application source type** Which **Tool** is used to build the application.
