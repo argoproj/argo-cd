@@ -28,9 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -952,10 +950,10 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 			}
-			settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
-			clusterList, err := argoDB.ListClusters(context.Background())
-			//clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			//settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
+			//argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
+			//clusterList, err := argoDB.ListClusters(context.Background())
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			assert.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
@@ -1113,10 +1111,10 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 			}
-			settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
-			clusterList, err := argoDB.ListClusters(context.Background())
-			//clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
+			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
+			// clusterList, err := argoDB.ListClusters(context.Background())
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			assert.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})

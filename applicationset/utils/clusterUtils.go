@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,9 +65,10 @@ func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination
 }
 
 func getDestinationServer(ctx context.Context, clusterName string, clientset kubernetes.Interface, namespace string) (string, error) {
-	settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
-	argoDB := db.NewDB(namespace, settingsMgr, clientset)
-	clusterList, err := argoDB.ListClusters(ctx)
+	// settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
+	// argoDB := db.NewDB(namespace, settingsMgr, clientset)
+	// clusterList, err := argoDB.ListClusters(ctx)
+	clusterList, err := ListClusters(ctx, clientset, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -86,44 +86,44 @@ func getDestinationServer(ctx context.Context, clusterName string, clientset kub
 	return servers[0], nil
 }
 
-// func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string) (*appv1.ClusterList, error) {
+func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string) (*appv1.ClusterList, error) {
 
-// 	clusterSecretsList, err := clientset.CoreV1().Secrets(namespace).List(ctx,
-// 		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	clusterSecretsList, err := clientset.CoreV1().Secrets(namespace).List(ctx,
+		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+	if err != nil {
+		return nil, err
+	}
 
-// 	if clusterSecretsList == nil {
-// 		return nil, nil
-// 	}
+	if clusterSecretsList == nil {
+		return nil, nil
+	}
 
-// 	clusterSecrets := clusterSecretsList.Items
+	clusterSecrets := clusterSecretsList.Items
 
-// 	clusterList := appv1.ClusterList{
-// 		Items: make([]appv1.Cluster, len(clusterSecrets)),
-// 	}
-// 	hasInClusterCredentials := false
-// 	for i, clusterSecret := range clusterSecrets {
-// 		// This line has changed from the original Argo CD code: now receives an error, and handles it
-// 		cluster, err := secretToCluster(&clusterSecret)
-// 		if err != nil || cluster == nil {
-// 			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
-// 		}
+	clusterList := appv1.ClusterList{
+		Items: make([]appv1.Cluster, len(clusterSecrets)),
+	}
+	hasInClusterCredentials := false
+	for i, clusterSecret := range clusterSecrets {
+		// This line has changed from the original Argo CD code: now receives an error, and handles it
+		cluster, err := secretToCluster(&clusterSecret)
+		if err != nil || cluster == nil {
+			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
+		}
 
-// 		clusterList.Items[i] = *cluster
-// 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-// 			hasInClusterCredentials = true
-// 		}
-// 	}
-// 	if !hasInClusterCredentials {
-// 		localCluster := getLocalCluster(clientset)
-// 		if localCluster != nil {
-// 			clusterList.Items = append(clusterList.Items, *localCluster)
-// 		}
-// 	}
-// 	return &clusterList, nil
-// }
+		clusterList.Items[i] = *cluster
+		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+			hasInClusterCredentials = true
+		}
+	}
+	if !hasInClusterCredentials {
+		localCluster := getLocalCluster(clientset)
+		if localCluster != nil {
+			clusterList.Items = append(clusterList.Items, *localCluster)
+		}
+	}
+	return &clusterList, nil
+}
 
 func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	initLocalCluster.Do(func() {

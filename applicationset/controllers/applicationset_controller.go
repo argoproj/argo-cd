@@ -42,7 +42,6 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -598,10 +597,10 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
 func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicationSet argoprojiov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
-	argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
-	clusterList, err := argoDB.ListClusters(ctx)
-	//clusterList, err := utils.ListClusters(ctx)//, r.KubeClientset, applicationSet.Namespace)
+	// settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
+	// argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
+	// clusterList, err := argoDB.ListClusters(ctx)
+	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, applicationSet.Namespace)
 	if err != nil {
 		return err
 	}
