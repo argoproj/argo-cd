@@ -161,8 +161,7 @@ func getCRDApplicationset() map[string]*extensionsobj.CustomResourceDefinition {
 		removeValidation(un, "metadata.creationTimestamp")
 		crd := toCRD(un)
 		crd.Labels = map[string]string{
-			"app.kubernetes.io/name":    crd.Name,
-			"app.kubernetes.io/part-of": "argocd",
+			"app.kubernetes.io/name": crd.Name,
 		}
 		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
 		crd.Spec.Scope = "Namespaced"
