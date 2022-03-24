@@ -3,13 +3,14 @@ import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import * as models from '../../../shared/models';
+import * as appModels from '../../../shared/models';
+import {ResourceStatus} from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
-import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
@@ -21,10 +22,9 @@ import {ApplicationStatusPanel} from '../application-status-panel/application-st
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
+import {urlPattern} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
-import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
@@ -151,7 +151,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const treeFilter = this.getTreeFilter(pref.resourceFilter);
                             const setFilter = (items: string[]) => {
                                 this.appContext.apis.navigation.goto('.', {resource: items.join(',')}, {replace: true});
-                                services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
+                                services.viewPreferences.updatePreferences({
+                                    appDetails: {
+                                        ...pref,
+                                        resourceFilter: items
+                                    }
+                                });
                             };
                             const clearFilter = () => setFilter([]);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
@@ -170,7 +175,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                 const resources = new Map<string, any>();
                                 tree.nodes
                                     .map(node => ({...node, orphaned: false}))
-                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .concat(
+                                        ((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({
+                                            ...node,
+                                            orphaned: true
+                                        }))
+                                    )
                                     .forEach(node => {
                                         const resource: any = {...node};
                                         resource.uid = node.uid;
@@ -188,7 +198,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             };
 
                             const filteredRes = resourceNodes().filter(res => {
-                                const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
+                                const resNode: ResourceTreeNode = {
+                                    ...res,
+                                    root: null,
+                                    info: null,
+                                    parentRefs: [],
+                                    resourceVersion: '',
+                                    uid: ''
+                                };
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
@@ -234,7 +251,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         toolbar={{
                                             breadcrumbs: [
                                                 {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                                {
+                                                    title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />
+                                                }
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
@@ -245,7 +264,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             title='Tree'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: Tree});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
+                                                                services.viewPreferences.updatePreferences({
+                                                                    appDetails: {
+                                                                        ...pref,
+                                                                        view: Tree
+                                                                    }
+                                                                });
                                                             }}
                                                         />
                                                         <i
@@ -253,7 +277,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             title='Pods'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: Pods});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
+                                                                services.viewPreferences.updatePreferences({
+                                                                    appDetails: {
+                                                                        ...pref,
+                                                                        view: Pods
+                                                                    }
+                                                                });
                                                             }}
                                                         />
                                                         <i
@@ -261,7 +290,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             title='Network'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: Network});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
+                                                                services.viewPreferences.updatePreferences({
+                                                                    appDetails: {
+                                                                        ...pref,
+                                                                        view: Network
+                                                                    }
+                                                                });
                                                             }}
                                                         />
                                                         <i
@@ -269,7 +303,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             title='List'
                                                             onClick={() => {
                                                                 this.appContext.apis.navigation.goto('.', {view: List});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
+                                                                services.viewPreferences.updatePreferences({
+                                                                    appDetails: {
+                                                                        ...pref,
+                                                                        view: List
+                                                                    }
+                                                                });
                                                             }}
                                                         />
                                                     </div>
@@ -387,8 +426,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                AppUtils.renderResourceMenu(
+                                                                    {
+                                                                        ...node,
+                                                                        root: node
+                                                                    },
+                                                                    application,
+                                                                    tree,
+                                                                    this.appContext,
+                                                                    this.appChanged,
+                                                                    () => this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
                                                         />
@@ -465,7 +512,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                             <div className='white-box__details'>
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>Message:</div>
-                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                    <div
+                                                                        className='columns small-9'
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center'
+                                                                        }}>
                                                                         <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
                                                                     </div>
                                                                 </div>
@@ -487,8 +539,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
-        const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+        const fullName = AppUtils.nodeKey({
+            group: 'argoproj.io',
+            kind: app.kind,
+            name: app.metadata.name,
+            namespace: app.metadata.namespace
+        });
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const extensions = services.extensions.list('apptoolbar');
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -547,7 +605,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         this.appChanged.next(app);
                     }
                 }
-            }
+            },
+            ...extensions
         ];
     }
 
@@ -579,7 +638,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
-                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                        nodes: app.status.resources.map(res => ({
+                            ...res,
+                            parentRefs: [],
+                            info: [],
+                            resourceVersion: '',
+                            uid: ''
+                        })),
                         orphanedNodes: [],
                         hosts: []
                     } as appModels.ApplicationTree;
@@ -620,7 +685,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private onAppDeleted() {
-        this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
+        this.appContext.apis.notifications.show({
+            type: NotificationType.Success,
+            content: `Application '${this.props.match.params.name}' was deleted`
+        });
         this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
     }
 
@@ -636,7 +704,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
         tree.nodes.concat(tree.orphanedNodes || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
-        nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
+        nodeByKey.set(
+            AppUtils.nodeKey({
+                group: 'argoproj.io',
+                kind: application.kind,
+                name: application.metadata.name,
+                namespace: application.metadata.namespace
+            }),
+            application
+        );
         return nodeByKey;
     }
 
