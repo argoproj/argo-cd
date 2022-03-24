@@ -336,7 +336,7 @@ func TestFormatConditionSummary(t *testing.T) {
 		}
 
 		summary := formatConditionsSummary(app)
-		if summary != "type1(2),type2" {
+		if summary != "type1(2),type2" && summary != "type2,type1(2)" {
 			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
 		}
 	})
