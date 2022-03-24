@@ -2,6 +2,9 @@ package commands
 
 import (
 	"testing"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 
@@ -257,7 +260,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "<none>" {
-			t.Fatalf("Incorrect policy \"%s\", should be <none>", policy)
+			t.Fatalf("Incorrect policy %q, should be <none>", policy)
 		}
 	})
 
@@ -273,7 +276,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "Auto" {
-			t.Fatalf("Incorrect policy \"%s\", should be Auto", policy)
+			t.Fatalf("Incorrect policy %q, should be Auto", policy)
 		}
 	})
 
@@ -291,7 +294,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "Auto-Prune" {
-			t.Fatalf("Incorrect policy \"%s\", should be Auto-Prune", policy)
+			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
 		}
 	})
 
@@ -311,7 +314,7 @@ func TestFormatConditionSummary(t *testing.T) {
 
 		summary := formatConditionsSummary(app)
 		if summary != "<none>" {
-			t.Fatalf("Incorrect summary \"%s\", should be <none>", summary)
+			t.Fatalf("Incorrect summary %q, should be <none>", summary)
 		}
 	})
 
@@ -334,7 +337,87 @@ func TestFormatConditionSummary(t *testing.T) {
 
 		summary := formatConditionsSummary(app)
 		if summary != "type1(2),type2" {
-			t.Fatalf("Incorrect summary \"%s\", should be type1(2),type2", summary)
+			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
 		}
 	})
+}
+
+func TestPrintOperationResult(t *testing.T) {
+	t.Run("Operation state is empty", func(t *testing.T) {
+		output, _ := captureOutput(func() error {
+			printOperationResult(nil)
+			return nil
+		})
+
+		if output != "" {
+			t.Fatalf("Incorrect print operation output %q, should be ''", output)
+		}
+	})
+
+	t.Run("Operation state sync result is not empty", func(t *testing.T) {
+		time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+		output, _ := captureOutput(func() error {
+			printOperationResult(&v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "revision"},
+				FinishedAt: &time,
+			})
+			return nil
+		})
+
+		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\n"
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
+	})
+
+	t.Run("Operation state sync result with message is not empty", func(t *testing.T) {
+		time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+		output, _ := captureOutput(func() error {
+			printOperationResult(&v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "revision"},
+				FinishedAt: &time,
+				Message:    "test",
+			})
+			return nil
+		})
+
+		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\nMessage:            test\n"
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
+	})
+}
+
+func TestPrintApplicationHistoryTable(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 1,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "1",
+			},
+		},
+		{
+			ID: 2,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "2",
+			},
+		},
+		{
+			ID: 3,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "3",
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
 }
