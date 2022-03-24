@@ -35,6 +35,7 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
+    extensions: any;
 }
 
 interface FilterInput {
@@ -69,7 +70,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: []};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], extensions: {}};
     }
 
     private get showOperationState() {
@@ -475,6 +476,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </DataLoader>
                                             )}
                                         </SlidingPanel>
+                                        {(services.extensions.list('appPanel', this.state.extensions, (extensions) => {
+                                            this.setState({extensions})
+                                        }) as {
+                                            onClose: any;
+                                            shown:boolean,component:React.Component}[]).map((x,i) =>
+                                            <SlidingPanel isShown={x.shown} onClose={x.onClose} key={i}>
+                                                {x.component}
+                                            </SlidingPanel>
+                                        )}
                                     </Page>
                                 </div>
                             );
@@ -489,7 +499,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const extensions = services.extensions.list('apptoolbar');
+        const extensions = services.extensions.list('appToolbar', this.state.extensions, (extensions) => {
+            this.setState({extensions})
+        }) as { title: string | React.ReactElement, action: ()=> any }[];
         return [
             {
                 iconClassName: 'fa fa-info-circle',

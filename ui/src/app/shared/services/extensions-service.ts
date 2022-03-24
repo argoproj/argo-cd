@@ -1,12 +1,22 @@
 import {ApplicationTree, State} from '../models';
 import * as React from 'react';
 
-type AppToolbarThing = {
-    kind: 'apptoolbar';
-    factory: () => {title: string | React.ReactElement; action: () => any};
+interface Context {
+    state: any
+    setState: (value: any) => void
+}
+
+type AppToolbar = {
+    type: 'appToolbar';
+    factory: (context: Context) => { title: string | React.ReactElement; action: () => any };
 };
 
-type Extension = {[key: string]: AppToolbarThing};
+type AppPanel = {
+    type: 'appPanel';
+    factory: (context: Context) => { shown: boolean, onClose: () => void, component: React.Component };
+};
+
+type Extension = { [key: string]: AppToolbar | AppPanel };
 
 const extensions: {
     // non-resource extensions (v2)
@@ -14,7 +24,7 @@ const extensions: {
         [name: string]: Extension;
     };
     // resource extensions (v1)
-    resources: {[key: string]: ResourceExtension};
+    resources: { [key: string]: ResourceExtension };
 } = {
     items: {},
     resources: {}
@@ -37,11 +47,12 @@ export interface ExtensionComponentProps {
 }
 
 export class ExtensionsService {
-    public list(kind: string) {
+    public list(type: string, state: any, setState: (value: any) => void) {
         return Object.values(extensions.items)
             .map(x => Object.values(x))
             .reduce((previous, current) => previous.concat(current), [])
-            .map(x => x.factory());
+            .filter(x => x.type === type)
+            .map(x => x.factory({state, setState}));
     }
 
     public async load(): Promise<IndexEntry> {
