@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/server/extensions"
 	"io/fs"
 	"math"
 	"net"
@@ -73,7 +74,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/certificate"
 	"github.com/argoproj/argo-cd/v2/server/cluster"
-	"github.com/argoproj/argo-cd/v2/server/extensions"
 	"github.com/argoproj/argo-cd/v2/server/gpgkey"
 	"github.com/argoproj/argo-cd/v2/server/logout"
 	"github.com/argoproj/argo-cd/v2/server/metrics"
@@ -704,8 +704,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
-				"/api/extensions":     extensions.NewHandler(),
+				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
+
 				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.ArgoCDServerOpts.BaseHRef, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
@@ -713,6 +713,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			},
 		},
 	}
+
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
@@ -746,6 +747,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.EnableGZip {
 		handler = compressHandler(handler)
 	}
+
+	mux.Handle("/api/extensions/", extensions.NewHandler())
 	mux.Handle("/api/", handler)
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
