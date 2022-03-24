@@ -10,7 +10,7 @@ on:
     types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 env:
-  GOLANG_VERSION: '1.17.6'
+  GOLANG_VERSION: '1.17'
 
 jobs:
   publish:
@@ -58,12 +58,23 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./src/github.com/argoproj/argo-cd
-          platforms: linux/amd64,linux/arm64
           target: argocd-ui
           push: false
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
         if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
+
+      - name: Run non-container Snyk scans
+        if: github.event_name == 'push'
+        working-directory: ./src/github.com/argoproj/argo-cd
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          npm install -g snyk
+
+          # Run with high threshold to fail build.
+          snyk test --org=argoproj --all-projects --exclude=docs,site --severity-threshold=high --policy-path=.snyk
+          snyk iac test manifests/install.yaml --org=argoproj --severity-threshold=high --policy-path=.snyk
 
       - run: |
           IMAGE_PLATFORMS=linux/amd64
@@ -77,6 +88,14 @@ jobs:
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
+
+      - name: Run container Snyk scan
+        if: github.event_name == 'push'
+        working-directory: ./src/github.com/argoproj/argo-cd
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk container test quay.io/argoproj/argocd:latest --org=argoproj --file=Dockerfile --severity-threshold=high
 
         # Temp fix
         # https://github.com/docker/build-push-action/issues/252

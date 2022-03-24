@@ -3,6 +3,8 @@ package commands
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -41,6 +43,34 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		t.Fatal("History should be found")
 	}
 
+}
+
+func TestDefaultWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, true, opts.health)
+	assert.Equal(t, true, opts.operation)
+	assert.Equal(t, false, opts.suspended)
+}
+
+func TestOverrideWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      true,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, false, opts.health)
+	assert.Equal(t, false, opts.operation)
+	assert.Equal(t, false, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -160,4 +190,151 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 		t.Fatal("Find revision history should fail with correct error message")
 	}
 
+}
+
+func TestFilterResources(t *testing.T) {
+
+	t.Run("Filter by ns", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by kind", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by name", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+}
+
+func TestFormatSyncPolicy(t *testing.T) {
+
+	t.Run("Policy not defined", func(t *testing.T) {
+		app := v1alpha1.Application{}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "<none>" {
+			t.Fatalf("Incorrect policy \"%s\", should be <none>", policy)
+		}
+	})
+
+	t.Run("Auto policy", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto" {
+			t.Fatalf("Incorrect policy \"%s\", should be Auto", policy)
+		}
+	})
+
+	t.Run("Auto policy with prune", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto-Prune" {
+			t.Fatalf("Incorrect policy \"%s\", should be Auto-Prune", policy)
+		}
+	})
+
+}
+
+func TestFormatConditionSummary(t *testing.T) {
+	t.Run("No conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "<none>" {
+			t.Fatalf("Incorrect summary \"%s\", should be <none>", summary)
+		}
+	})
+
+	t.Run("Few conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type2",
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "type1(2),type2" {
+			t.Fatalf("Incorrect summary \"%s\", should be type1(2),type2", summary)
+		}
+	})
 }
