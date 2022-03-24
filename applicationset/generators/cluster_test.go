@@ -12,8 +12,9 @@ import (
 
 	"testing"
 
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 )

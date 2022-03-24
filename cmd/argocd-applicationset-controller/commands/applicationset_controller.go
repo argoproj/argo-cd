@@ -189,9 +189,6 @@ func NewCommand() *cobra.Command {
 			}
 
 			stats.StartStatsTicker(10 * time.Minute)
-
-			// +kubebuilder:scaffold:builder
-
 			log.Info("Starting manager")
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 				log.Error(err, "problem running manager")
