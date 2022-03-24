@@ -1,4 +1,4 @@
-package extenions
+package extensions
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ type Extension struct {
 func NewHandler() http.Handler {
 	extensions := []Extension{{"hello"}}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO proxy here
 		w.WriteHeader(200)
 		_ = json.NewEncoder(w).Encode(extensions)
 	})
