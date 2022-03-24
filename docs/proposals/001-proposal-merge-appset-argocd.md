@@ -34,7 +34,12 @@ While merging need to preserve commit history?
 
 ## Summary
 
-Since ApplicationSet is matured enough and has been graduated from argoprojlab. It has been included with Argo CD install.yaml. As we work out the releasing of new Argo CD and ApplicationSet, we see the growing need to tightly couple ApplicationSet with Argo CD. Merging ApplicationSet code into argocd will pave the way to introduce backend support of ApplicationSset into Argo CD and eventually CLI/UI. We eed to finalize on an approach on how ApplicationSet to be merged with Argo CD.
+Since ApplicationSet is matured enough and has been graduated from argoprojlab. It has been included with Argo CD install.yaml. As we work out the releasing of new Argo CD and ApplicationSet, we see the growing need to tightly couple ApplicationSet with Argo CD. Merging ApplicationSet code into argocd will pave the way to introduce backend support of ApplicationSset into Argo CD and eventually CLI/UI. We need to finalize on an approach on how ApplicationSet to be merged with Argo CD.
+
+As per the discussion in contributors meeting below open questions are addressed
+- We will not code freeze applicationset repository, instead will add warning in Readme and PR template that merge is in progress and please hold off for big changes.
+
+- And no need to preserve commit history for merge.
 
 ## Motivation
 
