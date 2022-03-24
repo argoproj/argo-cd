@@ -71,6 +71,7 @@ message ObjectSource {
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
     optional string healthStatus = 15;
     optional string healthMessage = 16;
+    optional string cluster = 17 [(gogoproto.nullable) = false];
 }
 
 /**
