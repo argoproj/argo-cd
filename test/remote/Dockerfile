@@ -1,4 +1,4 @@
-FROM golang:1.17.6 AS go
+FROM golang:1.17 AS go
 
 RUN go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest

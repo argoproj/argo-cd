@@ -10,7 +10,7 @@ on:
     types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 env:
-  GOLANG_VERSION: '1.17.6'
+  GOLANG_VERSION: '1.17'
 
 jobs:
   publish:

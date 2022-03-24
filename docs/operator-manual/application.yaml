@@ -7,6 +7,9 @@ metadata:
   # Add this finalizer ONLY if you want these to cascade delete.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  # Add labels to your application object.
+  labels:
+    name: guestbook
 spec:
   # The project the application belongs to.
   project: default
