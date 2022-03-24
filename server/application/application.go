@@ -1309,6 +1309,7 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 		SyncFinishedAt:  syncFinished,
 		HealthStatus:    &hs,
 		HealthMessage:   &a.Status.Health.Message,
+		Cluster:         a.Spec.Destination.Server,
 	}
 
 	errs := []*events.ObjectError{}
