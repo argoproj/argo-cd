@@ -260,7 +260,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "<none>" {
-			t.Fatalf("Incorrect policy \"%s\", should be <none>", policy)
+			t.Fatalf("Incorrect policy %q, should be <none>", policy)
 		}
 	})
 
@@ -276,7 +276,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "Auto" {
-			t.Fatalf("Incorrect policy \"%s\", should be Auto", policy)
+			t.Fatalf("Incorrect policy %q, should be Auto", policy)
 		}
 	})
 
@@ -294,7 +294,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 		policy := formatSyncPolicy(app)
 
 		if policy != "Auto-Prune" {
-			t.Fatalf("Incorrect policy \"%s\", should be Auto-Prune", policy)
+			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
 		}
 	})
 
@@ -314,7 +314,7 @@ func TestFormatConditionSummary(t *testing.T) {
 
 		summary := formatConditionsSummary(app)
 		if summary != "<none>" {
-			t.Fatalf("Incorrect summary \"%s\", should be <none>", summary)
+			t.Fatalf("Incorrect summary %q, should be <none>", summary)
 		}
 	})
 
@@ -337,7 +337,7 @@ func TestFormatConditionSummary(t *testing.T) {
 
 		summary := formatConditionsSummary(app)
 		if summary != "type1(2),type2" {
-			t.Fatalf("Incorrect summary \"%s\", should be type1(2),type2", summary)
+			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
 		}
 	})
 }
@@ -350,7 +350,7 @@ func TestPrintOperationResult(t *testing.T) {
 		})
 
 		if output != "" {
-			t.Fatalf("Incorrect print operation output \"%s\", should be \"\"", output)
+			t.Fatalf("Incorrect print operation output %q, should be ''", output)
 		}
 	})
 
@@ -366,7 +366,7 @@ func TestPrintOperationResult(t *testing.T) {
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\n"
 		if output != expectation {
-			t.Fatalf("Incorrect print operation output \"%s\", should be \"%s\"", output, expectation)
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
 		}
 	})
 
@@ -383,7 +383,7 @@ func TestPrintOperationResult(t *testing.T) {
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\nMessage:            test\n"
 		if output != expectation {
-			t.Fatalf("Incorrect print operation output \"%s\", should be \"%s\"", output, expectation)
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
 		}
 	})
 }
@@ -418,6 +418,6 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
 
 	if output != expectation {
-		t.Fatalf("Incorrect print operation output \"%s\", should be \"%s\"", output, expectation)
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
 	}
 }
