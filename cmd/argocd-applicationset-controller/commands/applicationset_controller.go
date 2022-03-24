@@ -86,7 +86,7 @@ func NewCommand() *cobra.Command {
 				return err
 			}
 			log.SetLevel(level)
-
+			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s'", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
 			switch strings.ToLower(logFormat) {
 			case "json":
 				log.SetFormatter(&log.JSONFormatter{})
@@ -142,8 +142,8 @@ func NewCommand() *cobra.Command {
 			}
 			//askPassServer := askpass.NewServer()
 			terminalGenerators := map[string]generators.Generator{
-				"List": generators.NewListGenerator(),
-				// "Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
+				"List":     generators.NewListGenerator(),
+				"Clusters": generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
 				// "Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
 				// "SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
 				// "ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
@@ -162,8 +162,8 @@ func NewCommand() *cobra.Command {
 			//}
 
 			topLevelGenerators := map[string]generators.Generator{
-				"List": terminalGenerators["List"],
-				// "Clusters":                terminalGenerators["Clusters"],
+				"List":     terminalGenerators["List"],
+				"Clusters": terminalGenerators["Clusters"],
 				// "Git":                     terminalGenerators["Git"],
 				// "SCMProvider":             terminalGenerators["SCMProvider"],
 				// "ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],

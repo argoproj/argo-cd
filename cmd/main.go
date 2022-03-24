@@ -45,7 +45,7 @@ func main() {
 		command = notification.NewCommand()
 	case "argocd-git-ask-pass":
 		command = gitaskpass.NewCommand()
-	case "argocd-applicationset":
+	case "argocd-applicationset-controller":
 		command = applicationset.NewCommand()
 	default:
 		command = cli.NewCommand()
