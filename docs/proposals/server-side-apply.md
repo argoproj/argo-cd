@@ -26,12 +26,17 @@ describes how ArgoCD can leverage SSA during syncs.
 * [Open Questions](#open-questions)
     * [[Q-1] How to handle conflicts?](#q-1-how-to-handle-conflicts)
     * [[Q-2] Should we support multiple managers?](#q-2-should-we-support-multiple-managers)
-* [ Summary ](#summary)
+* [Summary](#summary)
 * [Motivation](#motivation)
     * [Better interoperability with Admission Controllers](#better-interoperability-with-admission-controllers)
     * [Better resource conflict management](#better-resource-conflict-management)
     * [Better CRD support](#better-crd-support)
 * [Goals](#goals)
+    * [[G-1] Fine grained configuration]()
+    * [[G-2] Strategic merge patch while diffing]()
+    * [[G-3] Admission Controllers compatibility]()
+    * [[G-4] Conflict management]()
+    * [[G-5] Register a proper manager]()
 * [Non-Goals](#non-goals)
 * [Proposal](#proposal)
     * [Non-Functional Requirements](#non-functional-requirements)
@@ -41,6 +46,8 @@ describes how ArgoCD can leverage SSA during syncs.
         * [[UC-3]: enable SSA at the resource level](#uc-3-as-a-user-i-would-like-enable-ssa-at-the-resource-level-so-only-a-single-manifest-is-applied-server-side)
     * [Security Considerations](#security-considerations)
     * [Risks and Mitigations](#risks-and-mitigations)
+        * [[R-1] Supported K8s version check]()
+        * [[R-2] Alternating Server-Side Client-Side syncs]()
     * [Upgrade / Downgrade](#upgrade--downgrade)
 * [Drawbacks](#drawbacks)
 
@@ -66,6 +73,8 @@ improvements to consider:
 - [Syncs always run][2] mutating webhooks (even without diff)
 - [Fix big CRD][3] sync issues
 - Better interoperability with different controllers
+
+Kubernetes SSA Proposal ([KEP-555][13]) has more details about how it works.
 
 ## Motivation
 
@@ -107,21 +116,37 @@ common issue when syncing CRDs with large schemas.
 
 All following goals should be achieve in order to conclude this proposal:
 
+#### [G-1] Fine grained configuration
+
 - Provide the ability for users to define if they want to use SSA during syncs
-  ([ISSUE-2267][6])
-  - Users should be able to enable SSA at the controller level (via binary flag)
-    (see [UC-1](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side))
-  - Users should be able to enable SSA for a given Application (via syncOptions)
-    (see [UC-2](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side))
-  - Users should be able to enable SSA at resource level (via annotation) (see
-    [UC-3](#uc-3-as-a-user-i-would-like-enable-ssa-at-the-resource-level-so-only-a-single-manifest-is-applied-server-side)
+- Users should be able to enable SSA at the controller level (via binary flag)
+(see [UC-1](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side))
+- Users should be able to enable SSA for a given Application (via syncOptions)
+(see [UC-2](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side))
+- Users should be able to enable SSA at resource level (via annotation) (see
+[UC-3](#uc-3-as-a-user-i-would-like-enable-ssa-at-the-resource-level-so-only-a-single-manifest-is-applied-server-side)
+- Relates to [ISSUE-2267][6]
+
+#### [G-2] Strategic merge patch while diffing
+
 - Diffing needs to support strategic merge patch (see [ISSUE-2268][7])
+
+#### [G-3] Admission Controllers compatibility
+
 - Allow Admission Controllers to execute even when there is no diff for a
   particular resource. (Needs investigation) ([more details][2])
+
+#### [G-4] Conflict management
+
 - ArgoCD should respect field ownership and provide a configuration to allow
-  users to define the behavior in case of conflicts (see [Q-1](#q-1-how-to-handle-conflicts) outcome)
-- ArgoCD should register itself with a proper manager (see [non-functional
-  requirements](#non-functional-requirements))
+  users to define the behavior in case of conflicts (see
+  [Q-1](#q-1-how-to-handle-conflicts) outcome)
+
+#### [G-5] Register a proper manager
+
+- ArgoCD must register itself with a pre-defined manager (suggestion:
+  `argocd-controller`). It shouldn't rely on the default value defined in the
+  kubectl code. ([more details][11])
 
 ## Non-Goals
 
@@ -132,12 +157,6 @@ TBD
 Change ArgoCD controller to accept new parameter to enable Server-Side Apply
 during syncs. Changes are necessary in ArgoCD as well as in
 gitops-engine library.
-
-### Non-Functional Requirements
-
-- ArgoCD must register itself with a pre-defined manager (suggestion:
-  `argocd-controller`). It shouldn't rely on the default value defined in the
-  kubectl code. ([more details][11])
 
 ### Use cases
 
@@ -167,6 +186,9 @@ supports providing multiple options).
 TBD
 
 ### Risks and Mitigations
+
+#### [R-1] Supported K8s version check
+
 ArgoCD must check if the target Kubernetes cluster has full support for SSA. The
 feature turned [GA in Kubernetes 1.22][8]. Full support for managed fields was
 introduced as [beta in Kubernetes 1.18][9]. The implementation must check that
@@ -174,11 +196,26 @@ the target kubernetes cluster is running at least version 1.18. If SSA is
 enabled and target cluster version < 1.18 ArgoCD should log warning and fallback
 to client sync.
 
+#### [R-2] Alternating Server-Side Client-Side syncs
+
+Kubernetes SSA proposal ([KEP-555][13]) mentions about alternating between
+server-side and client-side applies in the [Upgrade/Downgrade Strategy][12]
+section. It is stated that Kubernetes will verify the incoming apply request
+validating if the user-agent is `kubectl` to decide if the
+`last-applied-configuration` annotation should be updated. ArgoCD relies on this
+annotation and the implementation must make sure that this agent is correctly
+informed when changing to server-side apply and specifying a manager different
+than `kubectl`. This is mainly to make sure that
+[G-5](#g-5-register-a-proper-manager) isn't impacting the
+client-side/server-side compatibility.
+
 ### Upgrade / Downgrade
+
 No CRD update necessary as `syncOption` field in Application resource is non-typed
 (string array). Upgrade will only require ArgoCD controller update.
 
 ## Drawbacks
+
 Slight increase in ArgoCD code base complexity.
 
 [1]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
@@ -192,3 +229,5 @@ Slight increase in ArgoCD code base complexity.
 [9]: https://kubernetes.io/blog/2020/04/01/kubernetes-1.18-feature-server-side-apply-beta-2/
 [10]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013641708
 [11]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013289982
+[12]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/555-server-side-apply/README.md#upgrade--downgrade-strategy
+[13]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/555-server-side-apply/README.md
