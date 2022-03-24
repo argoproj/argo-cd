@@ -86,7 +86,7 @@ func NewCommand() *cobra.Command {
 				return err
 			}
 			log.SetLevel(level)
-			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s'", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
+			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s' ", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
 			switch strings.ToLower(logFormat) {
 			case "json":
 				log.SetFormatter(&log.JSONFormatter{})
