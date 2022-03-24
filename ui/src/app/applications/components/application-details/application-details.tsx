@@ -479,9 +479,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         {(services.extensions.list('appPanel', this.state.extensions, (extensions) => {
                                             this.setState({extensions})
                                         }) as {
-                                            onClose: any;
+                                            isNarrow: boolean;
+                                            onClose: () => void;
                                             shown:boolean,component:React.Component}[]).map((x,i) =>
-                                            <SlidingPanel isShown={x.shown} onClose={x.onClose} key={i}>
+                                            <SlidingPanel isShown={x.shown} onClose={x.onClose} isNarrow={x.isNarrow} key={i}>
                                                 {x.component}
                                             </SlidingPanel>
                                         )}
