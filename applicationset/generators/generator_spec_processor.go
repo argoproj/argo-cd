@@ -3,9 +3,10 @@ package generators
 import (
 	"reflect"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type TransformResult struct {

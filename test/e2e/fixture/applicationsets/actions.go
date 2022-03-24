@@ -7,9 +7,6 @@ import (
 	"strings"
 	"time"
 
-	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
@@ -18,6 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+
+	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
 // this implements the "when" part of given/when/then

@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasttemplate"
+
+	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type Renderer interface {

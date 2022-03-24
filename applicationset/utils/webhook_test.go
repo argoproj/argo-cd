@@ -9,11 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -21,6 +16,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestWebhookHandler(t *testing.T) {

@@ -9,12 +9,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/webhooks.v5/github"
