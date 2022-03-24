@@ -640,3 +640,37 @@ func TestPrintApplicationNames(t *testing.T) {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
 }
+
+func TestPrintApplicationHistoryTable(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 1,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "1",
+			},
+		},
+		{
+			ID: 2,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "2",
+			},
+		},
+		{
+			ID: 3,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "3",
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
