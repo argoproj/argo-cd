@@ -1819,7 +1819,7 @@ func TestInit(t *testing.T) {
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
-func TestCheckoutRevision(t *testing.T) {
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	rootPath, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
