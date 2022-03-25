@@ -9,7 +9,7 @@ import {ApplicationParameters} from '../application-parameters/application-param
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {SetFinalizerOnApplication} from './application-create-setfinalizer';
+import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 
 const jsonMergePatch = require('json-merge-patch');
 
