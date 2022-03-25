@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 var _ Generator = (*GitGenerator)(nil)

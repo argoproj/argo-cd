@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 func checkRateLimit(t *testing.T, err error) {

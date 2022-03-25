@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 func TestGitlabListRepos(t *testing.T) {

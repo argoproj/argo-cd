@@ -34,10 +34,6 @@ import (
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-const (
-	defaultMetricsPort = 9001
-)
-
 func addK8SFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
