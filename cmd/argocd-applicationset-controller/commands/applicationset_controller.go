@@ -21,6 +21,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -118,10 +119,10 @@ func NewCommand() *cobra.Command {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
 			}
-			// dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
-			// if err != nil {
-			// 	return err
-			// }
+			dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
+			if err != nil {
+				return err
+			}
 			k8sClient, err := kubernetes.NewForConfig(mgr.GetConfig())
 			if err != nil {
 				return err
@@ -140,34 +141,34 @@ func NewCommand() *cobra.Command {
 			}
 			askPassServer := askpass.NewServer()
 			terminalGenerators := map[string]generators.Generator{
-				"List":        generators.NewListGenerator(),
-				"Clusters":    generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
-				"Git":         generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
-				"SCMProvider": generators.NewSCMProviderGenerator(mgr.GetClient()),
-				// "ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
-				// "PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
+				"List":                    generators.NewListGenerator(),
+				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
+				"ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
 			}
 
-			// nestedGenerators := map[string]generators.Generator{
-			// 	"List": terminalGenerators["List"],
-			// "Clusters":                terminalGenerators["Clusters"],
-			// "Git":                     terminalGenerators["Git"],
-			// "SCMProvider":             terminalGenerators["SCMProvider"],
-			// "ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-			// "PullRequest":             terminalGenerators["PullRequest"],
-			// "Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
-			// "Merge":                   generators.NewMergeGenerator(terminalGenerators),
-			//}
+			nestedGenerators := map[string]generators.Generator{
+				"List":                    terminalGenerators["List"],
+				"Clusters":                terminalGenerators["Clusters"],
+				"Git":                     terminalGenerators["Git"],
+				"SCMProvider":             terminalGenerators["SCMProvider"],
+				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
+				"PullRequest":             terminalGenerators["PullRequest"],
+				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
+				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
+			}
 
 			topLevelGenerators := map[string]generators.Generator{
-				"List":        terminalGenerators["List"],
-				"Clusters":    terminalGenerators["Clusters"],
-				"Git":         terminalGenerators["Git"],
-				"SCMProvider": terminalGenerators["SCMProvider"],
-				// "ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-				// "PullRequest":             terminalGenerators["PullRequest"],
-				// "Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
-				// "Merge":                   generators.NewMergeGenerator(nestedGenerators),
+				"List":                    terminalGenerators["List"],
+				"Clusters":                terminalGenerators["Clusters"],
+				"Git":                     terminalGenerators["Git"],
+				"SCMProvider":             terminalGenerators["SCMProvider"],
+				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
+				"PullRequest":             terminalGenerators["PullRequest"],
+				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
+				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
 			if err = (&controllers.ApplicationSetReconciler{

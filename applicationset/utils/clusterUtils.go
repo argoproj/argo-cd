@@ -42,6 +42,11 @@ var (
 	initLocalCluster sync.Once
 )
 
+const (
+	ArgoCDSecretTypeLabel   = "argocd.argoproj.io/secret-type"
+	ArgoCDSecretTypeCluster = "cluster"
+)
+
 // ValidateDestination checks:
 // if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error

@@ -1,11 +1,8 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
-	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -348,66 +345,65 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
-func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
+// func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 
-	Given(t).
-		When().
-		CreateNamespace().
-		// Create a GitGenerator-based ApplicationSet
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-git-generator",
-		},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
-						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-							TargetRevision: "HEAD",
-							Path:           "guestbook",
-						},
-						Destination: argov1alpha1.ApplicationDestination{
-							Server:    "https://kubernetes.default.svc",
-							Namespace: utils.ArgoCDNamespace,
-						},
+// 	Given(t).
+// 		When().
+// 		CreateNamespace().
+// 		// Create a GitGenerator-based ApplicationSet
+// 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+// 			Name: "simple-git-generator",
+// 		},
+// 			Spec: v1alpha1.ApplicationSetSpec{
+// 				Template: v1alpha1.ApplicationSetTemplate{
+// 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+// 					Spec: argov1alpha1.ApplicationSpec{
+// 						Project: "default",
+// 						Source: argov1alpha1.ApplicationSource{
+// 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+// 							TargetRevision: "HEAD",
+// 							Path:           "guestbook",
+// 						},
+// 						Destination: argov1alpha1.ApplicationDestination{
+// 							Server:    "https://kubernetes.default.svc",
+// 							Namespace: utils.ArgoCDNamespace,
+// 						},
 
-						// Automatically create resources
-						SyncPolicy: &argov1alpha1.SyncPolicy{
-							Automated: &argov1alpha1.SyncPolicyAutomated{},
-						},
-					},
-				},
-				SyncPolicy: &v1alpha1.ApplicationSetSyncPolicy{
-					PreserveResourcesOnDeletion: true,
-				},
-				Generators: []v1alpha1.ApplicationSetGenerator{
-					{
-						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/applicationset.git",
-							Files: []v1alpha1.GitFileGeneratorItem{
-								{
-									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
-								},
-							},
-						},
-					},
-				},
-			},
-			// We use an extra-long duration here, as we might need to wait for image pull.
-		}).Then().ExpectWithDuration(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
-		When().
-		Delete().
-		And(func() {
-			t.Log("Waiting 30 seconds to give the cluster a chance to delete the pods.")
-			// Wait 30 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
-			// It should NOT delete the pods; to do so would be an ApplicationSet bug, and
-			// that is what we are testing here.
-			time.Sleep(30 * time.Second)
-			// The pod should continue to exist after 30 seconds.
-		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
-
-}
+// 						// Automatically create resources
+// 						SyncPolicy: &argov1alpha1.SyncPolicy{
+// 							Automated: &argov1alpha1.SyncPolicyAutomated{},
+// 						},
+// 					},
+// 				},
+// 				SyncPolicy: &v1alpha1.ApplicationSetSyncPolicy{
+// 					PreserveResourcesOnDeletion: true,
+// 				},
+// 				Generators: []v1alpha1.ApplicationSetGenerator{
+// 					{
+// 						Git: &v1alpha1.GitGenerator{
+// 							RepoURL: "https://github.com/argoproj/applicationset.git",
+// 							Files: []v1alpha1.GitFileGeneratorItem{
+// 								{
+// 									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+// 								},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			// We use an extra-long duration here, as we might need to wait for image pull.
+// 		}).Then().ExpectWithDuration(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
+// 		When().
+// 		Delete().
+// 		And(func() {
+// 			t.Log("Waiting 30 seconds to give the cluster a chance to delete the pods.")
+// 			// Wait 30 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
+// 			// It should NOT delete the pods; to do so would be an ApplicationSet bug, and
+// 			// that is what we are testing here.
+// 			time.Sleep(30 * time.Second)
+// 			// The pod should continue to exist after 30 seconds.
+// 		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
+// }
 
 func TestSimpleSCMProviderGenerator(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
@@ -542,76 +538,76 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
-// func TestSimplePullRequestGenerator(t *testing.T) {
+func TestSimplePullRequestGenerator(t *testing.T) {
 
-// 	if utils.IsGitHubAPISkippedTest(t) {
-// 		return
-// 	}
+	if utils.IsGitHubAPISkippedTest(t) {
+		return
+	}
 
-// 	expectedApp := argov1alpha1.Application{
-// 		TypeMeta: metav1.TypeMeta{
-// 			Kind:       "Application",
-// 			APIVersion: "argoproj.io/v1alpha1",
-// 		},
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:       "guestbook-1",
-// 			Namespace:  utils.ArgoCDNamespace,
-// 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-// 		},
-// 		Spec: argov1alpha1.ApplicationSpec{
-// 			Project: "default",
-// 			Source: argov1alpha1.ApplicationSource{
-// 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
-// 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
-// 				Path:           "kustomize-guestbook",
-// 				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
-// 					NamePrefix: "guestbook-1",
-// 				},
-// 			},
-// 			Destination: argov1alpha1.ApplicationDestination{
-// 				Server:    "https://kubernetes.default.svc",
-// 				Namespace: "guestbook-pull-request",
-// 			},
-// 		},
-// 	}
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "guestbook-1",
+			Namespace:  utils.ArgoCDNamespace,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: argov1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+				Path:           "kustomize-guestbook",
+				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
+					NamePrefix: "guestbook-1",
+				},
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook-pull-request",
+			},
+		},
+	}
 
-// 	Given(t).
-// 		// Create an PullRequestGenerator-based ApplicationSet
-// 		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-// 		Name: "simple-pull-request-generator",
-// 	},
-// 		Spec: v1alpha1.ApplicationSetSpec{
-// 			Template: v1alpha1.ApplicationSetTemplate{
-// 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
-// 				Spec: argov1alpha1.ApplicationSpec{
-// 					Project: "default",
-// 					Source: argov1alpha1.ApplicationSource{
-// 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
-// 						TargetRevision: "{{ head_sha }}",
-// 						Path:           "kustomize-guestbook",
-// 						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
-// 							NamePrefix: "guestbook-{{ number }}",
-// 						},
-// 					},
-// 					Destination: argov1alpha1.ApplicationDestination{
-// 						Server:    "https://kubernetes.default.svc",
-// 						Namespace: "guestbook-{{ branch }}",
-// 					},
-// 				},
-// 			},
-// 			Generators: []v1alpha1.ApplicationSetGenerator{
-// 				{
-// 					PullRequest: &v1alpha1.PullRequestGenerator{
-// 						Github: &v1alpha1.PullRequestGeneratorGithub{
-// 							Owner: "applicationset-test-org",
-// 							Repo:  "argocd-example-apps",
-// 							Labels: []string{
-// 								"preview",
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
-//}
+	Given(t).
+		// Create an PullRequestGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "simple-pull-request-generator",
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: argov1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ head_sha }}",
+						Path:           "kustomize-guestbook",
+						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
+							NamePrefix: "guestbook-{{ number }}",
+						},
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							Labels: []string{
+								"preview",
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
+}
