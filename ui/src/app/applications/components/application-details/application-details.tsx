@@ -128,9 +128,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     componentDidMount() {
-        services.extensions
-            .load()
-            .then(() => this.setState({extensions: services.extensions.list()}));
+        services.extensions.load().then(() => this.setState({extensions: services.extensions.list()}));
     }
 
     public render() {
@@ -533,7 +531,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             setState: (extensionsState: any) => this.setState({extensionsState})
         };
 
-        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions.filter(e => e.type == 'appToolbar').map(e => e.factory(context));
+        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions.filter(e => e.type === 'appToolbar').map(e => e.factory(context));
         return [
             {
                 iconClassName: 'fa fa-info-circle',

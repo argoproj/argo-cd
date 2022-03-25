@@ -4,16 +4,7 @@ import * as React from 'react';
 import {useEffect, useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {
-    Application,
-    ApplicationTree,
-    AppSourceType,
-    Event,
-    RepoAppDetails,
-    ResourceNode,
-    State,
-    SyncStatuses
-} from '../../../shared/models';
+import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
@@ -29,7 +20,7 @@ import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
 import {ExtensionExport, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
-import {ApplicationNodeInfo} from "../application-node-info/application-node-info";
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -58,7 +49,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         podState: State,
         events: Event[],
         ExtensionComponent: React.ComponentType<ResourceExtensionComponentProps>,
-        extensions: ExtensionExport[],
+        extensionsExports: ExtensionExport[],
         tabs: Tab[]
     ) => {
         if (!node || node === undefined) {
@@ -135,10 +126,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
         const context = {
             setState: (value: any) => {
-            }, state: {}
+                /*noop*/
+            },
+            state: {}
         };
-        extensions
-            .filter(e => e.type == 'resourcePanel')
+        extensionsExports
+            .filter(e => e.type === 'resourcePanel')
             .map(e => e.factory(context))
             .forEach((e, i) => {
                 tabs.push({
@@ -146,12 +139,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     key: 'extension/' + i,
                     content: (
                         <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                            <e.component tree={tree} resource={state}/>
+                            <e.component tree={tree} resource={state} />
                         </ErrorBoundary>
                     )
-                })
-            })
-
+                });
+            });
 
         return tabs;
     };
@@ -242,11 +234,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     );
 
     const [extensions, setExtensions] = useState<ExtensionExport[]>([]);
-    useEffect(() => () => {
-        services.extensions
-            .load()
-            .then(() => setExtensions(services.extensions.list()));
-    }, [selectedNode])
+    useEffect(
+        () => () => {
+            services.extensions.load().then(() => setExtensions(services.extensions.list()));
+        },
+        [selectedNode]
+    );
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -319,7 +312,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component,extensions, [
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, extensions, [
                                     {
                                         title: 'SUMMARY',
                                         icon: 'fa fa-file-alt',
