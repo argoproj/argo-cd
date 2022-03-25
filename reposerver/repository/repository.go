@@ -1660,15 +1660,19 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
+	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+}
+
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
 	err = gitClient.Fetch("")
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 	}
 
 	err = gitClient.Checkout(revision, submoduleEnabled)
@@ -1680,16 +1684,16 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 
 		err = gitClient.Fetch(revision)
 		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
 		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
 	}
 
-	return closer, err
+	return err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

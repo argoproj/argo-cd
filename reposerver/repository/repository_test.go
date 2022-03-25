@@ -1816,3 +1816,48 @@ func TestInit(t *testing.T) {
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevision(t *testing.T) {
+	rootPath, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	run(t, sourceRepoPath, "git", "init")
+	run(t, sourceRepoPath, "git", "checkout", "-b", "main")  // make sure there's a main branch to switch back to
+	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
+	run(t, sourceRepoPath, "git", "checkout", "-b", "branch")
+	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
+	sha := run(t, sourceRepoPath, "git", "rev-parse", "HEAD")
+	run(t, sourceRepoPath, "git", "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	run(t, sourceRepoPath, "git", "checkout", "main")
+	run(t, sourceRepoPath, "git", "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	require.NoError(t, err)
+}
+
+// run runs a command in the given working directory. If the command succeeds, it returns the combined standard and
+// error output. If it fails, it stops the test with a failure message.
+func run(t *testing.T, workDir string, command string, args ...string) string {
+	cmd := exec.Command(command, args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
+}
