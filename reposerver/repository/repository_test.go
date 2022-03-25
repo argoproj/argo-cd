@@ -1810,8 +1810,11 @@ func TestCheckoutRevision(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
 	err = checkoutRevision(gitClient, pullSha, false)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 // run runs a command in the given working directory. If the command succeeds, it returns the combined standard and
