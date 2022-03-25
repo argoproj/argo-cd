@@ -19,7 +19,7 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
-import {ExtensionExport, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {ExtensionContext, ExtensionExport, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -28,6 +28,7 @@ interface ResourceDetailsProps {
     selectedNode: ResourceNode;
     updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
     application: Application;
+    extensionContext: ExtensionContext;
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
@@ -50,6 +51,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         events: Event[],
         ExtensionComponent: React.ComponentType<ResourceExtensionComponentProps>,
         extensionsExports: ExtensionExport[],
+        extensionContext: ExtensionContext,
         tabs: Tab[]
     ) => {
         if (!node || node === undefined) {
@@ -125,10 +127,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         }
 
         const context = {
-            setState: (value: any) => {
-                /*noop*/
-            },
-            state: {}
+            resource: state,
+            application,
+            tree,
+            ...extensionContext
         };
         extensionsExports
             .filter(e => e.type === 'resourcePanel')
@@ -137,11 +139,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 tabs.push({
                     title: 'More',
                     key: 'extension/' + i,
-                    content: (
-                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                            <e.component tree={tree} resource={state} />
-                        </ErrorBoundary>
-                    )
+                    content: <ErrorBoundary>{e.component}</ErrorBoundary>
                 });
             });
 
@@ -312,14 +310,23 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, extensions, [
-                                    {
-                                        title: 'SUMMARY',
-                                        icon: 'fa fa-file-alt',
-                                        key: 'summary',
-                                        content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
-                                    }
-                                ])}
+                                tabs={getResourceTabs(
+                                    selectedNode,
+                                    data.liveState,
+                                    data.podState,
+                                    data.events,
+                                    error.state ? null : extension?.component,
+                                    extensions,
+                                    props.extensionContext,
+                                    [
+                                        {
+                                            title: 'SUMMARY',
+                                            icon: 'fa fa-file-alt',
+                                            key: 'summary',
+                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                        }
+                                    ]
+                                )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />

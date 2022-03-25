@@ -9,7 +9,16 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {
+    DataLoader,
+    EmptyState,
+    ErrorNotification,
+    ObservableQuery,
+    Page,
+    Paginate,
+    Revision,
+    Timestamp
+} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -27,6 +36,7 @@ import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {ExtensionExport} from '../../../shared/services/extensions-service';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 
 require('./application-details.scss');
 
@@ -37,7 +47,7 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     filteredGraph?: any[];
     extensions: ExtensionExport[];
-    extensionsState: any;
+    extensionState: any;
 }
 
 interface FilterInput {
@@ -77,8 +87,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             groupedResources: [],
             slidingPanelPage: 0,
             filteredGraph: [],
-            extensionsState: {},
+            extensionState: {},
             extensions: []
+        };
+    }
+
+    private get extensionContext() {
+        return {
+            state: this.state.extensionState,
+            setState: (extensionState: any) => this.setState({extensionState})
         };
     }
 
@@ -296,6 +313,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                extensionContext={this.extensionContext}
                                             />
                                         </div>
                                         <div className='application-details__tree'>
@@ -418,6 +436,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
+                                                extensionContext={this.extensionContext}
                                             />
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
@@ -489,7 +508,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </DataLoader>
                                             )}
                                         </SlidingPanel>
-                                        {this.renderExtensionAppPanels(application)}
+                                        {this.renderExtensionPanels(application)}
                                     </Page>
                                 </div>
                             );
@@ -500,38 +519,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         );
     }
 
-    private renderExtensionAppPanels(application: Application) {
-        const context = {
-            state: this.state.extensionsState,
-            setState: (extensionsState: any) => this.setState({extensionsState})
-        };
-
+    private renderExtensionPanels(application: Application) {
+        const context = {...this.extensionContext, application};
         return this.state.extensions
             .filter(e => e.type === 'appPanel')
             .map(e => e.factory(context))
-            .map((e, i) => {
-                return (
-                    <SlidingPanel key={'' + i} onClose={e.onClose} isShown={e.isShown}>
-                        {this.renderExtensionAppPanel({Component: e.component, application})}
-                    </SlidingPanel>
-                );
-            });
-    }
-
-    private renderExtensionAppPanel({Component, application}: {Component: React.ComponentType<any>; application: Application}) {
-        return <Component application={application} />;
+            .map((e, i) => (
+                <SlidingPanel key={'' + i} onClose={e.onClose} isShown={e.isShown}>
+                    <ErrorBoundary>{e.component}</ErrorBoundary>
+                </SlidingPanel>
+            ));
     }
 
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const context = {
-            state: this.state.extensionsState,
-            setState: (extensionsState: any) => this.setState({extensionsState})
-        };
 
-        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions.filter(e => e.type === 'appToolbar').map(e => e.factory(context));
+        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions
+            .filter(e => e.type === 'appToolbarButton')
+            .map(e => e.factory({application: app, ...this.extensionContext}));
         return [
             {
                 iconClassName: 'fa fa-info-circle',

@@ -9,9 +9,16 @@ type Index = {
     items: IndexEntry[];
 };
 
+export type ExtensionContext =
+    | {
+          state: any;
+          setState: (value: any) => void;
+      }
+    | any;
+
 export interface ExtensionExport {
-    type: 'appPanel' | 'appToolbar' | 'resourcePanel';
-    factory: (context: {state: any; setState: (value: any) => void}) => any;
+    type: 'appPanel' | 'appToolbarButton' | 'resourcePanel' | 'appStatusPanelItem';
+    factory: (context: ExtensionContext) => any;
 }
 
 type Extension = {[key: string]: ExtensionExport};
