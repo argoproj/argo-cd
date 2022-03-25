@@ -1829,7 +1829,7 @@ func TestCheckoutRevision(t *testing.T) {
 	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
 	// example, a GitHub ref for a pull into one repo from a fork of that repo.
 	run(t, sourceRepoPath, "git", "init")
-	run(t, sourceRepoPath, "git", "checkout", "-b", "main")  // make sure there's a main branch to switch back to
+	run(t, sourceRepoPath, "git", "checkout", "-b", "main") // make sure there's a main branch to switch back to
 	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
 	run(t, sourceRepoPath, "git", "checkout", "-b", "branch")
 	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
