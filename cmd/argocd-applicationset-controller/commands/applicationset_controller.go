@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -140,12 +142,12 @@ func NewCommand() *cobra.Command {
 			if webhookHandler != nil {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
-			//askPassServer := askpass.NewServer()
+			askPassServer := askpass.NewServer()
 			terminalGenerators := map[string]generators.Generator{
-				"List":     generators.NewListGenerator(),
-				"Clusters": generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
-				// "Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
-				// "SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
+				"List":        generators.NewListGenerator(),
+				"Clusters":    generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
+				"Git":         generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
+				"SCMProvider": generators.NewSCMProviderGenerator(mgr.GetClient()),
 				// "ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
 				// "PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
 			}
@@ -162,10 +164,10 @@ func NewCommand() *cobra.Command {
 			//}
 
 			topLevelGenerators := map[string]generators.Generator{
-				"List":     terminalGenerators["List"],
-				"Clusters": terminalGenerators["Clusters"],
-				// "Git":                     terminalGenerators["Git"],
-				// "SCMProvider":             terminalGenerators["SCMProvider"],
+				"List":        terminalGenerators["List"],
+				"Clusters":    terminalGenerators["Clusters"],
+				"Git":         terminalGenerators["Git"],
+				"SCMProvider": terminalGenerators["SCMProvider"],
 				// "ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				// "PullRequest":             terminalGenerators["PullRequest"],
 				// "Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
