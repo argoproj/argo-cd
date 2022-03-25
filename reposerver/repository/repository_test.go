@@ -1828,15 +1828,15 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 
 	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
 	// example, a GitHub ref for a pull into one repo from a fork of that repo.
-	run(t, sourceRepoPath, "git", "init")
-	run(t, sourceRepoPath, "git", "checkout", "-b", "main") // make sure there's a main branch to switch back to
-	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
-	run(t, sourceRepoPath, "git", "checkout", "-b", "branch")
-	run(t, sourceRepoPath, "git", "commit", "-m", "empty", "--allow-empty")
-	sha := run(t, sourceRepoPath, "git", "rev-parse", "HEAD")
-	run(t, sourceRepoPath, "git", "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
-	run(t, sourceRepoPath, "git", "checkout", "main")
-	run(t, sourceRepoPath, "git", "branch", "-D", "branch")
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
 
 	destRepoPath, err := ioutil.TempDir(rootPath, "")
 	require.NoError(t, err)
@@ -1854,10 +1854,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// run runs a command in the given working directory. If the command succeeds, it returns the combined standard and
-// error output. If it fails, it stops the test with a failure message.
-func run(t *testing.T, workDir string, command string, args ...string) string {
-	cmd := exec.Command(command, args...)
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
 	stringOut := string(out)
