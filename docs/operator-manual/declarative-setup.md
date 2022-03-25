@@ -171,6 +171,9 @@ Repository details are stored in secrets. To configure a repo, create a secret w
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 
+!!!warning
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+    
 Example for HTTPS:
 
 ```yaml
@@ -182,6 +185,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
@@ -198,6 +202,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
@@ -208,6 +213,7 @@ stringData:
 Example for GitHub App:
 
 ```yaml
+apiVersion: v1
 kind: Secret
 metadata:
   name: github-repo
@@ -215,10 +221,11 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  repo: https://github.com/argoproj/my-private-repository
+  type: git
+  url: https://github.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
-  githubAppPrivateKeySecret: |
+  githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
@@ -231,11 +238,12 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  repo: https://ghe.example.com/argoproj/my-private-repository
+  type: git
+  url: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
   githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
-  githubAppPrivateKeySecret: |
+  githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
@@ -257,6 +265,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
 ---
 apiVersion: v1
@@ -267,6 +276,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/other-private-repo
 ---
 apiVersion: v1
@@ -277,6 +287,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
+  type: git
   url: https://github.com/argoproj
   password: my-password
   username: my-username
@@ -396,6 +407,8 @@ data:
     gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9bx9XUf2lEdWT/ia1NEKjunUqu1xOB/StKDHMoX4/OKyIzuS0q/T1zOATthvasJFoPrAjkohTyaDUz2LN5JoH839hViyEG82yB+MjcFV5MU3N1l1QL3cVUCh93xSaua1N85qivl+siMkPGbO5xR/En4iEY6K2XPASUEMaieWVNTRCtJ4S8H+9
     ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
+    github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+    github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
 ```
 
 !!! note
@@ -416,6 +429,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
+  type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
   password: my-password
@@ -495,13 +509,13 @@ execProviderConfig:
     installHint: string
 # Transport layer security configuration settings
 tlsClientConfig:
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     caData: string
-    # PEM-encoded bytes (typically read from a client certificate file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     certData: string
     # Server should be accessed without verifying the TLS certificate
     insecure: boolean
-    # PEM-encoded bytes (typically read from a client certificate key file).
+    # Base64 encoded PEM-encoded bytes (typically read from a client certificate key file).
     keyData: string
     # ServerName is passed to the server for SNI and is used in the client to check server
     # certificates against. If ServerName is empty, the hostname used to contact the

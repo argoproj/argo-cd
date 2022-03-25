@@ -22,6 +22,11 @@ argocd-repo-server [flags]
       --parallelismlimit int                 Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --port int                             Listen on given port for incoming connections (default 8081)
       --redis string                         Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis-ca-certificate string          Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
+      --redis-client-certificate string      Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
+      --redis-client-key string              Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-insecure-skip-tls-verify       Skip Redis server certificate validation.
+      --redis-use-tls                        Use TLS when connecting to Redis. 
       --redisdb int                          Redis database.
       --repo-cache-expiration duration       Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --revision-cache-expiration duration   Cache expiration for cached revision (default 3m0s)

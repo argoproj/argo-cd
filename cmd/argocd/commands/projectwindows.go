@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -36,7 +37,7 @@ func NewProjectWindowsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return roleCommand
 }
 
-// NewProjectSyncWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
+// NewProjectWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
 func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "disable-manual-sync PROJECT ID",
@@ -52,7 +53,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -87,7 +88,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -116,6 +117,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		namespaces   []string
 		clusters     []string
 		manualSync   bool
+		timeZone     string
 	)
 	var command = &cobra.Command{
 		Use:   "add PROJECT",
@@ -126,13 +128,13 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -146,6 +148,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
+	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
 
 	return command
 }
@@ -165,7 +168,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -189,6 +192,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		applications []string
 		namespaces   []string
 		clusters     []string
+		timeZone     string
 	)
 	var command = &cobra.Command{
 		Use:   "update PROJECT ID",
@@ -204,7 +208,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
@@ -212,7 +216,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			for i, window := range proj.Spec.SyncWindows {
 				if id == i {
-					err := window.Update(schedule, duration, applications, namespaces, clusters)
+					err := window.Update(schedule, duration, applications, namespaces, clusters, timeZone)
 					if err != nil {
 						errors.CheckError(err)
 					}
@@ -228,6 +232,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().StringSliceVar(&applications, "applications", []string{}, "Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\\*,website)")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
+	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window. (e.g. --time-zone \"America/New_York\")")
 	return command
 }
 
@@ -245,7 +250,7 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})

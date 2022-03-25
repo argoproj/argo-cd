@@ -54,7 +54,7 @@ To build it, run the following. Note that kustomize is required:
 
 ```shell
 cd test/remote
-export IMAGE_NAMESPACE=quay.io/youruser
+export IMAGE_NAMESPACE=quay.io/{YOUR USERNAME HERE}
 # builds & tags the image
 make image
 # pushes the image to your repository
@@ -65,6 +65,8 @@ make manifests > /tmp/e2e-repositories.yaml
 
 If you do not have kustomize installed, you need to manually edit the manifests
 at `test/remote/manifests/e2e_repositories.yaml` to point to the correct image.
+
+If you get `make: realpath: Command not found`, install coreutils.
 
 ### Deploy the test container and additional permissions
 
@@ -83,7 +85,7 @@ Then, apply the manifests for the E2E repositories workload:
 kubectl -n argocd-e2e apply -f /tmp/e2e-repositories.yaml
 ```
 
-Verify that the deployment was succesful:
+Verify that the deployment was successful:
 
 ```shell
 kubectl -n argocd-e2e rollout status deployment argocd-e2e-cluster
@@ -106,13 +108,13 @@ as the cluster, or the cluster IPs are routed to your host, you can use the
 following:
 
 ```shell
-export ARGOCD_SERVER=$(kubectl get svc argocd-server -o jsonpath='{.spec.clusterIP}')
+export ARGOCD_SERVER=$(kubectl -n argocd-e2e get svc argocd-server -o jsonpath='{.spec.clusterIP}')
 ```
 
 Set the admin password to use:
 
 ```shell
-export ARGOCD_E2E_ADMIN_PASSWORD=$(kubectl get secrets argocd-initial-admin-secret -o jsonpath='{.data.password}'|base64 -d)
+export ARGOCD_E2E_ADMIN_PASSWORD=$(kubectl -n argocd-e2e get secrets argocd-initial-admin-secret -o jsonpath='{.data.password}'|base64 -d)
 ```
 
 Run the tests
@@ -204,7 +206,7 @@ Some environment variables can control the behavior of the tests:
 
 Furthermore, you can skip various classes of tests by setting the following to true:
 
-```
+```shell
 # If you disabled GPG feature, set to true to skip related tests
 export ARGOCD_E2E_SKIP_GPG=${ARGOCD_E2E_SKIP_GPG:-false}
 # Some tests do not work OOTB with OpenShift
@@ -213,9 +215,6 @@ export ARGOCD_E2E_SKIP_OPENSHIFT=${ARGOCD_E2E_SKIP_OPENSHIFT:-false}
 export ARGOCD_E2E_SKIP_HELM=${ARGOCD_E2E_SKIP_HELM:-false}
 # Skip only Helm v2 related tests
 export ARGOCD_E2E_SKIP_HELM2=${ARGOCD_E2E_SKIP_HELM2:-false}
-# Skip Ksonnet tests
-export ARGOCD_E2E_SKIP_KSONNET=${ARGOCD_E2E_SKIP_KSONNET:-false}
-
 ```
 
 ## Recording tests that ran successfully and restart at point of fail

@@ -2,7 +2,11 @@ package common
 
 import (
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -42,6 +46,11 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default listener address for ArgoCD components
+const (
+	DefaultAddressAPIServer = "localhost"
+)
+
 // Default paths on the pod's file system
 const (
 	// The default path where TLS certificates for repositories are located
@@ -54,6 +63,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
+	// Default path to cmp server plugin socket file
+	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
+	// Default path to cmp server plugin configuration file
+	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	PluginConfigFileName = "plugin.yaml"
 )
 
 // Argo CD application related constants
@@ -65,11 +80,18 @@ const (
 	ArgoCDUserAgentName = "argocd-client"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
+	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+
+	// PasswordPatten is the default password patten
+	PasswordPatten = `^.{8,32}$`
 )
 
 // Dex related constants
@@ -99,7 +121,7 @@ const (
 	// LabelKeyAppInstance is the label key to use to uniquely identify the instance of an application
 	// The Argo CD application name is used as the instance name
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
-	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superceded by 'app.kubernetes.io/instance'
+	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
@@ -109,6 +131,9 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+
+	// The Argo CD application name is used as the instance name
+	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
@@ -141,6 +166,12 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// Specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
+	// Specifices max duration of git remote operation retry
+	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
+	// Specifies duration of git remote operation retry
+	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
+	// Specifies fator of git remote operation retry
+	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// Overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
@@ -169,6 +200,23 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
+	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
+	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
+	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
+	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
+	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
+	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
+	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
+	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+)
+
+// Config Management Plugin related constants
+const (
+	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
+	DefaultCMPChunkSize = 1024
+
+	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
+	DefaultCMPWorkDirName = "_cmp_server"
 )
 
 const (
@@ -181,6 +229,12 @@ const (
 	CacheVersion = "1.8.3"
 )
 
+const (
+	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
+	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
+	DefaultGitRetryFactor                    = int64(2)
+)
+
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
 	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
@@ -188,4 +242,36 @@ func GetGnuPGHomePath() string {
 	} else {
 		return gnuPgHome
 	}
+}
+
+// GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
+func GetPluginSockFilePath() string {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
+	}
+}
+
+// GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
+// If EnvCMPChunkSize is defined but not a valid int, DefaultCMPChunkSize will be returned
+func GetCMPChunkSize() int {
+	if chunkSizeStr := os.Getenv(EnvCMPChunkSize); chunkSizeStr != "" {
+		chunkSize, err := strconv.Atoi(chunkSizeStr)
+		if err != nil {
+			logrus.Warnf("invalid env var value for %s: not a valid int: %s. Default value will be used.", EnvCMPChunkSize, err)
+			return DefaultCMPChunkSize
+		}
+		return chunkSize
+	}
+	return DefaultCMPChunkSize
+}
+
+// GetCMPWorkDir will return the full path of the work directory used by the CMP server.
+// This directory and all it's contents will be deleted durring CMP bootstrap.
+func GetCMPWorkDir() string {
+	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
+		return filepath.Join(workDir, DefaultCMPWorkDirName)
+	}
+	return filepath.Join(os.TempDir(), DefaultCMPWorkDirName)
 }

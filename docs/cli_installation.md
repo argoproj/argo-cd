@@ -4,6 +4,12 @@ You can download the latest Argo CD version from [the latest release page of thi
 
 ## Linux and WSL
 
+### ArchLinux User Repository ([AUR](https://aur.archlinux.org/packages/))
+
+```bash
+yay -Sy argocd-bin
+```
+
 ### Homebrew
 
 ```bash
@@ -64,7 +70,7 @@ After finishing either of the instructions above, you should now be able to run 
 
 ## Windows
 
-### Download With Powershell: Invoke-WebRequest
+### Download With PowerShell: Invoke-WebRequest
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 

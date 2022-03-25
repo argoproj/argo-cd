@@ -1,19 +1,21 @@
-import {ActionButton, debounce, useData} from 'argo-ui/v2';
+import {Checkbox} from 'argo-ui';
+import {useData} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
+import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {Filter} from '../filter/filter';
+import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
-    projects: boolean;
     repos: boolean;
     sync: boolean;
     health: boolean;
     namespaces: boolean;
     clusters: boolean;
+    favourite: boolean;
     labels: boolean;
 }
 
@@ -25,12 +27,23 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
     return applications.map(app => ({
         ...app,
         filterResult: {
-            projects: pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project),
             repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            clusters: pref.clustersFilter.length === 0 || pref.clustersFilter.some(server => server === (app.spec.destination.server || app.spec.destination.name)),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
+            clusters:
+                pref.clustersFilter.length === 0 ||
+                pref.clustersFilter.some(filterString => {
+                    const match = filterString.match('^(.*) [(](http.*)[)]$');
+                    if (match?.length === 3) {
+                        const [, name, url] = match;
+                        return url === app.spec.destination.server || name === app.spec.destination.name;
+                    } else {
+                        const inputMatch = filterString.match('^http.*$');
+                        return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
+                    }
+                }),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
         }
     }));
@@ -48,6 +61,7 @@ interface AppFilterProps {
     apps: FilteredApp[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
+    children?: React.ReactNode;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -78,9 +92,15 @@ const SyncFilter = (props: AppFilterProps) => (
         label='SYNC STATUS'
         selected={props.pref.syncFilter}
         setSelected={s => props.onChange({...props.pref, syncFilter: s})}
-        options={getOptions(props.apps, 'sync', app => app.status.sync.status, Object.keys(SyncStatuses), s => (
-            <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'sync',
+            app => app.status.sync.status,
+            Object.keys(SyncStatuses),
+            s => (
+                <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -89,9 +109,15 @@ const HealthFilter = (props: AppFilterProps) => (
         label='HEALTH STATUS'
         selected={props.pref.healthFilter}
         setSelected={s => props.onChange({...props.pref, healthFilter: s})}
-        options={getOptions(props.apps, 'health', app => app.status.health.status, Object.keys(HealthStatuses), s => (
-            <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-        ))}
+        options={getOptions(
+            props.apps,
+            'health',
+            app => app.status.health.status,
+            Object.keys(HealthStatuses),
+            s => (
+                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+            )
+        )}
     />
 );
 
@@ -122,7 +148,11 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
-    const [projects, loading, error] = useData(() => services.projects.list('items.metadata.name'), null, () => null);
+    const [projects, loading, error] = useData(
+        () => services.projects.list('items.metadata.name'),
+        null,
+        () => null
+    );
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
     });
@@ -185,43 +215,37 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-export const ApplicationsFilter = (props: AppFilterProps) => {
-    const [hidden, setHidden] = React.useState(false);
-
-    React.useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1440) {
-                setHidden(false);
-            }
-        };
-
-        window.addEventListener('resize', debounce(handleResize, 1000));
-        return () => window.removeEventListener('resize', handleResize);
-    });
+const FavoriteFilter = (props: AppFilterProps) => {
+    const ctx = React.useContext(Context);
     return (
-        <React.Fragment>
-            <div className='applications-list__filters__title'>
-                FILTERS <i className='fa fa-filter' />
-                <ActionButton
-                    label={hidden ? 'SHOW' : 'HIDE'}
-                    action={() => setHidden(!hidden)}
-                    style={{marginLeft: 'auto', fontSize: '12px', lineHeight: '5px', display: hidden && 'block'}}
-                />
-            </div>
-            <div className='applications-list__filters'>
-                {!hidden && (
-                    <React.Fragment>
-                        <SyncFilter {...props} />
-                        <HealthFilter {...props} />
-                        <div className='applications-list__filters__text-filters'>
-                            <LabelsFilter {...props} />
-                            <ProjectFilter {...props} />
-                            <ClusterFilter {...props} />
-                            <NamespaceFilter {...props} />
-                        </div>
-                    </React.Fragment>
-                )}
-            </div>
-        </React.Fragment>
+        <div className='filter'>
+            <Checkbox
+                checked={!!props.pref.showFavorites}
+                id='favouriteFilter'
+                onChange={val => {
+                    ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
+                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+                }}
+            />{' '}
+            <label htmlFor='favouriteFilter'>FAVORITES ONLY</label>
+        </div>
+    );
+};
+
+export const ApplicationsFilter = (props: AppFilterProps) => {
+    const setShown = (val: boolean) => {
+        services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
+    };
+
+    return (
+        <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+            <FavoriteFilter {...props} />
+            <SyncFilter {...props} />
+            <HealthFilter {...props} />
+            <LabelsFilter {...props} />
+            <ProjectFilter {...props} />
+            <ClusterFilter {...props} />
+            <NamespaceFilter {...props} />
+        </FiltersGroup>
     );
 };

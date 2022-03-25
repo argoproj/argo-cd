@@ -68,7 +68,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
 		{lua.TabLibName, lua.OpenTable},
-		// load our 'safe' version of the os library
+		// load our 'safe' version of the OS library
 		{lua.OsLibName, OpenSafeOs},
 	} {
 		if err := l.CallByParam(lua.P{
@@ -79,7 +79,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 			panic(err)
 		}
 	}
-	// preload our 'safe' version of the os library. Allows the 'local os = require("os")' to work
+	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)

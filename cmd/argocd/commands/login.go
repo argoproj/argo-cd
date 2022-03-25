@@ -13,12 +13,13 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -45,16 +46,26 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
+		Example: `# Login to Argo CD using a username and password
+argocd login cd.argoproj.io
+
+# Login to Argo CD using SSO
+argocd login cd.argoproj.io --sso
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core`,
 		Run: func(c *cobra.Command, args []string) {
 			var server string
 
-			if len(args) != 1 && !globalClientOpts.PortForward {
+			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
 			if globalClientOpts.PortForward {
 				server = "port-forward"
+			} else if globalClientOpts.Core {
+				server = "kubernetes"
 			} else {
 				server = args[0]
 				tlsTestResult, err := grpc_util.TestTLS(server)
@@ -80,15 +91,14 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				ServerAddr:           server,
 				Insecure:             globalClientOpts.Insecure,
 				PlainText:            globalClientOpts.PlainText,
+				ClientCertFile:       globalClientOpts.ClientCertFile,
+				ClientCertKeyFile:    globalClientOpts.ClientCertKeyFile,
 				GRPCWeb:              globalClientOpts.GRPCWeb,
 				GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
 				PortForward:          globalClientOpts.PortForward,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
 			}
-			acdClient := argocdclient.NewClientOrDie(&clientOpts)
-			setConn, setIf := acdClient.NewSettingsClientOrDie()
-			defer io.Close(setConn)
 
 			if ctxName == "" {
 				ctxName = server
@@ -101,28 +111,30 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			// Perform the login
 			var tokenString string
 			var refreshToken string
-			if !sso {
-				tokenString = passwordLogin(acdClient, username, password)
-			} else {
-				ctx := context.Background()
-				httpClient, err := acdClient.HTTPClient()
+			if !globalClientOpts.Core {
+				acdClient := headless.NewClientOrDie(&clientOpts, c)
+				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				defer io.Close(setConn)
+				if !sso {
+					tokenString = passwordLogin(acdClient, username, password)
+				} else {
+					ctx := context.Background()
+					httpClient, err := acdClient.HTTPClient()
+					errors.CheckError(err)
+					ctx = oidc.ClientContext(ctx, httpClient)
+					acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
+					errors.CheckError(err)
+					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
+					errors.CheckError(err)
+					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+				}
+				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+				claims := jwt.MapClaims{}
+				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				ctx = oidc.ClientContext(ctx, httpClient)
-				acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-				errors.CheckError(err)
-				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
-			parser := &jwt.Parser{
-				ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-			}
-			claims := jwt.MapClaims{}
-			_, _, err := parser.ParseUnverified(tokenString, &claims)
-			errors.CheckError(err)
-
-			fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			// login successful. Persist the config
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckError(err)
@@ -135,6 +147,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
+				Core:            globalClientOpts.Core,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,

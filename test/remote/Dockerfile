@@ -1,9 +1,9 @@
-FROM golang:1.16.5 AS go
+FROM golang:1.17 AS go
 
-RUN go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph 
+RUN go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest
 
-FROM ubuntu:21.04
+FROM ubuntu:21.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install -y \
@@ -36,7 +36,7 @@ COPY ./test/fixture/certs/argocd-e2e-server.key /etc/certs/argocd-test-server.ke
 COPY ./test/fixture/certs/argocd-test-ca.crt /etc/certs/argocd-test-ca.crt
 
 # Entrypoint is required for container's user management
-COPY ./test/remote/uid_entrypoint.sh /usr/local/bin
+COPY ./test/remote/entrypoint.sh /usr/local/bin
 COPY ./test/remote/Procfile /Procfile
 
 # We need goreman
@@ -83,4 +83,4 @@ RUN echo "[http]" >> /tmp/argo-e2e/submodule.git/config && \
 RUN echo "[http]" >> /tmp/argo-e2e/submoduleParent.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/submoduleParent.git/config 
 
-ENTRYPOINT ["/usr/local/bin/uid_entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

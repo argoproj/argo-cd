@@ -7,6 +7,7 @@
 
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool.
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
+* CoreDNS. Can be enabled for microk8s by `microk8s enable dns && microk8s stop && microk8s start`
 
 ## 1. Install Argo CD
 
@@ -18,15 +19,17 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
 !!! warning
-    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you installing Argo CD into a different
+    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-!!! note
-    If you are not interested in UI, SSO, multi-cluster management and just want to pull changes into the cluster then you can disable
-    authentication using `--disable-auth` flag and access Argo CD via CLI using `--port-forward` or `--port-forward-namespace` flags
-    and proceed to step [#6](#6-create-an-application-from-a-git-repository):
-    
-    `kubectl patch deploy argocd-server -n argocd -p '[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--disable-auth"}]' --type json`
+If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
+```
+
+Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
 ## 2. Download Argo CD CLI
 
@@ -60,7 +63,7 @@ Kubectl port-forwarding can also be used to connect to the API server without ex
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-The API server can then be accessed using the localhost:8080
+The API server can then be accessed using https://localhost:8080
 
 
 ## 4. Login Using The CLI
@@ -71,12 +74,8 @@ in your Argo CD installation namespace. You can simply retrieve this password
 using `kubectl`:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
-
-For better readability, e.g. if you want to copy & paste the generated password,
-you can simply append `&& echo` to above command, which will add a newline to
-the output.
 
 !!! warning
     You should delete the `argocd-initial-admin-secret` from the Argo CD
@@ -90,6 +89,9 @@ Using the username `admin` and the password from above, login to Argo CD's IP or
 ```bash
 argocd login <ARGOCD_SERVER>
 ```
+
+!!! note
+    The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
 
 Change the password using the command:
 
@@ -129,10 +131,11 @@ An example repository containing a guestbook application is available at
 
 ### Creating Apps Via CLI
 
-!!! note
-    You can access Argo CD using port forwarding: add `--port-forward-namespace argocd` flag to every CLI command or set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`:
+Create the example guestbook application with the following command:
 
-    `argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default`
+```bash
+argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default
+```
 
 ### Creating Apps Via UI
 
@@ -150,7 +153,7 @@ Connect the [https://github.com/argoproj/argocd-example-apps.git](https://github
 
 ![connect repo](assets/connect-repo.png)
 
-For **Destination**, set cluster to `in-cluster` and namespace to `default`:
+For **Destination**, set cluster URL to `https://kubernetes.default.svc` (or `in-cluster` for cluster name) and namespace to `default`:
 
 ![destination](assets/destination.png)
 

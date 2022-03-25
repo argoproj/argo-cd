@@ -1,11 +1,8 @@
-import {Autocomplete, CheckboxOption, CheckboxRow} from 'argo-ui/v2';
+import {Autocomplete, Checkbox} from 'argo-ui/v2';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import './filter.scss';
-
-interface FilterMap {
-    [label: string]: boolean;
-}
 
 interface FilterProps {
     selected: string[];
@@ -13,22 +10,91 @@ interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;
     loading?: boolean;
+    radio?: boolean;
 }
 
+export interface CheckboxOption {
+    label: string;
+    count?: number;
+    icon?: React.ReactNode;
+}
+
+export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
+    const [value, setValue] = React.useState(props.value);
+
+    React.useEffect(() => {
+        setValue(props.value);
+    }, [props.value]);
+
+    return (
+        <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
+            <Checkbox
+                onChange={val => {
+                    setValue(val);
+                    if (props.onChange) {
+                        props.onChange(val);
+                    }
+                }}
+                value={value}
+                style={{
+                    marginRight: '8px'
+                }}
+            />
+            {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
+            <div className='filter__item__label'>{props.option.label}</div>
+            <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
+        </div>
+    );
+};
+
+export const FiltersGroup = (props: {
+    children?: React.ReactNode;
+    content: React.ReactNode;
+    appliedFilter?: string[];
+    expanded: boolean;
+    setShown: (val: boolean) => void;
+    onClearFilter?: () => void;
+}) => {
+    return (
+        <div className={classNames('filters-group', {'filters-group--expanded': props.expanded})}>
+            <div className='filters-group__panel'>
+                <i className='fa fa-filter' />
+                <div className='filters-group__panel__title'>
+                    FILTERS{' '}
+                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                        <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
+                            CLEAR ALL
+                        </button>
+                    )}
+                    <i className='fa fa-thumbtack filters-group__toggle' onClick={() => props.setShown(!props.expanded)} />
+                </div>
+                <>{props.children}</>
+            </div>
+            <div className='filters-group__content'>{props.content}</div>
+        </div>
+    );
+};
+
 export const Filter = (props: FilterProps) => {
-    const init = {} as FilterMap;
+    const init = {} as {[label: string]: boolean};
     props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(false);
+    const [options, setOptions] = React.useState(props.options);
 
-    const labels = props.labels || props.options.map(o => o.label);
+    React.useEffect(() => {
+        setOptions(props.options);
+    }, [props.options]);
+
+    const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
         const map: string[] = Object.keys(values).filter(s => values[s]);
@@ -36,26 +102,37 @@ export const Filter = (props: FilterProps) => {
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
-                    return {label: v} as CheckboxOption;
+                    if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
+                    else return {label: v} as CheckboxOption;
                 })
             );
         }
     }, [values]);
 
+    React.useEffect(() => {
+        if (props.selected.length === 0) {
+            setValues({} as {[label: string]: boolean});
+            setInput('');
+        }
+    }, [props.selected.length]);
+
+    const totalCount = options.reduce((countSum, option) => {
+        return countSum + option.count;
+    }, 0);
+
     return (
-        <div className='filter'>
+        <div className='filter' key={totalCount + props.label}>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
-                    <div
-                        className='argo-button argo-button--base argo-button--sm'
-                        style={{marginLeft: 'auto'}}
+                    <button
+                        className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
-                            setValues({} as FilterMap);
+                            setValues({} as {[label: string]: boolean});
                             setInput('');
                         }}>
                         <i className='fa fa-times-circle' /> CLEAR
-                    </div>
+                    </button>
                 ) : (
                     <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} filter__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 )}
@@ -71,11 +148,12 @@ export const Filter = (props: FilterProps) => {
                             <Autocomplete
                                 placeholder={props.label}
                                 items={labels}
+                                abbreviations={props.abbreviations}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
                                     const update = {...values};
-                                    update[val] = true;
+                                    update[val ? val : input] = true;
                                     setInput('');
                                     setValues(update);
                                 }}
@@ -83,12 +161,12 @@ export const Filter = (props: FilterProps) => {
                                 inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
                             />
                         )}
-                        {((props.field ? tags : props.options) || []).map((opt, i) => (
+                        {((props.field ? tags : options) || []).map((opt, i) => (
                             <CheckboxRow
                                 key={i}
                                 value={values[opt.label]}
                                 onChange={val => {
-                                    const update = {...values};
+                                    const update = props.radio && val ? {} : {...values};
                                     update[opt.label] = val;
                                     setValues(update);
                                 }}

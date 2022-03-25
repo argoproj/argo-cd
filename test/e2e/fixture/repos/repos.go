@@ -2,6 +2,7 @@ package repos
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -116,6 +117,25 @@ func AddHTTPSCredentialsTLSClientCert() {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
+// AddHelmHTTPSCredentialsTLSClientCert adds credentials for Helm repos to context
+func AddHelmHTTPSCredentialsTLSClientCert() {
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	errors.CheckError(err)
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	errors.CheckError(err)
+	args := []string{
+		"repocreds",
+		"add",
+		fixture.RepoURL(fixture.RepoURLTypeHelmParent),
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"--tls-client-cert-path", certPath,
+		"--tls-client-cert-key-path", keyPath,
+		"--type", "helm",
+	}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
 func AddHelmoOCICredentialsWithoutUserPass() {
 	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
@@ -134,11 +154,24 @@ func AddSSHCredentials() {
 
 // PushChartToOCIRegistry adds a helm chart to helm OCI registry
 func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
-	chartAbsPath, err := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
-	errors.CheckError(err)
+	// create empty temp directory to extract chart from the registry
+	tempDest, err1 := ioutil.TempDir("", "helm")
+	errors.CheckError(err1)
+	defer func() { _ = os.RemoveAll(tempDest) }()
+
+	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
+	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
-	errors.FailOnErr(fixture.Run("", "helm", "chart", "save", chartAbsPath, fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
-	errors.FailOnErr(fixture.Run("", "helm", "chart", "push", fmt.Sprintf("%s/%s:%s", fixture.HelmOCIRegistryURL, chartName, chartVersion)))
+	errors.FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
+	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
+	errors.FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"push",
+		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
+		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
+	))
 
 }

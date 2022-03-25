@@ -5,7 +5,8 @@ import * as ReactForm from 'react-form';
 
 require('./application-sync-options.scss');
 
-const REPLACE_WARNING = `The resource will be synced using 'kubectl replace/create' command that is a potentially destructive action.`;
+export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
+export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
@@ -59,9 +60,12 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
             />
             <label htmlFor={`sync-option-${name}`}>{label}</label>{' '}
             {warning && (
-                <Tooltip content={warning}>
-                    <i className='fa fa-exclamation-triangle' />
-                </Tooltip>
+                <>
+                    <Tooltip content={warning}>
+                        <i className='fa fa-exclamation-triangle' />
+                    </Tooltip>
+                    {checked && <div className='application-sync-options__warning'>{warning}</div>}
+                </>
             )}
         </React.Fragment>
     );
@@ -86,7 +90,7 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
     props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
-    props => booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING),
+    props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
@@ -104,6 +108,9 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 {render(props)}
             </div>
         ))}
+        <div className='small-12' style={optionStyle}>
+            {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
+        </div>
     </div>
 );
 

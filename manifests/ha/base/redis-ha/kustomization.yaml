@@ -118,6 +118,12 @@ patchesJson6902:
     version: v1
     group: ""
     kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
     name: argocd-redis-ha-configmap
   path: overlays/modify-labels.yaml
 - target:
@@ -165,8 +171,20 @@ patchesJson6902:
 - target:
     group: rbac.authorization.k8s.io
     version: v1
+    kind: Role
+    name: argocd-redis-ha-haproxy
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
     kind: RoleBinding
     name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: RoleBinding
+    name: argocd-redis-ha-haproxy
   path: overlays/modify-labels.yaml
 - target:
     version: v1

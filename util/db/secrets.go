@@ -76,7 +76,11 @@ func updateSecretString(secret *apiv1.Secret, key, value string) {
 	}
 }
 
-func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1.Secret) (*apiv1.Secret, error) {
+func (db *db) createSecret(ctx context.Context, secret *apiv1.Secret) (*apiv1.Secret, error) {
+	return db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
+}
+
+func addSecretMetadata(secret *apiv1.Secret, secretType string) {
 	if secret.Annotations == nil {
 		secret.Annotations = map[string]string{}
 	}
@@ -86,9 +90,6 @@ func (db *db) createSecret(ctx context.Context, secretType string, secret *apiv1
 		secret.Labels = map[string]string{}
 	}
 	secret.Labels[common.LabelKeySecretType] = secretType
-
-	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
-	return secret, err
 }
 
 func (db *db) deleteSecret(ctx context.Context, secret *apiv1.Secret) error {

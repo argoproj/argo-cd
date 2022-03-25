@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	math "math"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +19,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 )
 
@@ -73,6 +75,8 @@ type ApplicationSpec struct {
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
 }
 
+type TrackingMethod string
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
 	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
@@ -81,6 +85,9 @@ type ResourceIgnoreDifferences struct {
 	Namespace         string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 	JSONPointers      []string `json:"jsonPointers,omitempty" protobuf:"bytes,5,opt,name=jsonPointers"`
 	JQPathExpressions []string `json:"jqPathExpressions,omitempty" protobuf:"bytes,6,opt,name=jqPathExpressions"`
+	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+	// desired state defined in the SCM and won't be displayed in diffs
+	ManagedFieldsManagers []string `json:"managedFieldsManagers,omitempty" protobuf:"bytes,7,opt,name=managedFieldsManagers"`
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -134,7 +141,12 @@ func (e Env) Envsubst(s string) string {
 		valByEnv[item.Name] = item.Value
 	}
 	return os.Expand(s, func(s string) string {
-		return valByEnv[s]
+		// allow escaping $ with $$
+		if s == "$" {
+			return "$"
+		} else {
+			return valByEnv[s]
+		}
 	})
 }
 
@@ -152,8 +164,6 @@ type ApplicationSource struct {
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
-	// Ksonnet holds ksonnet specific options
-	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 	// ConfigManagementPlugin holds config management plugin specific options
@@ -168,9 +178,6 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	// Kustomize with parameters requires changing kustomization.yaml file
 	case a.Kustomize != nil:
 		return a.Kustomize.AllowsConcurrentProcessing()
-	// Kustomize with parameters requires changing params.libsonnet file
-	case a.Ksonnet != nil:
-		return a.Ksonnet.AllowsConcurrentProcessing()
 	}
 	return true
 }
@@ -196,7 +203,6 @@ func (a *ApplicationSource) IsZero() bool {
 			a.TargetRevision == "" &&
 			a.Helm.IsZero() &&
 			a.Kustomize.IsZero() &&
-			a.Ksonnet.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero()
 }
@@ -207,7 +213,6 @@ type ApplicationSourceType string
 const (
 	ApplicationSourceTypeHelm      ApplicationSourceType = "Helm"
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
-	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
@@ -234,6 +239,12 @@ type ApplicationSourceHelm struct {
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating (either "2" or "3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
+	PassCredentials bool `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
+	// IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
+	IgnoreMissingValueFiles bool `json:"ignoreMissingValueFiles,omitempty" protobuf:"bytes,8,opt,name=ignoreMissingValueFiles"`
+	// SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
+	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -315,7 +326,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -431,31 +442,6 @@ type ApplicationSourceJsonnet struct {
 // IsZero returns true if the JSonnet options of an application are considered to be empty
 func (j *ApplicationSourceJsonnet) IsZero() bool {
 	return j == nil || len(j.ExtVars) == 0 && len(j.TLAs) == 0 && len(j.Libs) == 0
-}
-
-// ApplicationSourceKsonnet holds ksonnet specific options
-type ApplicationSourceKsonnet struct {
-	// Environment is a ksonnet application environment name
-	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
-	// Parameters are a list of ksonnet component parameter override values
-	Parameters []KsonnetParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
-}
-
-// KsonnetParameter is a ksonnet component parameter
-type KsonnetParameter struct {
-	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
-	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
-}
-
-// AllowsConcurrentProcessing returns true if multiple processes can run ksonnet builds on the same source at the same time
-func (k *ApplicationSourceKsonnet) AllowsConcurrentProcessing() bool {
-	return len(k.Parameters) == 0
-}
-
-// IsZero returns true if the KSonnet options of an application are considered to be empty
-func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k == nil || k.Environment == "" && len(k.Parameters) == 0
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -763,11 +749,12 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
-	timeToWait := duration * time.Duration(math.Pow(float64(factor), float64(retryCounts)))
+	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
 	if maxDuration > 0 {
-		timeToWait = time.Duration(math.Min(float64(maxDuration), float64(timeToWait)))
+		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
-	return lastAttempt.Add(timeToWait), nil
+	return lastAttempt.Add(time.Duration(timeToWait)), nil
 }
 
 // Backoff is the backoff strategy to use on subsequent retries for failing syncs
@@ -1271,6 +1258,14 @@ type Cluster struct {
 	Info ClusterInfo `json:"info,omitempty" protobuf:"bytes,8,opt,name=info"`
 	// Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
 	Shard *int64 `json:"shard,omitempty" protobuf:"bytes,9,opt,name=shard"`
+	// Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+	ClusterResources bool `json:"clusterResources,omitempty" protobuf:"bytes,10,opt,name=clusterResources"`
+	// Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,11,opt,name=project"`
+	// Labels for cluster secret metadata
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
+	// Annotations for cluster secret metadata
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -1295,6 +1290,19 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	if shard != otherShard {
 		return false
 	}
+
+	if c.ClusterResources != other.ClusterResources {
+		return false
+	}
+
+	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
+		return false
+	}
+
+	if !collections.StringMapsEqual(c.Labels, other.Labels) {
+		return false
+	}
+
 	return reflect.DeepEqual(c.Config, other.Config)
 }
 
@@ -1413,10 +1421,16 @@ type KnownTypeField struct {
 	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
-// TODO: describe this type
+// OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
+// the desired state and live state
 type OverrideIgnoreDiff struct {
-	JSONPointers      []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	//JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
+	//JQPathExpressions is a JQ path list that will be evaludated during the diff process
 	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
+	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+	// desired state defined in the SCM and won't be displayed in diffs
+	ManagedFieldsManagers []string `json:"managedFieldsManagers" protobuf:"bytes,3,opt,name=managedFieldsManagers"`
 }
 
 type rawResourceOverride struct {
@@ -1541,8 +1555,8 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if resource != "applications" {
-		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', not '%s'", policy, resource)
+	if resource != "applications" && resource != "repositories" && resource != "clusters" {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
 	}
 	// action
 	action := strings.Trim(policyComponents[3], " ")
@@ -1551,7 +1565,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, proj))
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, regexp.QuoteMeta(proj)))
 	if err != nil || !objectRegexp.MatchString(object) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
 	}
@@ -1572,10 +1586,18 @@ func validateRoleName(name string) error {
 	return nil
 }
 
-var invalidChars = regexp.MustCompile("[,\n\r\t]")
+var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
-	if strings.TrimSpace(name) == "" {
+	name = strings.TrimSpace(name)
+	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
+		// Remove surrounding quotes for further inspection of the group name
+		name = name[1 : len(name)-1]
+	} else if strings.Contains(name, ",") {
+		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
+	}
+
+	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
@@ -1601,7 +1623,7 @@ type OrphanedResourceKey struct {
 
 // IsWarn returns true if warnings are enabled for orphan resources monitoring
 func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
-	return s.Warn == nil || *s.Warn
+	return s.Warn != nil && *s.Warn
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
@@ -1655,9 +1677,11 @@ type SyncWindow struct {
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
+	//TimeZone of the sync that will be applied to the schedule
+	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 }
 
-// HasWindows returns true if any window is defined
+// HasWindows returns true if SyncWindows has one or more SyncWindow
 func (s *SyncWindows) HasWindows() bool {
 	return s != nil && len(*s) > 0
 }
@@ -1679,8 +1703,11 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
-			nextWindow := schedule.Next(currentTime.Add(-duration))
-			if nextWindow.Before(currentTime) {
+
+			// Offset the nextWindow time to consider the timeZone of the sync window
+			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 				active = append(active, w)
 			}
 		}
@@ -1691,7 +1718,9 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
-// TODO: document this method
+// InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
+// for the current time. If the current time is in an inactive allow window, syncs will
+// be denied.
 func (s *SyncWindows) InactiveAllows() *SyncWindows {
 	return s.inactiveAllows(time.Now())
 }
@@ -1709,8 +1738,11 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				duration, dErr := time.ParseDuration(w.Duration)
-				nextWindow := schedule.Next(currentTime.Add(-duration))
-				if !nextWindow.Before(currentTime) && sErr == nil && dErr == nil {
+				// Offset the nextWindow time to consider the timeZone of the sync window
+				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
 					inactive = append(inactive, w)
 				}
 			}
@@ -1722,17 +1754,29 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 	return nil
 }
 
+func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
+	loc, err := time.LoadLocation(w.TimeZone)
+	if err != nil {
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
+		loc = time.Now().UTC().Location()
+	}
+	_, tzOffset := time.Now().In(loc).Zone()
+	return time.Duration(tzOffset) * time.Second
+}
+
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool) error {
+func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 
 	}
+
 	window := &SyncWindow{
 		Kind:       knd,
 		Schedule:   sch,
 		Duration:   dur,
 		ManualSync: ms,
+		TimeZone:   timeZone,
 	}
 
 	if len(app) > 0 {
@@ -1787,7 +1831,10 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
-					if globMatch(c, app.Spec.Destination.Server) {
+					dst := app.Spec.Destination
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1815,50 +1862,55 @@ func (w *SyncWindows) CanSync(isManual bool) bool {
 		return true
 	}
 
-	var allowActive, denyActive, manualEnabled bool
 	active := w.Active()
-	denyActive, manualEnabled = active.hasDeny()
-	allowActive = active.hasAllow()
+	hasActiveDeny, manualEnabled := active.hasDeny()
 
-	if !denyActive {
-		if !allowActive {
-			if isManual && w.InactiveAllows().manualEnabled() {
-				return true
-			}
-		} else {
-			return true
-		}
-	} else {
+	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true
+		} else {
+			return false
 		}
 	}
 
-	return false
+	inactiveAllows := w.InactiveAllows()
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
 
+// hasDeny will iterate over the SyncWindows and return if a deny window is found and if
+// manual sync is enabled. It returns true in the first return boolean value if it finds
+// any deny window. Will return true in the second return boolean value if all deny windows
+// have manual sync enabled. If one deny window has manual sync disabled it returns false in
+// the second return value.
 func (w *SyncWindows) hasDeny() (bool, bool) {
 	if !w.HasWindows() {
 		return false, false
 	}
-	var denyActive, manualEnabled bool
+	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyActive {
+			if !denyFound {
 				manualEnabled = a.ManualSync
 			} else {
 				if manualEnabled {
-					if !a.ManualSync {
-						manualEnabled = a.ManualSync
-					}
+					manualEnabled = a.ManualSync
 				}
 			}
-			denyActive = true
+			denyFound = true
 		}
 	}
-	return denyActive, manualEnabled
+	return denyFound, manualEnabled
 }
 
+// hasAllow will iterate over the SyncWindows and returns true if it find any allow window.
 func (w *SyncWindows) hasAllow() bool {
 	if !w.HasWindows() {
 		return false
@@ -1871,16 +1923,19 @@ func (w *SyncWindows) hasAllow() bool {
 	return false
 }
 
+// manualEnabled will iterate over the SyncWindows and return true if all windows have
+// ManualSync set to true. Returns false if it finds at least one entry with ManualSync
+// set to false
 func (w *SyncWindows) manualEnabled() bool {
 	if !w.HasWindows() {
 		return false
 	}
 	for _, s := range *w {
-		if s.ManualSync {
-			return true
+		if !s.ManualSync {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // Active returns true if the sync window is currently active
@@ -1898,12 +1953,16 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	schedule, _ := specParser.Parse(w.Schedule)
 	duration, _ := time.ParseDuration(w.Duration)
 
-	nextWindow := schedule.Next(currentTime.Add(-duration))
-	return nextWindow.Before(currentTime)
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string) error {
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
+
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -1925,12 +1984,25 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-
+	if tz == "" {
+		tz = "UTC"
+	}
+	w.TimeZone = tz
 	return nil
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
+
+	// Default timeZone to UTC if timeZone is not specified
+	if w.TimeZone == "" {
+		w.TimeZone = "UTC"
+	}
+	if _, err := time.LoadLocation(w.TimeZone); err != nil {
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
+		w.TimeZone = "UTC"
+	}
+
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
@@ -1963,7 +2035,7 @@ type ProjectRole struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Description is a description of the role
 	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
-	// Policies Stores a list of casbin formated strings that define access policies for the role in the project
+	// Policies Stores a list of casbin formatted strings that define access policies for the role in the project
 	Policies []string `json:"policies,omitempty" protobuf:"bytes,3,rep,name=policies"`
 	// JWTTokens are a list of generated JWT tokens bound to this role
 	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
@@ -1989,6 +2061,12 @@ type ConfigManagementPlugin struct {
 	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
 	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
 	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
+	LockRepo bool     `json:"lockRepo,omitempty" protobuf:"bytes,4,name=lockRepo"`
+}
+
+// HelmOptions holds helm options
+type HelmOptions struct {
+	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests
@@ -2155,9 +2233,6 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	if source.Helm != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeHelm)
 	}
-	if source.Ksonnet != nil {
-		appTypes = append(appTypes, ApplicationSourceTypeKsonnet)
-	}
 	if source.Directory != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeDirectory)
 	}
@@ -2256,18 +2331,19 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	}
 
 	dial := (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
+		Timeout:   K8sTCPTimeout,
+		KeepAlive: K8sTCPKeepAlive,
 	}).DialContext
 	transport := utilnet.SetTransportDefaults(&http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
-		TLSHandshakeTimeout: 10 * time.Second,
+		TLSHandshakeTimeout: K8sTLSHandshakeTimeout,
 		TLSClientConfig:     tlsConfig,
 		MaxIdleConns:        K8sMaxIdleConnections,
 		MaxIdleConnsPerHost: K8sMaxIdleConnections,
 		MaxConnsPerHost:     K8sMaxIdleConnections,
 		DialContext:         dial,
 		DisableCompression:  config.DisableCompression,
+		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
@@ -2278,6 +2354,9 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.TLSClientConfig = rest.TLSClientConfig{}
 	config.AuthProvider = nil
 	config.ExecProvider = nil
+
+	// Set server-side timeout
+	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
 	return nil
@@ -2321,9 +2400,10 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion: "client.authentication.k8s.io/v1alpha1",
-					Command:    "aws",
-					Args:       args,
+					APIVersion:      "client.authentication.k8s.io/v1alpha1",
+					Command:         "aws",
+					Args:            args,
+					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
 		} else if c.Config.ExecProviderConfig != nil {
@@ -2340,11 +2420,12 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion:  c.Config.ExecProviderConfig.APIVersion,
-					Command:     c.Config.ExecProviderConfig.Command,
-					Args:        c.Config.ExecProviderConfig.Args,
-					Env:         env,
-					InstallHint: c.Config.ExecProviderConfig.InstallHint,
+					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
+					Command:         c.Config.ExecProviderConfig.Command,
+					Args:            c.Config.ExecProviderConfig.Args,
+					Env:             env,
+					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
+					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
 		} else {
@@ -2360,6 +2441,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
+	config.Timeout = K8sServerSideTimeout
 	return config
 }
 

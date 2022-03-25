@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-func PortForward(podSelector string, targetPort int, namespace string, overrides *clientcmd.ConfigOverrides) (int, error) {
+func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
@@ -40,21 +40,30 @@ func PortForward(podSelector string, targetPort int, namespace string, overrides
 		return -1, err
 	}
 
-	pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{
-		LabelSelector: podSelector,
-	})
-	if err != nil {
-		return -1, err
+	var pod *corev1.Pod
+
+	for _, podSelector := range podSelectors {
+		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{
+			LabelSelector: podSelector,
+		})
+		if err != nil {
+			return -1, err
+		}
+
+		if len(pods.Items) > 0 {
+			pod = &pods.Items[0]
+			break
+		}
 	}
 
-	if len(pods.Items) == 0 {
-		return -1, fmt.Errorf("cannot find %s pod", podSelector)
+	if pod == nil {
+		return -1, fmt.Errorf("cannot find pod with selector: %v", podSelectors)
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Namespace(pods.Items[0].Namespace).
-		Name(pods.Items[0].Name).
+		Namespace(pod.Namespace).
+		Name(pod.Name).
 		SubResource("portforward").URL()
 
 	transport, upgrader, err := spdy.RoundTripperFor(config)
@@ -64,6 +73,7 @@ func PortForward(podSelector string, targetPort int, namespace string, overrides
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
 	readyChan := make(chan struct{}, 1)
+	failedChan := make(chan error, 1)
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
 
@@ -82,10 +92,13 @@ func PortForward(podSelector string, targetPort int, namespace string, overrides
 	go func() {
 		err = forwarder.ForwardPorts()
 		if err != nil {
-			log.Fatal(err)
+			failedChan <- err
 		}
 	}()
-	for range readyChan {
+	select {
+	case err = <-failedChan:
+		return -1, err
+	case <-readyChan:
 	}
 	if len(errOut.String()) != 0 {
 		return -1, fmt.Errorf(errOut.String())

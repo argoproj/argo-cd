@@ -38,7 +38,6 @@ test('gitlab.com', () => {
         'https://gitlab.com/alex_collins/private-repo/commit/b1fe9426ead684d7af16958920968342ee295c1f');
 });
 
-
 test('bitbucket.org', () => {
     testExample(
         'https://alexcollinsinuit@bitbucket.org/alexcollinsinuit/test-repo.git',
@@ -48,3 +47,6 @@ test('bitbucket.org', () => {
         'https://bitbucket.org/alexcollinsinuit/test-repo/commits/38fb93957deb45ff546af13399a92ac0d568c350');
 });
 
+test('empty url', () => {
+    expect(repoUrl('')).toBe(null);
+});

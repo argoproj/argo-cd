@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/hash"
@@ -46,8 +48,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 
-	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt32), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
-	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt32), "Cache expiration for cached revision")
+	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -63,8 +65,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
 	appSrc = appSrc.DeepCopy()
 	if !appSrc.IsHelm() {
-		appSrc.RepoURL = ""        // superceded by commitSHA
-		appSrc.TargetRevision = "" // superceded by commitSHA
+		appSrc.RepoURL = ""        // superseded by commitSHA
+		appSrc.TargetRevision = "" // superseded by commitSHA
 	}
 	appSrcStr, _ := json.Marshal(appSrc)
 	return hash.FNVa(string(appSrcStr))
@@ -136,12 +138,16 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	return nil
 }
 
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
+	trackingKey := appLabelKey
+	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
+		trackingKey = trackingMethod + ":" + trackingKey
+	}
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res)
 
 	if err != nil {
 		return err
@@ -152,11 +158,11 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 		return fmt.Errorf("Unable to generate hash value: %s", err)
 	}
 
-	// If the expected hash of the cache entry does not match the actual hash value...
-	if hash != res.CacheEntryHash {
-		log.Warnf("Manifest hash did not match expected value, treating as a cache miss: %s", appName)
+	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
+	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
+		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
-		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, appLabelKey, appName)
+		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
@@ -171,7 +177,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
@@ -183,23 +189,26 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, c
 		res.CacheEntryHash = hash
 	}
 
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, appLabelKey string, appName string) error {
-	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string) error {
+	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 
-func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource) string {
-	return fmt.Sprintf("appdetails|%s|%d", revision, appSourceKey(appSrc))
+func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, trackingMethod appv1.TrackingMethod) string {
+	if trackingMethod == "" {
+		trackingMethod = argo.TrackingMethodLabel
+	}
+	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc), trackingMethod)
 }
 
-func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
-	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc), res)
+func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res)
 }
 
-func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse) error {
-	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc), res, c.repoCacheExpiration, res == nil)
+func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res, c.repoCacheExpiration, res == nil)
 }
 
 func revisionMetadataKey(repoURL, revision string) string {
