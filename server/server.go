@@ -748,7 +748,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 
-	mux.Handle("/api/extensions/", extensions.NewHandler())
+	extensionHandler, err := extensions.NewHandler(ctx, a.KubeClientset, a.Namespace)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to load extensions: %w", err))
+	}
+	mux.Handle("/api/extensions/", extensionHandler)
 	mux.Handle("/api/", handler)
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)

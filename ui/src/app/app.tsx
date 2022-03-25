@@ -142,7 +142,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
         }
         services.extensions
             .load()
-            .then(extension => this.notificationsManager.show({content: `loaded ${extension.name} extension`, type: NotificationType.Success}))
+            .then(extensions => this.notificationsManager.show({content: `loaded ${extensions.length} extension(s)`, type: NotificationType.Success}))
             .catch(error => this.notificationsManager.show({content: `failed to loaded extension: ${error}`, type: NotificationType.Error}));
     }
 

@@ -4,7 +4,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import * as appModels from '../../../shared/models';
-import {ResourceStatus} from '../../../shared/models';
+import {Application, ResourceStatus} from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
@@ -26,6 +26,7 @@ import {urlPattern} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {ExtensionExport} from '../../../shared/services/extensions-service';
 
 require('./application-details.scss');
 
@@ -35,7 +36,8 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
-    extensions: any;
+    extensions: ExtensionExport[];
+    extensionsState: any;
 }
 
 interface FilterInput {
@@ -70,7 +72,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], extensions: {}};
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            extensionsState: {},
+            extensions: []
+        };
     }
 
     private get showOperationState() {
@@ -116,6 +125,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 return 'Application Details List';
         }
         return '';
+    }
+
+    componentDidMount() {
+        services.extensions
+            .load()
+            .then(() => this.setState({extensions: services.extensions.list()}));
     }
 
     public render() {
@@ -476,16 +491,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 </DataLoader>
                                             )}
                                         </SlidingPanel>
-                                        {(services.extensions.list('appPanel', this.state.extensions, (extensions) => {
-                                            this.setState({extensions})
-                                        }) as {
-                                            isNarrow: boolean;
-                                            onClose: () => void;
-                                            shown:boolean,component:React.Component}[]).map((x,i) =>
-                                            <SlidingPanel isShown={x.shown} onClose={x.onClose} isNarrow={x.isNarrow} key={i}>
-                                                {x.component}
-                                            </SlidingPanel>
-                                        )}
+                                        {this.renderExtensionAppPanels(application)}
                                     </Page>
                                 </div>
                             );
@@ -496,13 +502,38 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         );
     }
 
+    private renderExtensionAppPanels(application: Application) {
+        const context = {
+            state: this.state.extensionsState,
+            setState: (extensionsState: any) => this.setState({extensionsState})
+        };
+
+        return this.state.extensions
+            .filter(e => e.type === 'appPanel')
+            .map(e => e.factory(context))
+            .map((e, i) => {
+                return (
+                    <SlidingPanel key={'' + i} onClose={e.onClose} isShown={e.isShown}>
+                        {this.renderExtensionAppPanel({Component: e.component, application})}
+                    </SlidingPanel>
+                );
+            });
+    }
+
+    private renderExtensionAppPanel({Component, application}: {Component: React.ComponentType<any>; application: Application}) {
+        return <Component application={application} />;
+    }
+
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const extensions = services.extensions.list('appToolbar', this.state.extensions, (extensions) => {
-            this.setState({extensions})
-        }) as { title: string | React.ReactElement, action: ()=> any }[];
+        const context = {
+            state: this.state.extensionsState,
+            setState: (extensionsState: any) => this.setState({extensionsState})
+        };
+
+        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions.filter(e => e.type == 'appToolbar').map(e => e.factory(context));
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -562,7 +593,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                     }
                 }
             },
-            ...extensions
+            ...extensionButtons
         ];
     }
 
