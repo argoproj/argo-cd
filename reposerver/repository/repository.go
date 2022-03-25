@@ -1683,25 +1683,28 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 		return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	err = gitClient.Fetch(revision)
-
+	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+	err = gitClient.Fetch("")
 	if err != nil {
-		log.Infof("Failed to fetch revision %s: %v", revision, err)
-		log.Infof("Fallback to fetch default")
-		err = gitClient.Fetch("")
-		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
-		}
-		err = gitClient.Checkout(revision, submoduleEnabled)
+		return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+	}
+
+	err = gitClient.Checkout(revision, submoduleEnabled)
+	if err != nil {
+		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
+		// for the given revision, try explicitly fetching it.
+		log.Infof("Failed to checkout revision %s: %v", revision, err)
+		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+
+		err = gitClient.Fetch(revision)
 		if err != nil {
 			return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
-		return closer, err
-	}
 
-	err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
-	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		if err != nil {
+			return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
 	}
 
 	return closer, err
