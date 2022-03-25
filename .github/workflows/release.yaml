@@ -12,7 +12,7 @@ on:
       - '!release-v0*'
 
 env:
-    GOLANG_VERSION: '1.17.6'
+    GOLANG_VERSION: '1.17'
 
 jobs:
   prepare-release:

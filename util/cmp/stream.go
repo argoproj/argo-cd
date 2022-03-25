@@ -288,8 +288,8 @@ func appMetadataRequest(appName, appRelPath string, env []string, checksum strin
 func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
 	envEntry := make([]*pluginclient.EnvEntry, 0)
 	for _, env := range envVars {
-		pair := strings.Split(env, "=")
-		if len(pair) != 2 {
+		pair := strings.SplitN(env, "=", 2)
+		if len(pair) < 2 {
 			continue
 		}
 		envEntry = append(envEntry, &pluginclient.EnvEntry{Name: pair[0], Value: pair[1]})

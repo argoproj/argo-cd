@@ -2169,7 +2169,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return &command
 }
 
-func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
+func filterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
 	liveObjs, err := liveObjects(resources)
 	errors.CheckError(err)
 	filteredObjects := make([]*unstructured.Unstructured, 0)
@@ -2179,7 +2179,7 @@ func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff
 			continue
 		}
 		gvk := obj.GroupVersionKind()
-		if command.Flags().Changed("group") && group != gvk.Group {
+		if groupChanged && group != gvk.Group {
 			continue
 		}
 		if namespace != "" && namespace != obj.GetNamespace() {
@@ -2239,7 +2239,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		objectsToPatch := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		for i := range objectsToPatch {
 			obj := objectsToPatch[i]
 			gvk := obj.GroupVersionKind()
@@ -2295,7 +2295,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		objectsToDelete := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		objectsToDelete := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		for i := range objectsToDelete {
 			obj := objectsToDelete[i]
 			gvk := obj.GroupVersionKind()
