@@ -370,6 +370,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         <ApplicationResourceList
                                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                                             resources={data}
+                                                                            application={application}
                                                                             nodeMenu={node =>
                                                                                 AppUtils.renderResourceMenu(
                                                                                     {...node, root: node},
@@ -404,6 +405,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         <ApplicationResourceList
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
+                                                            application={application}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)

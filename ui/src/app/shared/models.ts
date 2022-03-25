@@ -309,6 +309,7 @@ export interface ResourceStatus {
     health: HealthStatus;
     hook?: boolean;
     requiresPruning?: boolean;
+    syncOrder?: string;
 }
 
 export interface ResourceRef {
