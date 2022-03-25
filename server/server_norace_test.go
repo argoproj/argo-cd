@@ -65,12 +65,6 @@ func TestUserAgent(t *testing.T) {
 			userAgent: fmt.Sprintf("%s/%s-rc1", common.ArgoCDUserAgentName, currentVersion),
 		},
 		{
-			// Reject legacy client
-			// NOTE: after we update the grpc-go client past 1.15.0, this test will break and should be deleted
-			userAgent: " ", // need a space here since the apiclient will set the default user-agent if empty
-			errorMsg:  "unsatisfied client version constraint",
-		},
-		{
 			// Permit custom clients
 			userAgent: "foo/1.2.3",
 		},
@@ -87,7 +81,7 @@ func TestUserAgent(t *testing.T) {
 		conn, appClnt := clnt.NewApplicationClientOrDie()
 		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
 		if test.errorMsg != "" {
-			assert.Error(t, err)
+			assert.Error(t, err, test.errorMsg)
 			assert.Regexp(t, test.errorMsg, err.Error())
 		} else {
 			assert.NoError(t, err)
