@@ -18,8 +18,6 @@ import (
 	gosync "sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/server/extensions"
-
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
@@ -75,6 +73,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/certificate"
 	"github.com/argoproj/argo-cd/v2/server/cluster"
+	"github.com/argoproj/argo-cd/v2/server/extensions"
 	"github.com/argoproj/argo-cd/v2/server/gpgkey"
 	"github.com/argoproj/argo-cd/v2/server/logout"
 	"github.com/argoproj/argo-cd/v2/server/metrics"
@@ -705,8 +704,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge": badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
-
+				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace),
 				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.ArgoCDServerOpts.BaseHRef, a.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
@@ -714,7 +712,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			},
 		},
 	}
-
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
