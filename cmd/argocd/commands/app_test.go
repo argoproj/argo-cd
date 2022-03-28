@@ -1,8 +1,11 @@
 package commands
 
 import (
+	"os"
 	"testing"
 	"time"
+
+	"github.com/argoproj/gitops-engine/pkg/health"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -336,7 +339,7 @@ func TestFormatConditionSummary(t *testing.T) {
 		}
 
 		summary := formatConditionsSummary(app)
-		if summary != "type1(2),type2" {
+		if summary != "type1(2),type2" && summary != "type2,type1(2)" {
 			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
 		}
 	})
@@ -419,5 +422,115 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintAppSummaryTable(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "test",
+					TargetRevision: "master",
+					Path:           "/test",
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						ValueFiles: []string{"path1", "path2"},
+					},
+					Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeOutOfSync,
+				},
+				Health: v1alpha1.HealthStatus{
+					Status:  health.HealthStatusProgressing,
+					Message: "health-message",
+				},
+			},
+		}
+
+		windows := &v1alpha1.SyncWindows{}
+
+		printAppSummaryTable(app, "url", windows)
+		return nil
+	})
+
+	expectation := "Name:               test\nProject:            default\nServer:             local\nNamespace:          argocd\nURL:                url\nRepo:               test\nTarget:             master\nPath:               /test\nHelm Values:        path1,path2\nName Prefix:        prefix\nSyncWindow:         Sync Allowed\nSync Policy:        Automated (Prune)\nSync Status:        OutOfSync from master\nHealth Status:      Progressing (health-message)\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print app summary output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintAppConditions(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type:    v1alpha1.ApplicationConditionDeletionError,
+						Message: "test",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+						Message: "test2",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionRepeatedResourceWarning,
+						Message: "test3",
+					},
+				},
+			},
+		}
+		printAppConditions(os.Stdout, app)
+		return nil
+	})
+	expectation := "CONDITION\tMESSAGE\tLAST TRANSITION\nDeletionError\ttest\t<nil>\nExcludedResourceWarning\ttest2\t<nil>\nRepeatedResourceWarning\ttest3\t<nil>\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print app conditions output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintParams(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Source: v1alpha1.ApplicationSource{
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						Parameters: []v1alpha1.HelmParameter{
+							{
+								Name:  "name1",
+								Value: "value1",
+							},
+							{
+								Name:  "name2",
+								Value: "value2",
+							},
+							{
+								Name:  "name3",
+								Value: "value3",
+							},
+						},
+					},
+				},
+			},
+		}
+		printParams(app)
+		return nil
+	})
+	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
 }
