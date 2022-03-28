@@ -293,8 +293,9 @@ type GitFileGeneratorItem struct {
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
 type SCMProviderGenerator struct {
 	// Which provider to use and config for it.
-	Github *SCMProviderGeneratorGithub `json:"github,omitempty"`
-	Gitlab *SCMProviderGeneratorGitlab `json:"gitlab,omitempty"`
+	Github    *SCMProviderGeneratorGithub    `json:"github,omitempty"`
+	Gitlab    *SCMProviderGeneratorGitlab    `json:"gitlab,omitempty"`
+	Bitbucket *SCMProviderGeneratorBitbucket `json:"bitbucket,omitempty"`
 	// Filters for which repos should be considered.
 	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty"`
 	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
@@ -328,6 +329,18 @@ type SCMProviderGeneratorGitlab struct {
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
 	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty"`
+}
+
+// SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2).
+type SCMProviderGeneratorBitbucket struct {
+	// Bitbucket workspace to scan. Required.
+	Owner string `json:"owner"`
+	// Bitbucket user to use when authenticating.  Should have a "member" role to be able to read all repositories and branches.  Required
+	User string `json:"user"`
+	// The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+	AppPasswordRef *SecretRef `json:"appPasswordRef"`
+	// Scan all branches instead of just the main branch.
 	AllBranches bool `json:"allBranches,omitempty"`
 }
 

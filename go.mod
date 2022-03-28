@@ -96,6 +96,7 @@ require (
 	github.com/google/go-github/v35 v35.3.0
 	github.com/imdario/mergo v0.3.12
 	github.com/jeremywohl/flatten v1.0.1
+	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/xanzy/go-gitlab v0.60.0
 )
