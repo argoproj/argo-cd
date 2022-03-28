@@ -28,9 +28,11 @@ kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
 ```
 
-!!! note 
-    Default namespace for Kubectl config must be set to `argocd`:
+!!!note 
+    Default namespace for `kubectl` config must be set to `argocd`.
+    This is only needed for the following commands since the previous commands have -n argocd already:
     `kubectl config set-context --current --namespace=argocd`
+    
 
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
