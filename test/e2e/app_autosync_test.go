@@ -44,6 +44,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 }
 
 func TestAutoSyncSelfHealEnabled(t *testing.T) {
+	t.SkipNow()
 	Given(t).
 		Path(guestbookPath).
 		When().
