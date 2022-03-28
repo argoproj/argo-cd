@@ -88,6 +88,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/jannfis/gitops-engine v0.5.5-2
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
