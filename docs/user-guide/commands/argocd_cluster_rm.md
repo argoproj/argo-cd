@@ -3,13 +3,14 @@
 Remove cluster credentials
 
 ```
-argocd cluster rm SERVER [flags]
+argocd cluster rm SERVER/NAME [flags]
 ```
 
 ### Examples
 
 ```
 argocd cluster rm https://12.34.567.89
+argocd cluster rm cluster-name
 ```
 
 ### Options
