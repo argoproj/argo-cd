@@ -9,6 +9,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -530,6 +532,108 @@ func TestPrintParams(t *testing.T) {
 		return nil
 	})
 	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
+}
+
+func TestAppUrlDefault(t *testing.T) {
+	t.Run("Plain text", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:80",
+			PlainText:  true,
+		}), "test")
+		expectation := "http://localhost:80/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("https", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:443",
+			PlainText:  false,
+		}), "test")
+		expectation := "https://localhost/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTruncateString(t *testing.T) {
+	result := truncateString("argocdtool", 2)
+	expectation := "ar..."
+	if result != expectation {
+		t.Fatalf("Incorrect truncate string %q, should be %q", result, expectation)
+	}
+}
+
+func TestGetService(t *testing.T) {
+	t.Run("Server", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server: "test-server",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-server"
+		if result != expectation {
+			t.Fatalf("Incorrect server %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("Name", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Name: "test-name",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-name"
+		if result != expectation {
+			t.Fatalf("Incorrect server name %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTargetObjects(t *testing.T) {
+	resources := []*v1alpha1.ResourceDiff{
+		{
+			LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+		{
+			LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+	}
+	objects, err := targetObjects(resources)
+	if err != nil {
+		t.Fatal("operation should finish without error")
+	}
+
+	if len(objects) != 2 {
+		t.Fatalf("incorrect number of objects %v, should be 2", len(objects))
+	}
+
+	if objects[0].GetName() != "test-helm-guestbook" {
+		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
+	}
+
+}
+
+func TestPrintApplicationNames(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+		printApplicationNames([]v1alpha1.Application{*app, *app})
+		return nil
+	})
+	expectation := "test\ntest\n"
 	if output != expectation {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
