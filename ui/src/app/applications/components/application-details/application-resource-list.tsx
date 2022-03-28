@@ -27,11 +27,11 @@ export const ApplicationResourceList = ({
                 const liveStatePromises = resources.map(async resource => {
                     const resourceRow: any = {...resource};
                     const liveState = await services.applications.getResource(application.metadata.name, resource).catch(() => null);
-                    if (liveState?.metadata?.annotations && liveState?.metadata?.annotations['argocd.argoproj.io/hook']) {
-                        resourceRow.syncOrder = liveState?.metadata.annotations['argocd.argoproj.io/hook'];
+                    if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
+                        resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
 
-                        if (liveState?.metadata?.annotations['argocd.argoproj.io/sync-wave']) {
-                            resourceRow.syncOrder = resourceRow.syncOrder + ': ' + liveState?.metadata.annotations['argocd.argoproj.io/sync-wave'];
+                        if (liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
+                            resourceRow.syncOrder = resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
                         }
                     }
                     return resourceRow;
