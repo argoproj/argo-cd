@@ -127,8 +127,6 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             }
                             if (params.get('view') != null) {
                                 viewPref.view = params.get('view') as AppsListViewType;
-                            } else {
-                                viewPref.view = 'tiles' as AppsListViewType;
                             }
                             if (params.get('labels') != null) {
                                 viewPref.labelsFilter = params

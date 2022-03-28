@@ -34,7 +34,6 @@ interface ApplicationDetailsState {
     revision?: string;
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
-    zoom?: number;
     filteredGraph?: any[];
 }
 
@@ -70,7 +69,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, zoom: 1.0, filteredGraph: []};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: []};
     }
 
     private get showOperationState() {
@@ -213,15 +212,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     )
                                 );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
-                            const zoomNum = (this.state.zoom * 100).toFixed(0);
+                            const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
-                                let targetZoom: number = this.state.zoom + s;
+                                let targetZoom: number = pref.zoom + s;
                                 if (targetZoom <= 0.05) {
                                     targetZoom = 0.1;
                                 } else if (targetZoom > 2.0) {
                                     targetZoom = 2.0;
                                 }
-                                this.setState({zoom: targetZoom});
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, zoom: targetZoom}});
                             };
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
@@ -322,7 +321,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                        zoom={this.state.zoom}
+                                                        zoom={pref.zoom}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
                                                     />
