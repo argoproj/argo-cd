@@ -17,6 +17,7 @@ import (
 )
 
 func TestAutoSyncSelfHealDisabled(t *testing.T) {
+	t.SkipNow()
 	Given(t).
 		Path(guestbookPath).
 		When().
