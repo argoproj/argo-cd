@@ -208,14 +208,14 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error) {
 	f, err := ioutil.TempFile(utils.TempDir, "")
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
+		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %v", err)
 	}
 	_ = f.Close()
 	err = WriteKubeConfig(config, "", f.Name())
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to write kubeconfig: %v", err)
+		return nil, nil, fmt.Errorf("failed to write kubeconfig: %v", err)
 	}
-	fact := kubeCmdFactory(f.Name(), "")
+	fact := kubeCmdFactory(f.Name(), "", config)
 	cleanup := func() {
 		utils.DeleteFile(f.Name())
 	}

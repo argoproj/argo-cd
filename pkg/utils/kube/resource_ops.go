@@ -131,12 +131,14 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	return strings.Join(out, ". "), nil
 }
 
-func kubeCmdFactory(kubeconfig, ns string) cmdutil.Factory {
+func kubeCmdFactory(kubeconfig, ns string, config *rest.Config) cmdutil.Factory {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
 	if ns != "" {
 		kubeConfigFlags.Namespace = &ns
 	}
 	kubeConfigFlags.KubeConfig = &kubeconfig
+	kubeConfigFlags.WithDiscoveryBurst(config.Burst)
+	kubeConfigFlags.WithDiscoveryQPS(config.QPS)
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
 }
