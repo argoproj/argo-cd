@@ -20,6 +20,7 @@ export const ApplicationResourceList = ({
     application?: models.Application;
 }) => {
     const [resourceRows, setResourceRows] = React.useState(resources);
+    const [showSyncOrder, setShowSyncOrder] = React.useState(false);
     React.useEffect(() => {
         setResourceRows(resources);
         async function getLiveState() {
@@ -29,8 +30,8 @@ export const ApplicationResourceList = ({
                     const liveState = await services.applications.getResource(application.metadata.name, resource).catch(() => null);
                     if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
                         resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-
-                        if (liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
+                        setShowSyncOrder(true);    
+                        if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
                             resourceRow.syncOrder = resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
                         }
                     }
@@ -51,7 +52,7 @@ export const ApplicationResourceList = ({
                     <div className='columns small-1 xxxlarge-1' />
                     <div className='columns small-2 xxxlarge-2'>NAME</div>
                     <div className='columns small-2 xxxlarge-2'>GROUP/KIND</div>
-                    <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
+                    {showSyncOrder && <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>}
                     <div className='columns small-3 xxxlarge-3'>NAMESPACE</div>
                     <div className='columns small-2 xxxlarge-2'>STATUS</div>
                 </div>
@@ -83,7 +84,7 @@ export const ApplicationResourceList = ({
                                 )}
                             </div>
                             <div className='columns small-2 xxxlarge-2'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
-                            <div className='columns small-1 xxxlarge-2'>{res.syncOrder}</div>
+                            {showSyncOrder && <div className='columns small-1 xxxlarge-2'>{res.syncOrder}</div>}
                             <div className='columns small-3 xxxlarge-3'>{res.namespace}</div>
                             <div className='columns small-2 xxxlarge-2'>
                                 {res.health && (
