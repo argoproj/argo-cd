@@ -412,7 +412,7 @@ jobs:
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
-            if test $count -ge 120; then
+            if test $count -ge 180; then
               echo "Timeout"
               exit 1
             fi
