@@ -781,9 +781,9 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 		}
 	}
 
-	//appEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
-	//appUnsubscribe := s.appEventBroadcaster.Subscribe(appEvents)
-	//defer appUnsubscribe()
+	appEvents := make(chan *appv1.ResourceEventWatchEvent, watchAPIBufferSize)
+	appUnsubscribe := s.appEventBroadcaster.Subscribe(appEvents)
+	defer appUnsubscribe()
 
 	var config *rest.Config
 	config, err := s.getApplicationClusterConfig(context.Background(), a)
@@ -805,8 +805,8 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 
 	for {
 		select {
-		//case event := <-appEvents:
-		//	sendIfPermitted(event.Event, event.Type)
+		case event := <-appEvents:
+			sendIfPermitted(event.Event, event.Type)
 		case event := <-resourceEvents:
 			sendIfPermitted(event.Event, event.Type)
 		case <-ws.Context().Done():

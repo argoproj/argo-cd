@@ -1097,7 +1097,7 @@ type ApplicationSummary struct {
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
 }
 
-// TODO: Document purpose of this method
+// FindNode gets the resource node with the given GVK and namespace. If it's not found, returns nil.
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
 	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
