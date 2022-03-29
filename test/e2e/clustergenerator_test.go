@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -191,7 +192,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 							},
 						},
 					},
-				}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+				}).Then().ExpectWithDuration(ApplicationsExist([]argov1alpha1.Application{expectedApp}), 8*time.Minute).
 
 				// Update the ApplicationSet template namespace, and verify it updates the Applications
 				When().
