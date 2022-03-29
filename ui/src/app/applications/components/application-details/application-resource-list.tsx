@@ -30,7 +30,7 @@ export const ApplicationResourceList = ({
                     const liveState = await services.applications.getResource(application.metadata.name, resource).catch(() => null);
                     if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
                         resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                        setShowSyncOrder(true);    
+                        setShowSyncOrder(true);
                         if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
                             resourceRow.syncOrder = resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
                         }
