@@ -1816,3 +1816,51 @@ func TestInit(t *testing.T) {
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
+}
