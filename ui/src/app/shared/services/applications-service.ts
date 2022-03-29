@@ -313,11 +313,15 @@ export class ApplicationsService {
     }
 
     public watchEvents(applicationName: string): Observable<models.Event[]> {
+        const initialAppEvents = this.events(applicationName);
+        const initialResourceEvents = this.resourceEvents(applicationName, {name: '', namespace: '', uid: ''});
+        const initialEvents = Promise.all([initialAppEvents, initialResourceEvents]).then(([appEvents, resourceEvents]) => appEvents.concat(resourceEvents));
+
         return requests
-            .loadEventSourceMap<models.Event>(`/stream/applications/${applicationName}/events`, event => event.metadata.uid)
+            .loadEventSourceMap<models.Event>(`/stream/applications/${applicationName}/events`, event => event.metadata.uid, initialEvents)
             .pipe(
                 map(data => {
-                    return Array.from(data.values()).sort((a, b) => Date.parse(a.eventTime) - Date.parse(b.eventTime));
+                    return Array.from(data.values());
                 })
             );
     }

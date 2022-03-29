@@ -29,5 +29,11 @@
         .columns {
             white-space: normal;
         }
+
+        .resource-link {
+            color: inherit;
+            cursor: pointer;
+            text-decoration: underline;
+        }
     }
 }

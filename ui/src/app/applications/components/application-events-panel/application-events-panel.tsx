@@ -11,7 +11,7 @@ export const ApplicationEventsPanel = ({app}: {app: models.Application}) => {
             <ObservableQuery>
                 {q => (
                     <DataLoader loadingRenderer={() => <p>No events yet.</p>} load={() => services.applications.watchEvents(app.metadata.name)}>
-                        {(allEvents: Event[]) => <EventsList events={allEvents} />}
+                        {(allEvents: Event[]) => <EventsList events={allEvents} showResourceLink={true} />}
                     </DataLoader>
                 )}
             </ObservableQuery>

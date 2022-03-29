@@ -93,10 +93,19 @@ export default {
         });
     },
 
-    loadEventSourceMap<T>(url: string, getKey: (arg0: T) => string): Observable<Map<string, T>> {
+    loadEventSourceMap<T>(url: string, getKey: (arg0: T) => string, initialEvents?: Promise<T[]>): Observable<Map<string, T>> {
         const map = new Map<string, T>();
 
         return new Observable<Map<string, T>>((observer: Observer<Map<string, T>>) => {
+            if (initialEvents) {
+                initialEvents.then(events => {
+                    for (const event of events) {
+                        map.set(getKey(event), event);
+                        observer.next(map);
+                    }
+                });
+            }
+
             let eventSource = new EventSource(`${apiRoot()}${url}`);
             eventSource.onmessage = (msg: MessageEvent) => {
                 const eventMsg = JSON.parse(msg.data).result as EventMessage<T>;

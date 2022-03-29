@@ -26,7 +26,6 @@ import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
 import {Event, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
-import {ApplicationEventsPanel} from '../application-events-panel/application-events-panel';
 
 require('./application-details.scss');
 
@@ -290,9 +289,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
                                             />
                                         </div>
-                                        <div>
-                                            <ApplicationEventsPanel app={application} />
-                                        </div>
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
@@ -435,7 +431,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 <ObservableQuery>
                                                     {() => (
                                                         <DataLoader input='test' load={() => services.applications.watchEvents(application.metadata.name)}>
-                                                            {(allEvents: Event[]) => <EventsList events={allEvents} />}
+                                                            {(allEvents: Event[]) => (
+                                                                <EventsList
+                                                                    events={allEvents}
+                                                                    showResourceLink={true}
+                                                                    onResourceClicked={() => this.setApplicationEventsPanelVisible(false)}
+                                                                />
+                                                            )}
                                                         </DataLoader>
                                                     )}
                                                 </ObservableQuery>
