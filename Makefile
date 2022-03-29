@@ -264,7 +264,6 @@ repo-server:
 .PHONY: controller
 controller:
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
-	cp ${DIST_DIR}/argocd-application-controller ${DIST_DIR}/argocd-applicationset-controller
 
 .PHONY: build-ui
 build-ui:
@@ -559,3 +558,7 @@ start-test-k8s:
 .PHONY: list
 list:
 	@LC_ALL=C $(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
+
+.PHONY: applicationset-controller
+applicationset-controller:
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
