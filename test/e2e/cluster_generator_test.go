@@ -1,17 +1,13 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
@@ -110,32 +106,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
-func createLocalCluster() {
-	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
-
-	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
-		Cluster: &appv1.Cluster{
-			Server:             "https://kubernetes.default.svc",
-			Name:               "in-cluster",
-			Config:             appv1.ClusterConfig{},
-			ConnectionState:    appv1.ConnectionState{},
-			ServerVersion:      "",
-			Namespaces:         nil,
-			RefreshRequestedAt: nil,
-			Info:               appv1.ClusterInfo{},
-			Shard:              nil,
-			ClusterResources:   false,
-			Project:            "argo-project",
-		},
-		Upsert: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
 func TestClusterGeneratorWithLocalCluster(t *testing.T) {
-	createLocalCluster()
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
