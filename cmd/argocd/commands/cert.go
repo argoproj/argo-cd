@@ -9,14 +9,15 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/util/cert"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command
@@ -64,7 +65,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "add-tls SERVERNAME",
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
 		Run: func(c *cobra.Command, args []string) {
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 
 			if len(args) != 1 {
@@ -147,7 +148,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Short: "Add SSH known host entries for repository servers",
 		Run: func(c *cobra.Command, args []string) {
 
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 
 			var sshKnownHostsLists []string
@@ -219,7 +220,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 			hostNamePattern := args[0]
 
@@ -274,7 +275,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 			}
 
-			conn, certIf := argocdclient.NewClientOrDie(clientOpts).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
 			defer io.Close(conn)
 			certificates, err := certIf.ListCertificates(context.Background(), &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)

@@ -5,14 +5,17 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -40,6 +43,25 @@ var (
       ingress:
       - hostname: localhost`)
 
+	testLinkAnnotatedService = strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
 	testIngress = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -47,6 +69,39 @@ var (
     name: helm-guestbook
     namespace: default
     uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testLinkAnnotatedIngress = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/ingress-link
   spec:
     backend:
       serviceName: not-found-service
@@ -129,6 +184,67 @@ var (
     loadBalancer:
       ingress:
       - ip: 107.178.210.11`)
+
+	testIngressNetworkingV1 = strToUnstructured(`
+  apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      service:
+        name: not-found-service
+        port:
+          number: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                number: 443
+          path: /
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                name: https
+          path: /
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIstioVirtualService = strToUnstructured(`
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello-world
+  namespace: demo
+spec:
+  http:
+    - match:
+        - uri:
+            prefix: "/1"
+      route:
+        - destination:
+            host: service_full.demo.svc.cluster.local
+        - destination:
+            host: service_namespace.namespace
+    - match:
+        - uri:
+            prefix: "/2"
+      route:
+        - destination:
+            host: service
+`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -146,14 +262,52 @@ func TestGetPodInfo(t *testing.T) {
     labels:
       app: guestbook
   spec:
+    nodeName: minikube
     containers:
-    - image: bar`)
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
 
 	info := &ResourceInfo{}
 	populateNodeInfo(pod, info)
-	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, info.Info)
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
 	assert.Equal(t, []string{"bar"}, info.Images)
+	assert.Equal(t, &PodInfo{
+		NodeName:         "minikube",
+		ResourceRequests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("128Mi")},
+	}, info.PodInfo)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
+}
+
+func TestGetNodeInfo(t *testing.T) {
+	node := strToUnstructured(`
+apiVersion: v1
+kind: Node
+metadata:
+  name: minikube
+spec: {}
+status:
+  capacity:
+    cpu: "6"
+    memory: 6091320Ki
+  nodeInfo:
+    architecture: amd64
+    operatingSystem: linux
+    osImage: Ubuntu 20.04 LTS
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(node, info)
+	assert.Equal(t, &NodeInfo{
+		Name:       "minikube",
+		Capacity:   v1.ResourceList{v1.ResourceMemory: resource.MustParse("6091320Ki"), v1.ResourceCPU: resource.MustParse("6")},
+		SystemInfo: v1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+	}, info.NodeInfo)
 }
 
 func TestGetServiceInfo(t *testing.T) {
@@ -166,9 +320,75 @@ func TestGetServiceInfo(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
-func TestGetIngressInfo(t *testing.T) {
+func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
-	populateNodeInfo(testIngress, info)
+	populateNodeInfo(testLinkAnnotatedService, info)
+	assert.Equal(t, 0, len(info.Info))
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		TargetLabels: map[string]string{"app": "guestbook"},
+		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
+		ExternalURLs: []string{"http://my-grafana.com/pre-generated-link"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIstioVirtualServiceInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIstioVirtualService, info)
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_full",
+		Namespace: "demo",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service_namespace",
+		Namespace: "namespace",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "service",
+		Namespace: "demo",
+	})
+}
+
+func TestGetIngressInfo(t *testing.T) {
+	var tests = []struct {
+		Ingress *unstructured.Unstructured
+	}{
+		{testIngress},
+		{testIngressNetworkingV1},
+	}
+	for _, tc := range tests {
+		info := &ResourceInfo{}
+		populateNodeInfo(tc.Ingress, info)
+		assert.Equal(t, 0, len(info.Info))
+		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+		})
+		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+			Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+			TargetRefs: []v1alpha1.ResourceRef{{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "not-found-service",
+			}, {
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			}},
+			ExternalURLs: []string{"https://helm-guestbook.com/"},
+		}, info.NetworkingInfo)
+	}
+}
+
+func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testLinkAnnotatedIngress, info)
 	assert.Equal(t, 0, len(info.Info))
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
@@ -186,7 +406,7 @@ func TestGetIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.com/", "http://my-grafana.com/ingress-link"},
 	}, info.NetworkingInfo)
 }
 
@@ -238,7 +458,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 	}, info.NetworkingInfo)
 }
 
-func TestGetIngressInfoNoHost(t *testing.T) {
+func TestGetIngressInfoWithHost(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -274,9 +494,41 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 		ExternalURLs: []string{"https://107.178.210.11/"},
 	}, info.NetworkingInfo)
 }
-func TestExternalUrlWithSubPath(t *testing.T) {
+func TestGetIngressInfoNoHost(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+    tls:
+    - secretName: my-tls
+      `)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info)
+
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+	}, info.NetworkingInfo)
+	assert.Equal(t, len(info.NetworkingInfo.ExternalURLs), 0)
+}
+func TestExternalUrlWithSubPath(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -304,7 +556,7 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 }
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook
@@ -343,7 +595,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 }
 func TestExternalUrlWithNoSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: networking.k8s.io/v1
   kind: Ingress
   metadata:
     name: helm-guestbook

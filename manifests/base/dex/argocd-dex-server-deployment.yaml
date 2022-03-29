@@ -18,17 +18,23 @@ spec:
       serviceAccountName: argocd-dex-server
       initContainers:
       - name: copyutil
-        image: argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [cp, -n, /usr/local/bin/argocd-util, /shared]
+        command: [cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       containers:
       - name: dex
-        image: quay.io/dexidp/dex:v2.25.0
+        image: ghcr.io/dexidp/dex:v2.30.2
         imagePullPolicy: Always
-        command: [/shared/argocd-util, rundex]
+        command: [/shared/argocd-dex, rundex]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -36,6 +42,19 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
       volumes:
       - emptyDir: {}
         name: static-files
+      - emptyDir: {}
+        name: dexconfig
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname

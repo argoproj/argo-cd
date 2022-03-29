@@ -4,7 +4,6 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
-
 import applications from './applications';
 import help from './help';
 import login from './login';
@@ -14,6 +13,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
 services.viewPreferences.init();
@@ -57,8 +57,8 @@ const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        const {loggedIn, iss} = await services.users.get();
-        if (loggedIn && iss !== 'argocd') {
+        const {iss} = await services.users.get();
+        if (iss && iss !== 'argocd') {
             const authSettings = await services.authService.settings();
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
@@ -188,18 +188,23 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         navItems={navItems}
                                                         version={() => (
                                                             <DataLoader load={() => versionLoader}>
-                                                                {version => (
-                                                                    <React.Fragment>
-                                                                        <Tooltip content={version.Version}>
-                                                                            <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                {version.Version}
-                                                                            </a>
-                                                                        </Tooltip>
-                                                                    </React.Fragment>
-                                                                )}
+                                                                {version => {
+                                                                    const versionString = version ? version.Version : 'Unknown';
+                                                                    return (
+                                                                        <React.Fragment>
+                                                                            <Tooltip content={versionString}>
+                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
+                                                                                    {versionString}
+                                                                                </a>
+                                                                            </Tooltip>
+                                                                        </React.Fragment>
+                                                                    );
+                                                                }}
                                                             </DataLoader>
                                                         )}>
-                                                        <route.component {...routeProps} />
+                                                        <Banner>
+                                                            <route.component {...routeProps} />
+                                                        </Banner>
                                                     </Layout>
                                                 )
                                             }
@@ -209,18 +214,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                 <Redirect path='*' to='/' />
                             </Switch>
                         </Router>
-                        <DataLoader load={() => services.authService.settings()}>
-                            {s =>
-                                (s.help && s.help.chatUrl && (
-                                    <div style={{position: 'fixed', right: 10, bottom: 10}}>
-                                        <a href={s.help.chatUrl} className='argo-button argo-button--special'>
-                                            <i className='fas fa-comment-alt' /> {s.help.chatText}
-                                        </a>
-                                    </div>
-                                )) ||
-                                null
-                            }
-                        </DataLoader>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />

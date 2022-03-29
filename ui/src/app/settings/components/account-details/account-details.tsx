@@ -30,15 +30,15 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                             <div className='white-box'>
                                 <div className='white-box__details'>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>NAME:</div>
+                                        <div className='columns small-3'>NAME</div>
                                         <div className='columns small-9'>{account.name}</div>
                                     </div>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>ENABLED:</div>
+                                        <div className='columns small-3'>ENABLED</div>
                                         <div className='columns small-9'>{(account.enabled && 'true') || 'false'}</div>
                                     </div>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>CAPABILITIES:</div>
+                                        <div className='columns small-3'>CAPABILITIES</div>
                                         <div className='columns small-9'>{account.capabilities.join(', ')}</div>
                                     </div>
                                 </div>
@@ -48,7 +48,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                             <Form
                                 onSubmit={async (params, event, api) => {
                                     const expiresIn = convertExpiresInToSeconds(params.expiresIn);
-                                    const confirmed = await ctx.popup.confirm('Generate new token?', 'Are you sure you want to generate new token?');
+                                    const confirmed = await ctx.popup.confirm('Generate new token', 'Are you sure you want to generate a new token?');
                                     if (!confirmed) {
                                         return;
                                     }

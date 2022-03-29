@@ -3,6 +3,7 @@ import {ApplicationsService} from './applications-service';
 import {AuthService} from './auth-service';
 import {CertificatesService} from './cert-service';
 import {ClustersService} from './clusters-service';
+import {ExtensionsService} from './extensions-service';
 import {GnuPGPublicKeyService} from './gpgkey-service';
 import {ProjectsService} from './projects-service';
 import {RepositoriesService} from './repo-service';
@@ -10,7 +11,6 @@ import {RepoCredsService} from './repocreds-service';
 import {UserService} from './user-service';
 import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
-
 export interface Services {
     applications: ApplicationsService;
     users: UserService;
@@ -24,6 +24,7 @@ export interface Services {
     version: VersionService;
     accounts: AccountsService;
     gpgkeys: GnuPGPublicKeyService;
+    extensions: ExtensionsService;
 }
 
 export const services: Services = {
@@ -38,8 +39,9 @@ export const services: Services = {
     viewPreferences: new ViewPreferencesService(),
     version: new VersionService(),
     accounts: new AccountsService(),
-    gpgkeys: new GnuPGPublicKeyService()
+    gpgkeys: new GnuPGPublicKeyService(),
+    extensions: new ExtensionsService()
 };
 
-export {ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
+export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
 export * from './view-preferences-service';

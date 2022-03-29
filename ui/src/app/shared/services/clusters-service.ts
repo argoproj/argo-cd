@@ -22,7 +22,7 @@ export class ClustersService {
     public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
         return requests
             .put(`/clusters/${encodeURIComponent(cluster.server)}`)
-            .query({updatedPaths: paths})
+            .query({updatedFields: paths})
             .send(cluster)
             .then(res => res.body as models.Cluster);
     }

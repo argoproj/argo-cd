@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/util/localconfig"
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/argoproj/argo-cd/v2/util/session"
 )
 
 // NewReloginCommand returns a new instance of `argocd relogin` command
@@ -43,19 +44,22 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			var tokenString string
 			var refreshToken string
 			clientOpts := argocdclient.ClientOptions{
-				ConfigPath:      "",
-				ServerAddr:      configCtx.Server.Server,
-				Insecure:        configCtx.Server.Insecure,
-				GRPCWeb:         globalClientOpts.GRPCWeb,
-				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				PlainText:       configCtx.Server.PlainText,
+				ConfigPath:        "",
+				ServerAddr:        configCtx.Server.Server,
+				Insecure:          configCtx.Server.Insecure,
+				ClientCertFile:    globalClientOpts.ClientCertFile,
+				ClientCertKeyFile: globalClientOpts.ClientCertKeyFile,
+				GRPCWeb:           globalClientOpts.GRPCWeb,
+				GRPCWebRootPath:   globalClientOpts.GRPCWebRootPath,
+				PlainText:         configCtx.Server.PlainText,
+				Headers:           globalClientOpts.Headers,
 			}
-			acdClient := argocdclient.NewClientOrDie(&clientOpts)
+			acdClient := headless.NewClientOrDie(&clientOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
-				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
-				tokenString = passwordLogin(acdClient, claims.Subject, password)
+				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
+				tokenString = passwordLogin(acdClient, localconfig.GetUsername(claims.Subject), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()

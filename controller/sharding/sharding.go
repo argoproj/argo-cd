@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func InferShard() (int, error) {
@@ -26,8 +26,8 @@ func InferShard() (int, error) {
 	return shard, nil
 }
 
-// getShardByID calculates cluster shard as `clusterSecret.UID % replicas count`
-func getShardByID(id string, replicas int) int {
+// GetShardByID calculates cluster shard as `clusterSecret.UID % replicas count`
+func GetShardByID(id string, replicas int) int {
 	if id == "" {
 		return 0
 	} else {
@@ -45,7 +45,7 @@ func GetClusterFilter(replicas int, shard int) func(c *v1alpha1.Cluster) bool {
 			if c.Shard != nil {
 				clusterShard = int(*c.Shard)
 			} else {
-				clusterShard = getShardByID(c.ID, replicas)
+				clusterShard = GetShardByID(c.ID, replicas)
 			}
 		}
 		return clusterShard == shard

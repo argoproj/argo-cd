@@ -4,9 +4,9 @@
 
 During development, it might be viable to run ArgoCD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new ArgoCD Docker images with your latest changes.
 
-You will still need a working Kubernetes cluster, as described in the [Contribution Guide](contributing.md), where ArgoCD will store all of its resources.
+You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where ArgoCD will store all of its resources and configuration.
 
-If you followed the [Contribution Guide](contributing.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
+If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
 
 ### Install ArgoCD resources to your cluster
 
@@ -31,7 +31,13 @@ kubectl -n argocd scale deployment/argocd-redis --replicas 0
 
 ### Start local services
 
-Before starting local services, make sure you are present in `argocd` namespace. When you use the virtualized toolchain, starting local services is as simple as running
+The started services assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
+
+When you use the virtualized toolchain, starting local services is as simple as running
 
 ```bash
 make start
@@ -97,7 +103,7 @@ DOCKER_PUSH=true make image
 
 ### Configure manifests for your image
 
-With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run
+With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
 
 ```bash
 make manifests

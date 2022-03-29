@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- e2e-repositories.yaml
+
+images:
+- name: argocd-e2e-cluster 
+  newTag: latest

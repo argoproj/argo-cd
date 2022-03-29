@@ -1,10 +1,6 @@
 ## argocd proj allow-namespace-resource
 
-Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist
-
-### Synopsis
-
-Removes a namespaced API resource from the blacklist or add a namespaced API resource to the whitelist
+Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
 
 ```
 argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
@@ -14,7 +10,7 @@ argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
 
 ```
   -h, --help          help for allow-namespace-resource
-  -l, --list string   Use blacklist or whitelist. This can only be 'white' or 'black' (default "black")
+  -l, --list string   Use deny list or allow list. This can only be 'allow' or 'deny' (default "deny")
 ```
 
 ### Options inherited from parent commands
@@ -23,10 +19,12 @@ argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")

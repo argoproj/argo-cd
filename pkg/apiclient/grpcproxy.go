@@ -11,14 +11,14 @@ import (
 	"strconv"
 	"strings"
 
-	argocderrors "github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/util/rand"
+	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
 const (
@@ -77,18 +77,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	req.Header.Set("content-type", "application/grpc-web+proto")
 
-	client := &http.Client{}
-	if !c.PlainText {
-		tlsConfig, err := c.tlsConfig()
-		if err != nil {
-			return nil, err
-		}
-		client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +86,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	var code codes.Code
 	if statusStr := resp.Header.Get("Grpc-Status"); statusStr != "" {
-		statusInt, err := strconv.Atoi(statusStr)
+		statusInt, err := strconv.ParseUint(statusStr, 10, 32)
 		if err != nil {
 			code = codes.Unknown
 		} else {
@@ -125,7 +114,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				return fmt.Errorf("Unable to get method name from stream context.")
 			}
 			msg := make([]byte, 0)
-			err = stream.RecvMsg(&msg)
+			err := stream.RecvMsg(&msg)
 			if err != nil {
 				return err
 			}
@@ -149,10 +138,11 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				argoio.Close(resp.Body)
 			}()
 			defer argoio.Close(resp.Body)
+			c.httpClient.CloseIdleConnections()
 
 			for {
 				header := make([]byte, frameHeaderLength)
-				if _, err := resp.Body.Read(header); err != nil {
+				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
 					if err == io.EOF {
 						err = io.ErrUnexpectedEOF
 					}

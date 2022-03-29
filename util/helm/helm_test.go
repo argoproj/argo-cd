@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/util/io/path"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -23,7 +24,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "")
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", false)
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -52,11 +53,11 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", []HelmRepository{}, false, "")
+	h, err := NewHelmApp("./testdata/redis", []HelmRepository{}, false, "", "", false)
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
-		Values: []string{"values-production.yaml"},
+		Values: []path.ResolvedFilePath{"values-production.yaml"},
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
@@ -73,9 +74,9 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "")
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{})
+	params, err := h.GetParameters(nil)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -83,9 +84,19 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "")
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]string{"values-production.yaml"})
+	params, err := h.GetParameters([]path.ResolvedFilePath{"values-production.yaml"})
+	assert.Nil(t, err)
+
+	slaveCountParam := params["cluster.slaveCount"]
+	assert.Equal(t, slaveCountParam, "3")
+}
+
+func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	assert.NoError(t, err)
+	params, err := h.GetParameters([]path.ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -94,6 +105,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 
 func TestHelmDependencyBuild(t *testing.T) {
 	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
+	helmRepos := []HelmRepository{{Name: "bitnami", Repo: "https://charts.bitnami.com/bitnami"}}
 	for name := range testCases {
 		t.Run(name, func(t *testing.T) {
 			chart := testCases[name]
@@ -103,7 +115,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 			}
 			clean()
 			defer clean()
-			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), nil, false, "")
+			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), helmRepos, false, "", "", false)
 			assert.NoError(t, err)
 			err = h.Init()
 			assert.NoError(t, err)
@@ -118,7 +130,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "")
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -136,7 +148,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "")
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	assert.Nil(t, err)
@@ -181,9 +193,9 @@ func Test_flatVals(t *testing.T) {
 	t.Run("Array", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]interface{}{"foo": []interface{}{"bar"}}, output)
+		flatVals(map[string]interface{}{"foo": []interface{}{"bar", "baz"}}, output)
 
-		assert.Equal(t, map[string]string{"foo[0]": "bar"}, output)
+		assert.Equal(t, map[string]string{"foo[0]": "bar", "foo[1]": "baz"}, output)
 	})
 	t.Run("Val", func(t *testing.T) {
 		output := map[string]string{}
@@ -195,7 +207,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "")
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", false)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -211,4 +223,26 @@ func TestAPIVersions(t *testing.T) {
 		return
 	}
 	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v2")
+}
+
+func TestSkipCrds(t *testing.T) {
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	objs, err := template(h, &TemplateOpts{SkipCrds: false})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	objs, err = template(h, &TemplateOpts{})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
+		return
+	}
+
+	objs, err = template(h, &TemplateOpts{SkipCrds: true})
+	if !assert.NoError(t, err) || !assert.Len(t, objs, 0) {
+		return
+	}
 }

@@ -2,8 +2,6 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"guestbook-default","ksonnet.io/component":"guestbook-ui"},"name":"ks-guestbook-ui","namespace":"default"},"spec":{"minReadySeconds":30,"replicas":1,"selector":{"matchLabels":{"app":"ks-guestbook-ui"}},"strategy":{"blueGreen":{"activeService":"ks-guestbook-ui-active","previewService":"ks-guestbook-ui-preview"},"type":"BlueGreenUpdate"},"template":{"metadata":{"labels":{"app":"ks-guestbook-ui"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.2","name":"ks-guestbook-ui","ports":[{"containerPort":80}]}]}}}}
     rollout.argoproj.io/revision: "1"
   clusterName: ""
   creationTimestamp: 2019-01-22T16:52:54Z

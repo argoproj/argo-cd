@@ -8,14 +8,15 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type DisplayedAction struct {
@@ -58,12 +59,12 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			os.Exit(1)
 		}
 		appName := args[0]
-		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, true)
+		filteredObjects := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, true)
 		var availableActions []DisplayedAction
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
@@ -100,7 +101,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
-			fmt.Println()
 			for _, action := range availableActions {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}
@@ -143,12 +143,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		appName := args[0]
 		actionName := args[1]
 
-		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		filteredObjects := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {

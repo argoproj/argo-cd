@@ -20,7 +20,7 @@ To be on the safe side, make sure that you have created an Enhancement Proposal 
 See [Failing CI Checks](ci.md#troubleshooting-ci-checks).
 
 ### What checked-in code is generated, and how is it generated?
-The following files under this repository are generated, and must be kept up-to-date. Also see [Why does the codegen step fail?](ci#why-does-the-codegen-step-fail).
+The following files under this repository are generated, and must be kept up-to-date. Also see [Why does the codegen step fail?](ci.md#why-does-the-codegen-step-fail).
 
 See the Makefile for targets that can also run these scripts, and the `codegen` target which runs them all.
 

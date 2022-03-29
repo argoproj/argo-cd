@@ -1,0 +1,67 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  annotations:
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1alpha3
+  creationTimestamp: "2021-09-14T22:15:10Z"
+  name: testvm
+  namespace: default
+spec:
+  running: true
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: testvm
+        kubevirt.io/size: small
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+          interfaces:
+          - masquerade: {}
+            name: default
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 64M
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - containerDisk:
+          image: quay.io/kubevirt/cirros-container-disk-demo
+        name: containerdisk
+      - cloudInitNoCloud:
+          userDataBase64: SGkuXG4=
+        name: cloudinitdisk
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2021-09-24T18:45:01Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: "2021-09-24T18:48:57Z"
+    lastTransitionTime: "2021-09-24T18:48:57Z"
+    message: VMI was paused by user
+    reason: PausedByUser
+    status: "True"
+    type: Paused
+  created: true
+  printableStatus: Paused
+  ready: true
+  volumeSnapshotStatuses:
+  - enabled: false
+    name: containerdisk
+    reason: Snapshot is not supported for this volumeSource type [containerdisk]
+  - enabled: false
+    name: cloudinitdisk
+    reason: Snapshot is not supported for this volumeSource type [cloudinitdisk]

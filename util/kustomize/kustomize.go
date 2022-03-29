@@ -6,18 +6,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -26,7 +30,7 @@ type Image = string
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -50,6 +54,8 @@ type kustomize struct {
 	binaryPath string
 }
 
+var _ Kustomize = &kustomize{}
+
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
 		return k.binaryPath
@@ -57,7 +63,28 @@ func (k *kustomize) getBinaryPath() string {
 	return "kustomize"
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions) ([]*unstructured.Unstructured, []Image, error) {
+// kustomize v3.8.5 patch release introduced a breaking change in "edit add <label/annotation>" commands:
+// https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
+func mapToEditAddArgs(val map[string]string) []string {
+	var args []string
+	if getSemverSafe().LessThan(semver.MustParse("v3.8.5")) {
+		arg := ""
+		for labelName, labelValue := range val {
+			if arg != "" {
+				arg += ","
+			}
+			arg += fmt.Sprintf("%s:%s", labelName, labelValue)
+		}
+		args = append(args, arg)
+	} else {
+		for labelName, labelValue := range val {
+			args = append(args, fmt.Sprintf("%s:%s", labelName, labelValue))
+		}
+	}
+	return args
+}
+
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -94,15 +121,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
 			args := []string{"edit", "add", "label"}
-			arg := ""
-			for labelName, labelValue := range opts.CommonLabels {
-				if arg != "" {
-					arg += ","
-				}
-				arg += fmt.Sprintf("%s:%s", labelName, labelValue)
+			if opts.ForceCommonLabels {
+				args = append(args, "--force")
 			}
-			args = append(args, arg)
-			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.CommonAnnotations) > 0 {
+			//  edit add annotation foo:bar
+			args := []string{"edit", "add", "annotation"}
+			if opts.ForceCommonAnnotations {
+				args = append(args, "--force")
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
 			if err != nil {
@@ -119,7 +155,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 
-	cmd.Env = os.Environ()
+	env := os.Environ()
+	if envVars != nil {
+		env = append(env, envVars.Environ()...)
+	}
+	cmd.Env = env
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
 		return nil, nil, err
@@ -185,6 +225,53 @@ func IsKustomization(path string) bool {
 		}
 	}
 	return false
+}
+
+// semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
+// here.
+// https://github.com/Masterminds/semver/blob/49c09bfed6adcffa16482ddc5e5588cffff9883a/version.go#L42
+const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
+
+var (
+	unknownVersion = semver.MustParse("v99.99.99")
+	semverRegex    = regexp.MustCompile(semVerRegex)
+	semVer         *semver.Version
+	semVerLock     sync.Mutex
+)
+
+// getSemver returns parsed kustomize version
+func getSemver() (*semver.Version, error) {
+	verStr, err := Version(true)
+	if err != nil {
+		return nil, err
+	}
+
+	semverMatches := semverRegex.FindStringSubmatch(verStr)
+	if len(semverMatches) == 0 {
+		return nil, fmt.Errorf("expected string that includes semver formatted version but got: '%s'", verStr)
+	}
+
+	return semver.NewVersion(semverMatches[0])
+}
+
+// getSemverSafe returns parsed kustomize version;
+// if version cannot be parsed assumes that "kustomize version" output format changed again
+//  and fallback to latest ( v99.99.99 )
+func getSemverSafe() *semver.Version {
+	if semVer == nil {
+		semVerLock.Lock()
+		defer semVerLock.Unlock()
+
+		if ver, err := getSemver(); err != nil {
+			semVer = unknownVersion
+			log.Warnf("Failed to parse kustomize version: %v", err)
+		} else {
+			semVer = ver
+		}
+	}
+	return semVer
 }
 
 func Version(shortForm bool) (string, error) {

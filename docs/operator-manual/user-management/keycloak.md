@@ -8,7 +8,7 @@ to determine privileges in Argo.
 
 ## Creating a new client in Keycloak
 
-First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (Master by default)
+First we need to setup a new client. Start by logging into your keycloak server, select the realm you want to use (`master` by default)
 and then go to __Clients__ and click the __create__ button top right.
 
 ![Keycloak add client](../../assets/keycloak-add-client.png "Keycloak add client")
@@ -57,17 +57,19 @@ Let's start by storing the client secret you generated earlier in the argocd sec
 
 1. First you'll need to encode the client secret in base64: `$ echo -n '83083958-8ec6-47b0-a411-a8c55381fbd2' | base64`
 2. Then you can edit the secret and add the base64 value to a new key called _oidc.keycloak.clientSecret_ using `$ kubectl edit secret argocd-secret`.
-   Your Secret should look something like this:
-    ```yaml
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: argocd-secret
-    data:
-      ...
-      oidc.keycloak.clientSecret: ODMwODM5NTgtOGVjNi00N2IwLWE0MTEtYThjNTUzODFmYmQy   
-      ...
-    ```
+   
+Your Secret should look something like this:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+data:
+  ...
+  oidc.keycloak.clientSecret: ODMwODM5NTgtOGVjNi00N2IwLWE0MTEtYThjNTUzODFmYmQy   
+  ...
+```
 
 Now we can configure the config map and add the oidc configuration to enable our keycloak authentication.
 You can use `$ kubectl edit configmap argocd-cm`.
@@ -83,14 +85,14 @@ data:
   url: https://argocd.example.com
   oidc.config: |
     name: Keycloak
-    issuer: https://keycloak.example.com/auth/realms/Master
+    issuer: https://keycloak.example.com/auth/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
 Make sure that:
-- __issuer__ ends with the correct realm (in this example _Master_)
+- __issuer__ ends with the correct realm (in this example _master_)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes

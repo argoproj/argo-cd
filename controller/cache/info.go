@@ -1,19 +1,22 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8snode "k8s.io/kubernetes/pkg/util/node"
+	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/resource"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -27,16 +30,20 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		switch gvk.Kind {
 		case kube.PodKind:
 			populatePodInfo(un, res)
-			return
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
-			return
+		case "Node":
+			populateHostNodeInfo(un, res)
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
 		case kube.IngressKind:
 			populateIngressInfo(un, res)
-			return
+		}
+	case "networking.istio.io":
+		switch gvk.Kind {
+		case "VirtualService":
+			populateIstioVirtualServiceInfo(un, res)
 		}
 	}
 
@@ -77,16 +84,36 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
+func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
+	switch gvk.Group {
+	case "extensions":
+		return fmt.Sprintf("%s", backend["serviceName"]), nil
+	case "networking.k8s.io":
+		switch gvk.Version {
+		case "v1beta1":
+			return fmt.Sprintf("%s", backend["serviceName"]), nil
+		case "v1":
+			if service, ok, err := unstructured.NestedMap(backend, "service"); ok && err == nil {
+				return fmt.Sprintf("%s", service["name"]), nil
+			}
+		}
+	}
+	return "", errors.New("unable to resolve string")
+}
+
 func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	gvk := un.GroupVersionKind()
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
-		targetsMap[v1alpha1.ResourceRef{
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Namespace: un.GetNamespace(),
-			Name:      fmt.Sprintf("%s", backend["serviceName"]),
-		}] = true
+		if serviceName, err := getServiceName(backend, gvk); err == nil {
+			targetsMap[v1alpha1.ResourceRef{
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Namespace: un.GetNamespace(),
+				Name:      serviceName,
+			}] = true
+		}
 	}
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
@@ -114,15 +141,20 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 					continue
 				}
 
-				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
-					targetsMap[v1alpha1.ResourceRef{
-						Group:     "",
-						Kind:      kube.ServiceKind,
-						Namespace: un.GetNamespace(),
-						Name:      serviceName,
-					}] = true
+				if backend, ok, err := unstructured.NestedMap(path, "backend"); ok && err == nil {
+					if serviceName, err := getServiceName(backend, gvk); err == nil {
+						targetsMap[v1alpha1.ResourceRef{
+							Group:     "",
+							Kind:      kube.ServiceKind,
+							Namespace: un.GetNamespace(),
+							Name:      serviceName,
+						}] = true
+					}
 				}
 
+				if host == nil || host == "" {
+					continue
+				}
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
@@ -134,6 +166,17 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 						tlshost := tlsline["host"]
 						if tlshost == host {
 							stringPort = "https"
+							continue
+						}
+						if hosts := tlsline["hosts"]; hosts != nil {
+							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							if ok {
+								for j := range tlshosts {
+									if tlshosts[j] == host {
+										stringPort = "https"
+									}
+								}
+							}
 						}
 					}
 				}
@@ -162,6 +205,53 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		urls = append(urls, url)
 	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+
+	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "http"); ok && err == nil {
+		for i := range rules {
+			rule, ok := rules[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			routes, ok, err := unstructured.NestedSlice(rule, "route")
+			if !ok || err != nil {
+				continue
+			}
+			for i := range routes {
+				route, ok := routes[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				if hostName, ok, err := unstructured.NestedString(route, "destination", "host"); ok && err == nil {
+					hostSplits := strings.Split(hostName, ".")
+					serviceName := hostSplits[0]
+
+					var namespace string
+					if len(hostSplits) >= 2 {
+						namespace = hostSplits[1]
+					} else {
+						namespace = un.GetNamespace()
+					}
+
+					targetsMap[v1alpha1.ResourceRef{
+						Kind:      kube.ServiceKind,
+						Name:      serviceName,
+						Namespace: namespace,
+					}] = true
+				}
+			}
+		}
+	}
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -249,7 +339,12 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		}
 	}
 
-	if pod.DeletionTimestamp != nil && pod.Status.Reason == k8snode.NodeUnreachablePodReason {
+	// "NodeLost" = https://github.com/kubernetes/kubernetes/blob/cb8ad64243d48d9a3c26b11b2e0945c098457282/pkg/util/node/node.go#L46
+	// But depending on the k8s.io/kubernetes package just for a constant
+	// is not worth it.
+	// See https://github.com/argoproj/argo-cd/issues/5173
+	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
+	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
 	} else if pod.DeletionTimestamp != nil {
 		reason = "Terminating"
@@ -258,6 +353,27 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if reason != "" {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
+
+	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
+
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	if restarts > 0 {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
+	}
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+}
+
+func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	node := v1.Node{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &node)
+	if err != nil {
+		return
+	}
+	res.NodeInfo = &NodeInfo{
+		Name:       node.Name,
+		Capacity:   node.Status.Capacity,
+		SystemInfo: node.Status.NodeInfo,
+	}
 }

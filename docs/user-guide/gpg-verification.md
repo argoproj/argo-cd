@@ -60,6 +60,29 @@ this project.
     If signature verification is enforced, you will not be able to sync from
     local sources (i.e. `argocd app sync --local`) anymore.
 
+## RBAC rules for managing GnuPG keys
+
+The appropriate resource notation for Argo CD's RBAC implementation to allow
+the managing of GnuPG keys is `gpgkeys`.
+
+To allow listing of keys for a role named `role:myrole`, use:
+
+```
+p, role:myrole, gpgkeys, get, *, allow
+```
+
+To allow adding keys for a role named `role:myrole`, use:
+
+```
+p, role:myrole, gpgkeys, create, *, allow
+```
+
+And finally, to allow deletion of keys for a role named `role:myrole`, use:
+
+```
+p, role:myrole, gpgkeys, delete, *, allow
+```
+
 ## Importing GnuPG public keys
 
 You can configure the GnuPG public keys that ArgoCD will use for verification
@@ -172,7 +195,7 @@ argocd proj add-signature-key myproj 4AEE18F83AFDEB23
 
 #### Removing a key ID from the list of allowed keys
 
-Similarily, you can remove a key ID from the list of allowed GnuPG keys for a
+Similarly, you can remove a key ID from the list of allowed GnuPG keys for a
 project using the `argocd proj remove-signature-key` command, i.e. to remove
 the key added above from project `myproj`, use the command:
 
@@ -187,14 +210,14 @@ output of the `argocd proj get` command, i.e for a project named `gpg`:
 
 ```bash
 $ argocd proj get gpg
-Name:                             gpg
-Description:                      GnuPG verification
-Destinations:                     *,*
-Repositories:                     *
-Whitelisted Cluster Resources:    */*
-Blacklisted Namespaced Resources: <none>
-Signature keys:                   4AEE18F83AFDEB23, 07E34825A909B250
-Orphaned Resources:               disabled
+Name:                        gpg
+Description:                 GnuPG verification
+Destinations:                *,*
+Repositories:                *
+Allowed Cluster Resources:   */*
+Denied Namespaced Resources: <none>
+Signature keys:              4AEE18F83AFDEB23, 07E34825A909B250
+Orphaned Resources:          disabled
 ```
 
 #### Override list of key IDs

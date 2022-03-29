@@ -37,7 +37,6 @@ Once a connection is established, use your favorite tools to start the server lo
 
 ### VSCode
 In VSCode use the integrated terminal to run the Telepresence command to connect. Then, to run argocd-server service use the following configuration.
-Make sure to run `packr` before starting the debugging session to generate the assets. 
 Update the configuration file to point to kubeconfig file: `KUBECONFIG=` (required)
 ```json
         {

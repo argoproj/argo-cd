@@ -2,9 +2,11 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
-	ioutil "github.com/argoproj/gitops-engine/pkg/utils/io"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+
 	rediscache "github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
 )
@@ -16,6 +18,9 @@ func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 		cache:      rediscache.New(&rediscache.Options{Redis: client}),
 	}
 }
+
+// compile-time validation of adherance of the CacheClient contract
+var _ CacheClient = &redisCache{}
 
 type redisCache struct {
 	expiration time.Duration
@@ -29,20 +34,28 @@ func (r *redisCache) Set(item *Item) error {
 		expiration = r.expiration
 	}
 
+	val, err := json.Marshal(item.Object)
+	if err != nil {
+		return err
+	}
+
 	return r.cache.Set(&rediscache.Item{
 		Key:   item.Key,
-		Value: item.Object,
+		Value: val,
 		TTL:   expiration,
 	})
 }
 
 func (r *redisCache) Get(key string, obj interface{}) error {
-	err := r.cache.Get(context.TODO(), key, obj)
-
+	var data []byte
+	err := r.cache.Get(context.TODO(), key, &data)
 	if err == rediscache.ErrCacheMiss {
-		return ErrCacheMiss
+		err = ErrCacheMiss
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, obj)
 }
 
 func (r *redisCache) Delete(key string) error {

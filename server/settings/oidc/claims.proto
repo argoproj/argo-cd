@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/server/settings/oidc";
+option go_package = "github.com/argoproj/argo-cd/v2/server/settings/oidc";
 
 package github.com.argoproj.argo_cd.server.settings.oidc;
 

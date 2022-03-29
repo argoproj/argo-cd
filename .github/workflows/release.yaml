@@ -10,15 +10,20 @@ on:
       - '!release-v1.1*'
       - '!release-v1.0*'
       - '!release-v0*'
+
+env:
+    GOLANG_VERSION: '1.17'
+
 jobs:
   prepare-release:
     name: Perform automatic release on trigger ${{ github.ref }}
+    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       # The name of the tag as supplied by the GitHub event
       SOURCE_TAG: ${{ github.ref }}
       # The image namespace where Docker image will be published to
-      IMAGE_NAMESPACE: argoproj
+      IMAGE_NAMESPACE: quay.io/argoproj
       # Whether to create & push image and release assets
       DRY_RUN: false
       # Whether a draft release should be created, instead of public one
@@ -44,7 +49,7 @@ jobs:
           # Target version must match major.minor.patch and optional -rcX suffix
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
-          if ! echo ${TARGET_VERSION} | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
@@ -90,7 +95,7 @@ jobs:
           echo "=========== BEGIN COMMIT MESSAGE ============="
           git show ${SOURCE_TAG}
           echo "============ END COMMIT MESSAGE =============="
-          
+
           # Quite dirty hack to get the release notes from the annotated tag
           # into a temporary file.
           RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
@@ -101,16 +106,16 @@ jobs:
             # Whatever is in commit history for the tag, we only want that
             # annotation from our tag. We discard everything else.
             if test "$begin" = "false"; then
-              if echo $line | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
+              if echo "$line" | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
               continue
             fi
             if test "$prefix" = "true"; then
                   if test -z "$line"; then prefix=false; fi
             else
-                  if echo $line | egrep -q '^commit [0-9a-f]+'; then
+                  if echo "$line" | egrep -q '^commit [0-9a-f]+'; then
                           break
                   fi
-                  echo $line >> ${RELEASE_NOTES}
+                  echo "$line" >> ${RELEASE_NOTES}
             fi
           done
 
@@ -137,9 +142,9 @@ jobs:
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         with:
-          go-version: '1.14.2'
+          go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Setup Git author information
         run: |
@@ -178,25 +183,31 @@ jobs:
           echo "Creating release ${RELEASE_TAG}"
           git tag ${RELEASE_TAG}
 
-      - name: Build Docker image for release
+      - name: Login to docker repositories
+        env:
+          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+        if: ${{ env.DRY_RUN != 'true' }}
+
+
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+      - name: Build and push Docker image for release
         run: |
           set -ue
           git clean -fd
           mkdir -p dist/
-          make image IMAGE_TAG="${TARGET_VERSION}" DOCKER_PUSH=false
+          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Push docker image to repository
-        env:
-          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
-        run: |
-          set -ue
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-          docker push ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
@@ -234,6 +245,17 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Upload argocd-linux-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-linux-arm64
+          asset_name: argocd-linux-arm64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Upload argocd-darwin-amd64 binary to release assets
         uses: actions/upload-release-asset@v1
         env:
@@ -245,6 +267,17 @@ jobs:
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Upload argocd-darwin-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-darwin-arm64
+          asset_name: argocd-darwin-arm64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Upload argocd-windows-amd64 binary to release assets
         uses: actions/upload-release-asset@v1
         env:
@@ -253,6 +286,48 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/argocd-windows-amd64.exe
           asset_name: argocd-windows-amd64.exe
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui" 
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
+        run: |
+          yarn install --cwd ./ui
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            generator -p $folder -o /tmp
+          done
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload SBOM to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /tmp/sbom.tar.gz
+          asset_name: sbom.tar.gz
           asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
@@ -270,3 +345,4 @@ jobs:
           set -ue
           git push --delete origin ${SOURCE_TAG}
         if: ${{ always() }}
+

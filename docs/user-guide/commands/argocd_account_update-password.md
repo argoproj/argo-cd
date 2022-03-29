@@ -1,20 +1,36 @@
 ## argocd account update-password
 
-Update password
+Update an account's password
 
 ### Synopsis
 
-Update password
+
+This command can be used to update the password of the currently logged on
+user, or an arbitrary local user account when the currently logged on user
+has appropriate RBAC permissions to change other accounts.
+
 
 ```
 argocd account update-password [flags]
+```
+
+### Examples
+
+```
+
+	# Update the current user's password
+	argocd account update-password
+
+	# Update the password for user foobar
+	argocd account update-password --account foobar
+
 ```
 
 ### Options
 
 ```
       --account string            an account name that should be updated. Defaults to current user account
-      --current-password string   current password you wish to change
+      --current-password string   password of the currently logged on user
   -h, --help                      help for update-password
       --new-password string       new password you want to update to
 ```
@@ -25,10 +41,12 @@ argocd account update-password [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")

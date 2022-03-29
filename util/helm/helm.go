@@ -4,20 +4,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/ghodss/yaml"
 
-	"github.com/argoproj/argo-cd/util/config"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 )
 
 type HelmRepository struct {
 	Creds
-	Name string
-	Repo string
+	Name      string
+	Repo      string
+	EnableOci bool
 }
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -25,7 +28,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -35,20 +38,23 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string) (Helm, error) {
-	cmd, err := NewCmd(workDir, version)
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, passCredentials bool) (Helm, error) {
+	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
 		return nil, err
 	}
 	cmd.IsLocal = isLocal
 
-	return &helm{repos: repos, cmd: *cmd}, nil
+	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials}, nil
 }
 
 type helm struct {
-	cmd   Cmd
-	repos []HelmRepository
+	cmd             Cmd
+	repos           []HelmRepository
+	passCredentials bool
 }
+
+var _ Helm = &helm{}
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
 func IsMissingDependencyErr(err error) bool {
@@ -65,11 +71,32 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 }
 
 func (h *helm) DependencyBuild() error {
-	for _, repo := range h.repos {
-		_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds)
+	isHelmOci := h.cmd.IsHelmOci
+	defer func() {
+		h.cmd.IsHelmOci = isHelmOci
+	}()
 
-		if err != nil {
-			return err
+	for i := range h.repos {
+		repo := h.repos[i]
+		if repo.EnableOci {
+			h.cmd.IsHelmOci = true
+			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
+
+				defer func() {
+					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
+				}()
+
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 	h.repos = nil
@@ -103,19 +130,24 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error) {
 	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
 	}
 	values := []string{out}
-	for _, file := range valuesFiles {
+	for i := range valuesFiles {
+		file := string(valuesFiles[i])
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			fileValues, err = ioutil.ReadFile(path.Join(h.cmd.WorkDir, file))
+			filePath := path.Join(h.cmd.WorkDir, file)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				continue
+			}
+			fileValues, err = ioutil.ReadFile(filePath)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
@@ -142,8 +174,9 @@ func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 			flatVals(v, output, append(prefixes, k)...)
 		}
 	case []interface{}:
+		p := append([]string(nil), prefixes...)
 		for j, v := range i {
-			flatVals(v, output, append(prefixes[0:len(prefixes)-1], fmt.Sprintf("%s[%v]", prefixes[len(prefixes)-1], j))...)
+			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)
 		}
 	default:
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)

@@ -17,4 +17,23 @@
             color: $argo-color-gray-6;
         }
     }
+
+    &__list-title {
+        margin-top: 1em;
+        text-transform: uppercase;
+
+        &:first-of-type {
+            margin-top: 0;
+        }
+    }
+
+    .select__option {
+        line-height: 1.5;
+    }
+
+    .white-box__details {
+        .argo-button--short {
+            margin-top: 1em;
+        }
+    }
 }

@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "Failed to create backend: backend tbc-ontap-nas already exists"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for backend creation"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Backend 'tbc-ontap-nas' created"
+  inputPath: testdata/healthy.yaml

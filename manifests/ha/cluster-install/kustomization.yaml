@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
 - ../namespace-install
 - ../../cluster-rbac
+- ../../crds

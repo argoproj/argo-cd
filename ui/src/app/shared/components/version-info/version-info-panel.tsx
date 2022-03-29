@@ -42,10 +42,10 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
-            'Go': version.GoVersion,
-            'Compiler': version.Compiler,
+            'Go Version': version.GoVersion,
+            'Go Compiler': version.Compiler,
             'Platform': version.Platform,
-            'ksonnet': version.KsonnetVersion,
+            'jsonnet': version.JsonnetVersion,
             'kustomize': version.KustomizeVersion,
             'Helm': version.HelmVersion,
             'kubectl': version.KubectlVersion
@@ -61,9 +61,11 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
                                     <strong>{key}</strong>
                                 </div>
                                 <div className='columns'>
-                                    <Tooltip content={value}>
-                                        <span>{value}</span>
-                                    </Tooltip>
+                                    {value && (
+                                        <Tooltip content={value}>
+                                            <span>{value}</span>
+                                        </Tooltip>
+                                    )}
                                 </div>
                             </div>
                         </div>

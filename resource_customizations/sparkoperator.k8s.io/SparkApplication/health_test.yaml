@@ -9,5 +9,5 @@ tests:
   inputPath: testdata/degraded.yaml
 - healthStatus:
     status: Healthy
-    message: "SparkApplication is in RunningState"
+    message: "SparkApplication is Running"
   inputPath: testdata/healthy.yaml

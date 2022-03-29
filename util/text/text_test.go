@@ -19,6 +19,7 @@ func TestTrunc(t *testing.T) {
 		{"Empty", args{}, ""},
 		{"5", args{message: "xxxxx", n: 5}, "xxxxx"},
 		{"4", args{message: "xxxxx", n: 4}, "x..."},
+		{"Multibyte", args{message: "こんにちは, world", n: 8}, "こんにちは..."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

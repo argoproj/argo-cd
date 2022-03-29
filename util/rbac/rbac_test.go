@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/assets"
 )
 
 const (
@@ -77,109 +78,6 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 			log.Errorf("%s: expected false, got true", a)
 		}
 	}
-}
-
-// TestPolicyInformer verifies the informer will get updated with a new configmap
-func TestPolicyInformer(t *testing.T) {
-	cm := fakeConfigMap()
-	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
-	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go enf.runInformer(ctx, func(cm *apiv1.ConfigMap) error {
-		return nil
-	})
-
-	loaded := false
-	for i := 1; i <= 20; i++ {
-		if enf.Enforce("admin", "applications", "delete", "foo/bar") {
-			loaded = true
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	assert.True(t, loaded, "Policy update failed to load")
-
-	// update the configmap and update policy
-	delete(cm.Data, ConfigMapPolicyCSVKey)
-	err := enf.syncUpdate(cm, noOpUpdate)
-	assert.Nil(t, err)
-	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
-}
-
-// TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
-func TestResourceActionWildcards(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	policy := `
-p, alice, *, get, foo/obj, allow
-p, bob, repositories, *, foo/obj, allow
-p, cathy, *, *, foo/obj, allow
-p, dave, applications, get, foo/obj, allow
-p, dave, applications/*, get, foo/obj, allow
-p, eve, *, get, foo/obj, deny
-p, mallory, repositories, *, foo/obj, deny
-p, mallory, repositories, *, foo/obj, allow
-p, mike, *, *, foo/obj, allow
-p, mike, *, *, foo/obj, deny
-p, trudy, applications, get, foo/obj, allow
-p, trudy, applications/*, get, foo/obj, allow
-p, trudy, applications/secrets, get, foo/obj, deny
-p, danny, applications, get, */obj, allow
-p, danny, applications, get, proj1/a*p1, allow
-`
-	_ = enf.SetUserPolicy(policy)
-
-	// Verify the resource wildcard
-	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("alice", "applications/resources", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
-
-	// Verify action wildcards work
-	assert.True(t, enf.Enforce("bob", "repositories", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
-
-	// Verify resource and action wildcards work in conjunction
-	assert.True(t, enf.Enforce("cathy", "repositories", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "repositories", "delete", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "applications/resources", "delete", "foo/obj"))
-
-	// Verify wildcards with sub-resources
-	assert.True(t, enf.Enforce("dave", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("dave", "applications/logs", "get", "foo/obj"))
-
-	// Verify the resource wildcard
-	assert.False(t, enf.Enforce("eve", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/resources", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/resources", "delete", "foo/obj"))
-
-	// Verify action wildcards work
-	assert.False(t, enf.Enforce("mallory", "repositories", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mallory", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("mallory", "applications", "get", "foo/obj"))
-
-	// Verify resource and action wildcards work in conjunction
-	assert.False(t, enf.Enforce("mike", "repositories", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "repositories", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
-
-	// Verify wildcards with sub-resources
-	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("trudy", "applications/logs", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("trudy", "applications/secrets", "get", "foo/obj"))
-
-	// Verify trailing wildcards don't grant full access
-	assert.True(t, enf.Enforce("danny", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("danny", "applications", "get", "bar/obj"))
-	assert.False(t, enf.Enforce("danny", "applications", "get", "foo/bar"))
-	assert.True(t, enf.Enforce("danny", "applications", "get", "proj1/app1"))
-	assert.False(t, enf.Enforce("danny", "applications", "get", "proj1/app2"))
 }
 
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
@@ -270,7 +168,7 @@ p, mike, *, get, foo/obj, deny
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
@@ -278,7 +176,7 @@ p, mike, *, get, foo/obj, deny
 	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.True(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
@@ -321,7 +219,7 @@ func TestNoPolicy(t *testing.T) {
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -339,9 +237,9 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 }
 
 // TestClaimsEnforcerFuncWithRuntimePolicy tests the ability for claims enforcer function to still
@@ -352,14 +250,14 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
-	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
-	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
 }
 
 // TestInvalidRuntimePolicy tests when an invalid policy is supplied, it falls back to normal enforcement
@@ -370,11 +268,11 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy("", "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", "", "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", "", "role:readonly", "applications", "update", "foo/bar"))
 	badPolicy := "this, is, not, a, good, policy"
-	assert.True(t, enf.EnforceRuntimePolicy(badPolicy, "admin", "applications", "update", "foo/bar"))
-	assert.False(t, enf.EnforceRuntimePolicy(badPolicy, "role:readonly", "applications", "update", "foo/bar"))
+	assert.True(t, enf.EnforceRuntimePolicy("", badPolicy, "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", badPolicy, "role:readonly", "applications", "update", "foo/bar"))
 }
 
 func TestValidatePolicy(t *testing.T) {
@@ -413,7 +311,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
 	// nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin"})
+	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
@@ -421,21 +319,123 @@ func TestEnforceErrorMessage(t *testing.T) {
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 1593035962})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: 1})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: 0})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
+}
+
+func TestDefaultGlobMatchMode(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
+
+}
+
+func TestGlobMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = GlobMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/*/*.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
+
+}
+
+func TestRegexMatchMode(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	err := enf.syncUpdate(cm, noOpUpdate)
+	assert.Nil(t, err)
+	policy := `
+p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow
+`
+	_ = enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
+	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
+
+}
+
+func TestGlobMatchFunc(t *testing.T) {
+	ok, _ := globMatchFunc("arg1")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc(time.Now(), "arg2")
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg1", time.Now())
+	assert.False(t, ok.(bool))
+
+	ok, _ = globMatchFunc("arg/123", "arg/*")
+	assert.True(t, ok.(bool))
+}
+
+func TestLoadPolicyLine(t *testing.T) {
+	t.Run("Valid policy line", func(t *testing.T) {
+		policy := `p, foo, bar, baz`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Empty policy line", func(t *testing.T) {
+		policy := ""
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Comment policy line", func(t *testing.T) {
+		policy := "# Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Invalid policy line: single token", func(t *testing.T) {
+		policy := "p"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line: plain text", func(t *testing.T) {
+		policy := "Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line", func(t *testing.T) {
+		policy := "agh, foo, bar"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
 }

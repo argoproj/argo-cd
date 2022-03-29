@@ -3,20 +3,20 @@ package sharding
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
-	assert.Equal(t, 0, getShardByID("1", 2))
-	assert.Equal(t, 1, getShardByID("2", 2))
-	assert.Equal(t, 0, getShardByID("3", 2))
-	assert.Equal(t, 1, getShardByID("4", 2))
+	assert.Equal(t, 0, GetShardByID("1", 2))
+	assert.Equal(t, 1, GetShardByID("2", 2))
+	assert.Equal(t, 0, GetShardByID("3", 2))
+	assert.Equal(t, 1, GetShardByID("4", 2))
 }
 
 func TestGetShardByID_EmptyID(t *testing.T) {
-	shard := getShardByID("", 10)
+	shard := GetShardByID("", 10)
 	assert.Equal(t, 0, shard)
 }
 

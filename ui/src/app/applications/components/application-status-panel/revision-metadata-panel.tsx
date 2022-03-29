@@ -1,7 +1,6 @@
 import {DataLoader, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
-import {RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; type: string; revision: string}) => {
@@ -9,9 +8,22 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
         return <React.Fragment />;
     }
     return (
-        <DataLoader input={props} load={input => services.applications.revisionMetadata(input.appName, props.revision)}>
-            {(m: RevisionMetadata) => (
+        <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.revision)} errorRenderer={() => <div />}>
+            {m => (
                 <Tooltip
+                    popperOptions={{
+                        modifiers: {
+                            preventOverflow: {
+                                enabled: false
+                            },
+                            hide: {
+                                enabled: false
+                            },
+                            flip: {
+                                enabled: false
+                            }
+                        }
+                    }}
                     content={
                         <span>
                             {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
@@ -33,18 +45,17 @@ export const RevisionMetadataPanel = (props: {appName: string; type: string; rev
                     allowHTML={true}>
                     <div className='application-status-panel__item-name'>
                         {m.author && (
-                            <React.Fragment>
-                                Authored by {m.author} - {m.signatureInfo}
-                                <br />
-                            </React.Fragment>
+                            <div className='application-status-panel__item__row'>
+                                <div>Author:</div>
+                                <div>
+                                    {m.author} - {m.signatureInfo}
+                                </div>
+                            </div>
                         )}
-                        {m.tags && (
-                            <span>
-                                Tagged {m.tags.join(', ')}
-                                <br />
-                            </span>
-                        )}
-                        {m.message}
+                        <div className='application-status-panel__item__row'>
+                            <div>Comment:</div>
+                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
+                        </div>
                     </div>
                 </Tooltip>
             )}

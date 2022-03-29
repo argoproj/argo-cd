@@ -9,56 +9,38 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	oidc "github.com/coreos/go-oidc"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/dex"
-	"github.com/argoproj/argo-cd/util/env"
-	httputil "github.com/argoproj/argo-cd/util/http"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	oidcutil "github.com/argoproj/argo-cd/util/oidc"
-	passwordutil "github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	passwordutil "github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
+	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
 	prov                          oidcutil.Provider
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
-}
-
-type inMemoryUserStateStorage struct {
-	attempts map[string]LoginAttempts
-}
-
-func NewInMemoryUserStateStorage() *inMemoryUserStateStorage {
-	return &inMemoryUserStateStorage{attempts: map[string]LoginAttempts{}}
-}
-
-func (storage *inMemoryUserStateStorage) GetLoginAttempts(attempts *map[string]LoginAttempts) error {
-	*attempts = storage.attempts
-	return nil
-}
-
-func (storage *inMemoryUserStateStorage) SetLoginAttempts(attempts map[string]LoginAttempts) error {
-	storage.attempts = attempts
-	return nil
-}
-
-type UserStateStorage interface {
-	GetLoginAttempts(attempts *map[string]LoginAttempts) error
-	SetLoginAttempts(attempts map[string]LoginAttempts) error
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -72,13 +54,15 @@ type LoginAttempts struct {
 const (
 	// SessionManagerClaimsIssuer fills the "iss" field of the token.
 	SessionManagerClaimsIssuer = "argocd"
+	AuthErrorCtxKey            = "auth-error"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-	invalidLoginError         = "Invalid username or password"
-	blankPasswordError        = "Blank passwords are not allowed"
-	accountDisabled           = "Account %s is disabled"
-	usernameTooLongError      = "Username is too long (%d bytes max)"
-	userDoesNotHaveCapability = "Account %s does not have %s capability"
+	invalidLoginError           = "Invalid username or password"
+	blankPasswordError          = "Blank passwords are not allowed"
+	accountDisabled             = "Account %s is disabled"
+	usernameTooLongError        = "Username is too long (%d bytes max)"
+	userDoesNotHaveCapability   = "Account %s does not have %s capability"
+	autoRegenerateTokenDuration = time.Minute * 5
 )
 
 const (
@@ -127,11 +111,12 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
+		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
 	}
 	settings, err := settingsMgr.GetSettings()
@@ -171,23 +156,22 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.StandardClaims{
-		IssuedAt:  now.Unix(),
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: now.Unix(),
+		NotBefore: jwt.NewNumericDate(now),
 		Subject:   subject,
-		Id:        id,
+		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = expires.Unix()
+		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
 	return mgr.signClaims(claims)
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
-	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
@@ -196,47 +180,105 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	return token.SignedString(settings.ServerSignature)
 }
 
+// GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
+// and the capability it was generated for (default capability is API Key).
+func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCapability) {
+	capability := settings.AccountCapabilityApiKey
+	if parts := strings.Split(subject, ":"); len(parts) > 1 {
+		subject = parts[0]
+		switch parts[1] {
+		case string(settings.AccountCapabilityLogin):
+			capability = settings.AccountCapabilityLogin
+		case string(settings.AccountCapabilityApiKey):
+			capability = settings.AccountCapabilityApiKey
+		}
+	}
+	return subject, capability
+}
+
 // Parse tries to parse the provided string and returns the token claims for local login.
-func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
+func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
-	settings, err := mgr.settingsMgr.GetSettings()
+	argoCDSettings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return settings.ServerSignature, nil
+		return argoCDSettings.ServerSignature, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	subject := jwtutil.GetField(claims, "sub")
-	if rbacpolicy.IsProjectSubject(subject) {
-		return token.Claims, nil
+	issuedAt, err := jwtutil.IssuedAtTime(claims)
+	if err != nil {
+		return nil, "", err
 	}
+
+	subject := jwtutil.StringField(claims, "sub")
+	id := jwtutil.StringField(claims, "jti")
+
+	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
+		proj, err := mgr.projectsLister.Get(projName)
+		if err != nil {
+			return nil, "", err
+		}
+		_, _, err = proj.GetJWTToken(role, issuedAt.Unix(), id)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return token.Claims, "", nil
+	}
+
+	subject, capability := GetSubjectAccountAndCapability(subject)
+	claims["sub"] = subject
 
 	account, err := mgr.settingsMgr.GetAccount(subject)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	if id := jwtutil.GetField(claims, "jti"); id != "" && account.TokenIndex(id) == -1 {
-		return nil, fmt.Errorf("account %s does not have token with id %s", subject, id)
+	if !account.Enabled {
+		return nil, "", fmt.Errorf("account %s is disabled", subject)
 	}
 
-	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
+	if !account.HasCapability(capability) {
+		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
+	}
+
+	if id == "" || mgr.storage.IsTokenRevoked(id) {
+		return nil, "", errors.New("token is revoked, please re-login")
+	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
+		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
+	}
+
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, fmt.Errorf("Account password has changed since token issued")
+		return nil, "", fmt.Errorf("Account password has changed since token issued")
 	}
-	return token.Claims, nil
+
+	newToken := ""
+	if exp, err := jwtutil.ExpirationTime(claims); err == nil {
+		tokenExpDuration := exp.Sub(issuedAt)
+		remainingDuration := time.Until(exp)
+
+		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
+			if uniqueId, err := uuid.NewRandom(); err == nil {
+				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
+					newToken = val
+				}
+			}
+		}
+	}
+	return token.Claims, newToken, nil
 }
 
 // GetLoginFailures retrieves the login failure information from the cache
@@ -420,14 +462,12 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
-	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
-	}
-	var claims jwt.StandardClaims
+func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	switch claims.Issuer {
 	case SessionManagerClaimsIssuer:
@@ -437,15 +477,28 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return claims, err
+			return claims, "", err
 		}
-		idToken, err := prov.Verify(claims.Audience, tokenString)
+
+		// Token must be verified for at least one audience
+		// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
+		var idToken *oidc.IDToken
+		for _, aud := range claims.Audience {
+			idToken, err = prov.Verify(aud, tokenString)
+			if err == nil {
+				break
+			}
+		}
 		if err != nil {
-			return claims, err
+			return claims, "", err
 		}
+		if idToken == nil {
+			return claims, "", fmt.Errorf("No audience found in the token")
+		}
+
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
-		return claims, err
+		return claims, "", err
 	}
 }
 
@@ -464,8 +517,12 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	return mgr.prov, nil
 }
 
+func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
+	return mgr.storage.RevokeToken(ctx, id, expiringAt)
+}
+
 func LoggedIn(ctx context.Context) bool {
-	return Sub(ctx) != ""
+	return Sub(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
 }
 
 // Username is a helper to extract a human readable username from a context
@@ -474,11 +531,11 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.GetField(mapClaims, "iss") {
+	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return jwtutil.GetField(mapClaims, "sub")
+		return jwtutil.StringField(mapClaims, "sub")
 	default:
-		return jwtutil.GetField(mapClaims, "email")
+		return jwtutil.StringField(mapClaims, "email")
 	}
 }
 
@@ -487,7 +544,7 @@ func Iss(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "iss")
+	return jwtutil.StringField(mapClaims, "iss")
 }
 
 func Iat(ctx context.Context) (time.Time, error) {
@@ -495,16 +552,7 @@ func Iat(ctx context.Context) (time.Time, error) {
 	if !ok {
 		return time.Time{}, errors.New("unable to extract token claims")
 	}
-	iatField, ok := mapClaims["iat"]
-	if !ok {
-		return time.Time{}, errors.New("token does not have iat claim")
-	}
-
-	if iat, ok := iatField.(float64); !ok {
-		return time.Time{}, errors.New("iat token field has unexpected type")
-	} else {
-		return time.Unix(int64(iat), 0), nil
-	}
+	return jwtutil.IssuedAtTime(mapClaims)
 }
 
 func Sub(ctx context.Context) string {
@@ -512,7 +560,7 @@ func Sub(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.GetField(mapClaims, "sub")
+	return jwtutil.StringField(mapClaims, "sub")
 }
 
 func Groups(ctx context.Context, scopes []string) []string {
