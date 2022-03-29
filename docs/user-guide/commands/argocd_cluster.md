@@ -18,7 +18,7 @@ argocd cluster [flags]
   # Get specific details about a cluster in plain text (wide) format:
   argocd cluster get example-cluster -o wide
 
-  #	Remove a target cluster context from ArgoCD
+  # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
 
 ```
