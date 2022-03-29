@@ -331,7 +331,7 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 	var err error
 	var gitClient git.Client
 
-	if q.Repo.Type == "git" {
+	if q.Repo.Type != "helm" {
 		gitClient, _, err = s.newClientResolveRevision(q.Repo, q.Revision)
 	}
 	if err != nil {
