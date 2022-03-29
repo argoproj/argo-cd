@@ -750,7 +750,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load extensions: %w", err))
 	}
-	mux.Handle("/api/extensions/", extensionHandler)
+	mux.HandleFunc("/api/extensions/", a.authenticateHTTP(extensionHandler))
 	mux.Handle("/api/", handler)
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -794,6 +794,21 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+func (a *ArgoCDServer) authenticateHTTP(handler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := metadata.NewIncomingContext(r.Context(), map[string][]string{
+			"grpcgateway-cookie": r.Header["Cookie"],
+		})
+		ctx, err := a.Authenticate(ctx)
+		if err != nil {
+			log.WithError(err).Info("Forbidden")
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	}
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app

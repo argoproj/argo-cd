@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -52,6 +53,9 @@ func NewHandler(ctx context.Context, kubernetesClient kubernetes.Interface, name
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ctx := r.Context()
+
 		name := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/extensions/"), "/")[0]
 		e, ok := extensions[name]
 		if !ok {
@@ -60,7 +64,7 @@ func NewHandler(ctx context.Context, kubernetesClient kubernetes.Interface, name
 			return
 		}
 
-		req, err := http.NewRequestWithContext(r.Context(), r.Method, e.url, r.Body)
+		req, err := http.NewRequestWithContext(ctx, r.Method, e.url+r.URL.Path, r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(errorResponse{Message: err.Error()})
@@ -69,6 +73,12 @@ func NewHandler(ctx context.Context, kubernetesClient kubernetes.Interface, name
 		for k, v := range e.headers {
 			req.Header[k] = v
 		}
+
+		// we need to provide information to the downstream about who is making the request
+		if claims, ok := ctx.Value("claims").(*jwt.MapClaims); ok {
+			req.Header.Add("claims-sub", (*claims)["sub"].(string))
+		}
+
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			w.WriteHeader(http.StatusBadGateway)
