@@ -7,8 +7,9 @@
     - [Web Shell](#web-shell)
     - [Helm values from external repo](#helm-values-from-external-repo)
     - [Support multiple sources for an Application](#support-multiple-sources-for-an-application)
-    - [Config Management Tools Enhancements: Integrations UI/CLI & CMP Security Improvements](#config-management-tools-enhancements-integrations-uicli--cmp-security-improvements)
+    - [Config Management Tools Enhancements: Parametrization & Security Improvements](#config-management-tools-enhancements-parametrization--security-improvements)
   - [v2.5 and beyond](#v25-and-beyond)
+    - [Config Management Tools Enhancements: UI/CLI](#config-management-tools-enhancements-uicli)
     - [First class support for ApplicationSet resources](#first-class-support-for-applicationset-resources)
     - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
     - [Sharding application controller](#sharding-application-controller)
@@ -61,14 +62,18 @@ The feature allows combining of-the-shelf Helm chart and value file in Git repos
 
 Support more than one source for creating an Application [#8322](https://github.com/argoproj/argo-cd/pull/8322).
 
-### Config Management Tools Enhancements: Integrations UI/CLI & CMP Security Improvements
+### Config Management Tools Enhancements: Parametrization & Security Improvements
 
-The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/parameterized-config-management-plugins.md). The Argo CD UI/CLI
-should provide first class experience for configured third-party config management tools: [#5734](https://github.com/argoproj/argo-cd/issues/5734).
-
-In addition to better user experience enhanced config management plugins implementation should provide better Argo CD tenant isolation and security.
+The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/parameterized-config-management-plugins.md).
+The Argo config management plugin configuration allows users to specify the accepted parameters, default values to eventually power UI and CLI.
+Additionally, plugins implementation should provide better Argo CD tenant isolation and security.
 
 ## v2.5 and beyond
+
+### Config Management Tools Enhancements: UI/CLI
+
+The Argo CD should provide a first-class experience for configured third-party config management tools. User should be able to view supported parameters,
+observe default parameter values and override them.
 
 ### First class support for ApplicationSet resources
 
