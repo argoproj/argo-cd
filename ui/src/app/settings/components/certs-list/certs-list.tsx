@@ -123,33 +123,31 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <div className='argo-container'>
-                        <div className='certs-list white-box'>
-                            <h4>Create TLS repository certificate</h4>
-                            <Form
-                                onSubmit={params => this.addTLSCertificate(params as NewTLSCertParams)}
-                                getApi={api => (this.formApiTLS = api)}
-                                preSubmit={(params: NewTLSCertParams) => ({
-                                    serverName: params.serverName,
-                                    certData: btoa(params.certData)
-                                })}
-                                validateError={(params: NewTLSCertParams) => ({
-                                    serverName: !params.serverName && 'Repository server name is required',
-                                    certData: !params.certData && 'Certificate data is required'
-                                })}>
-                                {formApiTLS => (
-                                    <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={formApiTLS} label='Repository server name' field='serverName' component={Text} />
-                                        </div>
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={formApiTLS} label='TLS certificate (PEM format)' field='certData' component={TextArea} />
-                                        </div>
-                                    </form>
-                                )}
-                            </Form>
-                        </div>
-                    </div>
+                    <Form
+                        onSubmit={params => this.addTLSCertificate(params as NewTLSCertParams)}
+                        getApi={api => (this.formApiTLS = api)}
+                        preSubmit={(params: NewTLSCertParams) => ({
+                            serverName: params.serverName,
+                            certData: btoa(params.certData)
+                        })}
+                        validateError={(params: NewTLSCertParams) => ({
+                            serverName: !params.serverName && 'Repository server name is required',
+                            certData: !params.certData && 'Certificate data is required'
+                        })}>
+                        {formApiTLS => (
+                            <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
+                                <div className='white-box'>
+                                    <p>CREATE TLS REPOSITORY CERTIFICATE</p>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApiTLS} label='Repository Server Name' field='serverName' component={Text} />
+                                    </div>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApiTLS} label='TLS Certificate (PEM format)' field='certData' component={TextArea} />
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+                    </Form>
                 </SlidingPanel>
                 <SlidingPanel
                     isShown={this.showAddSSHKnownHosts}
@@ -164,36 +162,33 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <div className='argo-container'>
-                        <div className='certs-list white-box'>
-                            <h4>Create SSH known host entries</h4>
-
-                            <p>
-                                Paste SSH known hosts data in the text area below, one entry per line. You can use output from <code>ssh-keyscan</code> or the contents on an{' '}
-                                <code>ssh_known_hosts</code> file verbatim. Lines starting with <code>#</code> will be treated as comments and ignored.
-                            </p>
-                            <p>
-                                <strong>Make sure there are no linebreaks in the keys.</strong>
-                            </p>
-                            <Form
-                                onSubmit={params => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
-                                getApi={api => (this.formApiSSH = api)}
-                                preSubmit={(params: NewSSHKnownHostParams) => ({
-                                    certData: btoa(params.certData)
-                                })}
-                                validateError={(params: NewSSHKnownHostParams) => ({
-                                    certData: !params.certData && 'SSH known hosts data is required'
-                                })}>
-                                {formApiSSH => (
-                                    <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={formApiSSH} label='SSH known hosts data' field='certData' component={TextArea} />
-                                        </div>
-                                    </form>
-                                )}
-                            </Form>
-                        </div>
-                    </div>
+                    <Form
+                        onSubmit={params => this.addSSHKnownHosts(params as NewSSHKnownHostParams)}
+                        getApi={api => (this.formApiSSH = api)}
+                        preSubmit={(params: NewSSHKnownHostParams) => ({
+                            certData: btoa(params.certData)
+                        })}
+                        validateError={(params: NewSSHKnownHostParams) => ({
+                            certData: !params.certData && 'SSH known hosts data is required'
+                        })}>
+                        {formApiSSH => (
+                            <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
+                                <div className='white-box'>
+                                    <p>CREATE SSH KNOWN HOST ENTRIES</p>
+                                    <p>
+                                        Paste SSH known hosts data in the text area below, one entry per line. You can use output from <code>ssh-keyscan</code> or the contents on
+                                        an <code>ssh_known_hosts</code> file verbatim. Lines starting with <code>#</code> will be treated as comments and ignored.
+                                    </p>
+                                    <p>
+                                        <strong>Make sure there are no linebreaks in the keys.</strong>
+                                    </p>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApiSSH} label='SSH known hosts data' field='certData' component={TextArea} />
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+                    </Form>
                 </SlidingPanel>
             </Page>
         );

@@ -23,7 +23,7 @@ function helpTip(text: string) {
 
 export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Applications</h6>
+        <p>Applications</p>
         <div>Manage applications assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.applications || []).map((a, i) => (
@@ -52,7 +52,7 @@ export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps)
 
 export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Namespaces</h6>
+        <p>Namespaces</p>
         <div>Manage namespaces assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.namespaces || []).map((n, i) => (
@@ -81,7 +81,7 @@ export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) =>
 
 export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Clusters</h6>
+        <p>Clusters</p>
         <div>Manage clusters assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.clusters || []).map((c, i) => (
@@ -157,7 +157,7 @@ function generateSchedule(minute?: string, hour?: string, dom?: string, month?: 
 
 export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Schedule</h6>
+        <p>Schedule</p>
         <div className='argo-table-list__head'>
             <div className='row'>
                 <div className='columns small-2'>Minute{helpTip('The minute/minutes assigned to the schedule')}</div>

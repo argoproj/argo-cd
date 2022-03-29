@@ -107,7 +107,6 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <h4>Add GnuPG public key</h4>
                     <Form
                         onSubmit={params => this.addGnuPGPublicKey({keyData: params.keyData})}
                         getApi={api => (this.formApi = api)}
@@ -119,8 +118,11 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='GnuPG public key data (ASCII-armored)' field='keyData' component={TextArea} />
+                                <div className='white-box'>
+                                    <p>ADD GnuPG PUBLIC KEY</p>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='GnuPG public key data (ASCII-armored)' field='keyData' component={TextArea} />
+                                    </div>
                                 </div>
                             </form>
                         )}

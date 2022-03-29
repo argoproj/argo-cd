@@ -62,11 +62,11 @@ export class ProjectsList extends React.Component {
                                     isMiddle={true}
                                     header={
                                         <div>
-                                            <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
-                                                Cancel
-                                            </button>{' '}
                                             <button onClick={() => this.formApi.submitForm(null)} className='argo-button argo-button--base'>
                                                 Create
+                                            </button>{' '}
+                                            <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
+                                                Cancel
                                             </button>
                                         </div>
                                     }>

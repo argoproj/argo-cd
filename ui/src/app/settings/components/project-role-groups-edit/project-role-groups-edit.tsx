@@ -13,7 +13,7 @@ interface ProjectRoleGroupsProps {
 
 export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
     <React.Fragment>
-        <h4>Groups</h4>
+        <p>GROUPS</p>
         <div>OIDC group names to bind to this role</div>
         {
             <div className='argo-table-list'>

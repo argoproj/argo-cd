@@ -47,26 +47,33 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                 })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Role Name' componentProps={{readOnly: props.nameReadonly}} field='roleName' component={Text} />
+                        <div className='white-box'>
+                            <p>GENERAL</p>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Role Name' componentProps={{readOnly: props.nameReadonly}} field='roleName' component={Text} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Role Description' field='description' component={Text} />
+                            </div>
                         </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Role Description' field='description' component={Text} />
+                        <div className='white-box'>
+                            <ProjectRolePoliciesEdit
+                                projName={api.values.projName}
+                                roleName={api.values.roleName}
+                                formApi={api}
+                                policies={api.values.policies}
+                                newRole={props.defaultParams.newRole}
+                            />
                         </div>
-                        <ProjectRolePoliciesEdit
-                            projName={api.values.projName}
-                            roleName={api.values.roleName}
-                            formApi={api}
-                            policies={api.values.policies}
-                            newRole={props.defaultParams.newRole}
-                        />
-                        <ProjectRoleGroupsEdit
-                            projName={api.values.projName}
-                            roleName={api.values.roleName}
-                            formApi={api}
-                            groups={api.values.groups}
-                            newRole={props.defaultParams.newRole}
-                        />
+                        <div className='white-box'>
+                            <ProjectRoleGroupsEdit
+                                projName={api.values.projName}
+                                roleName={api.values.roleName}
+                                formApi={api}
+                                groups={api.values.groups}
+                                newRole={props.defaultParams.newRole}
+                            />
+                        </div>
                     </form>
                 )}
             </Form>
