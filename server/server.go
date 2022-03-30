@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
 	go_runtime "runtime"
 	"strings"
@@ -155,6 +156,7 @@ type ArgoCDServer struct {
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
+	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
@@ -249,6 +251,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 		projInformer:     projInformer,
+		projLister:       projLister,
 		appInformer:      appInformer,
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
@@ -406,6 +409,22 @@ func (a *ArgoCDServer) Shutdown() {
 	}
 }
 
+func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newOIDCConfig := newArgoCDSettings.OIDCConfig()
+
+	if (currentOIDCConfig != nil && newOIDCConfig == nil) || (currentOIDCConfig == nil && newOIDCConfig != nil) {
+		return true
+	}
+
+	if currentOIDCConfig != nil && newOIDCConfig != nil {
+		if !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings() {
@@ -413,7 +432,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
-	prevOIDCConfig := a.settings.OIDCConfigRAW
+	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
@@ -435,7 +454,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("dex config modified. restarting")
 			break
 		}
-		if prevOIDCConfig != a.settings.OIDCConfigRAW {
+		if checkOIDCConfigChange(prevOIDCConfig, a.settings) {
 			log.Infof("oidc config modified. restarting")
 			break
 		}
@@ -563,7 +582,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {

@@ -17,6 +17,7 @@ argocd app logs APPNAME [flags]
       --kind string         Resource kind
       --name string         Resource name
       --namespace string    Resource namespace
+  -p, --previous            Specify if the previously terminated container logs should be returned
       --since-seconds int   A relative time in seconds before the current time from which to show logs
       --tail int            The number of lines from the end of the logs to show
       --until-time string   Show logs until this time

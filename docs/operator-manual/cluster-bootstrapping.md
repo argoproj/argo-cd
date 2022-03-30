@@ -1,6 +1,6 @@
 # Cluster Bootstrapping
 
-This guide for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
+This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
 There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
@@ -78,6 +78,8 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
+> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
+
 You can either sync via the UI, firstly filter by the correct label:
 
 ![Filter Apps](../assets/filter-apps.png)
@@ -98,7 +100,7 @@ View [the example on GitHub](https://github.com/argoproj/argocd-example-apps/tre
 
 ### Cascading deletion
 
-If you want to ensure that child-apps and all of their resources are deleted when the parent-app is deleted make sure to add the appropriate [finalizer](https://argo-cd-docs.readthedocs.io/en/latest/user-guide/app_deletion/#about-the-deletion-finalizer) to your `Application` definition
+If you want to ensure that child-apps and all of their resources are deleted when the parent-app is deleted make sure to add the appropriate [finalizer](../user-guide/app_deletion.md#about-the-deletion-finalizer) to your `Application` definition
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

@@ -182,3 +182,48 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"test": "val"}, cluster.Labels)
 }
+
+func TestClusterDeleteDenied(t *testing.T) {
+	EnsureCleanState(t)
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "create",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	// Attempt to remove cluster creds by name
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		DeleteByName().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
+		})
+
+	// Attempt to remove cluster creds by server
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		DeleteByServer().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
+		})
+}

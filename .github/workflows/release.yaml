@@ -12,7 +12,7 @@ on:
       - '!release-v0*'
 
 env:
-    GOLANG_VERSION: '1.17.6'
+    GOLANG_VERSION: '1.17'
 
 jobs:
   prepare-release:
@@ -302,6 +302,7 @@ jobs:
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
+          yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
@@ -316,7 +317,7 @@ jobs:
             bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
           fi
 
-          tar -zcf /tmp/sbom.tar.gz /tmp/*.spdx
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Upload SBOM to release assets

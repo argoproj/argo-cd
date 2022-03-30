@@ -1,5 +1,154 @@
 # Changelog
 
+## v2.3.0 (Unreleased)
+
+### Argo CD ApplicationSet and Notifications are now part of Argo CD
+
+Two popular [Argoproj Labs](https://github.com/argoproj-labs) projects [Argo CD ApplicationSet](https://github.com/argoproj/applicationset) and
+[Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) are now part of Argo CD! The default Argo CD installation manifests now
+bundle both projects out of the box. Going forward you can expect more tightened integration of these projects into Argo CD.
+
+### New sync and diff strategies
+
+Users can now configure the Application resource to instruct Argo CD to consider the ignore difference setup during the sync process.
+In order to do so, add the new sync option RespectIgnoreDifferences=true in the Application resource. Once the sync option is added,
+Argo CD won't change ignored fields during the syncing process.
+
+Configuring ignored fields is also easier now. Instead of listing fields one by one users can now leverage the 
+managedFields metadata to instruct Argo CD about trusted managers and automatically ignore any fields owned by them. A new diff customization
+(managedFieldsManagers) is now available allowing users to specify managers the application should trust and to ignore all fields owned by those managers.
+Read more about these changes at [New sync and diff strategies in ArgoCD](https://blog.argoproj.io/new-sync-and-diff-strategies-in-argocd-44195d3f8b8c) blog post.
+
+### ARM Images
+
+An officially supported ARM 64 image is now available. Enjoy running Argo CD on your Raspberry Pi! Additionally, the image size was reduced by nearly ~50%
+and is only 200MB now. The ARM version of `argocd` CLI is also available and published as a Github release artifact.
+
+### Compact Tree View And Click Application Navigation
+
+The application details page now supports compact application resources tree visualization. Using the "Group Nodes" button, you can collapse the similar resources
+into a single group node to remove the clutter and make it easier to understand the state of application resources. You still can get detailed information about the collapsed resources by clicking on the group node. The list of collapsed resources will be available in a sliding panel. Compact resource tree is still too big?
+You can use the zoom in and zoom out feature to make it smaller - or even larger!
+
+You no longer need to move back and forth between the application details page and the application list page. Instead you can navigate directly to the required application by clicking the search icon in the application details page title.
+
+### Upgraded Config Management Tools
+
+Both bundled Helm and Kustomize binaries have been upgraded to the latest versions. Kustomize has been upgraded from 4.2.0 to 4.4.1 and Helm has been upgraded from 3.7.1 to 3.8.0.
+
+### Bug Fixes and Performance Enhancements
+
+* Config management tools enhancements:
+* The skipCrds flag and ability to ignore missing values files for Helm (#8012, #8003)
+* Additional environment variables for Kustomize (#8096)
+* Argo CD CLI follows the XDG Base directory standard (#7638)
+* Redis is no longer used during SSO login (#8241)
+
+
+### Features
+
+- feat: Add app list and details page views to navigation history (#7776) (#7937)
+- feat: Add skipCrds flag for helm charts (#8012)
+- feat: Add visual indicator for newly created pods (#8006)
+- feat: Added a new Helm option ignoreMissingValueFiles (#7767) (#8003)
+- feat: Allow configuring system wide ignore differences for all resources (#8224)
+- feat: Allow escaping dollar in Envsubst (#7961)
+- feat: Allow external links on Application (#3487) (#8231)
+- feat: Allow selecting application on detail page (#8176)
+- feat: Bundle applicationset-controller with argocd (#8148)
+- feat: Enable specifying root ca for oidc (#6712)
+- feat: Expose ARGOCD_APP_NAME to the `kustomize build` command (#8096)
+- feat: Ignore differences owned by trusted managers from managedFields (#7869)
+- feat: New sync option to use ignore diff configs during sync (#8078)
+- feat: Provide address flag for admin dashboard command (#8095)
+- feat: Store "Group Nodes" button state in application details preferences (#8036)
+- feat: Support specifying cluster by name in addition to API server URL in Cluster API (#8077)
+- feat: Support XDG Base directory standard (#7638) (#7791)
+- feat: Use encrypted cookie to store OAuth2 state nonce (instead of redis) (#8241)
+- feat: Build images on PR and conditionally build arm64 image on push (#8108)
+
+### Bug Fixes
+
+- fix: Add "Restarting MinIO" status to MiniO Tenant health check (#8191)
+- fix: Add all resources in list view (#7295)
+- fix: Adding pagination to grouped nodes sliding panel#7837 (#7915)
+- fix: Allow all resources to add external links (#7923)
+- fix: Always call ValidateDestination (#7976)
+- fix: Application exist panic when execute api call (#8188)
+- fix: Application-icons-alignment (#8054)
+- fix: Controller panics if resource manifest has incorrect annotation (#8022)
+- fix: Correctly handle project field during partial cluster update (#7994)
+- fix: Default value for retry validation #8055 (#8064)
+- fix: Fix a possible crash when parsing RBAC (#8165)
+- fix: Grouped node list missing resources on Compact resources view #8014 (#8018)
+- fix: Issue with headless installation (#7958)
+- fix: Issue with project scoped resources (#8048)
+- fix: Kubernetes labels normalization for Prometheus  (#7925)
+- fix: Nested Refresh dropdown does not work on Application Details page #1524 (#7950)
+- fix: Network line colors and menu icon alignment (#8059)
+- fix: Opening app details shows UI error on some apps (#8016) (#8019)
+- fix: Parse to correct uint32 type (#8177)
+- fix: Prevent possible nil-pointer deref in normalizer (#8185)
+- fix: Prevent possible out-of-bounds access when loading policies (#8186)
+- fix: Provide a semantic version parsed version for KUBE_VERSION (#8250)
+- fix: Refreshing label toast (#7979)
+- fix: Resource details page crashes when resource is not deployed and hide managed fields is selected (#7971)
+- fix: Retry disabled text (#8004)
+- fix: Route health check stuck in 'Progressing' (#8170)
+- fix: Sync window panel is crashed if resource name not contain letters (#8053)
+- fix: Targetervision compatible without prefix refs/heads or refs/tags (#7939)
+- fix: Trailing line in Filter Dropdown Menus #7821 (#8001)
+- fix: Webhook URL matching edge cases (#7981)
+- fix(ui): Use consistent case for diff modes (#7945)
+- fix: Use gRPC timeout for sidecar CMPs (#8131) (#8236)
+
+### Other
+
+- chore: Bump go-jsonnet to v0.18.0 (#8011)
+- chore: Escape proj in regex (#7985)
+- chore: Exclude argocd-server rbac for core-install (#8234)
+- chore: Log out the resource triggering reconciliation (#8192)
+- chore: Migrate to use golang-jwt/jwt v4.2.0 (#8136)
+- chore: Move resolveRevision from api-server to repo-server (#7966)
+- chore: Update notifications version (#8267)
+- chore: Update slack version (#8299)
+- chore: Update to Redis 6.2.4 (#8157)
+- chore: Upgrade awscli to 2.4.6 and remove python deps (#7947)
+- chore: Upgrade base image to ubuntu:21.10 (#8230)
+- chore: Upgrade dex to v2.30.2 (https://github.com/dexidp/dex/issues/2326) (#8237)
+- chore: Upgrade gitops engine (#8288)
+- chore: Upgrade golang to 1.17.6 (#8229)
+- chore: Upgrade helm to most recent version (v3.7.2) (#8226)
+- chore: Upgrade k8s client to v1.23 (#8213)
+- chore: Upgrade kustomize to most recent version (v4.4.1) (#8227)
+- refactor: Introduce 'byClusterName' secret index to speedup cluster server URL lookup (#8133)
+- refactor: Move project filtering to server side (#8102)
+
+## v2.2.3 (2022-01-18)
+
+- fix: Application exist panic when execute api call (#8188)
+- fix: Route health check stuck in 'Progressing' (#8170)
+- refactor: Introduce 'byClusterName' secret index to speedup cluster server URL lookup (#8133)
+- chore: Update to Redis 6.2.4 (#8157) (#8158)
+
+## v2.2.2 (2021-12-31)
+
+- fix: Issue with project scoped resources (#8048)
+- fix: Escape proj in regex (#7985)
+- fix: Default value for retry validation #8055 (#8064)
+- fix: Sync window panel is crashed if resource name not contain letters (#8053)
+- fix: Upgrade github.com/argoproj/gitops-engine to v0.5.2
+- fix: Retry disabled text (#8004)
+- fix: Opening app details shows UI error on some apps (#8016) (#8019)
+- fix: Correctly handle project field during partial cluster update (#7994)
+- fix: Cluster API does not support updating labels and annotations (#7901)
+
+## v2.2.1 (2021-12-16)
+
+- fix: Resource details page crashes when resource is not deployed and hide managed fields is selected (#7971)
+- fix: Issue with headless installation (#7958)
+- fix: Nil pointer (#7905)
+
 ## v2.2.0 (2021-12-14)
 
 > [Upgrade instructions](./docs/operator-manual/upgrading/2.1-2.2.md)

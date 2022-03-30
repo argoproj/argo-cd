@@ -40,6 +40,53 @@ the three components (argocd-server, argocd-repo-server, argocd-application-cont
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
 Communication with Redis is performed over plain HTTP by default. TLS can be setup with command line arguments.
 
+## Git & Helm Repositories
+
+Git and helm repositories are managed by a stand-alone service, called the repo-server. The
+repo-server does not carry any Kubernetes privileges and does not store credentials to any services
+(including git). The repo-server is responsible for cloning repositories which have been permitted
+and trusted by Argo CD operators, and generating kubernetes manifests at a given path in the
+repository. For performance and bandwidth efficiency, the repo-server maintains local clones of
+these repositories so that subsequent commits to the repository are efficiently downloaded.
+
+There are security considerations when configuring git repositories that Argo CD is permitted to
+deploy from. In short, gaining unauthorized write access to a git repository trusted by Argo CD
+will have serious security implications outlined below.
+
+### Unauthorized Deployments
+
+Since Argo CD deploys the Kubernetes resources defined in git, an attacker with access to a trusted
+git repo would be able to affect the Kubernetes resources which are deployed. For example, an
+attacker could update the deployment manifest deploy malicious container images to the environment,
+or delete resources in git causing them to be pruned in the live environment.
+
+### Tool command invocation
+
+In addition to raw YAML, Argo CD natively supports two popular Kubernetes config management tools,
+helm and kustomize. When rendering manifests, Argo CD executes these config management tools
+(i.e. `helm template`, `kustomize build`) to generate the manifests. It is possible that an attacker
+with write access to a trusted git repository may construct malicious helm charts or kustomizations
+that attempt to read files out-of-tree. This includes adjacent git repos, as well as files on the
+repo-server itself. Whether or not this is a risk to your organization depends on if the contents
+in the git repos are sensitive in nature. By default, the repo-server itself does not contain
+sensitive information, but might be configured with Config Management Plugins which do
+(e.g. decryption keys). If such plugins are used, extreme care must be taken to ensure the
+repository contents can be trusted at all times.
+
+Optionally the built-in config management tools might be individually disabled.
+If you know that your users will not need a certain config management tool, it's advisable
+to disable that tool.
+See [Tool Detection](../user-guide/tool_detection.md) for more information.
+
+### Remote bases and helm chart dependencies
+
+Argo CD's repository allow-list only restricts the initial repository which is cloned. However, both
+kustomize and helm contain features to reference and follow *additional* repositories
+(e.g. kustomize remote bases, helm chart dependencies), of which might not be in the repository
+allow-list. Argo CD operators must understand that users with write access to trusted git
+repositories could reference other remote git repositories containing Kubernetes resources not
+easily searchable or auditable in the configured git repositories.
+
 ## Sensitive Information
 
 ### Secrets

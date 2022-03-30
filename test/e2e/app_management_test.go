@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,9 +31,10 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
@@ -50,6 +51,176 @@ const (
 	globalWithNoNameSpace  = "global-with-no-namespace"
 	guestbookWithNamespace = "guestbook-with-namespace"
 )
+
+// This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
+func TestGetLogsAllowNoSwitch(t *testing.T) {
+}
+
+// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
+// when the temporary switch would die
+func TestGetLogsDenySwitchOn(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	GivenWithSameState(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "permission denied")
+		})
+}
+
+func TestGetLogsAllowSwitchOn(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	GivenWithSameState(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
+		})
+
+}
+
+func TestGetLogsAllowSwitchOff(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "applications",
+				Action:   "create",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "get",
+				Scope:    "*",
+			},
+			{
+				Resource: "applications",
+				Action:   "sync",
+				Scope:    "*",
+			},
+			{
+				Resource: "projects",
+				Action:   "get",
+				Scope:    "*",
+			},
+		}, "app-creator")
+
+	Given(t).
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Pod")
+			assert.NoError(t, err)
+			assert.Contains(t, out, "Hi")
+		}).
+		And(func(app *Application) {
+			out, err := RunCli("app", "logs", app.Name, "--kind", "Service")
+			assert.NoError(t, err)
+			assert.NotContains(t, out, "Hi")
+		})
+}
 
 func TestSyncToUnsignedCommit(t *testing.T) {
 	SkipOnEnv(t, "GPG")
@@ -650,7 +821,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		When().
 		And(func() {
 			dummyResIf := DynamicClientset.Resource(dummiesGVR).Namespace(DeploymentNamespace())
-			patchData := []byte(`{"spec":{"requests": {"cpu": "2"}}}`)
+			patchData := []byte(`{"spec":{"cpu": "2"}}`)
 			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
@@ -660,7 +831,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
-						Field: "spec.requests",
+						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
@@ -708,38 +879,6 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
-		})
-}
-
-func TestKsonnetApp(t *testing.T) {
-	SkipOnEnv(t, "KSONNET")
-	Given(t).
-		Path("ksonnet").
-		Env("prod").
-		// Null out dest server to verify that destination is inferred from ksonnet app
-		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
-		DestServer("").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		And(func(app *Application) {
-			closer, client, err := ArgoCDClientset.NewRepoClient()
-			assert.NoError(t, err)
-			defer io.Close(closer)
-
-			details, err := client.GetAppDetails(context.Background(), &repositorypkg.RepoAppDetailsQuery{
-				Source: &app.Spec.Source,
-			})
-			assert.NoError(t, err)
-
-			serviceType := ""
-			for _, param := range details.Ksonnet.Parameters {
-				if param.Name == "type" && param.Component == "guestbook-ui" {
-					serviceType = param.Value
-				}
-			}
-			assert.Equal(t, serviceType, "LoadBalancer")
 		})
 }
 
@@ -907,64 +1046,125 @@ func TestSyncAsync(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestPermissions(t *testing.T) {
-	EnsureCleanState(t)
-	appName := Name()
-	_, err := RunCli("proj", "create", "test")
-	assert.NoError(t, err)
-
-	// make sure app cannot be created without permissions in project
-	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
-	assert.Error(t, err)
-	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
-
-	assert.Contains(t, err.Error(), sourceError)
-	assert.Contains(t, err.Error(), destinationError)
-
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Get(context.Background(), "test", metav1.GetOptions{})
-	assert.NoError(t, err)
-
-	proj.Spec.Destinations = []ApplicationDestination{{Server: "*", Namespace: "*"}}
-	proj.Spec.SourceRepos = []string{"*"}
-	proj, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	// make sure controller report permissions issues in conditions
-	_, err = RunCli("app", "create", appName, "--repo", RepoURL(RepoURLTypeFile),
-		"--path", guestbookPath, "--project", "test", "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
-	assert.NoError(t, err)
-	defer func() {
-		err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Delete(context.Background(), appName, metav1.DeleteOptions{})
-		assert.NoError(t, err)
-	}()
-
-	proj.Spec.Destinations = []ApplicationDestination{}
-	proj.Spec.SourceRepos = []string{}
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(ArgoCDNamespace).Update(context.Background(), proj, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-	time.Sleep(1 * time.Second)
-	closer, client, err := ArgoCDClientset.NewApplicationClient()
-	assert.NoError(t, err)
-	defer io.Close(closer)
-
-	refresh := string(RefreshTypeNormal)
-	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refresh})
-	assert.NoError(t, err)
-
-	destinationErrorExist := false
-	sourceErrorExist := false
-	for i := range app.Status.Conditions {
-		if strings.Contains(app.Status.Conditions[i].Message, destinationError) {
-			destinationErrorExist = true
-		}
-		if strings.Contains(app.Status.Conditions[i].Message, sourceError) {
-			sourceErrorExist = true
+// assertResourceActions verifies if view/modify resource actions are successful/failing for given application
+func assertResourceActions(t *testing.T, appName string, successful bool) {
+	assertError := func(err error, message string) {
+		if successful {
+			assert.NoError(t, err)
+		} else {
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), message)
+			}
 		}
 	}
-	assert.True(t, destinationErrorExist)
-	assert.True(t, sourceErrorExist)
+
+	closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
+	defer io.Close(closer)
+
+	deploymentResource, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	logs, err := cdClient.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+		Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Name: &appName, Namespace: DeploymentNamespace(),
+	})
+	require.NoError(t, err)
+	_, err = logs.Recv()
+	assertError(err, "EOF")
+
+	expectedError := fmt.Sprintf("Deployment apps guestbook-ui not found as part of application %s", appName)
+
+	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
+		Name: &appName, ResourceName: "guestbook-ui", ResourceNamespace: DeploymentNamespace(), ResourceUID: string(deploymentResource.UID)})
+	assertError(err, fmt.Sprintf("%s not found as part of application %s", "guestbook-ui", appName))
+
+	_, err = cdClient.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment"})
+	assertError(err, expectedError)
+
+	_, err = cdClient.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment", Action: "restart",
+	})
+	assertError(err, expectedError)
+
+	_, err = cdClient.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
+		Name: &appName, ResourceName: "guestbook-ui", Namespace: DeploymentNamespace(), Version: "v1", Group: "apps", Kind: "Deployment",
+	})
+	assertError(err, expectedError)
+}
+
+func TestPermissions(t *testing.T) {
+	appCtx := Given(t)
+	projName := "argo-project"
+	projActions := projectFixture.
+		Given(t).
+		Name(projName).
+		When().
+		Create()
+
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'argo-project'", RepoURL(RepoURLTypeFile))
+	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
+
+	appCtx.
+		Path("guestbook-logs").
+		Project(projName).
+		When().
+		IgnoreErrors().
+		// ensure app is not created if project permissions are missing
+		CreateApp().
+		Then().
+		Expect(Error("", sourceError)).
+		Expect(Error("", destinationError)).
+		When().
+		DoNotIgnoreErrors().
+		// add missing permissions, create and sync app
+		And(func() {
+			projActions.AddDestination("*", "*")
+			projActions.AddSource("*")
+		}).
+		CreateApp().
+		Sync().
+		Then().
+		// make sure application resource actiions are successful
+		And(func(app *Application) {
+			assertResourceActions(t, app.Name, true)
+		}).
+		When().
+		// remove projet permissions and "refresh" app
+		And(func() {
+			projActions.UpdateProject(func(proj *AppProject) {
+				proj.Spec.Destinations = nil
+				proj.Spec.SourceRepos = nil
+			})
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// ensure app resource tree is empty when source/destination permissions are missing
+		Expect(Condition(ApplicationConditionInvalidSpecError, destinationError)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
+		And(func(app *Application) {
+			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
+			defer io.Close(closer)
+			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name})
+			require.NoError(t, err)
+			assert.Len(t, tree.Nodes, 0)
+			assert.Len(t, tree.OrphanedNodes, 0)
+		}).
+		When().
+		// add missing permissions but deny management of Deployment kind
+		And(func() {
+			projActions.
+				AddDestination("*", "*").
+				AddSource("*").
+				UpdateProject(func(proj *AppProject) {
+					proj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "Deployment"}}
+				})
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// make sure application resource actiions are failing
+		And(func(app *Application) {
+			assertResourceActions(t, "test-permissions", false)
+		})
 }
 
 func TestPermissionWithScopedRepo(t *testing.T) {
@@ -1278,23 +1478,27 @@ func TestOrphanedResource(t *testing.T) {
 func TestNotPermittedResources(t *testing.T) {
 	ctx := Given(t)
 
-	ingress := &networkingv1beta.Ingress{
+	pathType := networkingv1.PathTypePrefix
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "sample-ingress",
 			Labels: map[string]string{
 				common.LabelKeyAppInstance: ctx.GetName(),
 			},
 		},
-		Spec: networkingv1beta.IngressSpec{
-			Rules: []networkingv1beta.IngressRule{{
-				IngressRuleValue: networkingv1beta.IngressRuleValue{
-					HTTP: &networkingv1beta.HTTPIngressRuleValue{
-						Paths: []networkingv1beta.HTTPIngressPath{{
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
 							Path: "/",
-							Backend: networkingv1beta.IngressBackend{
-								ServiceName: "guestbook-ui",
-								ServicePort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "guestbook-ui",
+									Port: networkingv1.ServiceBackendPort{Number: 80},
+								},
 							},
+							PathType: &pathType,
 						}},
 					},
 				},
@@ -1303,7 +1507,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &v1.Service{
@@ -1331,7 +1535,7 @@ func TestNotPermittedResources(t *testing.T) {
 			{Group: "", Kind: "Service"},
 		}}).
 		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
@@ -1357,7 +1561,7 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1beta1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
 	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
@@ -1820,5 +2024,31 @@ func TestDiscoverNewCommit(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.NotEqual(t, sha, app.Status.Sync.Revision)
+		})
+}
+
+func TestDisableManifestGeneration(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
+		}).
+		When().
+		And(func() {
+			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+				ApplicationSourceTypeKustomize: false,
+			})
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		And(func(app *Application) {
+			time.Sleep(1 * time.Second)
+		}).
+		And(func(app *Application) {
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
 		})
 }
