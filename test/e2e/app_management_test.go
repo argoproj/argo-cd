@@ -851,9 +851,6 @@ func TestConfigMap(t *testing.T) {
 }
 
 func TestFailedConversion(t *testing.T) {
-	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
-		t.SkipNow()
-	}
 	defer func() {
 		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
 	}()
