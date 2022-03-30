@@ -333,6 +333,8 @@ func (s *Service) runManifestGen(repoRoot, commitSHA, cacheKey string, ctxSrc op
 
 	if q.Repo.Type != "helm" {
 		gitClient, _, err = s.newClientResolveRevision(q.Repo, q.Revision)
+	} else {
+		log.Warnf("failed to initialize git client for app: %q, repo type is not git, type is: %q", q.AppName, q.Repo.Type)
 	}
 	if err != nil {
 		return nil, err
@@ -904,6 +906,7 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	if gitClient != nil {
 		m, err := gitClient.RevisionMetadata(revision)
 		if err != nil {
+			log.Warnf("failed to retrieve revision metadata, app name: %q, because err %q", q.AppName, err.Error())
 			return nil, err
 		}
 
@@ -968,9 +971,12 @@ func GenerateManifests(appPath, repoRoot, revision string, q *apiclient.Manifest
 	}
 
 	if gitClient != nil {
+		log.Infof("successful to retrieve git information, app name: %q, author: %q, message: %q", q.AppName, commitAuthor, commitMessage)
 		res.CommitMessage = commitMessage
 		res.CommitAuthor = commitAuthor
 		res.CommitDate = &metav1.Time{Time: commitDate}
+	} else {
+		log.Warnf("failed to retrieve git information, app name: %q, because git client is nil", q.AppName)
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace
