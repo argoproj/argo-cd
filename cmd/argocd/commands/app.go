@@ -576,6 +576,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		kustomizeImages         []string
 		pluginEnvs              []string
 		appOpts                 cmdutil.AppOptions
+		valuesRawLiteral        bool
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME parameters",
@@ -632,7 +633,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 			if app.Spec.Source.Helm != nil {
-				if len(parameters) == 0 && len(valuesFiles) == 0 && !valuesLiteral && !ignoreMissingValueFiles {
+				if len(parameters) == 0 && len(valuesFiles) == 0 && !valuesLiteral && !valuesRawLiteral && !ignoreMissingValueFiles {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
@@ -648,6 +649,12 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 				if valuesLiteral {
 					app.Spec.Source.Helm.Values.Values = ""
+					updated = true
+				}
+				if valuesRawLiteral {
+					app.Spec.Source.Helm.Values = argoappv1.StringOrObject{
+						Raw: nil,
+					}
 					updated = true
 				}
 				for _, valuesFile := range valuesFiles {
@@ -705,6 +712,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
 	command.Flags().StringArrayVar(&pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
+	command.Flags().BoolVar(&valuesRawLiteral, "values-raw-literal", false, "Unset literal Helm values raw")
 	return command
 }
 

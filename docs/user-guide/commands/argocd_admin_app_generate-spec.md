@@ -89,6 +89,7 @@ argocd admin app generate-spec APPNAME [flags]
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
       --values-literal-file string                 Filename or URL to import as a literal Helm values block
+      --values-raw-literal-file string             Filename or URL to import as a literal Helm values raw object
 ```
 
 ### Options inherited from parent commands

@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -74,6 +76,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	valuesRaw                       string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -126,6 +129,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().StringVar(&opts.valuesRaw, "values-raw-literal-file", "", "Filename or URL to import as a literal Helm values raw object")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
@@ -151,6 +155,18 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":
 			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
+		case "values-raw-literal-file":
+			var data []byte
+
+			// read uri
+			parsedURL, err := url.ParseRequestURI(appOpts.valuesRaw)
+			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+				data, err = ioutil.ReadFile(appOpts.valuesRaw)
+			} else {
+				data, err = config.ReadRemoteFile(appOpts.valuesRaw)
+			}
+			errors.CheckError(err)
+			setHelmOpt(&spec.Source, helmOpts{valuesRaw: data})
 		case "values-literal-file":
 			var data []byte
 
@@ -385,6 +401,7 @@ type helmOpts struct {
 	helmSetFiles            []string
 	passCredentials         bool
 	skipCrds                bool
+	valuesRaw               []byte
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -399,6 +416,13 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if len(opts.values) > 0 {
 		src.Helm.Values.Values = opts.values
+	}
+	if len(opts.valuesRaw) > 0 {
+		data, err := yaml.YAMLToJSON(opts.valuesRaw)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Helm.Values.Raw = &runtime.RawExtension{Raw: data}
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName

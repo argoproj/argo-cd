@@ -32,6 +32,7 @@ argocd app unset APPNAME parameters [flags]
       --plugin-env stringArray        Unset plugin env variables (e.g --plugin-env name)
       --values stringArray            Unset one or more Helm values files
       --values-literal                Unset literal Helm values block
+      --values-raw-literal            Unset literal Helm values raw
 ```
 
 ### Options inherited from parent commands

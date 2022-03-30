@@ -16,6 +16,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -206,6 +207,32 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 		}).
 		When().
 		AppUnSet("--values-literal").
+		Then().
+		And(func(app *Application) {
+			assert.Nil(t, app.Spec.Source.Helm)
+		})
+}
+
+func TestHelmValuesLiteralFileLocalRawObject(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		CreateApp().
+		AppSet("--values-raw-literal-file", "testdata/helm/baz.yaml").
+		Then().
+		And(func(app *Application) {
+			data, err := ioutil.ReadFile("testdata/helm/baz.yaml")
+			if err != nil {
+				panic(err)
+			}
+			data, err = yaml.YAMLToJSON(data)
+			if err != nil {
+				panic(err)
+			}
+			assert.Equal(t, data, app.Spec.Source.Helm.Values.Raw.Raw)
+		}).
+		When().
+		AppUnSet("--values-raw-literal").
 		Then().
 		And(func(app *Application) {
 			assert.Nil(t, app.Spec.Source.Helm)
