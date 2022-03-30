@@ -1273,7 +1273,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Sync().
 		Then().
 		// server error
-		Expect(Error("readUint32: unexpected character", ""))
+		Expect(Error("cannot be handled as a Deployment", ""))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
