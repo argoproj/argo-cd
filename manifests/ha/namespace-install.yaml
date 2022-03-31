@@ -8535,6 +8535,12 @@ spec:
               key: timeout.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_HARD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
