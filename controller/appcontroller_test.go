@@ -893,6 +893,13 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	{
 		// refresh app using the 'latest' level if comparison expired for hard refresh
 		app := app.DeepCopy()
+		app.Status.Sync = argoappv1.SyncStatus{
+			Status: argoappv1.SyncStatusCodeSynced,
+			ComparedTo: argoappv1.ComparedTo{
+				Source:      app.Spec.Source,
+				Destination: app.Spec.Destination,
+			},
+		}
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
