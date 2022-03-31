@@ -1047,6 +1047,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
 						_, err := appIf.Delete(context.Background(), &appDeleteReq)
 						errors.CheckError(err)
+						fmt.Printf("application '%s' deleted\n", appName)
 					} else {
 						fmt.Println("The command to delete '" + appName + "' was cancelled.")
 					}
