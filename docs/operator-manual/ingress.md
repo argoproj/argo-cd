@@ -350,7 +350,6 @@ spec:
           scheme: h2c
   tls:
     certResolver: default
-    options: {}
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
