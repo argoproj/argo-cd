@@ -1256,11 +1256,6 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
 func TestSyncOptionValidateFalse(t *testing.T) {
 
-	// k3s does not validate at all, so this test does not work
-	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
-		t.SkipNow()
-	}
-
 	Given(t).
 		Path("crd-validation").
 		When().
@@ -1278,7 +1273,7 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		Sync().
 		Then().
 		// server error
-		Expect(Error("Error from server", ""))
+		Expect(Error("cannot be handled as a Deployment", ""))
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
