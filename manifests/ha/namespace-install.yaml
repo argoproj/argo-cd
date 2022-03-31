@@ -1222,7 +1222,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - applicationset-controller
+        - argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
