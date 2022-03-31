@@ -89,5 +89,5 @@ data:
   template.my-custom-template-slack-template: |
     message: "Author: {{(call .repo.GetCommitMetadata .app.status.sync.revision).Author}}"
 ```
-
-{!functions.md!}
+[More Information on Functions](functions.md)
+<!-- {!functions.md!} -->

@@ -121,5 +121,5 @@ Example:
 ```yaml
 when: time.Now().Sub(time.Parse(app.status.operationState.startedAt)).Minutes() >= 5
 ```
-
-{!functions.md!}
+[More Information on Functions](functions.md)
+<!-- {!functions.md!} -->

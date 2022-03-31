@@ -70,10 +70,10 @@ kubectl exec -it argocd-notifications-controller-<pod-hash> \
   /app/argocd-notifications trigger get
 ```
 
-## Commands
+## [Commands](troubleshooting-commands.md)
 
-{!troubleshooting-commands.md!}
+<!-- {!troubleshooting-commands.md!} -->
 
-## Errors
+## [Errors](troubleshooting-errors.md)
 
-{!troubleshooting-errors.md!}
+<!-- {!troubleshooting-errors.md!} -->
