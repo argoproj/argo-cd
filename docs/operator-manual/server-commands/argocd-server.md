@@ -23,6 +23,7 @@ argocd-server [flags]
       --client-key string                             Path to a client key file for TLS
       --cluster string                                The name of the kubeconfig cluster to use
       --connection-status-cache-expiration duration   Cache expiration for cluster/repo connection status (default 1h0m0s)
+      --content-security-policy value                 Set Content-Security-Policy header in HTTP responses to value. To disable, set to "". (default "frame-ancestors 'self';")
       --context string                                The name of the kubeconfig context to use
       --default-cache-expiration duration             Cache expiration default (default 24h0m0s)
       --dex-server string                             Dex server address (default "http://argocd-dex-server:5556")
