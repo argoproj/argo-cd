@@ -74,7 +74,7 @@ nav:
     - Introduction: operator-manual/applicationset/index.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
-    - Generators: 
+    - Generators:
       - operator-manual/applicationset/Generators.md
       - operator-manual/applicationset/Generators-List.md
       - operator-manual/applicationset/Generators-Cluster.md
