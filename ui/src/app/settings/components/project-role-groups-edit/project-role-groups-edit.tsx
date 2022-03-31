@@ -38,11 +38,12 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                 <div className='argo-table-list'>
                     <div className='argo-table-list__row'>
                         <div className='row'>
-                            <div className='columns small-9'>
+                            <div className='columns small-8'>
                                 <FormField formApi={api} label='' field='groupName' component={Text} />
                             </div>
-                            <div className='columns small-3'>
+                            <div className='columns small-4'>
                                 <a
+                                    className='argo-button argo-button--base'
                                     onClick={() => {
                                         if (api.values.groupName.length > 0) {
                                             props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));

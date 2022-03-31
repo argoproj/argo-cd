@@ -36,6 +36,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         items: [
                             {
                                 title: 'Add GnuPG key',
+                                iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddGnuPGKey = true)
                             }
                         ]
@@ -114,7 +115,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             keyData: params.keyData
                         })}
                         validateError={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: !params.keyData && 'Key data is required'
+                            keyData: !params.keyData && 'GnuPG public key data is required'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>

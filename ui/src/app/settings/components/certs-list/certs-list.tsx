@@ -43,10 +43,12 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                         items: [
                             {
                                 title: 'Add TLS certificate',
+                                iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddTLSCertificate = true)
                             },
                             {
                                 title: 'Add SSH known hosts',
+                                iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddSSHKnownHosts = true)
                             }
                         ]
@@ -131,8 +133,8 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             certData: btoa(params.certData)
                         })}
                         validateError={(params: NewTLSCertParams) => ({
-                            serverName: !params.serverName && 'Repository server name is required',
-                            certData: !params.certData && 'Certificate data is required'
+                            serverName: !params.serverName && 'Repository Server Name is required',
+                            certData: !params.certData && 'TLS Certificate is required'
                         })}>
                         {formApiTLS => (
                             <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>

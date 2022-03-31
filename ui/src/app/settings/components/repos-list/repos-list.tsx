@@ -270,7 +270,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 getApi={api => (this.formApiHTTPS = api)}
                                 defaultValues={{type: 'git'}}
                                 validateError={(params: NewHTTPSRepoParams) => ({
-                                    url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
+                                    url: (!params.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
                                     name: params.type === 'helm' && !params.name && 'Name is required',
                                     password: !params.password && params.username && 'Password is required if username is given.',
                                     tlsClientCertKey: !params.tlsClientCertKey && params.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
@@ -361,7 +361,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 getApi={api => (this.formApiSSH = api)}
                                 defaultValues={{type: 'git'}}
                                 validateError={(params: NewSSHRepoParams) => ({
-                                    url: !params.url && 'Repo URL is required'
+                                    url: !params.url && 'Repository URL is required'
                                 })}>
                                 {formApi => (
                                     <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
@@ -431,7 +431,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, {connec
                                 getApi={api => (this.formApiGitHubApp = api)}
                                 defaultValues={{type: 'git', ghType: 'GitHub'}}
                                 validateError={(params: NewGitHubAppRepoParams) => ({
-                                    url: (!params.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
+                                    url: (!params.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(params.url) && 'Not a valid HTTPS URL'),
                                     githubAppId: !params.githubAppId && 'GitHub App ID is required',
                                     githubAppInstallationId: !params.githubAppInstallationId && 'GitHub App installation ID is required',
                                     githubAppPrivateKey: !params.githubAppPrivateKey && 'GitHub App private Key is required'

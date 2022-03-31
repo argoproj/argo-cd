@@ -50,6 +50,7 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
                         <div className='row'>
                             <div className='columns small-4'>
                                 <a
+                                    className='argo-button argo-button--base'
                                     onClick={() => {
                                         const newPolicy = generatePolicy(props.projName, props.roleName);
                                         props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
