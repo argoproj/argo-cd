@@ -6,6 +6,7 @@ google_analytics:
 - UA-105170809-2
 - auto
 markdown_extensions:
+- markdown_include.include
 - codehilite
 - admonition
 - toc:
