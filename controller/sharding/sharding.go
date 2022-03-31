@@ -26,7 +26,7 @@ func InferShard() (int, error) {
 	return shard, nil
 }
 
-// GetShardByID calculates cluster shard as `clusterSecret.UID % replicas count`
+// GetShardByID calculates cluster shard as `shardNumber % replicas count`
 func GetShardByID(id string, replicas int) int {
 	if id == "" {
 		return 0
@@ -45,7 +45,7 @@ func GetClusterFilter(replicas int, shard int) func(c *v1alpha1.Cluster) bool {
 			if c.Shard != nil {
 				clusterShard = int(*c.Shard)
 			} else {
-				clusterShard = GetShardByID(c.ID, replicas)
+				clusterShard = GetShardByID(strconv.Itoa(shard), replicas)
 			}
 		}
 		return clusterShard == shard
