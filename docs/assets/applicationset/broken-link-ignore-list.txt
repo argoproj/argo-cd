@@ -1,0 +1,10 @@
+https://1.2.3.4
+https://2.4.6.8
+https://9.8.7.6
+https://applicationset.example.com/api/webhook
+https://argocd-applicationset.readthedocs.io/en/(version)/Getting-Started/
+https://git.example.com/
+https://github.com/argoproj/applicationset/commit
+https://github.com/infra-team/cluster-deployments.git
+https://gitlab.example.com/
+https://kubernetes.default.svc
