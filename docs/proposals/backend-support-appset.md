@@ -94,7 +94,6 @@ Once all the checks have passed, apply the ApplicationSet and the Applications, 
 
 ## Drawbacks
 
-
 ## Alternatives
 
 Rather than using Argo CD's CLI, we could create a new AppSet CLI "appset" that would communicate directly with the ApplicationSet deployment, rather than going through the Argo CD API Server as an intermediary (though if we were adding web UI support, this would still be required regardless).
