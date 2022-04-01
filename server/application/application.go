@@ -173,7 +173,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
-	if q.Application == nil {
+	if q.GetApplication() == nil {
 		return nil, fmt.Errorf("error creating application: application is nil in request")
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(*q.Application)); err != nil {
@@ -183,7 +183,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	s.projectLock.RLock(q.Application.Spec.Project)
 	defer s.projectLock.RUnlock(q.Application.Spec.Project)
 
-	a := q.Application
+	a := q.GetApplication()
 	validate := true
 	if q.Validate != nil {
 		validate = *q.Validate
@@ -503,7 +503,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			}
 		}
 		if !found {
-			return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.ResourceName, *q.Name)
+			return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.GetResourceName(), q.GetName())
 		}
 
 		namespace = q.GetResourceNamespace()
@@ -693,7 +693,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 			return nil, err
 		}
 	default:
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.PatchType))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.GetPatchType()))
 	}
 
 	newApp := &v1alpha1.Application{}
@@ -974,7 +974,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 
 	found := tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 	if found == nil || found.ResourceRef.UID == "" {
-		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
 	if err != nil {
@@ -1054,7 +1054,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, err
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	m := string(data)
 	return &application.ApplicationResourceResponse{
 		Manifest: &m,
@@ -1094,7 +1094,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, err
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
+	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1444,7 +1444,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
-			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
+			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), a.Spec.Source.TargetRevision)
 		}
 	}
 	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
@@ -1711,7 +1711,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
+	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.GetGroup(), q.GetKind(), q.GetAction())
 	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
@@ -1789,8 +1789,8 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		}
 	}
 
-	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.Action, res.Group, res.Kind, res.Name))
-	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.Action))
+	s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
+	s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	return &application.ApplicationResponse{}, nil
 }
 
