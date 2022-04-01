@@ -37,8 +37,8 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
-    extensions: Extension[];
-    extensionState: any;
+    extensions: {[name: string]: Extension};
+    extensionPanelsShown: {[key: string]: boolean};
 }
 
 interface FilterInput {
@@ -78,15 +78,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             groupedResources: [],
             slidingPanelPage: 0,
             filteredGraph: [],
-            extensionState: {},
-            extensions: []
-        };
-    }
-
-    private get extensionContext() {
-        return {
-            state: this.state.extensionState,
-            setState: (extensionState: any) => this.setState({extensionState})
+            extensionPanelsShown: {},
+            extensions: {}
         };
     }
 
@@ -304,7 +297,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 showOperation={() => this.setOperationStatusVisible(true)}
                                                 showConditions={() => this.setConditionsStatusVisible(true)}
                                                 showMetadataInfo={revision => this.setState({...this.state, revision})}
-                                                extensionContext={this.extensionContext}
+                                                openPanel={(extension: string) => this.setPanelShown(extension, true)}
                                             />
                                         </div>
                                         <div className='application-details__tree'>
@@ -427,7 +420,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
                                                 tab={tab}
-                                                extensionContext={this.extensionContext}
                                             />
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
@@ -510,27 +502,45 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         );
     }
 
+    private setPanelShown(extension: string, shown: boolean) {
+        this.setState(s => {
+            s.extensionPanelsShown[extension] = shown;
+            return s;
+        });
+    }
+
+    private isPanelShown(extension: string) {
+        return this.state.extensionPanelsShown[extension];
+    }
+
     private renderExtensionPanels(application: Application) {
-        const context = {...this.extensionContext, application};
-        return this.state.extensions
-            .filter(e => e.AppPanel)
-            .map(e => e.AppPanel)
-            .map(e => e.factory(context))
-            .map((e, i) => (
-                <SlidingPanel key={'extension/' + i} onClose={e.onClose} isShown={e.isShown}>
-                    <ErrorBoundary>{e.component}</ErrorBoundary>
-                </SlidingPanel>
-            ));
+        return (
+            <ErrorBoundary>
+                {Object.entries(this.state.extensions)
+                    .filter(([, e]) => e.AppPanel)
+                    .map(([name, e]) => (
+                        <SlidingPanel key={'extension/' + name} onClose={() => this.setPanelShown(name, false)} isShown={this.isPanelShown(name)}>
+                            <ErrorBoundary>{e.AppPanel({application})}</ErrorBoundary>
+                        </SlidingPanel>
+                    ))}
+            </ErrorBoundary>
+        );
     }
 
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions
-            .filter(e => e.AppToolbarButton)
-            .map(e => e.AppToolbarButton)
-            .map(e => e.factory({application: app, ...this.extensionContext}));
+        const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = Object.entries(this.state.extensions)
+            .filter(([, e]) => e.AppToolbarButton)
+            .map(([name, e]) =>
+                e.AppToolbarButton({
+                    application: app,
+                    openPanel: () => {
+                        this.setPanelShown(name, true);
+                    }
+                })
+            );
         return [
             {
                 iconClassName: 'fa fa-info-circle',

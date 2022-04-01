@@ -19,7 +19,7 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
-import {ExtensionContext, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {Extension, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -28,7 +28,6 @@ interface ResourceDetailsProps {
     selectedNode: ResourceNode;
     updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
     application: Application;
-    extensionContext: ExtensionContext;
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
@@ -50,8 +49,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         podState: State,
         events: Event[],
         ExtensionComponent: React.ComponentType<ResourceExtensionComponentProps>,
-        extensionsExports: any[],
-        extensionContext: ExtensionContext,
         tabs: Tab[]
     ) => {
         if (!node || node === undefined) {
@@ -105,12 +102,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 applicationName={application.metadata.name}
                                 containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
                                 page={{number: page, untilTimes}}
-                                setPage={pageData =>
-                                    appContext.navigation.goto('.', {
-                                        page: pageData.number,
-                                        untilTimes: pageData.untilTimes.join(',')
-                                    })
-                                }
+                                setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                 containerGroups={containerGroups}
                                 onClickContainer={onClickContainer}
                             />
@@ -131,27 +123,35 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             });
         }
 
-        const context = {
-            node,
-            resource: state,
-            application,
-            tree,
-            ...extensionContext
-        };
-        extensionsExports
-            .filter(e => e.ResourcePanel)
-            .map(e => e.ResourcePanel)
+        Object.entries(extensions)
+            .filter(([, e]) => e.ResourcePanel)
+            .map(([, e]) =>
+                e.ResourcePanel({
+                    node,
+                    resource: state,
+                    application,
+                    tree
+                })
+            )
             .forEach((e, i) => {
                 tabs.push({
                     title: e.title || 'More',
                     icon: e.iconClassName,
                     key: 'extension/' + i,
-                    content: <ErrorBoundary>{e.factory(context).component}</ErrorBoundary>
+                    content: <ErrorBoundary>{e.component}</ErrorBoundary>
                 });
             });
 
         return tabs;
     };
+
+    const [extensions, setExtensions] = useState<{[name: string]: Extension}>({});
+    useEffect(
+        () => () => {
+            services.extensions.load().then(() => setExtensions(services.extensions.list()));
+        },
+        [selectedNode]
+    );
 
     const getApplicationTabs = () => {
         const tabs: Tab[] = [
@@ -238,14 +238,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         [selectedNode]
     );
 
-    const [extensions, setExtensions] = useState<any[]>([]);
-    useEffect(
-        () => () => {
-            services.extensions.load().then(() => setExtensions(services.extensions.list()));
-        },
-        [selectedNode]
-    );
-
     return (
         <div style={{width: '100%', height: '100%'}}>
             {selectedNode && (
@@ -292,14 +284,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        marginRight: '15px',
-                                        alignItems: 'center',
-                                        fontSize: '12px'
-                                    }}>
+                                <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
                                     <ResourceIcon kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
@@ -324,23 +309,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(
-                                    selectedNode,
-                                    data.liveState,
-                                    data.podState,
-                                    data.events,
-                                    error.state ? null : extension?.component,
-                                    extensions,
-                                    props.extensionContext,
-                                    [
-                                        {
-                                            title: 'SUMMARY',
-                                            icon: 'fa fa-file-alt',
-                                            key: 'summary',
-                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
-                                        }
-                                    ]
-                                )}
+                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, [
+                                    {
+                                        title: 'SUMMARY',
+                                        icon: 'fa fa-file-alt',
+                                        key: 'summary',
+                                        content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                    }
+                                ])}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />

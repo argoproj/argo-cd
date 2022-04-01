@@ -1,5 +1,6 @@
 import {Application, ApplicationTree, State} from '../models';
 import * as React from 'react';
+import {ReactElement} from 'react';
 
 interface IndexEntry {
     name: string;
@@ -9,18 +10,30 @@ type Index = {
     items: IndexEntry[];
 };
 
-export type ExtensionContext =
-    | {
-          state: any;
-          setState: (value: any) => void;
-      }
-    | any;
+type AppToolbarButton = (props: {
+    application: Application;
+    openPanel: () => void;
+}) => {
+    iconClassName: string;
+    title: ReactElement;
+    action: () => void;
+};
+
+type AppStatusPanelItem = (props: {application: Application; openPanel: () => void}) => ReactElement;
+
+type AppPanel = (props: {application: Application}) => ReactElement;
+
+type ResourcePanel = (props: {}) => {
+    iconClassName: string;
+    title: string;
+    component: ReactElement;
+};
 
 export type Extension = {
-    AppPanel?: any;
-    AppToolbarButton?: any;
-    ResourcePanel?: any;
-    AppStatusPanelItem?: any;
+    AppPanel?: AppPanel;
+    AppToolbarButton?: AppToolbarButton;
+    ResourcePanel?: ResourcePanel;
+    AppStatusPanelItem?: AppStatusPanelItem;
 };
 
 const extensions: {
@@ -48,7 +61,7 @@ export interface ResourceExtensionComponentProps {
 
 export class ExtensionsService {
     public list() {
-        return Object.values(extensions.items);
+        return extensions.items;
     }
 
     public load(): Promise<any[]> {
