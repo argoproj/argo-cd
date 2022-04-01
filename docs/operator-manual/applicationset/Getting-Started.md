@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide assumes you are familiar with Argo CD and its basic concepts. See the [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/core_concepts/) for more information.
+This guide assumes you are familiar with Argo CD and its basic concepts. See the [Argo CD documentation](../../core_concepts.md) for more information.
     
 ## Requirements
 
@@ -16,7 +16,7 @@ There are a few options for installing the ApplicationSet controller.
 
 Starting with Argo CD v2.3, the ApplicationSet controller is bundled with Argo CD. It is no longer necessary to install the ApplicationSet controller separately from Argo CD.
 
-Follow the [Argo CD Getting Started](https://argo-cd.readthedocs.io/en/stable/getting_started/) instructions for more information.
+Follow the [Argo CD Getting Started](../../getting_started.md) instructions for more information.
 
 
 
@@ -72,7 +72,20 @@ There are no manual upgrade steps required between any release of ApplicationSet
 ### Behaviour changes in ApplicationSet controller v0.3.0
 
 There are no breaking changes, however, a couple of behaviours have changed from v0.2.0 to v0.3.0. See the [v0.3.0 upgrade page](upgrading/v0.2.0-to-v0.3.0.md) for details. -->
+## Enabling high availability mode
 
+To enable high availability, you have to set the command ``` --enable-leader-election=true  ``` in argocd-applicationset-controller container and increase the replicas. 
+
+do following changes in manifests/install.yaml
+
+```bash
+    spec:
+      containers:
+      - command:
+        - entrypoint.sh
+        - argocd-applicationset-controller
+        - --enable-leader-election=true
+```
 
 ### Optional: Additional Post-Upgrade Safeguards
 

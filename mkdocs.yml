@@ -72,6 +72,7 @@ nav:
   - operator-manual/troubleshooting.md
   - ApplicationSet:
     - Introduction: operator-manual/applicationset/index.md
+    - Installations: operator-manual/applicationset/Getting-Started.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
     - Generators:

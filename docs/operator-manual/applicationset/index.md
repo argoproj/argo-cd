@@ -2,9 +2,9 @@
 
 ## Introduction
 
-The ApplicationSet controller is a [Kubernetes controller](https://kubernetes.io/docs/concepts/architecture/controller/) that adds support for an `ApplicationSet` [CustomResourceDefinition](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/) (CRD). This controller/CRD enables both automation and greater flexibility managing [Argo CD](https://argo-cd.readthedocs.io/en/stable/) Applications across a large number of clusters and within monorepos, plus it makes self-service usage possible on multitenant Kubernetes clusters.
+The ApplicationSet controller is a [Kubernetes controller](https://kubernetes.io/docs/concepts/architecture/controller/) that adds support for an `ApplicationSet` [CustomResourceDefinition](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/) (CRD). This controller/CRD enables both automation and greater flexibility managing [Argo CD](../../index.md) Applications across a large number of clusters and within monorepos, plus it makes self-service usage possible on multitenant Kubernetes clusters.
 
-The ApplicationSet controller works alongside an existing [Argo CD installation](https://argo-cd.readthedocs.io/en/stable/getting_started/). Argo CD is a declarative, GitOps continuous delivery tool, which allows developers to define and control deployment of Kubernetes application resources from within their existing Git workflow.
+The ApplicationSet controller works alongside an existing [Argo CD installation](../../index.md). Argo CD is a declarative, GitOps continuous delivery tool, which allows developers to define and control deployment of Kubernetes application resources from within their existing Git workflow.
 
 Starting with Argo CD v2.3, the ApplicationSet controller is bundled with Argo CD.
 

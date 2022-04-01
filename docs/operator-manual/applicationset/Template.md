@@ -22,9 +22,9 @@ Here is the template subfield from a Cluster generator:
        namespace: guestbook
 ```
 
-The template subfields correspond directly to [the spec of an Argo CD `Application` resource](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#applications):
+The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
 
-- `project` refers to the [Argo CD Project](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/) in use (`default` may be used here to utilize the default Argo CD Project)
+- `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
 - `source` defines from which Git repostory to extract the desired Application manifests
     - **repoURL**: URL of the repository (eg `https://github.com/argoproj/argocd-example-apps.git`)
     - **targetRevision**: Revision (tag/branch/commit) of the repository (eg `HEAD`)
