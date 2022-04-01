@@ -24,7 +24,7 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	c.context.t.Helper()
 	var message string
 	var state state
-	timeout := time.Duration(15) * time.Second
+	timeout := time.Duration(30) * time.Second
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		switch state {
