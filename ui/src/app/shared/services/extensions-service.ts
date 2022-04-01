@@ -1,4 +1,4 @@
-import {ApplicationTree, State} from '../models';
+import {Application, ApplicationTree, State} from '../models';
 import * as React from 'react';
 
 interface IndexEntry {
@@ -18,6 +18,8 @@ export type ExtensionContext =
 
 export interface ExtensionExport {
     type: 'appPanel' | 'appToolbarButton' | 'resourcePanel' | 'appStatusPanelItem';
+    title?: string;
+    iconClassName?: string;
     factory: (context: ExtensionContext) => any;
 }
 
@@ -41,6 +43,7 @@ export interface ResourceExtension {
 }
 
 export interface ResourceExtensionComponentProps {
+    application: Application;
     resource: State;
     tree: ApplicationTree;
 }

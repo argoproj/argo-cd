@@ -105,7 +105,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 applicationName={application.metadata.name}
                                 containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
                                 page={{number: page, untilTimes}}
-                                setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                                setPage={pageData =>
+                                    appContext.navigation.goto('.', {
+                                        page: pageData.number,
+                                        untilTimes: pageData.untilTimes.join(',')
+                                    })
+                                }
                                 containerGroups={containerGroups}
                                 onClickContainer={onClickContainer}
                             />
@@ -120,13 +125,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 key: 'extension',
                 content: (
                     <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                        <ExtensionComponent tree={tree} resource={state} />
+                        <ExtensionComponent application={application} tree={tree} resource={state} />
                     </ErrorBoundary>
                 )
             });
         }
 
         const context = {
+            node,
             resource: state,
             application,
             tree,
@@ -134,12 +140,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         };
         extensionsExports
             .filter(e => e.type === 'resourcePanel')
-            .map(e => e.factory(context))
             .forEach((e, i) => {
                 tabs.push({
-                    title: 'More',
+                    title: e.title || 'More',
+                    icon: e.iconClassName,
                     key: 'extension/' + i,
-                    content: <ErrorBoundary>{e.component}</ErrorBoundary>
+                    content: <ErrorBoundary>{e.factory(context).component}</ErrorBoundary>
                 });
             });
 
@@ -285,7 +291,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
-                                <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        marginRight: '15px',
+                                        alignItems: 'center',
+                                        fontSize: '12px'
+                                    }}>
                                     <ResourceIcon kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
