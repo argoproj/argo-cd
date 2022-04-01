@@ -245,7 +245,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -509,7 +509,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -3147,7 +3147,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {

@@ -143,7 +143,6 @@ func init() {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
 	enableGRPCTimeHistogram = os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true"
-	grpc_util.RegisterGoGoCodec()
 }
 
 // ArgoCDServer is the API server for Argo CD
