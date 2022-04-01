@@ -59,9 +59,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		}
 	}
 
-	dialer := func(address string, timeout time.Duration) (net.Conn, error) {
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
+	dialer := func(ctx context.Context, address string) (net.Conn, error) {
 
 		conn, err := (&net.Dialer{Cancel: ctx.Done()}).Dial(network, address)
 		if err != nil {
@@ -86,7 +84,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		opts = append(opts,
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			grpc.WithDialer(dialer),
+			grpc.WithContextDialer(dialer),
 			grpc.WithInsecure(), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 10 * time.Second}),
 		)
