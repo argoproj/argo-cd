@@ -8,25 +8,39 @@ Use cases include:
 * Recommending Kubernetes best practices.
 * Alerting users about vulnerabilities in their application.
 
-* ⚠️ Only install extensions from trusted sources.
+⚠️ Only install extensions from trusted sources. An extension will be able to make HTTP requests and have access to your
+application details.
 
 ## UI Extension
 
-A Javascript module should be:
+A UI extension is:
 
-* Packaged into a single `.js` file.
-* Installed on every Argo CD server at `/tmp/extensions/{name}.js`
-* Listed in `/tmp/extensions/index.json` {e.g. `{"items": ["name"]}`}
-
-You can add the following types of extension:
-
-* `appToolbarButton` - A button added to the application toolbar.
-* `appPanel` - A sliding panel.
-* `appStatusPanelItem` - An item added to the application status panel.
-* `resourcePanel` - An item added as a resource panel.
-
-Security:
-
-* An extension will be able to make HTTP requests.
+* A Javascript module packaged into a single `.js` file.
+* Installed on every Argo CD server at `/tmp/extensions/{name}.js`.
+* Listed in `/tmp/extensions/index.json` (e.g. `{"items": ["name"]}`).
 
 See [example](https://github.com/argoproj-labs/argocd-example-extension/v2/ui).
+
+### `AppToolbarButton`
+
+A button added to the application toolbar.
+
+![example](../assets/AppToolbarButton.png)
+
+### `AppStatusPanelItem`
+
+An item added to the application status panel.
+
+![example](../assets/AppStatusPanelItem.png)
+
+### `AppPanel`
+
+A sliding panel that can be activated by a toolbar button or status panel item.
+
+![example](../assets/AppPanel.png)
+
+### `ResourcePanel`
+
+A panel shown when clicking into resources.
+
+![example](../assets/ResourcePanel.png)

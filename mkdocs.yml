@@ -138,6 +138,7 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
+  - developer-guide/extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md
