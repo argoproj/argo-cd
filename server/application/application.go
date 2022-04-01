@@ -1335,6 +1335,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						Content:      &entry.line,
 						TimeStampStr: pointer.String(entry.timeStamp.Format(time.RFC3339Nano)),
 						TimeStamp:    &ts,
+						Last:         pointer.Bool(false),
 					}); err != nil {
 						done <- err
 						break
