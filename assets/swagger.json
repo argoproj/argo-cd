@@ -651,6 +651,11 @@
             "type": "string",
             "name": "resourceUID",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "allResources",
+            "in": "query"
           }
         ],
         "responses": {

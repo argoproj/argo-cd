@@ -314,7 +314,7 @@ export class ApplicationsService {
 
     public watchEvents(applicationName: string): Observable<models.Event[]> {
         const initialAppEvents = this.events(applicationName);
-        const initialResourceEvents = this.resourceEvents(applicationName, {name: '', namespace: '', uid: ''});
+        const initialResourceEvents = this.resourceEvents(applicationName, {name: '', namespace: '', uid: ''}, true);
         const initialEvents = Promise.all([initialAppEvents, initialResourceEvents]).then(([appEvents, resourceEvents]) => appEvents.concat(resourceEvents));
 
         return requests
@@ -332,14 +332,16 @@ export class ApplicationsService {
             namespace: string;
             name: string;
             uid: string;
-        }
+        },
+        allResources?: boolean
     ): Promise<models.Event[]> {
         return requests
             .get(`/applications/${applicationName}/events`)
             .query({
                 resourceUID: resource.uid,
                 resourceNamespace: resource.namespace,
-                resourceName: resource.name
+                resourceName: resource.name,
+                allResources
             })
             .send()
             .then(res => (res.body as models.EventList).items || []);

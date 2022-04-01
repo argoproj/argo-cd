@@ -485,7 +485,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	// There are two places where we get events. If we are getting application events, we query
 	// our own cluster. If it is events on a resource on an external cluster, then we query the
 	// external cluster using its rest.Config
-	if q.ResourceName == "" && q.ResourceUID == "" {
+	// If AllResources is true, missing filters mean get events for all resources in the app.
+	if q.ResourceName == "" && q.ResourceUID == "" && !q.GetAllResources() {
 		kubeClientset = s.kubeclientset
 		namespace = a.Namespace
 		fieldSelector = fields.SelectorFromSet(map[string]string{
@@ -504,14 +505,17 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 		if err != nil {
 			return nil, err
 		}
+	}
+	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
+	opts := metav1.ListOptions{}
+	if !q.GetAllResources() {
 		fieldSelector = fields.SelectorFromSet(map[string]string{
 			"involvedObject.name":      q.ResourceName,
 			"involvedObject.uid":       q.ResourceUID,
 			"involvedObject.namespace": namespace,
 		}).String()
+		opts = metav1.ListOptions{FieldSelector: fieldSelector}
 	}
-	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
-	opts := metav1.ListOptions{FieldSelector: fieldSelector}
 	return kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
 }
 
@@ -767,7 +771,11 @@ func (s *Server) WatchResourceEvents(q *application.ResourceEventsQuery, ws appl
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(event v1.Event, eventType watch.EventType) {
-		group := strings.Split(event.InvolvedObject.APIVersion, "/")[0]
+		var group string
+		groupVersion := strings.Split(event.InvolvedObject.APIVersion, "/")
+		if len(groupVersion) > 1 {
+			group = groupVersion[0]
+		}
 		_, err := s.getAppResourceNoEnforce(context.Background(), a, group, event.InvolvedObject.Kind, event.InvolvedObject.Namespace, event.InvolvedObject.Name)
 		if err != nil {
 			return

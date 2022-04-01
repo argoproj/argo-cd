@@ -48,6 +48,7 @@ message ApplicationResourceEventsQuery {
 	required string resourceNamespace = 2 [(gogoproto.nullable) = false];
 	required string resourceName = 3 [(gogoproto.nullable) = false];
 	required string resourceUID = 4 [(gogoproto.nullable) = false];
+	optional bool allResources = 5;
 }
 
 message ResourceEventsQuery {
