@@ -26,8 +26,8 @@ import {urlPattern} from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
-import {ExtensionExport} from '../../../shared/services/extensions-service';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {Extension} from '../../../shared/services/extensions-service';
 
 require('./application-details.scss');
 
@@ -37,7 +37,7 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
-    extensions: ExtensionExport[];
+    extensions: Extension[];
     extensionState: any;
 }
 
@@ -513,10 +513,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     private renderExtensionPanels(application: Application) {
         const context = {...this.extensionContext, application};
         return this.state.extensions
-            .filter(e => e.type === 'appPanel')
+            .filter(e => e.AppPanel)
+            .map(e => e.AppPanel)
             .map(e => e.factory(context))
             .map((e, i) => (
-                <SlidingPanel key={'' + i} onClose={e.onClose} isShown={e.isShown}>
+                <SlidingPanel key={'extension/' + i} onClose={e.onClose} isShown={e.isShown}>
                     <ErrorBoundary>{e.component}</ErrorBoundary>
                 </SlidingPanel>
             ));
@@ -527,7 +528,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
         const extensionButtons: {title: string | React.ReactElement; action: () => any}[] = this.state.extensions
-            .filter(e => e.type === 'appToolbarButton')
+            .filter(e => e.AppToolbarButton)
+            .map(e => e.AppToolbarButton)
             .map(e => e.factory({application: app, ...this.extensionContext}));
         return [
             {

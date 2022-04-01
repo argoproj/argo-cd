@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
-import {ExtensionContext, ExtensionExport} from '../../../shared/services/extensions-service';
+import {Extension, ExtensionContext} from '../../../shared/services/extensions-service';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 
 require('./application-status-panel.scss');
@@ -68,13 +68,16 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
 
-    const [extensions, setExtensions] = useState<ExtensionExport[]>([]);
+    const [extensions, setExtensions] = useState<Extension[]>([]);
 
     useEffect(() => {
         services.extensions.load().then(() => setExtensions(services.extensions.list()));
     }, []);
 
-    const extensionItems = extensions.filter(e => e.type === 'appStatusPanelItem').map(e => e.factory({application, ...extensionContext}));
+    const extensionItems = extensions
+        .filter(e => e.AppStatusPanelItem)
+        .map(e => e.AppStatusPanelItem)
+        .map(e => e.factory({application, ...extensionContext}));
 
     return (
         <div className='application-status-panel row'>

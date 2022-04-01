@@ -16,14 +16,12 @@ export type ExtensionContext =
       }
     | any;
 
-export interface ExtensionExport {
-    type: 'appPanel' | 'appToolbarButton' | 'resourcePanel' | 'appStatusPanelItem';
-    title?: string;
-    iconClassName?: string;
-    factory: (context: ExtensionContext) => any;
-}
-
-type Extension = {[key: string]: ExtensionExport};
+export type Extension = {
+    AppPanel?: any;
+    AppToolbarButton?: any;
+    ResourcePanel?: any;
+    AppStatusPanelItem?: any;
+};
 
 const extensions: {
     // non-resource extensions (v2)
@@ -50,12 +48,10 @@ export interface ResourceExtensionComponentProps {
 
 export class ExtensionsService {
     public list() {
-        return Object.values(extensions.items)
-            .map(x => Object.values(x))
-            .reduce((previous, current) => previous.concat(current), []);
+        return Object.values(extensions.items);
     }
 
-    public load(): Promise<ExtensionExport[]> {
+    public load(): Promise<any[]> {
         const key = 'index';
         const res =
             cache.get(key) ||

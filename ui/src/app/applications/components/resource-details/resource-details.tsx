@@ -19,7 +19,7 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
-import {ExtensionContext, ExtensionExport, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {ExtensionContext, ResourceExtensionComponentProps} from '../../../shared/services/extensions-service';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -50,7 +50,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         podState: State,
         events: Event[],
         ExtensionComponent: React.ComponentType<ResourceExtensionComponentProps>,
-        extensionsExports: ExtensionExport[],
+        extensionsExports: any[],
         extensionContext: ExtensionContext,
         tabs: Tab[]
     ) => {
@@ -139,7 +139,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             ...extensionContext
         };
         extensionsExports
-            .filter(e => e.type === 'resourcePanel')
+            .filter(e => e.ResourcePanel)
+            .map(e => e.ResourcePanel)
             .forEach((e, i) => {
                 tabs.push({
                     title: e.title || 'More',
@@ -237,7 +238,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         [selectedNode]
     );
 
-    const [extensions, setExtensions] = useState<ExtensionExport[]>([]);
+    const [extensions, setExtensions] = useState<any[]>([]);
     useEffect(
         () => () => {
             services.extensions.load().then(() => setExtensions(services.extensions.list()));
