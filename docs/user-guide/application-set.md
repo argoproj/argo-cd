@@ -1,6 +1,6 @@
 ### Automating the generation of Argo CD Applications with the ApplicationSet Controller
 
-The [ApplicationSet controller](../operator-manual/applicationset/index.md) a part of Argo CD adds Application automation, and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list. 
+The [ApplicationSet controller](../operator-manual/applicationset/index.md) is a part of Argo CD adds Application automation, and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list. 
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
