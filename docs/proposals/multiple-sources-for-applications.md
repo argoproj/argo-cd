@@ -7,12 +7,14 @@ sponsors:
 reviewers:
   - "@jannfis"
   - "@crenshaw-dev"
+  - "@alexmt"
 approvers:
   - "@jannfis"
-  - TBD
+  - "@alexmt"
+  - "@crenshaw-dev"
 
 creation-date: 2022-01-28
-last-updated: 2022-01-28
+last-updated: 2022-04-01
 ---
 
 # Multiple Sources for application
@@ -59,7 +61,7 @@ The UI should allow users to add multiple sources while creating the application
 
 #### Changes to cli
 
-The cli would need to support adding a list of resources instead of just one while creating the application. Also, just like `--values` field for adding values files, we would need an option to allow external value files to the application. We would need a separate proposal for changes to cli.
+The cli would need to support adding a list of resources instead of just one while creating the application. `values` field should allow referencing value files from other sources. We would need a separate proposal for changes to cli.
 
 ### Non-goals
 * 
@@ -80,33 +82,49 @@ spec:
     helm:
       valueFiles:
         - values.yaml
-    chart: elasticsearch
   sources:                                          # new field
-    - repoURL: https://github.com/helm/charts/tree/master/incubator/elasticsearch
+    - repoURL: https://github.com/helm/charts
       targetRevision: master
+      path: incubator/elasticsearch
       helm:
         valueFiles:
           - values.yaml
-      chart: elasticsearch
 ```
 
-### Add `externalValues` field in helm section of Application Spec
+### Make `path/chart` field optional
 
-Along with new `sources` field, add a new field for accepting external value files `externalValueFiles` under the `helm` section of each ApplicationSource.
+While adding sources to the application, users can decide not to add `path/chart` field in the application yaml. The controller will not generate manifests for the sources that do not have `path/chart` field specified. For example, in the below application spec, controller will generate the manifest for `elasticsearch` source but not for source `my-repo`.
+
+```
+spec:
+  sources:
+    - repoURL: https://github.com/my-org/my-repo # path is missing so no manifests are generated
+      targetRevision: master
+      ref: myRepo                                 # repo is available via symlink "my-repo"
+    - repoURL: https://github.com/helm/charts
+      targetRevision: master
+      path: incubator/elasticsearch               # path "incubator/elasticsearch" is used to generate manifests
+      helm:
+        valueFiles:
+          - $myRepo/values.yaml                   # values.yaml is located in source with reference name $myRepo
+```
+
+### Add optional `ref` field to Application Source
+
+For making files accessible to other sources, add a new `ref` field to the source. For example, in below ApplicationSpec, we have added `ref: myRepo` to the `my-repo` repository and have used reference `$myRepo` to the `elasticSearch` repository.
 
 ```yaml
-sources:
-  - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch
-    targetRevision: master
-    helm:
-      valueFiles:
-        - values.yaml
-      externalValueFiles:                         # new field
-        - repoURL: https://github.com/helm/charts.git
-          targetRevision: main
-          valueFiles:
-            - stable/elasticsearch/values.yaml
-    chart: elasticsearch
+spec:
+  sources:
+    - repoURL: https://github.com/my-org/my-repo  # path is missing so no manifests are generated
+      targetRevision: master
+      ref: myRepo                                 # repo is available via symlink "myRepo"
+    - repoURL: https://github.com/helm/charts
+      targetRevision: master
+      path: incubator/elasticsearch               # path "incubator/elasticsearch" is used to generate manifests
+      helm:
+        valueFiles:
+          - $myRepo/values.yaml                   # values.yaml is located in source with reference name $myRepo
 ```
 
 ### Combined Example Application yaml
@@ -123,38 +141,34 @@ spec:
     server: https://some.k8s.url.com:6443
   project: default
   source:
-    repoURL: https://github.com/helm/charts/tree/master/incubator/elasticsearch
+    repoURL: https://github.com/helm/charts
     targetRevision: master
     helm:
     valueFiles:
         - values.yaml
-    chart: elasticsearch
+    chart: incubator/elasticsearch
   sources:                                          # new field
-    - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch
+  # application that consists of MongoDB and ElasticSearch resources
+    - repoURL: https://github.com/helm/charts
       targetRevision: master
+      path: incubator/mongodb
+    - repoURL: https://github.com/helm/charts
+      targetRevision: master
+      path: incubator/elasticsearch
+    - repoURL: https://github.com/my-org/my-repo  # path is missing so no manifests are generated
+      targetRevision: master
+      ref: myRepo                                 # repo is available via symlink "my-repo"
+    - repoURL: https://github.com/helm/charts
+      targetRevision: master
+      path: incubator/elasticsearch               # path "incubator/elasticsearch" is used to generate manifests
       helm:
         valueFiles:
-          - values.yaml
-        externalValueFiles:                         # new field
-          - repoURL: https://github.com/helm/charts.git
-            targetRevision: master
-            valueFiles:
-              - stable/elasticsearch/values.yaml
-      chart: elasticsearch
-    - repoURL: https://github.com/helm/charts/tree/master/stable/elasticsearch-exporter
-      targetRevision: master
-      helm:
-        valueFiles:
-          - values.yaml
-        externalValueFiles:
-          - repoURL: https://github.com/helm/charts.git
-            targetRevision: main
-            valueFiles:
-              - stable/elasticsearch-exporter/values.yaml
-      chart: elasticsearch-exporter
+          - $myRepo/values.yaml                   # values.yaml is located in source with reference name $myRepo
   syncPolicy:
     automated: {}
 ```
+
+In scenarios, where you have same resource mentioned multiple times in the application yaml, the last resource in the source list will override the previous resources.
 
 ### Use cases
 
@@ -181,7 +195,7 @@ To allow multiple sources to the Application, we would add a new field `sources`
 
 To avoid complexity on the deciding the list of sources, if both `source` and `sources` fields are specified, we would override the source under `source` field with all the sources under `sources` field.
 
-** Depracating `source` field:** - Once the `sources` field is implemented in UI and cli as well, we will mark the `source` field as deprecated. At the same time, we will log `WARNING` messages and add UI blurbs about the deprecation. When maintainers feel confident about the adoption of the `sources` field, we will remove the `source` field from later releases.
+**Depracating `source` field:** - Once the `sources` field is implemented in UI and cli as well, we will mark the `source` field as deprecated. At the same time, we will log `WARNING` messages and add UI blurbs about the deprecation. When maintainers feel confident about the adoption of the `sources` field, we will remove the `source` field from later releases.
 
 #### Invalidating existing cache
 
@@ -196,15 +210,13 @@ Today, we allow users to add only one source in the UI. We would need to update 
 
 #### Updates to cli
 
-We would need to create new options to the `argocd app create` command for adding multiple sources to the Application.
-
-For supporting external Helm value files, we would need to introduce a new option similar to existing `--values` option for Helm projects to support external values files. This options would need to be added individually to each source.
+We would need to create new options to the `argocd app create` command for adding multiple sources to the Application. We would also need to introduce allowing `ref` field for sources and to reference the files from symlinked source.
 
 As per the community call on February 3, changes to UI and cli are huge and are not planned to be part of first iteration.
 
 ### Security Considerations
 
-Good unit- and end-to-end tests need to be in place for this functionality to ensure we don't accidentally introduce a change that would allow any form of uncontrolled association between an Application and its resources.
+Good unit- and end-to-end tests need to be in place for this functionality to ensure we don't accidentally introduce a change that would break the feature.
 
 ### Risks and Mitigations
 
@@ -231,4 +243,3 @@ Downgrading would not be easily possible once users start to make use of the fea
 ## Drawbacks
 
 * Downgrade/rollback would not be easily possible
-
