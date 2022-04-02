@@ -1322,14 +1322,18 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 						continue
 					}
 				}
+				ts := metav1.NewTime(entry.timeStamp)
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 					done <- ws.Send(&application.LogEntry{
-						Last: pointer.Bool(true),
+						Last:         pointer.Bool(true),
+						PodName:      &entry.podName,
+						Content:      &entry.line,
+						TimeStampStr: pointer.String(entry.timeStamp.Format(time.RFC3339Nano)),
+						TimeStamp:    &ts,
 					})
 					return
 				} else {
 					sentCount++
-					ts := metav1.NewTime(entry.timeStamp)
 					if err := ws.Send(&application.LogEntry{
 						PodName:      &entry.podName,
 						Content:      &entry.line,
