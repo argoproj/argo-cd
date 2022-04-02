@@ -102,7 +102,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 
 // WriteLocalConfig writes a new local configuration file.
 func WriteLocalConfig(config LocalConfig, configPath string) error {
-	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
+	err := os.MkdirAll(path.Dir(configPath), os.FileMode(0600))
 	if err != nil {
 		return err
 	}
