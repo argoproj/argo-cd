@@ -342,7 +342,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						log.Fatalf("stream read failed: %v", err)
 					}
 					if !msg.GetLast() {
-						fmt.Println(msg.Content)
+						fmt.Println(msg.GetContent())
 					} else {
 						return
 					}

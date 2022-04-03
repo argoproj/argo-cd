@@ -1347,7 +1347,15 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				}
 			}
 		}
-		done <- ws.Send(&application.LogEntry{Last: pointer.Bool(true)})
+		now := time.Now()
+		nowTS := metav1.NewTime(now)
+		done <- ws.Send(&application.LogEntry{
+			Last:         pointer.Bool(true),
+			PodName:      pointer.String(""),
+			Content:      pointer.String(""),
+			TimeStampStr: pointer.String(now.Format(time.RFC3339Nano)),
+			TimeStamp:    &nowTS,
+		})
 	}()
 
 	select {
