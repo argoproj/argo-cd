@@ -19,7 +19,6 @@ func (f byteReadSeeker) Read(b []byte) (int, error) {
 		return 0, io.EOF
 	}
 	n := copy(b, f.data[f.offset:])
-	f.offset += int64(n)
 	return n, nil
 }
 
@@ -33,6 +32,5 @@ func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	if offset < 0 || offset > int64(len(f.data)) {
 		return 0, &fs.PathError{Op: "seek", Err: fs.ErrInvalid}
 	}
-	f.offset = offset
 	return offset, nil
 }
