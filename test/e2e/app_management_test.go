@@ -1065,7 +1065,14 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	require.NoError(t, err)
 
 	logs, err := cdClient.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
-		Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Name: &appName, Namespace: pointer.String(DeploymentNamespace()),
+		Group:        pointer.String("apps"),
+		Kind:         pointer.String("Deployment"),
+		Name:         &appName,
+		Namespace:    pointer.String(DeploymentNamespace()),
+		Container:    pointer.String(""),
+		SinceSeconds: pointer.Int64(0),
+		TailLines:    pointer.Int64(0),
+		Follow:       pointer.Bool(false),
 	})
 	require.NoError(t, err)
 	_, err = logs.Recv()
