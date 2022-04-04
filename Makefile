@@ -234,6 +234,7 @@ release-cli: clean-debug build-ui
 	make BIN_NAME=argocd-linux-amd64 GOOS=linux argocd-all
 	make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all
 	make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all
+	make BIN_NAME=argocd-aix-ppc64 GOOS=aix GOARCH=ppc64 argocd-all
 
 .PHONY: test-tools-image
 test-tools-image:
