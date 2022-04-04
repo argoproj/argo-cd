@@ -3,10 +3,17 @@ package generators
 import (
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+)
+
+const (
+	selectorKey = "Selector"
 )
 
 type TransformResult struct {
@@ -16,6 +23,11 @@ type TransformResult struct {
 
 //Transform a spec generator to list of paramSets and a template
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet) ([]TransformResult, error) {
+	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
+	if err != nil {
+		return nil, err
+	}
+
 	res := []TransformResult{}
 	var firstError error
 
@@ -41,9 +53,16 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			}
 			continue
 		}
+		var filterParams []map[string]string
+		for _, param := range params {
+			if requestedGenerator.Selector != nil && !selector.Matches(labels.Set(param)) {
+				continue
+			}
+			filterParams = append(filterParams, param)
+		}
 
 		res = append(res, TransformResult{
-			Params:   params,
+			Params:   filterParams,
 			Template: mergedTemplate,
 		})
 
@@ -62,9 +81,13 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 		if !field.CanInterface() {
 			continue
 		}
+		name := v.Type().Field(i).Name
+		if name == selectorKey {
+			continue
+		}
 
 		if !reflect.ValueOf(field.Interface()).IsNil() {
-			res = append(res, generators[v.Type().Field(i).Name])
+			res = append(res, generators[name])
 		}
 	}
 
