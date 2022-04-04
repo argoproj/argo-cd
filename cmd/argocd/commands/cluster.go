@@ -45,7 +45,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
   # Get specific details about a cluster in plain text (wide) format:
   argocd cluster get example-cluster -o wide
 
-  #	Remove a target cluster context from ArgoCD
+  # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
 `,
 	}
@@ -240,12 +240,13 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 	}
 }
 
-// NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
+// NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rm SERVER",
-		Short:   "Remove cluster credentials",
-		Example: `argocd cluster rm https://12.34.567.89`,
+		Use:   "rm SERVER/NAME",
+		Short: "Remove cluster credentials",
+		Example: `argocd cluster rm https://12.34.567.89
+argocd cluster rm cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -261,7 +262,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
 				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
 				// errors.CheckError(err)
-				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+				_, err := clusterIf.Delete(context.Background(), getQueryBySelector(clusterName))
 				errors.CheckError(err)
 				fmt.Printf("Cluster '%s' removed\n", clusterName)
 			}

@@ -105,6 +105,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
+        hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
