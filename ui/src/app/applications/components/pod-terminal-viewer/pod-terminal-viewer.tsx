@@ -28,11 +28,11 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
     const fitAddon = new FitAddon();
     let terminal: Terminal;
     let webSocket: WebSocket;
-    let keyEvent$_ = new ReplaySubject<KeyboardEvent>(2);
+    const keyEvent = new ReplaySubject<KeyboardEvent>(2);
     const [activeContainer, setActiveContainer] = useState(0);
-    let connSubject_ = new ReplaySubject<ShellFrame>(100);
-    let incommingMessage$_ = new Subject<ShellFrame>();
-    let unsubscribe_ = new Subject<void>();
+    let connSubject = new ReplaySubject<ShellFrame>(100);
+    let incommingMessage = new Subject<ShellFrame>();
+    const unsubscribe = new Subject<void>();
     let connected = false;
 
     function showErrorMsg(msg: string, err: any) {
@@ -62,7 +62,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     const onConnectionMessage = (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
-        connSubject_.next(msg);
+        connSubject.next(msg);
     };
 
     const onConnectionOpen = () => {
@@ -79,7 +79,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     const handleConnectionMessage = (frame: ShellFrame) => {
         terminal.write(frame.data);
-        incommingMessage$_.next(frame);
+        incommingMessage.next(frame);
     };
 
     const disconnect = () => {
@@ -87,23 +87,23 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
             webSocket.close();
         }
 
-        if (connSubject_) {
-            connSubject_.complete();
-            connSubject_ = new ReplaySubject<ShellFrame>(100);
+        if (connSubject) {
+            connSubject.complete();
+            connSubject = new ReplaySubject<ShellFrame>(100);
         }
 
         if (terminal) {
             terminal.dispose();
         }
 
-        incommingMessage$_.complete();
-        incommingMessage$_ = new Subject<ShellFrame>();
+        incommingMessage.complete();
+        incommingMessage = new Subject<ShellFrame>();
     };
 
     function initTerminal(node: HTMLElement) {
-        if (connSubject_) {
-            connSubject_.complete();
-            connSubject_ = new ReplaySubject<ShellFrame>(100);
+        if (connSubject) {
+            connSubject.complete();
+            connSubject = new ReplaySubject<ShellFrame>(100);
         }
 
         if (terminal) {
@@ -127,13 +127,13 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
         terminal.open(node);
         fitAddon.fit();
 
-        connSubject_.pipe(takeUntil(unsubscribe_)).subscribe(frame => {
+        connSubject.pipe(takeUntil(unsubscribe)).subscribe(frame => {
             handleConnectionMessage(frame);
         });
 
         terminal.onResize(onTerminalResize);
         terminal.onKey(key => {
-            keyEvent$_.next(key.domEvent);
+            keyEvent.next(key.domEvent);
         });
         terminal.onData(onTerminalSendString);
     }
@@ -149,7 +149,6 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
         webSocket.onopen = onConnectionOpen;
         webSocket.onclose = onConnectionClose;
         webSocket.onerror = e => {
-            console.log('Terminal Error', e);
             showErrorMsg('Terminal Connection Error', e);
             onConnectionClose();
         };
@@ -177,27 +176,29 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
         const resizeHandler = fromEvent(window, 'resize')
             .pipe(debounceTime(1000))
             .subscribe(() => {
-                fitAddon && fitAddon.fit();
+                if (fitAddon) {
+                    fitAddon.fit();
+                }
             });
         return () => {
             resizeHandler.unsubscribe(); // unsubscribe resize callback
-            unsubscribe_.next();
-            unsubscribe_.complete();
+            unsubscribe.next();
+            unsubscribe.complete();
 
             // clear connection and close terminal
             if (webSocket) {
                 webSocket.close();
             }
 
-            if (connSubject_) {
-                connSubject_.complete();
+            if (connSubject) {
+                connSubject.complete();
             }
 
             if (terminal) {
                 terminal.dispose();
             }
 
-            incommingMessage$_.complete();
+            incommingMessage.complete();
         };
     }, [activeContainer]);
 
