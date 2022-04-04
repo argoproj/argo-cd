@@ -266,7 +266,7 @@ func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -289,7 +289,7 @@ func TestSetHealth(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -297,7 +297,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -321,7 +321,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {

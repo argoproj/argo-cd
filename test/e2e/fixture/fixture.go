@@ -478,6 +478,13 @@ func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	errors.CheckError(err)
 }
 
+func SetParamInSettingConfigMap(key, value string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)

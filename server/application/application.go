@@ -481,6 +481,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 		kubeClientset kubernetes.Interface
 		fieldSelector string
 		namespace     string
+		opts          metav1.ListOptions
+		tree          *v1alpha1.ApplicationTree
 	)
 	// There are two places where we get events. If we are getting application events, we query
 	// our own cluster. If it is events on a resource on an external cluster, then we query the
@@ -505,18 +507,44 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 		if err != nil {
 			return nil, err
 		}
+		tree, err = s.getAppResources(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		if !q.GetAllResources() {
+			found := false
+			for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+				if n.ResourceRef.UID == q.ResourceUID && n.ResourceRef.Name == q.ResourceName && n.ResourceRef.Namespace == q.ResourceNamespace {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.ResourceName, *q.Name)
+			}
+			fieldSelector = fields.SelectorFromSet(map[string]string{
+				"involvedObject.name":      q.ResourceName,
+				"involvedObject.uid":       q.ResourceUID,
+				"involvedObject.namespace": namespace,
+			}).String()
+			opts = metav1.ListOptions{FieldSelector: fieldSelector}
+		}
 	}
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
-	opts := metav1.ListOptions{}
-	if !q.GetAllResources() {
-		fieldSelector = fields.SelectorFromSet(map[string]string{
-			"involvedObject.name":      q.ResourceName,
-			"involvedObject.uid":       q.ResourceUID,
-			"involvedObject.namespace": namespace,
-		}).String()
-		opts = metav1.ListOptions{FieldSelector: fieldSelector}
+	eventsList, err := kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
+	if q.GetAllResources() {
+		var filteredEventsList []v1.Event
+		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+			for _, event := range eventsList.Items {
+				if n.ResourceRef.UID == string(event.InvolvedObject.UID) && n.ResourceRef.Name == event.InvolvedObject.Name && n.ResourceRef.Namespace == event.InvolvedObject.Namespace {
+					filteredEventsList = append(filteredEventsList, event)
+					break
+				}
+			}
+		}
+		eventsList.Items = filteredEventsList
 	}
-	return kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
+	return eventsList, err
 }
 
 func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *appv1.Application, merge bool, validate bool) (*appv1.Application, error) {
@@ -1015,7 +1043,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 	return &tree, err
 }
 
-func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
+func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appLister.Get(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -1042,14 +1070,14 @@ func (s *Server) getAppResourceNoEnforce(ctx context.Context, a *appv1.Applicati
 	}
 
 	found := tree.FindNode(group, kind, namespace, name)
-	if found == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", kind, group, name, a.Name)
+	if found == nil || found.ResourceRef.UID == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", kind, group, name, a.GetName())
 	}
 	return found, nil
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,7 +1122,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1134,7 +1162,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1298,6 +1326,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
+	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
+	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
+	serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
+	if err != nil {
+		return err
+	}
+
+	if serverRBACLogEnforceEnable {
+		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return err
+		}
+	}
+
 	tree, err := s.getAppResources(ws.Context(), a)
 	if err != nil {
 		return err
@@ -1405,7 +1449,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
@@ -1695,7 +1739,7 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1746,7 +1790,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Group:        q.Group,
 	}
 	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
-	res, config, a, err := s.getAppResource(ctx, actionRequest, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}

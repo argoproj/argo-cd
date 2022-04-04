@@ -39,12 +39,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
-		Namespace:     test.FakeArgoCDNamespace,
-		KubeClientset: kubeclientset,
-		AppClientset:  appClientSet,
-		Insecure:      true,
-		DisableAuth:   true,
-		XFrameOptions: "sameorigin",
+		Namespace:             test.FakeArgoCDNamespace,
+		KubeClientset:         kubeclientset,
+		AppClientset:          appClientSet,
+		Insecure:              true,
+		DisableAuth:           true,
+		XFrameOptions:         "sameorigin",
+		ContentSecurityPolicy: "frame-ancestors 'self';",
 		Cache: servercache.NewCache(
 			appstatecache.NewCache(
 				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
