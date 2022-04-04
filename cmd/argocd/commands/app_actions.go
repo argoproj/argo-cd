@@ -76,6 +76,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				ResourceName: pointer.String(obj.GetName()),
 				Group:        pointer.String(gvk.Group),
 				Kind:         pointer.String(gvk.Kind),
+				Version:      pointer.String(gvk.GroupVersion().Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {

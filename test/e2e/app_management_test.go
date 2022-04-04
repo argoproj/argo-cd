@@ -912,7 +912,7 @@ func TestResourceAction(t *testing.T) {
 				ResourceName: pointer.String("guestbook-ui"),
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, []ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
+			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
 				Group:        pointer.String("apps"),
