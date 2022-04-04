@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:21.10
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.17 as builder
+FROM docker.io/library/golang:1.18 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -99,7 +99,7 @@ RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTION
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM  docker.io/library/golang:1.17 as argocd-build
+FROM --platform=$BUILDPLATFORM  docker.io/library/golang:1.18 as argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
