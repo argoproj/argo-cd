@@ -1,5 +1,3 @@
-const window = {localStorage: { getItem: () => '{}', setItem: () => null }};
-
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -7,8 +5,8 @@ module.exports = {
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
   globals: {
-    'self': window,
-    'window': window,
+    'self': {},
+    'window': {localStorage: { getItem: () => '{}', setItem: () => null }},
     'ts-jest': {
       isolatedModules: true,
     },
