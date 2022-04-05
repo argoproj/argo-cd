@@ -11,8 +11,8 @@ approvers:
   - "@alexmt"
   - "@jannis"
 
-creation-date: yyyy-mm-dd
-last-updated: yyyy-mm-dd
+creation-date: 2021-04-05
+last-updated: 2021-04-05
 ---
 
 # Neat Enhancement Idea
@@ -36,10 +36,6 @@ As ApplicationSet Controller is now part of ArgoCD installation, we would like t
 * **Changes to CLI**
 
   Add a new argocd command option `appset` with `create`, `delete` and `update` sub-commands.
-
-### Non-Goals
-
-*
 
 ## Proposal
 
@@ -224,24 +220,6 @@ spec:
 * Users might be more familiar with Argo CD CLI style commands
 * Some folks are less literate in YAML, and thus don't grok YAML's hierarchy/parsing rules (which is totally fair, they are initially obtuse)
 * CLI has the advantage of hiding the hierarchy (for better or worse)
-
-### Detailed examples
-
-### Security Considerations
-
-### Risks and Mitigations
-
-### Use cases
-
-#### Use case 1
-
-#### Use case 2
-
-### Implementation Details/Notes/Constraints [optional]
-
-### Upgrade / Downgrade Strategy
-
-## Drawbacks
 
 ## Alternatives
 
