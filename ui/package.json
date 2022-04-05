@@ -23,7 +23,7 @@
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
     "minimatch": "^3.0.4",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "monaco-editor": "^0.15.6",
     "prop-types": "^15.6.0",
     "react": "^16.9.3",
@@ -104,8 +104,8 @@
     "tslint-react": "^3.4.0",
     "typescript": "^4.0.3",
     "webpack": "^4.44.2",
-    "yarn": "^1.22.10",
     "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.0"
+    "webpack-dev-server": "^3.11.0",
+    "yarn": "^1.22.10"
   }
 }
