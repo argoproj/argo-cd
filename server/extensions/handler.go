@@ -2,92 +2,181 @@ package extensions
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/gorilla/mux"
+	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
-type extension struct {
-	url     string
-	headers http.Header
+type item struct {
+	Resource string `json:"resource"`
+	Action   string `json:"action"`
+	Object   string `json:"object"`
 }
 
-type extensions map[string]extension
-
-type errorResponse struct {
-	Message string `json:"message"`
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
 }
-
-var httpClient = &http.Client{}
 
 const labelKey = "argocd.argoproj.io/extension"
 
-func NewHandler(ctx context.Context, kubernetesClient kubernetes.Interface, namespace string) (http.Handler, error) {
+func NewHandler(ctx context.Context, secrets v1.SecretInterface, apps v1alpha1.ApplicationInterface, enforcer *rbac.Enforcer) (http.Handler, error) {
 
-	items, err := kubernetesClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelKey})
+	log.Info("Loading API extensions")
+
+	items, err := secrets.List(ctx, metav1.ListOptions{LabelSelector: labelKey})
 	if err != nil {
 		return nil, err
 	}
 
-	extensions := extensions{}
-	for _, i := range items.Items {
-		name := i.Labels[labelKey]
-		log.WithField("name", name).Info("loading v2 extension")
+	// a short-lived cache for looking up the project for an application
+	projectCache := gocache.New(time.Minute, time.Minute)
 
-		e := extension{url: string(i.Data["url"]), headers: http.Header{}}
-
-		for k, v := range i.Data {
-			if strings.HasPrefix(k, "header.") {
-				e.headers.Add(strings.TrimPrefix(k, "header."), string(v))
-			}
+	appProject := func(ctx context.Context, appName string) (string, error) {
+		if project, ok := projectCache.Get(appName); ok {
+			return project.(string), nil
 		}
-
-		extensions[name] = e
+		app, err := apps.Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+		project := app.Spec.GetProject()
+		projectCache.Set(appName, project, time.Minute)
+		return project, nil
 	}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// for applications, the RBAC object is a special case, it is "project/appName"
+	rbacObject := func(ctx context.Context, resource, object string) (string, error) {
+		if resource == rbacpolicy.ResourceApplications {
+			project, err := appProject(ctx, object)
+			return fmt.Sprintf("%s/%s", project, object), err
+		}
+		return object, nil
+	}
+	r := mux.NewRouter()
 
-		ctx := r.Context()
+	for _, i := range items.Items {
 
-		name := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/extensions/"), "/")[0]
-		e, ok := extensions[name]
-		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(errorResponse{Message: fmt.Sprintf("extension %s not found", name)})
-			return
+		name := i.Labels[labelKey]
+		url := string(i.Data["url"])
+		headers := http.Header{}
+		paths := map[string]map[string]item{}
+
+		if err := yaml.UnmarshalStrict(i.Data["headers"], &headers); err != nil {
+			return nil, err
+		}
+		if err := yaml.UnmarshalStrict(i.Data["paths"], &paths); err != nil {
+			return nil, err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, r.Method, e.url+r.URL.Path, r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(errorResponse{Message: err.Error()})
-			return
-		}
-		for k, v := range e.headers {
-			req.Header[k] = v
-		}
+		basePath := fmt.Sprintf("/api/extensions/%s", name)
 
-		// we need to provide information to the downstream about who is making the request
-		if claims, ok := ctx.Value("claims").(*jwt.MapClaims); ok {
-			req.Header.Add("claims-sub", (*claims)["sub"].(string))
-		}
+		// prevent a UI extension accidentally DoS the Argo CD Server
+		// one rate-limiter per extension, means one bad extension does not impact others
+		limiter := rate.NewLimiter(1, 3)
 
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			w.WriteHeader(http.StatusBadGateway)
-			_ = json.NewEncoder(w).Encode(errorResponse{Message: err.Error()})
-			return
-		}
-		defer resp.Body.Close()
+		for subPath, methods := range paths {
+			path := basePath + subPath
+			log.
+				WithField("name", name).
+				WithField("path", path).
+				Info("Loading API extension")
 
-		w.WriteHeader(resp.StatusCode)
-		_, _ = io.Copy(w, resp.Body)
-	}), nil
+			r.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+				ctx := r.Context()
+
+				// rate-limit the request
+				if !limiter.Allow() {
+					http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+					return
+				}
+
+				// get the claims from the context
+				claims, ok := ctx.Value("claims").(*jwt.MapClaims)
+				if !ok {
+					http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+					return
+				}
+
+				// is the method allowed?
+				m, ok := methods[r.Method]
+				if !ok {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return
+				}
+
+				// get the object from the request
+				vars := mux.Vars(r)
+				object, ok := vars[m.Object]
+				if !ok {
+					http.Error(w, http.StatusText(http.StatusBadRequest)+": missing object", http.StatusBadRequest)
+					return
+				}
+
+				// create a conventional name for the object
+				object, err := rbacObject(ctx, m.Resource, object)
+				if err != nil {
+					http.Error(w, http.StatusText(http.StatusServiceUnavailable)+": object lookup failed", http.StatusServiceUnavailable)
+					return
+				}
+
+				// enforce access controls
+				if err := enforcer.EnforceErr(claims, m.Resource, m.Action, object); err != nil {
+					http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+					return
+				}
+
+				// proxy the request
+				req, err := http.NewRequestWithContext(
+					// use the HTTP request's context, if that is cancelled, this will be canceled to
+					ctx,
+					r.Method,
+					url+strings.TrimPrefix(r.URL.Path, basePath),
+					r.Body,
+				)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				req.Header = headers.Clone()
+
+				// we need to provide information to the downstream about who is making the request
+				req.Header.Add("claims-sub", (*claims)["sub"].(string))
+
+				log.WithField("sub", req.Header.Get("claims-sub")).
+					WithField("method", req.Method).
+					WithField("url", req.URL).
+					Info("Executing API extension request")
+
+				resp, err := httpClient.Do(req)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				defer resp.Body.Close()
+
+				w.WriteHeader(resp.StatusCode)
+				for k, v := range resp.Header {
+					w.Header()[k] = v
+				}
+				_, _ = io.Copy(w, resp.Body)
+			})
+		}
+	}
+
+	return r, nil
 }

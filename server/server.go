@@ -747,7 +747,12 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 
-	extensionHandler, err := extensions.NewHandler(ctx, a.KubeClientset, a.Namespace)
+	extensionHandler, err := extensions.NewHandler(
+		ctx,
+		a.KubeClientset.CoreV1().Secrets(a.Namespace),
+		a.AppClientset.ArgoprojV1alpha1().Applications(a.Namespace),
+		a.enf,
+	)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load extensions: %w", err))
 	}
