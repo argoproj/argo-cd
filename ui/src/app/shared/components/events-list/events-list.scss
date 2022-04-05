@@ -20,6 +20,11 @@
             font-size: 12px;
         }
 
+        &__node-kind-icon {
+            text-align: center;
+            width: fit-content;
+        }
+
         .row {
             line-height: 2;
             padding-top: 15px;
@@ -30,10 +35,13 @@
             white-space: normal;
         }
 
-        .resource-link {
+        .resource-name {
             color: inherit;
-            cursor: pointer;
-            text-decoration: underline;
+
+            &.resource-link {
+                cursor: pointer;
+                text-decoration: underline;
+            }
         }
     }
 }

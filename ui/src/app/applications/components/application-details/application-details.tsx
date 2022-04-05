@@ -24,7 +24,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters} from './application-resource-filter';
 import {urlPattern} from '../utils';
-import {Event, ResourceStatus} from '../../../shared/models';
+import {ApplicationTree, Event, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 
 require('./application-details.scss');
@@ -426,14 +426,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             )}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.showApplicationEvents} onClose={() => this.setApplicationEventsPanelVisible(false)}>
+                                            <h3>Application/Resource Events</h3>
                                             <div className='application-resource-events'>
                                                 <ObservableQuery>
                                                     {() => (
-                                                        <DataLoader input='test' load={() => services.applications.watchEvents(application.metadata.name)}>
-                                                            {(allEvents: Event[]) => (
+                                                        <DataLoader
+                                                            input='test'
+                                                            load={() =>
+                                                                combineLatest([
+                                                                    services.applications.watchEvents(application.metadata.name),
+                                                                    this.loadAppInfo(application.metadata.name)
+                                                                ]).pipe(
+                                                                    map(([events, appInfo]) => {
+                                                                        return {events, nodes: appInfo.tree.nodes};
+                                                                    })
+                                                                )
+                                                            }>
+                                                            {({events, nodes}) => (
                                                                 <EventsList
-                                                                    events={allEvents}
+                                                                    events={events}
                                                                     showResourceLink={true}
+                                                                    appNodes={nodes}
+                                                                    appName={application.metadata.name}
                                                                     onResourceClicked={() => this.setApplicationEventsPanelVisible(false)}
                                                                 />
                                                             )}
@@ -572,7 +586,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
             {
                 iconClassName: 'fa fa-events',
                 title: <ActionMenuItem actionLabel='Events' />,
-                action: () => this.setApplicationEventsPanelVisible(true)
+                action: () => this.setApplicationEventsPanelVisible(true),
             }
         ];
     }
