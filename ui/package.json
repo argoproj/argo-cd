@@ -24,9 +24,9 @@
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
     "minimatch": "^3.0.4",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "monaco-editor": "^0.27.0",
-    "path": "^0.12.7" ,
+    "path": "^0.12.7",
     "prop-types": "^15.6.0",
     "react": "^16.9.3",
     "react-autocomplete": "^1.8.1",
@@ -91,11 +91,11 @@
     "jest-junit": "^6.4.0",
     "jest-transform-css": "^2.0.0",
     "monaco-editor-webpack-plugin": "^6.0.0",
-    "sass": "^1.49.9",
     "postcss": "^8.2.13",
     "prettier": "1.19",
     "raw-loader": "^0.5.1",
     "react-test-renderer": "16.8.3",
+    "sass": "^1.49.9",
     "sass-loader": "^12.6.0",
     "source-map-loader": "^0.2.3",
     "style-loader": "^0.20.1",
@@ -108,8 +108,8 @@
     "tslint-react": "^3.4.0",
     "typescript": "^4.0.3",
     "webpack": "^5.70.0",
-    "yarn": "^1.22.10",
     "webpack-cli": "^4.9.2",
-    "webpack-dev-server": "^4.7.4"
+    "webpack-dev-server": "^4.7.4",
+    "yarn": "^1.22.10"
   }
 }
