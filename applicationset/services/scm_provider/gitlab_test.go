@@ -79,11 +79,38 @@ func TestGitlabHasPath(t *testing.T) {
 		Repository:   "argocd",
 		Branch:       "master",
 	}
-	ok, err := host.RepoHasPath(context.Background(), repo, "argocd")
-	assert.Nil(t, err)
-	assert.True(t, ok)
 
-	ok, err = host.RepoHasPath(context.Background(), repo, "notathing")
-	assert.Nil(t, err)
-	assert.False(t, ok)
+	cases := []struct {
+		name, path string
+		exists     bool
+	}{
+		{
+			name:   "directory exists",
+			path:   "argocd",
+			exists: true,
+		},
+		{
+			name:   "file exists",
+			path:   "argocd/install.yaml",
+			exists: true,
+		},
+		{
+			name:   "directory does not exist",
+			path:   "notathing",
+			exists: false,
+		},
+		{
+			name:   "file does not exist",
+			path:   "argocd/notathing.yaml",
+			exists: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
+			assert.Nil(t, err)
+			assert.Equal(t, c.exists, ok)
+		})
+	}
 }
