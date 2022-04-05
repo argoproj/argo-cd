@@ -1,6 +1,5 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
-import {useEffect, useState} from 'react';
 import {DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
@@ -8,8 +7,6 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
-import {ExtensionContext, ExtensionExport} from '../../../shared/services/extensions-service';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 
 require('./application-status-panel.scss');
 
@@ -18,7 +15,6 @@ interface Props {
     showOperation?: () => any;
     showConditions?: () => any;
     showMetadataInfo?: (revision: string) => any;
-    extensionContext: ExtensionContext;
 }
 
 interface SectionInfo {
@@ -46,7 +42,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo, extensionContext}: Props) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -67,14 +63,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
-
-    const [extensions, setExtensions] = useState<ExtensionExport[]>([]);
-
-    useEffect(() => {
-        services.extensions.load().then(() => setExtensions(services.extensions.list()));
-    }, []);
-
-    const extensionItems = extensions.filter(e => e.type === 'appStatusPanelItem').map(e => e.factory({application, ...extensionContext}));
 
     return (
         <div className='application-status-panel row'>
@@ -168,11 +156,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                 </div>
             )}
-            {extensionItems.map((e, i) => (
-                <div key={'' + i} className={`application-status-panel__item`}>
-                    <ErrorBoundary>{e.component}</ErrorBoundary>
-                </div>
-            ))}
             <DataLoader
                 noLoaderOnInputChange={true}
                 input={application.metadata.name}

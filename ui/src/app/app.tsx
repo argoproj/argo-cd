@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, NotificationType, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -140,10 +140,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             link.type = 'text/css';
             document.head.appendChild(link);
         }
-        services.extensions
-            .load()
-            .then(extensions => this.notificationsManager.show({content: `loaded ${extensions.length} extension(s)`, type: NotificationType.Success}))
-            .catch(error => this.notificationsManager.show({content: `failed to loaded extension: ${error}`, type: NotificationType.Error}));
     }
 
     public render() {
