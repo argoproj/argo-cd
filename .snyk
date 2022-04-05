@@ -14,5 +14,9 @@ ignore:
     - 'manifests/install.yaml > *':
         reason: >-
           Argo CD needs wide permissions to manage resources.
+  SNYK-JS-MOMENT-2440688:
+    - '*':
+        reason: >-
+          Code is only run client-side. No rusk of directory traversal.
 patch: {}
 
