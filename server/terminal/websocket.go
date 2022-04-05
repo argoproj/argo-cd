@@ -77,8 +77,7 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 		t.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}
 		return 0, nil
 	default:
-		log.Printf("unknown message type '%s'", msg.Operation)
-		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type '%s'", msg.Operation)
+		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
 	}
 }
 
