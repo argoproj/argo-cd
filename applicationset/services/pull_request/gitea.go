@@ -46,10 +46,6 @@ func NewGiteaService(ctx context.Context, token, url, owner, repo string, insecu
 func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := gitea.ListPullRequestsOptions{
 		State: gitea.StateOpen,
-		/* ListOptions: gitea.ListOptions{
-			Page: 1,
-			PageSize: 100,
-		},*/
 	}
 	prs, _, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 	if err != nil {
@@ -58,8 +54,8 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	list := []*PullRequest{}
 	for _, pr := range prs {
 		list = append(list, &PullRequest{
-			Number:  int(pr.ID),
-			Branch:  pr.Base.Ref,
+			Number:  int(pr.Index),
+			Branch:  pr.Head.Ref,
 			HeadSHA: pr.Head.Sha,
 		})
 	}
