@@ -44,6 +44,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a GitHub repository via Commit to branch",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "push",
+			payloadFile:        "github-commit-branch-event.json",
+			effectedAppSets:    []string{"git-github"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook from a GitLab repository via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
@@ -159,7 +168,8 @@ func fakeAppWithGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.A
 			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
 				{
 					Git: &argoprojiov1alpha1.GitGenerator{
-						RepoURL: repo,
+						RepoURL:  repo,
+						Revision: "master",
 					},
 				},
 			},

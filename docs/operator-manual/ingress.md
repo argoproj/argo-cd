@@ -559,7 +559,41 @@ kubectl -n argocd create secret tls secret-yourdomain-com \
 
 ### Creating an Ingress
 
-And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret:
+And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret.
+
+---
+!!! note
+
+   GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
+
+---
+
+If you use the version earlier than `1.21.3-gke.1600`, you should use the following Ingress resource:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
+spec:
+  tls:
+    - secretName: secret-yourdomain-com
+  rules:
+    - host: argocd.yourdomain.com
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
+```
+
+If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
