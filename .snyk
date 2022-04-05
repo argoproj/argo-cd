@@ -17,6 +17,6 @@ ignore:
   SNYK-JS-MOMENT-2440688:
     - '*':
         reason: >-
-          Code is only run client-side. No rusk of directory traversal.
+          Code is only run client-side. No risk of directory traversal.
 patch: {}
 
