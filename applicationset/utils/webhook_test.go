@@ -39,7 +39,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
 			payloadFile:        "github-commit-event.json",
-			effectedAppSets:    []string{"git-github"},
+			effectedAppSets:    []string{"git-github", "matrix-git-github", "merge-git-github"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -84,7 +84,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-opened-event.json",
-			effectedAppSets:    []string{"pull-request-github"},
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "merge-pull-request-github"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -93,7 +93,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-assigned-event.json",
-			effectedAppSets:    []string{"pull-request-github"},
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "merge-pull-request-github"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -113,6 +113,10 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
 			h, err := NewWebhookHandler(namespace, set, fc)
@@ -131,17 +135,23 @@ func TestWebhookHandler(t *testing.T) {
 			list := &argoprojiov1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
 			assert.Nil(t, err)
+			effectedAppSetsAsExpected := make(map[string]bool)
+			for _, appSetName := range test.effectedAppSets {
+				effectedAppSetsAsExpected[appSetName] = false
+			}
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
-				for _, appSetName := range test.effectedAppSets {
-					if appSetName == gotAppSet.Name {
-						if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
-							t.Errorf("unexpected RefreshRequired() expect: %v got: %v", expected, got)
-						}
-					} else {
-						assert.False(t, gotAppSet.RefreshRequired())
+				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
+					if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
+						t.Errorf("unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
 					}
+					effectedAppSetsAsExpected[gotAppSet.Name] = true
+				} else {
+					assert.False(t, gotAppSet.RefreshRequired())
 				}
+			}
+			for appSetName, checked := range effectedAppSetsAsExpected {
+				assert.True(t, checked, "appset %s not found", appSetName)
 			}
 		})
 	}
@@ -190,6 +200,108 @@ func fakeAppWithPullRequestGenerator(name, namespace, owner, repo string) *argop
 						Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.ApplicationSet {
+	return &argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &argoprojiov1alpha1.MatrixGenerator{
+						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+							{
+								Git: &argoprojiov1alpha1.GitGenerator{
+									RepoURL: repo,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMatrixAndPullRequestGenerator(name, namespace, owner, repo string) *argoprojiov1alpha1.ApplicationSet {
+	return &argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &argoprojiov1alpha1.MatrixGenerator{
+						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+							{
+								PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+									Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
+										Owner: owner,
+										Repo:  repo,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMergeAndGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.ApplicationSet {
+	return &argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+				{
+					Merge: &argoprojiov1alpha1.MergeGenerator{
+						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+							{
+								Git: &argoprojiov1alpha1.GitGenerator{
+									RepoURL: repo,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMergeAndPullRequestGenerator(name, namespace, owner, repo string) *argoprojiov1alpha1.ApplicationSet {
+	return &argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+				{
+					Merge: &argoprojiov1alpha1.MergeGenerator{
+						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+							{
+								PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+									Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
+										Owner: owner,
+										Repo:  repo,
+									},
+								},
+							},
 						},
 					},
 				},
