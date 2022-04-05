@@ -14,15 +14,16 @@ type byteReadSeeker struct {
 	offset int64
 }
 
-func (f byteReadSeeker) Read(b []byte) (int, error) {
+func (f *byteReadSeeker) Read(b []byte) (int, error) {
 	if f.offset >= int64(len(f.data)) {
 		return 0, io.EOF
 	}
 	n := copy(b, f.data[f.offset:])
+	f.offset += int64(n)
 	return n, nil
 }
 
-func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
+func (f *byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	case 1:
 		offset += f.offset
@@ -32,5 +33,6 @@ func (f byteReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	if offset < 0 || offset > int64(len(f.data)) {
 		return 0, &fs.PathError{Op: "seek", Err: fs.ErrInvalid}
 	}
+	f.offset = offset
 	return offset, nil
 }
