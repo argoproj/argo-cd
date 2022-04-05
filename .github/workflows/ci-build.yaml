@@ -65,11 +65,10 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.38.0
-          args: --timeout 10m --exclude SA5011
-          skip-go-installation: true  # Because we need a specific version
+          version: v1.45.2
+          args: --timeout 10m --exclude SA5011 --verbose
 
   test-go:
     name: Run unit tests for Go packages
