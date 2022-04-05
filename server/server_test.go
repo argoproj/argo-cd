@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -672,4 +673,52 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 
 	//Then
 	assert.Equal(t, result, false, "no error since no config change")
+}
+
+func TestIsMainJsBundle(t *testing.T) {
+	testCases := []struct{
+		name           string
+		url            string
+		isMainJsBundle bool
+	}{
+		{
+			name: "localhost with valid main bundle",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "localhost and deep path with valid main bundle",
+			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "font file",
+			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			isMainJsBundle: false,
+		},
+		{
+			name: "no dot after main",
+			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong extension character",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong hash length",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			isMainJsBundle: false,
+		},
+	}
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+			testUrl, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testUrl)
+			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
+		})
+	}
 }

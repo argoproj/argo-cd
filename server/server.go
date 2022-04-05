@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -910,18 +911,19 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
-			//If file is matches the following regex, it's more or less guaranteed to be an application bundle that
-			//has a unique name based off of the hashing of the file contents. Since the filename will change when
-			//the content changes, we can direct clients to cache this for a very long amount of time.
-			pathSegments := strings.Split(r.URL.Path, "/")
-			lastPathSegment := pathSegments[len(pathSegments)-1]
-			match, _ := regexp.MatchString("^([^\\.]+).([0-9a-f]){20}.js", lastPathSegment)
-			if match {
+			if isMainJsBundle(r.URL) {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
+}
+
+var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
+
+func isMainJsBundle(url *url.URL) bool {
+	filename := path.Base(url.Path)
+	return mainJsBundleRegex.Match([]byte(filename))
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
