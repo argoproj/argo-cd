@@ -527,9 +527,9 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 				"involvedObject.uid":       q.ResourceUID,
 				"involvedObject.namespace": namespace,
 			}).String()
-			opts = metav1.ListOptions{FieldSelector: fieldSelector}
 		}
 	}
+	opts = metav1.ListOptions{FieldSelector: fieldSelector}
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	eventsList, err := kubeClientset.CoreV1().Events(namespace).List(ctx, opts)
 	if q.GetAllResources() {

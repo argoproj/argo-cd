@@ -5,9 +5,9 @@ import {ago} from 'argo-ui/v2';
 import * as models from '../../models';
 import {SelectNode} from '../../../applications/components/application-details/application-details';
 import {Context} from '../../context';
-import {ApplicationTree, ObjectReference, ResourceNode} from '../../models';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
+import {ObjectReference, ResourceNode} from '../../models';
 
 require('./events-list.scss');
 
