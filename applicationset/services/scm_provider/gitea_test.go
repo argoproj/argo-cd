@@ -87,6 +87,11 @@ func TestGiteaHasPath(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, ok)
 
+	// directory
+	ok, err = host.RepoHasPath(context.Background(), repo, "gitea")
+	assert.Nil(t, err)
+	assert.True(t, ok)
+
 	ok, err = host.RepoHasPath(context.Background(), repo, "notathing")
 	assert.Nil(t, err)
 	assert.False(t, ok)
