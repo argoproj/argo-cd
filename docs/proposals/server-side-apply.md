@@ -60,6 +60,10 @@ When SSA is enabled, the server may return field conflicts with other managers.
 What ArgoCD controller should do in case of conflict? Just force the sync and
 log warnings (like some other controllers do?)
 
+#### Conclusion
+The first version should use the force flag and override even if there are
+conflicts. We could improve and add other options once there is a use case.
+
 ### [Q-2] Should we support multiple managers?
 Should Server-Side Apply support in ArgoCD be implemented allowing multiple
 managers for the same controller? ([more details][10])
