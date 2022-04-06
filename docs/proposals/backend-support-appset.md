@@ -21,7 +21,7 @@ This is a proposal to add support for creating ApplicationSets via the Argo CD W
 
 ## Summary
 
-Currently, users can only create ApplicationSets by applying applicationSet configurations using `kubectl`. Creating CLI for allowing users to perform operations on ApplicationSet would give users to perform faster operations.
+Currently, users can only create ApplicationSets by applying configurations declaratively using `kubectl`. Introducing support for CLI/UI would improve the overall experience for managing large number of applications using ApplicationSet.
 
 ## Motivation
 
@@ -83,8 +83,8 @@ Example: if you try to delete an ApplicationSet, we check if you can delete itâ€
 A user is only able to delete an ApplicationSet if they have permissions to delete all of the Applications managed by the ApplicationSet. This check is performed in ApplicationSet controller, on receiving a delete request via GRPC from API server.
 
 * For each application owned by the ApplicationSet that the user is attempting to delete:
-    Check if the user has delete permission on the Application
-    Check if the user has delete permission within the project (?)
+    * Check if the user has delete permission on the Application
+    * Check if the user has delete permission within the project (?)
 * If the user does NOT have permission on least one of these, the operation should fail.
 * On pass, ApplicationController server deletes (ie kubectl delete) the ApplicationSet resource.
 
