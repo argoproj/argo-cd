@@ -51,22 +51,32 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Kind' componentProps={{options: ['allow', 'deny']}} field='window.kind' component={FormSelect} />
+                        <div className='white-box'>
+                            <p>GENERAL</p>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Kind' field='window.kind' component={FormSelect} componentProps={{options: ['allow', 'deny']}} />
+                            </div>
+                            <ProjectSyncWindowScheduleEdit projName={api.values.projName} window={api.values.window} formApi={api} />
+                            <br />
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Time Zone' componentProps={{options: generateTimezones()}} field='window.timeZone' component={FormSelect} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Duration (e.g. "30m" or "1h")' field='window.duration' component={Text} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
+                            </div>
                         </div>
-                        <ProjectSyncWindowScheduleEdit projName={api.values.projName} window={api.values.window} formApi={api} />
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Time zone' componentProps={{options: generateTimezones()}} field='window.timeZone' component={FormSelect} />
+                        <div className='white-box'>
+                            <ProjectSyncWindowApplicationsEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                         </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Duration (e.g. "30m" or "1h")' field='window.duration' component={Text} />
+                        <div className='white-box'>
+                            <ProjectSyncWindowNamespaceEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                         </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
+                        <div className='white-box'>
+                            <ProjectSyncWindowClusterEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                         </div>
-                        <ProjectSyncWindowApplicationsEdit projName={api.values.projName} window={api.values.window} formApi={api} />
-                        <ProjectSyncWindowNamespaceEdit projName={api.values.projName} window={api.values.window} formApi={api} />
-                        <ProjectSyncWindowClusterEdit projName={api.values.projName} window={api.values.window} formApi={api} />
                     </form>
                 )}
             </Form>
