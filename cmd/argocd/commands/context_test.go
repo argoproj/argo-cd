@@ -41,8 +41,12 @@ const testConfigFilePath = "./testdata/config"
 func TestContextDelete(t *testing.T) {
 
 	// Write the test config file
-	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), 0600)
 	assert.NoError(t, err)
+
+	if err = os.Chmod(testConfigFilePath, 0600); err != nil {
+		t.Fatalf("Could not change the file permission to 0600 %v", err)
+	}
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	assert.NoError(t, err)

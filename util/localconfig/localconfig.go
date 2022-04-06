@@ -315,10 +315,9 @@ func GetUsername(subject string) string {
 }
 
 func GetFilePermission(fi os.FileInfo) error {
-
 	//argo directory should have mode 0700 & file should have permission -  0600.
 	if fi.Mode().Perm() == 0600 {
 		return nil
 	}
-	return fmt.Errorf("config file has incorrect permission flags: %s  change the permission to 0600  -rw-------", fi.Mode().Perm().String())
+	return fmt.Errorf("config file has incorrect permission flags: %s  change the permission to 0600(linux permission: -rw-------)", fi.Mode().Perm().String())
 }
