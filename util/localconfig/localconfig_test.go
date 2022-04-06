@@ -2,10 +2,11 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/stretchr/testify/assert"
 
 	"testing"
 )
@@ -30,7 +31,11 @@ func TestFilePermission(t *testing.T) {
 		f.Close()
 		t.Fatalf("Could not write  create config file: %v", err)
 	}
+	fi, err := os.Stat(fpath)
 
+	if err != nil {
+		t.Fatalf("Could not access the fileinfo: %v", err)
+	}
 	for _, c := range []struct {
 		name          string
 		perm          os.FileMode
@@ -39,12 +44,12 @@ func TestFilePermission(t *testing.T) {
 		{
 			name:          "Test config file with permission 0700",
 			perm:          0700,
-			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwx------  change the permission to 0600  -rw-------"),
+			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwx------  change the permission to 0700  -rw-------"),
 		},
 		{
 			name:          "Test config file with permission 0777",
 			perm:          0777,
-			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwxrwxrwx  change the permission to 0600  -rw-------"),
+			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwxrwxrwx  change the permission to 0777  -rw-------"),
 		},
 		{
 			name: "Test config file with permission 0600",
@@ -57,14 +62,9 @@ func TestFilePermission(t *testing.T) {
 				t.Fatalf("Could not change the file permission to %s: %v", c.perm, err)
 			}
 
-			if err := GetFilePermission(fpath); err != nil {
+			if err := GetFilePermission(fi); err != nil {
 				assert.EqualError(t, err, c.expectedError.Error())
 			} else {
-				fi, err := os.Stat(fpath)
-
-				if err != nil {
-					t.Fatalf("Could not access the fileinfo: %v", err)
-				}
 				if fi.Mode().Perm().String() != "-rw-------" {
 					t.Fatalf("file %v Permission mismatch source (-rw------) vs destination(%v)", fpath, fi.Mode().Perm())
 				}

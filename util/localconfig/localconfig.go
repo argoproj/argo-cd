@@ -112,7 +112,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 
 // WriteLocalConfig writes a new local configuration file.
 func WriteLocalConfig(config LocalConfig, configPath string) error {
-	err := os.MkdirAll(path.Dir(configPath), 700)
+	err := os.MkdirAll(path.Dir(configPath), 0600)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func GetUsername(subject string) string {
 
 func GetFilePermission(fi os.FileInfo) error {
 
-	//argo directory should have mode 700 & file should have permission -  600.
+	//argo directory should have mode 0700 & file should have permission -  0600.
 	if fi.Mode().Perm() == 0600 {
 		return nil
 	}
