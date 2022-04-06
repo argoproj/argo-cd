@@ -80,9 +80,12 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
 
-	err = GetFilePermission(path)
-	if err != nil {
-		return nil, err
+	if fi, err := os.Stat(path); err == nil {
+		err = GetFilePermission(fi)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = configUtil.UnmarshalLocalFile(path, &config)
@@ -109,7 +112,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 
 // WriteLocalConfig writes a new local configuration file.
 func WriteLocalConfig(config LocalConfig, configPath string) error {
-	err := os.MkdirAll(path.Dir(configPath), 0600)
+	err := os.MkdirAll(path.Dir(configPath), 700)
 	if err != nil {
 		return err
 	}
@@ -311,12 +314,8 @@ func GetUsername(subject string) string {
 	return subject
 }
 
-func GetFilePermission(file string) error {
+func GetFilePermission(fi os.FileInfo) error {
 
-	fi, err := os.Stat(file)
-	if err != nil {
-		return err
-	}
 	//argo directory should have mode 700 & file should have permission -  600.
 	if fi.Mode().Perm() == 0600 {
 		return nil
