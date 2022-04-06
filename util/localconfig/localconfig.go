@@ -79,7 +79,14 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
+
+	err = GetFilePermission(path)
+	if err != nil {
+		return nil, err
+	}
+
 	err = configUtil.UnmarshalLocalFile(path, &config)
+
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -102,7 +109,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 
 // WriteLocalConfig writes a new local configuration file.
 func WriteLocalConfig(config LocalConfig, configPath string) error {
-	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
+	err := os.MkdirAll(path.Dir(configPath), 0600)
 	if err != nil {
 		return err
 	}
@@ -302,4 +309,17 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
+}
+
+func GetFilePermission(file string) error {
+
+	fi, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	//argo directory should have mode 700 & file should have permission -  600.
+	if fi.Mode().Perm() == 0600 {
+		return nil
+	}
+	return fmt.Errorf("config file has incorrect permission flags: %s  change the permission to 0600  -rw-------", fi.Mode().Perm().String())
 }
