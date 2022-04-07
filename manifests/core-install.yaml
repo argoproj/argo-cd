@@ -9068,6 +9068,10 @@ spec:
     port: 7000
     protocol: TCP
     targetPort: webhook
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller
 ---
@@ -9157,6 +9161,8 @@ spec:
         ports:
         - containerPort: 7000
           name: webhook
+        - containerPort: 8080
+          name: metrics
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
