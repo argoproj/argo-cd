@@ -7,6 +7,7 @@ export BIN=${BIN:-$DEFAULT_BIN}
 export DOWNLOADS=/tmp/dl
 
 mkdir -p $DOWNLOADS
+[ -d $BIN ] || mkdir -p $BIN
 
 ARCHITECTURE=""
 case $(uname -m) in
