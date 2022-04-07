@@ -25,6 +25,8 @@ spec:
           ports:
           - containerPort: 7000
             name: webhook
+          - containerPort: 8080
+            name: metrics
           env:
             - name: NAMESPACE
               valueFrom:
