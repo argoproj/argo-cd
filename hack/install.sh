@@ -1,13 +1,10 @@
 #!/bin/bash
 set -eux -o pipefail
 
-SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
-DEFAULT_BIN="${SRCROOT}/dist"
-export BIN=${BIN:-$DEFAULT_BIN}
 export DOWNLOADS=/tmp/dl
+export BIN=${BIN:-/usr/local/bin}
 
 mkdir -p $DOWNLOADS
-[ -d $BIN ] || mkdir -p $BIN
 
 ARCHITECTURE=""
 case $(uname -m) in
