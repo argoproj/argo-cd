@@ -101,7 +101,7 @@ func Test_StaticHeaders(t *testing.T) {
 	// !race:
 	// Same as TestUserAgent
 
-	// Test default policy "sameorigin"
+	// Test default policy "sameorigin" and "frame-ancestors 'self';"
 	{
 		s, closer := fakeServer()
 		defer closer()
@@ -129,13 +129,15 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
 	}
 
-	// Test custom policy
+	// Test custom policy for X-Frame-Options and Content-Security-Policy
 	{
 		s, closer := fakeServer()
 		defer closer()
 		s.XFrameOptions = "deny"
+		s.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -160,13 +162,15 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
 	}
 
-	// Test disabled
+	// Test disabled X-Frame-Options and Content-Security-Policy
 	{
 		s, closer := fakeServer()
 		defer closer()
 		s.XFrameOptions = ""
+		s.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -191,5 +195,6 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
+		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
 	}
 }
