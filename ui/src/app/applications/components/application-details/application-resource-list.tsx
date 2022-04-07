@@ -6,44 +6,26 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
 import {Consumer} from '../../../shared/context';
-import {services} from '../../../shared/services';
 
 export const ApplicationResourceList = ({
     resources,
     onNodeClick,
-    nodeMenu,
-    application
+    nodeMenu
 }: {
     resources: any[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
-    application?: models.Application;
 }) => {
-    const [resourceRows, setResourceRows] = React.useState(resources);
     const [showSyncOrder, setShowSyncOrder] = React.useState(false);
     React.useEffect(() => {
-        setResourceRows(resources);
-        async function getLiveState() {
-            if (application) {
-                const liveStatePromises = resources.map(async resource => {
-                    const resourceRow: any = {...resource};
-                    const liveState = await services.applications.getResource(application.metadata.name, resource).catch(() => null);
-                    if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
-                        resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                        setShowSyncOrder(true);
-                        if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
-                            resourceRow.syncOrder = resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
-                        }
-                    }
-                    return resourceRow;
-                });
-                const resourcesWithSyncOrder = await Promise.all(liveStatePromises);
-                if (resourcesWithSyncOrder.length > 0) {
-                    setResourceRows(resourcesWithSyncOrder);
-                }
+        resources.forEach(resource => {
+            if (typeof resource.syncOrder !== 'undefined' && resource.syncOrder?.length !== 0) {
+                setShowSyncOrder(true);
             }
-        }
-        getLiveState();
+        });
+        return () => {
+            setShowSyncOrder(false);
+        };
     }, [resources]);
     return (
         <div className='argo-table-list argo-table-list--clickable'>
@@ -57,7 +39,7 @@ export const ApplicationResourceList = ({
                     <div className='columns small-2 xxxlarge-2'>STATUS</div>
                 </div>
             </div>
-            {resourceRows
+            {resources
                 .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second)))
                 .map(res => (
                     <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
