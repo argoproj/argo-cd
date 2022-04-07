@@ -296,6 +296,7 @@ type SCMProviderGenerator struct {
 	Github    *SCMProviderGeneratorGithub    `json:"github,omitempty"`
 	Gitlab    *SCMProviderGeneratorGitlab    `json:"gitlab,omitempty"`
 	Bitbucket *SCMProviderGeneratorBitbucket `json:"bitbucket,omitempty"`
+	Gitea     *SCMProviderGeneratorGitea     `json:"gitea,omitempty"`
 	// Filters for which repos should be considered.
 	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty"`
 	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
@@ -304,6 +305,20 @@ type SCMProviderGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
+}
+
+// SCMProviderGeneratorGitea defines a connection info specific to Gitea.
+type SCMProviderGeneratorGitea struct {
+	// Gitea organization or user to scan. Required.
+	Owner string `json:"owner"`
+	// The Gitea URL to talk to. For example https://gitea.mydomain.com/.
+	API string `json:"api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty"`
 }
 
 // SCMProviderGeneratorGithub defines a connection info specific to GitHub.
@@ -362,9 +377,24 @@ type SCMProviderGeneratorFilter struct {
 type PullRequestGenerator struct {
 	// Which provider to use and config for it.
 	Github *PullRequestGeneratorGithub `json:"github,omitempty"`
+	Gitea  *PullRequestGeneratorGitea  `json:"gitea,omitempty"`
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
+}
+
+// PullRequestGenerator defines a connection info specific to Gitea.
+type PullRequestGeneratorGitea struct {
+	// Gitea org or user to scan. Required.
+	Owner string `json:"owner"`
+	// Gitea repo name to scan. Required.
+	Repo string `json:"repo"`
+	// The Gitea API URL to talk to. Required
+	API string `json:"api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty"`
 }
 
 // PullRequestGenerator defines a connection info specific to GitHub.
