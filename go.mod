@@ -3,6 +3,7 @@ module github.com/argoproj/argo-cd/v2
 go 1.17
 
 require (
+	code.gitea.io/sdk/gitea v0.15.1
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
@@ -154,6 +155,7 @@ require (
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/gregdel/pushover v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/huandu/xstrings v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.2 // indirect

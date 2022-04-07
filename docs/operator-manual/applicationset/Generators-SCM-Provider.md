@@ -94,6 +94,43 @@ For label filtering, the repository tags are used.
 
 Available clone protocols are `ssh` and `https`.
 
+## Gitea
+
+The Gitea mode uses the Gitea API to scan organizations in your instance
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      gitea:
+        # The Gitea owner to scan.
+        owner: myorg
+        # The Gitea instance url
+        api: https://gitea.mydomain.com/
+        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        allBranches: true
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: gitea-token
+          key: token
+  template:
+  # ...
+```
+
+* `owner`: Required name of the Gitea organization to scan. If you have multiple orgs, use multiple generators.
+* `api`: The URL of the Gitea instance you are using.
+* `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
+* `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `insecure`: Allow for self-signed TLS certificates.
+
+This SCM provider does not yet support label filtering
+
+Available clone protocols are `ssh` and `https`.
+
 ## Filters
 
 Filters allow selecting which repositories to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all repositories will be processed.
