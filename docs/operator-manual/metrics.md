@@ -131,6 +131,21 @@ spec:
   - port: metrics
 ```
 
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-applicationset-controller-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  endpoints:
+  - port: metrics
+```
+
 ## Dashboards
 
 You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
