@@ -98,6 +98,7 @@ argocd login cd.argoproj.io --core`,
 				PortForward:          globalClientOpts.PortForward,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
+				KubeOverrides:        globalClientOpts.KubeOverrides,
 			}
 
 			if ctxName == "" {

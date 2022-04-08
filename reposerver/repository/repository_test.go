@@ -136,7 +136,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 41
+	const countOfManifests = 46
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -254,7 +254,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
 					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
-					Libs:    []string{"./vendor"},
+					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},
@@ -281,25 +281,6 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	_, err := service.GenerateManifest(context.Background(), &q)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
-}
-
-func TestGenerateKsonnetManifest(t *testing.T) {
-	service := newService("../..")
-
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-				Environment: "dev",
-			},
-		},
-	}
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res.Manifests))
-	assert.Equal(t, "dev", res.Namespace)
-	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
 }
 
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
@@ -1158,24 +1139,6 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }
 
-func TestGetAppDetailsKsonnet(t *testing.T) {
-	service := newService("../..")
-
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{},
-		Source: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-		},
-	})
-
-	assert.NoError(t, err)
-
-	assert.Equal(t, "Ksonnet", res.Type)
-	assert.NotNil(t, res.Ksonnet)
-	assert.Equal(t, "guestbook", res.Ksonnet.Name)
-	assert.Len(t, res.Ksonnet.Environments, 3)
-}
-
 func TestGetHelmCharts(t *testing.T) {
 	service := newService("../..")
 	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &argoappv1.Repository{}})
@@ -1815,4 +1778,52 @@ func TestInit(t *testing.T) {
 	_, err = ioutil.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+}
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
 }

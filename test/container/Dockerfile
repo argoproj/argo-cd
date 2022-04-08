@@ -2,7 +2,7 @@ FROM redis:6.2.6 as redis
 
 FROM node:12.18.4 as node
 
-FROM golang:1.17.6 as golang
+FROM golang:1.17 as golang
 
 FROM registry:2.7.1 as registry
 
@@ -41,8 +41,7 @@ ADD ./hack/installers installers
 ADD go.mod go.mod
 ADD go.sum go.sum
 
-RUN ./install.sh ksonnet-linux && \
-    ./install.sh helm2-linux && \
+RUN ./install.sh helm2-linux && \
     ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
     ./install.sh kustomize-linux && \

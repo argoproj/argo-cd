@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -101,6 +102,7 @@ type ApplicationController struct {
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
+	statusHardRefreshTimeout      time.Duration
 	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
@@ -123,6 +125,7 @@ func NewApplicationController(
 	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
+	appHardResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
@@ -130,7 +133,7 @@ func NewApplicationController(
 	kubectlParallelismLimit int64,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 ) (*ApplicationController, error) {
-	log.Infof("appResyncPeriod=%v", appResyncPeriod)
+	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v", appResyncPeriod, appHardResyncPeriod)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	ctrl := ApplicationController{
 		cache:                         argoCache,
@@ -145,6 +148,7 @@ func NewApplicationController(
 		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		db:                            db,
 		statusRefreshTimeout:          appResyncPeriod,
+		statusHardRefreshTimeout:      appHardResyncPeriod,
 		refreshRequestedApps:          make(map[string]CompareWith),
 		refreshRequestedAppsMutex:     &sync.Mutex{},
 		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
@@ -421,8 +425,12 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
+				if !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
+					return false
+				}
 				nodes = append(nodes, child)
+				return true
 			})
 			if err != nil {
 				return nil, err
@@ -432,16 +440,18 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
 				belongToAnotherApp := false
 				if appName != "" {
 					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
 						belongToAnotherApp = true
 					}
 				}
-				if !belongToAnotherApp {
-					orphanedNodes = append(orphanedNodes, child)
+				if belongToAnotherApp || !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
+					return false
 				}
+				orphanedNodes = append(orphanedNodes, child)
+				return true
 			})
 			if err != nil {
 				return nil, err
@@ -1246,7 +1256,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
 		return
@@ -1291,6 +1301,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		ctrl.persistAppStatus(origApp, &app.Status)
+
+		if err := ctrl.cache.SetAppResourcesTree(app.Name, &appv1.ApplicationTree{}); err != nil {
+			log.Warnf("failed to set app resource tree: %v", err)
+		}
+		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+			log.Warnf("failed to set app managed resources tree: %v", err)
+		}
 		return
 	}
 
@@ -1360,12 +1377,13 @@ func resourceStatusKey(res appv1.ResourceStatus) string {
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally returns whether full refresh was requested or not.
 // If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
-func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
+func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
-	expired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -1375,7 +1393,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
 		reason = "spec.source differs"
 		compareWith = CompareWithLatestForceResolve
-	} else if expired {
+	} else if hardExpired || softExpired {
 		// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
 		// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 		//TODO: find existing Golang bug or create a new one
@@ -1383,7 +1401,11 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		if app.Status.ReconciledAt != nil {
 			reconciledAtStr = app.Status.ReconciledAt.String()
 		}
-		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
+		reason = fmt.Sprintf("comparison expired, requesting refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
+		if hardExpired {
+			reason = fmt.Sprintf("comparison expired, requesting hard refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusHardRefreshTimeout)
+			refreshType = appv1.RefreshTypeHard
+		}
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
 	} else if requested, level := ctrl.isRefreshRequested(app.Name); requested {
@@ -1646,6 +1668,10 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+	refreshTimeout := ctrl.statusRefreshTimeout
+	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
+		refreshTimeout = ctrl.statusHardRefreshTimeout
+	}
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (apiruntime.Object, error) {
@@ -1656,7 +1682,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 		&appv1.Application{},
-		ctrl.statusRefreshTimeout,
+		refreshTimeout,
 		cache.Indexers{
 			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
 				app, ok := obj.(*appv1.Application)

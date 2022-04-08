@@ -160,9 +160,6 @@ message ApplicationSource {
   // Kustomize holds kustomize specific options
   optional ApplicationSourceKustomize kustomize = 8;
 
-  // Ksonnet holds ksonnet specific options
-  optional ApplicationSourceKsonnet ksonnet = 9;
-
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
@@ -228,15 +225,6 @@ message ApplicationSourceJsonnet {
 
   // Additional library search dirs
   repeated string libs = 3;
-}
-
-// ApplicationSourceKsonnet holds ksonnet specific options
-message ApplicationSourceKsonnet {
-  // Environment is a ksonnet application environment name
-  optional string environment = 1;
-
-  // Parameters are a list of ksonnet component parameter override values
-  repeated KsonnetParameter parameters = 2;
 }
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
@@ -692,15 +680,6 @@ message KnownTypeField {
   optional string field = 1;
 
   optional string type = 2;
-}
-
-// KsonnetParameter is a ksonnet component parameter
-message KsonnetParameter {
-  optional string component = 1;
-
-  optional string name = 2;
-
-  optional string value = 3;
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests
