@@ -80,7 +80,8 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
 
-	if fi, _ := os.Stat(path); err == nil {
+	// check file permission only when argocd config exists
+	if fi, err := os.Stat(path); err == nil {
 		err = GetFilePermission(fi)
 		if err != nil {
 			return nil, err
@@ -314,7 +315,6 @@ func GetUsername(subject string) string {
 }
 
 func GetFilePermission(fi os.FileInfo) error {
-	//argo directory should have mode 0600 & file should have permission -  0600 or 400.
 	if fi.Mode().Perm() == 0600 || fi.Mode().Perm() == 0400 {
 		return nil
 	}

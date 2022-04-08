@@ -2,10 +2,11 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 
@@ -72,8 +73,8 @@ func TestFilePermission(t *testing.T) {
 			filePath := filepath.Join(dirPath, c.testfile)
 
 			f, err := os.Create(filePath)
-			defer f.Close()
 			require.NoError(t, err, "Could not write  create config file: %v", err)
+			defer f.Close()
 
 			err = f.Chmod(c.perm)
 			require.NoError(t, err, "Could not change the file permission to %s: %v", c.perm, err)
