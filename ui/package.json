@@ -18,7 +18,7 @@
     "cookie": "^0.3.1",
     "dagre": "^0.8.2",
     "deepmerge": "^3.2.0",
-    "foundation-sites": "^6.4.3",
+    "foundation-sites": "^6.7.4",
     "git-url-parse": "^11.6.0",
     "js-yaml": "^3.13.1",
     "json-merge-patch": "^0.2.3",
