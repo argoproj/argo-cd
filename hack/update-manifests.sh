@@ -4,10 +4,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-KUSTOMIZE=kustomize
-
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
+
+KUSTOMIZE=kustomize
+[ -f "$SRCROOT/dist/kustomize" ] && KUSTOMIZE="$SRCROOT/dist/kustomize"
 
 cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
