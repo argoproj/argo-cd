@@ -29,9 +29,6 @@ cd guestbook-config
 # kustomize
 kustomize edit set image mycompany/guestbook:v2.0
 
-# ksonnet
-ks param set guestbook image mycompany/guestbook:v2.0
-
 # plain yaml
 kubectl patch --local -f config-deployment.yaml -p '{"spec":{"template":{"spec":{"containers":[{"name":"guestbook","image":"mycompany/guestbook:v2.0"}]}}}}' -o yaml
 

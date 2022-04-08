@@ -101,11 +101,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 			},
 		},
 	}
-	if a.context.env != "" {
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: a.context.env,
-		}
-	}
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
@@ -315,6 +310,11 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	return a
+}
+
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
 	return a
 }
 

@@ -137,9 +137,6 @@ func printServerVersion(version *version.VersionMessage, short bool) {
 	if version.Platform != "" {
 		fmt.Printf("  Platform: %s\n", version.Platform)
 	}
-	if version.KsonnetVersion != "" {
-		fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
-	}
 	if version.KustomizeVersion != "" {
 		fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
 	}

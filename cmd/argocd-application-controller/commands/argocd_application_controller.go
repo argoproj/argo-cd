@@ -35,12 +35,15 @@ const (
 	cliName = "argocd-application-controller"
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
+	// Default time in seconds for application hard resync period
+	defaultAppHardResyncPeriod = 0
 )
 
 func NewCommand() *cobra.Command {
 	var (
 		clientConfig             clientcmd.ClientConfig
 		appResyncPeriod          int64
+		appHardResyncPeriod      int64
 		repoServerAddress        string
 		repoServerTimeoutSeconds int
 		selfHealTimeoutSeconds   int
@@ -69,12 +72,16 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
+			vers := common.GetVersion()
+			config.UserAgent = fmt.Sprintf("argocd-application-controller/%s (%s)", vers.Version, vers.Platform)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
 
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+
+			hardResyncDuration := time.Duration(appHardResyncPeriod) * time.Second
 
 			var resyncDuration time.Duration
 			if appResyncPeriod == 0 {
@@ -127,6 +134,7 @@ func NewCommand() *cobra.Command {
 				cache,
 				kubectl,
 				resyncDuration,
+				hardResyncDuration,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				metricsPort,
 				metricsCacheExpiration,
@@ -136,7 +144,6 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
-			vers := common.GetVersion()
 			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
@@ -151,6 +158,7 @@ func NewCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application resync.")
+	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", int64(env.ParseDurationFromEnv("ARGOCD_HARD_RECONCILIATION_TIMEOUT", defaultAppHardResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application hard resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")

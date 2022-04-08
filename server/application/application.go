@@ -229,6 +229,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*v1alpha1.RepoCreds,
+	helmOptions *v1alpha1.HelmOptions,
 	kustomizeOptions *v1alpha1.KustomizeOptions,
 	enabledSourceTypes map[string]bool,
 ) error) error {
@@ -271,6 +272,10 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
+	helmOptions, err := s.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return err
+	}
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return err
@@ -279,7 +284,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return err
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, kustomizeOptions, enabledSourceTypes)
+	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -294,7 +299,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
+		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
 		revision := a.Spec.Source.TargetRevision
 		if q.Revision != "" {
 			revision = q.Revision
@@ -336,6 +341,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			KubeVersion:        serverVersion,
 			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
 		})
@@ -412,6 +418,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
+			helmOptions *appv1.HelmOptions,
 			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
@@ -424,6 +431,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 				NoCache:            true,
 				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 				EnabledSourceTypes: enabledSourceTypes,
+				HelmOptions:        helmOptions,
 			})
 			return err
 		}); err != nil {
@@ -480,6 +488,21 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
+		tree, err := s.getAppResources(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+			if n.ResourceRef.UID == q.ResourceUID && n.ResourceRef.Name == q.ResourceName && n.ResourceRef.Namespace == q.ResourceNamespace {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, status.Errorf(codes.InvalidArgument, "%s not found as part of application %s", q.ResourceName, *q.Name)
+		}
+
 		namespace = q.ResourceNamespace
 		var config *rest.Config
 		config, err = s.getApplicationClusterConfig(ctx, a)
@@ -929,7 +952,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 	return &tree, err
 }
 
-func (s *Server) getAppResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
+func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appLister.Get(*q.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -944,7 +967,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 	}
 
 	found := tree.FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
-	if found == nil {
+	if found == nil || found.ResourceRef.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
@@ -955,7 +978,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *applicati
 }
 
 func (s *Server) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1000,7 +1023,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1040,7 +1063,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		Version:      q.Version,
 		Group:        q.Group,
 	}
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,6 +1227,22 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
+	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
+	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
+	serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
+	if err != nil {
+		return err
+	}
+
+	if serverRBACLogEnforceEnable {
+		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+			return err
+		}
+	}
+
 	tree, err := s.getAppResources(ws.Context(), a)
 	if err != nil {
 		return err
@@ -1311,7 +1350,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	var pods []appv1.ResourceNode
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
@@ -1601,7 +1640,7 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -1652,7 +1691,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Group:        q.Group,
 	}
 	actionRequest := fmt.Sprintf("%s/%s/%s/%s", rbacpolicy.ActionAction, q.Group, q.Kind, q.Action)
-	res, config, a, err := s.getAppResource(ctx, actionRequest, resourceRequest)
+	res, config, a, err := s.getAppLiveResource(ctx, actionRequest, resourceRequest)
 	if err != nil {
 		return nil, err
 	}

@@ -75,6 +75,20 @@ func (a *Actions) Get() *Actions {
 	return a
 }
 
+func (a *Actions) DeleteByName() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("cluster", "rm", a.context.name)
+	return a
+}
+
+func (a *Actions) DeleteByServer() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("cluster", "rm", a.context.server)
+	return a
+}
+
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
 	return &Consequences{a.context, a}

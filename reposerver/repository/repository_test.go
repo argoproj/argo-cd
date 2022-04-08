@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	goio "io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
@@ -72,7 +73,7 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
-	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking())
+	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, os.TempDir())
 
 	chart := "my-chart"
 	version := "1.1.0"
@@ -82,11 +83,14 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
+	}
+	service.gitRepoInitializer = func(rootPath string) goio.Closer {
+		return io.NopCloser
 	}
 	return service, gitClient
 }
@@ -118,7 +122,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		gitClient.On("Root").Return(root)
 	})
 
-	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -132,7 +136,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 41
+	const countOfManifests = 46
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -140,7 +144,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -260,23 +264,23 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestGenerateKsonnetManifest(t *testing.T) {
-	service := newService("../..")
+func TestGenerateJsonnetLibOutside(t *testing.T) {
+	service := newService(".")
 
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-				Environment: "dev",
+			Path: "./testdata/jsonnet",
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Jsonnet: argoappv1.ApplicationSourceJsonnet{
+					Libs: []string{"../../../testdata/jsonnet/vendor"},
+				},
 			},
 		},
 	}
-	res, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res.Manifests))
-	assert.Equal(t, "dev", res.Namespace)
-	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
+	_, err := service.GenerateManifest(context.Background(), &q)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
@@ -800,6 +804,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 				Values:     `cluster: {slaveCount: 2}`,
 			},
 		},
+		HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
 	})
 	assert.NoError(t, err)
 }
@@ -889,11 +894,26 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "is not allowed")
 	})
+
+	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
+		service := newService("./testdata/my-chart")
+		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:    &argoappv1.Repository{},
+			AppName: "test",
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"s3://my-bucket/my-chart-values.yaml"},
+				},
+			},
+			HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"s3"}},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
+	})
 }
 
-// The requested file parameter (`/tmp/external-secret.txt`) is outside the app path
-// (`./util/helm/testdata/redis`), and outside the repo directory. It is used as a means
-// of providing direct content to a helm chart via a specific key.
+// File parameter should not allow traversal outside of the repository root
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService("../..")
 
@@ -915,16 +935,14 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
-				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
-						Name: "passwordContent",
-						Path: externalSecretPath,
-					},
-				},
+				FileParameters: []argoappv1.HelmFileParameter{{
+					Name: "passwordContent",
+					Path: externalSecretPath,
+				}},
 			},
 		},
 	})
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 // The requested file parameter (`../external/external-secret.txt`) is outside the app path
@@ -1032,9 +1050,8 @@ func TestRunCustomTool(t *testing.T) {
 
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
-	assert.Equal(t, "git-ask-pass.sh", obj.GetAnnotations()["GIT_ASKPASS"])
-	assert.Equal(t, "foo", obj.GetAnnotations()["GIT_USERNAME"])
-	assert.Equal(t, "bar", obj.GetAnnotations()["GIT_PASSWORD"])
+	assert.Empty(t, obj.GetAnnotations()["GIT_USERNAME"])
+	assert.Empty(t, obj.GetAnnotations()["GIT_PASSWORD"])
 	// Git client is mocked, so the revision is always mock.Anything
 	assert.Equal(t, map[string]string{"revision": "prefix-mock.Anything"}, obj.GetLabels())
 }
@@ -1044,7 +1061,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -1120,24 +1137,6 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
 	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
-}
-
-func TestGetAppDetailsKsonnet(t *testing.T) {
-	service := newService("../..")
-
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{},
-		Source: &argoappv1.ApplicationSource{
-			Path: "./test/e2e/testdata/ksonnet",
-		},
-	})
-
-	assert.NoError(t, err)
-
-	assert.Equal(t, "Ksonnet", res.Type)
-	assert.NotNil(t, res.Ksonnet)
-	assert.Equal(t, "guestbook", res.Ksonnet.Name)
-	assert.Len(t, res.Ksonnet.Environments, 3)
 }
 
 func TestGetHelmCharts(t *testing.T) {
@@ -1717,171 +1716,114 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 
 }
 
-func Test_resolveSymlinkRecursive(t *testing.T) {
-	testsDir, err := filepath.Abs("./testdata/symlinks")
-	if err != nil {
-		panic(err)
-	}
-	t.Run("Resolve non-symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive(testsDir+"/foo", 2)
-		assert.NoError(t, err)
-		assert.Equal(t, testsDir+"/foo", r)
-	})
-	t.Run("Successfully resolve symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 2)
-		assert.NoError(t, err)
-		assert.Equal(t, testsDir+"/foo", r)
-	})
-	t.Run("Do not allow symlink at all", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive(testsDir+"/bar", 0)
-		assert.Error(t, err)
-		assert.Equal(t, "", r)
-	})
-	t.Run("Error because too nested symlink", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive(testsDir+"/bam", 2)
-		assert.Error(t, err)
-		assert.Equal(t, "", r)
-	})
-	t.Run("No such file or directory", func(t *testing.T) {
-		r, err := resolveSymbolicLinkRecursive(testsDir+"/foobar", 2)
-		assert.NoError(t, err)
-		assert.Equal(t, testsDir+"/foobar", r)
-	})
+func TestDirectoryPermissionInitializer(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	file, err := ioutil.TempFile(dir, "")
+	require.NoError(t, err)
+	io.Close(file)
+
+	// remove read permissions
+	assert.NoError(t, os.Chmod(dir, 0000))
+	closer := directoryPermissionInitializer(dir)
+
+	// make sure permission are restored
+	_, err = ioutil.ReadFile(file.Name())
+	require.NoError(t, err)
+
+	// make sure permission are removed by closer
+	io.Close(closer)
+	_, err = ioutil.ReadFile(file.Name())
+	require.Error(t, err)
 }
 
-func Test_isURLSchemeAllowed(t *testing.T) {
-	type testdata struct {
-		name     string
-		scheme   string
-		allowed  []string
-		expected bool
+func initGitRepo(repoPath string, remote string) error {
+	if err := os.Mkdir(repoPath, 0755); err != nil {
+		return err
 	}
-	var tts []testdata = []testdata{
-		{
-			name:     "Allowed scheme matches",
-			scheme:   "http",
-			allowed:  []string{"http", "https"},
-			expected: true,
-		},
-		{
-			name:     "Allowed scheme matches only partially",
-			scheme:   "http",
-			allowed:  []string{"https"},
-			expected: false,
-		},
-		{
-			name:     "Scheme is not allowed",
-			scheme:   "file",
-			allowed:  []string{"http", "https"},
-			expected: false,
-		},
-		{
-			name:     "Empty scheme with valid allowances is forbidden",
-			scheme:   "",
-			allowed:  []string{"http", "https"},
-			expected: false,
-		},
-		{
-			name:     "Empty scheme with empty allowances is forbidden",
-			scheme:   "",
-			allowed:  []string{},
-			expected: false,
-		},
-		{
-			name:     "Some scheme with empty allowances is forbidden",
-			scheme:   "file",
-			allowed:  []string{},
-			expected: false,
-		},
+
+	cmd := exec.Command("git", "init", repoPath)
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		return err
 	}
-	for _, tt := range tts {
-		t.Run(tt.name, func(t *testing.T) {
-			r := isURLSchemeAllowed(tt.scheme, tt.allowed)
-			assert.Equal(t, tt.expected, r)
-		})
-	}
+	cmd = exec.Command("git", "remote", "add", "origin", remote)
+	cmd.Dir = repoPath
+	return cmd.Run()
 }
 
-func Test_resolveHelmValueFilePath(t *testing.T) {
-	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/bim.yaml", allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "/foo/bar/baz/bim.yaml", p)
-	})
-	t.Run("Resolve normal relative path into absolute path", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/../../bim.yaml", allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "/foo/bim.yaml", p)
-	})
-	t.Run("Error on path resolving outside repository root", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "baz/../../../bim.yaml", allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
-	t.Run("Return verbatim URL", func(t *testing.T) {
-		url := "https://some.where/foo,yaml"
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", url, allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.True(t, remote)
-		assert.Equal(t, url, p)
-	})
-	t.Run("URL scheme not allowed", func(t *testing.T) {
-		url := "file:///some.where/foo,yaml"
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", url, allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
-	t.Run("Implicit URL by absolute path", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath("/foo/bar", "/foo", "/baz.yaml", allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "/foo/baz.yaml", p)
-	})
-	t.Run("Relative app path", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath(".", "/foo", "/baz.yaml", allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "/foo/baz.yaml", p)
-	})
-	t.Run("Relative repo path", func(t *testing.T) {
-		c, err := os.Getwd()
-		require.NoError(t, err)
-		p, remote, err := resolveHelmValueFilePath(".", ".", "baz.yaml", allowedHelmRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, c+"/baz.yaml", p)
-	})
-	t.Run("Overlapping root prefix without trailing slash", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath(".", "/foo", "../foo2/baz.yaml", allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
-	t.Run("Overlapping root prefix with trailing slash", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "../foo2/baz.yaml", allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
-	t.Run("Garbage input as values file", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "kfdj\\ks&&&321209.,---e32908923%$§!\"", allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
-	t.Run("NUL-byte path input as values file", func(t *testing.T) {
-		p, remote, err := resolveHelmValueFilePath(".", "/foo/", "\000", allowedHelmRemoteProtocols)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
-		assert.False(t, remote)
-		assert.Equal(t, "", p)
-	})
+func TestInit(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	repoPath := path.Join(dir, "repo1")
+	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
+
+	service := newService(".")
+	service.rootDir = dir
+
+	require.NoError(t, service.Init())
+
+	repo1Path, err := service.gitRepoPaths.GetPath(git.NormalizeGitURL("https://github.com/argo-cd/test-repo1"))
+	assert.NoError(t, err)
+	assert.Equal(t, repoPath, repo1Path)
+
+	_, err = ioutil.ReadDir(dir)
+	require.Error(t, err)
+	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+}
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
 }

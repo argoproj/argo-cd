@@ -24,6 +24,8 @@ export interface PodLogsProps {
     page: {number: number; untilTimes: string[]};
     timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
+    containerGroups?: any[];
+    onClickContainer?: (group: any, i: number) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
@@ -42,6 +44,30 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const [viewTimestamps, setViewTimestamps] = useState(false);
     const [showPreviousLogs, setPreviousLogs] = useState(false);
 
+    const containerItems: {title: any; action: () => any}[] = [];
+    if (props.containerGroups?.length > 0) {
+        props.containerGroups.forEach(group => {
+            containerItems.push({
+                title: group.offset === 0 ? 'CONTAINER' : 'INIT CONTAINER',
+                action: null
+            });
+
+            group.containers.forEach((container: any, index: number) => {
+                const title = (
+                    <div className='d-inline-block'>
+                        <i className={`fa fa-angle-right ${container.name === props.containerName ? '' : 'invisible'}`} />
+                        <span title={container.name} className='container-item'>
+                            {container.name.toUpperCase()}
+                        </span>
+                    </div>
+                );
+                containerItems.push({
+                    title,
+                    action: () => (container.name === props.containerName ? {} : props.onClickContainer(group, index))
+                });
+            });
+        });
+    }
     interface FilterData {
         literal: string;
         inverse: boolean;
@@ -148,6 +174,18 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 <i className='fa fa-download' />
                             </button>
                         </Tooltip>
+                        {props.containerGroups?.length > 0 && (
+                            <DropDownMenu
+                                anchor={() => (
+                                    <Tooltip content='Containers'>
+                                        <button className='argo-button argo-button--base'>
+                                            <i className='fa fa-stream' />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                                items={containerItems}
+                            />
+                        )}
                         <Tooltip content='Follow'>
                             <button
                                 className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
@@ -168,6 +206,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
+                        <Tooltip content='Wrap Lines'>
+                            <button
+                                className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
+                                onClick={() => {
+                                    const wrap = prefs.appDetails.wrapLines;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
+                                }}>
+                                <i className='fa fa-paragraph' />
+                            </button>
+                        </Tooltip>
                         <Tooltip content='Show previous logs'>
                             <button
                                 className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
@@ -179,14 +227,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 {showPreviousLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
-                        <button
-                            className='argo-button argo-button--base-o'
-                            onClick={() => {
-                                const inverted = prefs.appDetails.darkMode;
-                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
-                            }}>
-                            {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
-                        </button>
+                        <Tooltip content={prefs.appDetails.darkMode ? 'Light Mode' : 'Dark Mode'}>
+                            <button
+                                className='argo-button argo-button--base-o'
+                                onClick={() => {
+                                    const inverted = prefs.appDetails.darkMode;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
+                                }}>
+                                {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
+                            </button>
+                        </Tooltip>
                         {!props.timestamp && (
                             <Tooltip content={viewTimestamps ? 'Hide timestamps' : 'Show timestamps'}>
                                 <button
@@ -202,10 +252,15 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             </Tooltip>
                         )}
                         {!props.fullscreen && (
-                            <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
-                                <i className='fa fa-external-link-alt' />
-                            </Link>
+                            <Tooltip content='Fullscreen View'>
+                                <button className='argo-button argo-button--base'>
+                                    <Link to={fullscreenURL} target='_blank'>
+                                        <i style={{color: '#fff'}} className='fa fa-external-link-alt' />
+                                    </Link>{' '}
+                                </button>
+                            </Tooltip>
                         )}
+
                         <div className='pod-logs-viewer__filter'>
                             <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
                                 <button
@@ -343,7 +398,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                             />
                                         </Tooltip>
                                     )}
-                                    <pre style={{height: '95%'}}>
+                                    <pre style={{height: '95%', whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'}}>
                                         <div ref={top} style={{height: '1px'}} />
                                         {lines.map((l, i) => {
                                             const lineNum = lastLine - i;

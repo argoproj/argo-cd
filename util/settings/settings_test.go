@@ -193,6 +193,22 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
+func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, false, serverRBACLogEnforceEnable)
+}
+
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, true, serverRBACLogEnforceEnable)
+}
+
 func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
@@ -1081,6 +1097,75 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)
+		})
+	}
+}
+
+func TestGetHelmSettings(t *testing.T) {
+	testCases := []struct {
+		name     string
+		data     map[string]string
+		expected []string
+	}{{
+		name:     "Default",
+		data:     map[string]string{},
+		expected: []string{"http", "https"},
+	}, {
+		name: "Configured Not Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "s3, git",
+		},
+		expected: []string{"s3", "git"},
+	}, {
+		name: "Configured Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "",
+		},
+		expected: nil,
+	}}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "acme",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"clientSecret": []byte("deadbeef"),
+				},
+			}
+			kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			helmSettings, err := settingsManager.GetHelmSettings()
+			assert.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.expected, helmSettings.ValuesFileSchemes)
 		})
 	}
 }

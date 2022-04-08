@@ -103,7 +103,7 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	}
 	durPtr, err := timeutil.ParseDuration(str)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
+		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
 		return defaultValue
 	}
 

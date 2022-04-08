@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/argoproj/argo-cd/v2/common"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -56,9 +58,12 @@ func NewRunDexCommand() *cobra.Command {
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
+			vers := common.GetVersion()
+			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
+
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
