@@ -1252,10 +1252,11 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds)
+	cleanup, env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
@@ -1270,14 +1271,15 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) (func(), []string, error) {
+	cleanup := func() {}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		defer func() { _ = closer.Close() }()
+		cleanup = func() { _ = closer.Close() }
 		env = append(env, environ...)
 	}
 	env = append(env, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
@@ -1287,7 +1289,8 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse env vars")
+			cleanup()
+			return nil, nil, fmt.Errorf("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
@@ -1299,7 +1302,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		}
 		env = append(env, pluginEnv.Environ()...)
 	}
-	return env, nil
+	return cleanup, env, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
@@ -1311,10 +1314,12 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds)
+	cleanup, env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
+
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
