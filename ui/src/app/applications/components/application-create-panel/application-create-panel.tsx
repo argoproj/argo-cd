@@ -151,8 +151,8 @@ export const ApplicationCreatePanel = (props: {
                             )) || (
                                 <Form
                                     validateError={(a: models.Application) => ({
-                                        'metadata.name': !a.metadata.name && 'Application name is required',
-                                        'spec.project': !a.spec.project && 'Project name is required',
+                                        'metadata.name': !a.metadata.name && 'Application Name is required',
+                                        'spec.project': !a.spec.project && 'Project Name is required',
                                         'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
@@ -204,7 +204,7 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
-                                                        label='Project'
+                                                        label='Project Name'
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}

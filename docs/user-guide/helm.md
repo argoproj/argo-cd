@@ -133,7 +133,8 @@ The Argo CD application controller periodically compares Git state against the l
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
-value, in the values.yaml such that the value is stable between each comparison. For example:
+value in the values.yaml or using `argocd app set` command to overide the value such that the value
+is stable between each comparison. For example:
 
 ```bash
 argocd app set redis -p password=abc123
