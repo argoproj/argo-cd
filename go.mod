@@ -69,7 +69,6 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0

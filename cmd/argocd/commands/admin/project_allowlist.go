@@ -63,7 +63,13 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 				}()
 			}
 
-			globalProj := generateProjectAllowList(clientConfig, clusterRoleFileName, projName)
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			disco, err := discovery.NewDiscoveryClientForConfig(config)
+			errors.CheckError(err)
+			serverResources, err := disco.ServerPreferredResources()
+			errors.CheckError(err)
+			globalProj := generateProjectAllowList(serverResources, clusterRoleFileName, projName)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -78,7 +84,7 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	return command
 }
 
-func generateProjectAllowList(clientConfig clientcmd.ClientConfig, clusterRoleFileName string, projName string) v1alpha1.AppProject {
+func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) v1alpha1.AppProject {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
 	errors.CheckError(err)
 	var obj unstructured.Unstructured
@@ -87,13 +93,6 @@ func generateProjectAllowList(clientConfig clientcmd.ClientConfig, clusterRoleFi
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
-	errors.CheckError(err)
-
-	config, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	errors.CheckError(err)
-	serverResources, err := disco.ServerPreferredResources()
 	errors.CheckError(err)
 
 	resourceList := make([]metav1.GroupKind, 0)
