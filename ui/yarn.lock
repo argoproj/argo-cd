@@ -4323,6 +4323,11 @@ foundation-sites@^6.4.3:
   resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.5.3.tgz#85373aaed72233ca0d16fdfcb034e976cc6943c9"
   integrity sha512-ZwI0idjHHjezh6jRjpPxkczvmtUuJ1uGatZHpyloX0MvsFHfM0BFoxrqdXryXugGPdmb+yJi3JYMnz6+5t3K1A==
 
+foundation-sites@^6.7.4:
+  version "6.7.4"
+  resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.7.4.tgz#495ddb3b7014ae33df3bf7cc1f9fe74b2cfd572e"
+  integrity sha512-2QPaZJ0Od0DyklhQyKC3zPbr8AAUXSkr1scZJrQTgj/KTLresuCgUBfi7ft32NlOWhuqVXisjOgTE8N5EPS3cg==
+
 fragment-cache@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/fragment-cache/-/fragment-cache-0.2.1.tgz#4290fad27f13e89be7f33799c6bc5a0abfff0d19"
