@@ -90,7 +90,7 @@
     "jest": "^27.5.1",
     "jest-junit": "^6.4.0",
     "jest-transform-css": "^2.0.0",
-    "monaco-editor-webpack-plugin": "^6.0.0",
+    "monaco-editor-webpack-plugin": "^7.0.0",
     "postcss": "^8.2.13",
     "prettier": "1.19",
     "raw-loader": "^0.5.1",
