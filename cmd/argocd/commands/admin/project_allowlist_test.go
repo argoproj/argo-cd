@@ -14,6 +14,7 @@ func TestProjectAllowListGen(t *testing.T) {
 	}
 	resourceList := []*metav1.APIResourceList{{APIResources: []metav1.APIResource{res}}}
 
-	globalProj := generateProjectAllowList(resourceList, "testdata/test_clusterrole.yaml", "testproj")
+	globalProj, err := generateProjectAllowList(resourceList, "testdata/test_clusterrole.yaml", "testproj")
+	assert.NoError(t, err)
 	assert.True(t, len(globalProj.Spec.NamespaceResourceWhitelist) > 0)
 }

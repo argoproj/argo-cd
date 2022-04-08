@@ -63,7 +63,10 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 				}()
 			}
 
-			globalProj := generateProjectAllowList(getResourceList(clientConfig), clusterRoleFileName, projName)
+			resourceList, err := getResourceList(clientConfig)
+			errors.CheckError(err)
+			globalProj, err := generateProjectAllowList(resourceList, clusterRoleFileName, projName)
+			errors.CheckError(err)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -78,26 +81,38 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	return command
 }
 
-func getResourceList(clientConfig clientcmd.ClientConfig) []*metav1.APIResourceList {
+func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResourceList, error) {
 	config, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
+	if err != nil {
+		return nil, err
+	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, err
+	}
 	serverResources, err := disco.ServerPreferredResources()
-	errors.CheckError(err)
-	return serverResources
+	if err != nil {
+		return nil, err
+	}
+	return serverResources, nil
 }
 
-func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) v1alpha1.AppProject {
+func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, err
+	}
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, err
+	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, err
+	}
 
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
@@ -143,5 +158,5 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	globalProj.Spec.NamespaceResourceWhitelist = resourceList
-	return globalProj
+	return &globalProj, nil
 }
