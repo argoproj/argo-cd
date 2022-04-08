@@ -63,13 +63,7 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 				}()
 			}
 
-			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			disco, err := discovery.NewDiscoveryClientForConfig(config)
-			errors.CheckError(err)
-			serverResources, err := disco.ServerPreferredResources()
-			errors.CheckError(err)
-			globalProj := generateProjectAllowList(serverResources, clusterRoleFileName, projName)
+			globalProj := generateProjectAllowList(getResourceList(clientConfig), clusterRoleFileName, projName)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -82,6 +76,16 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
 
 	return command
+}
+
+func getResourceList(clientConfig clientcmd.ClientConfig) []*metav1.APIResourceList {
+	config, err := clientConfig.ClientConfig()
+	errors.CheckError(err)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	errors.CheckError(err)
+	serverResources, err := disco.ServerPreferredResources()
+	errors.CheckError(err)
+	return serverResources
 }
 
 func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) v1alpha1.AppProject {
