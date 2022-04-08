@@ -80,9 +80,8 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
 
-	if fi, err := os.Stat(path); err == nil {
+	if fi, _ := os.Stat(path); err == nil {
 		err = GetFilePermission(fi)
-
 		if err != nil {
 			return nil, err
 		}
@@ -315,9 +314,10 @@ func GetUsername(subject string) string {
 }
 
 func GetFilePermission(fi os.FileInfo) error {
-	//argo directory should have mode 0700 & file should have permission -  0600.
-	if fi.Mode().Perm() == 0600 {
+	//argo directory should have mode 0600 & file should have permission -  0600 or 400.
+	if fi.Mode().Perm() == 0600 || fi.Mode().Perm() == 0400 {
 		return nil
 	}
-	return fmt.Errorf("config file has incorrect permission flags: %s  change the permission to 0600(linux permission: -rw-------)", fi.Mode().Perm().String())
+	return fmt.Errorf("config file has incorrect permission flags:%s."+
+		"Change the permission either to 0400 or 0600.", fi.Mode().Perm().String())
 }

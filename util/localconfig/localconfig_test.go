@@ -2,6 +2,7 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,14 +21,13 @@ func TestGetUsername(t *testing.T) {
 func TestFilePermission(t *testing.T) {
 	dirPath := "testfolder/"
 
-	if err := os.MkdirAll(path.Dir(dirPath), 0700); err != nil {
-		t.Fatalf("Could not create argocd folder with 0700 permission: %v", err)
-	}
+	err := os.MkdirAll(path.Dir(dirPath), 0700)
+	require.NoError(t, err, "Could not create argocd folder with 0700 permission: %v", err)
 
 	t.Cleanup(func() {
-		if err := os.RemoveAll(dirPath); err != nil {
-			t.Error("Could not remove directory")
-		}
+		err := os.RemoveAll(dirPath)
+		require.NoError(t, err, "Could not remove directory")
+
 	})
 
 	for _, c := range []struct {
@@ -40,13 +40,13 @@ func TestFilePermission(t *testing.T) {
 			name:          "Test config file with permission 0700",
 			testfile:      ".config_0700",
 			perm:          0700,
-			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwx------  change the permission to 0600(linux permission: -rw-------)"),
+			expectedError: fmt.Errorf("config file has incorrect permission flags:-rwx------.Change the permission either to 0400 or 0600."),
 		},
 		{
 			name:          "Test config file with permission 0777",
 			testfile:      ".config_0777",
 			perm:          0777,
-			expectedError: fmt.Errorf("config file has incorrect permission flags: -rwxrwxrwx  change the permission to 0600(linux permission: -rw-------)"),
+			expectedError: fmt.Errorf("config file has incorrect permission flags:-rwxrwxrwx.Change the permission either to 0400 or 0600."),
 		},
 		{
 			name:          "Test config file with permission 0600",
@@ -54,32 +54,37 @@ func TestFilePermission(t *testing.T) {
 			perm:          0600,
 			expectedError: nil,
 		},
+		{
+			name:          "Test config file with permission 0400",
+			testfile:      ".config_0400",
+			perm:          0400,
+			expectedError: nil,
+		},
+		{
+			name:          "Test config file with permission 0300",
+			testfile:      ".config_0300",
+			perm:          0300,
+			expectedError: fmt.Errorf("config file has incorrect permission flags:--wx------.Change the permission either to 0400 or 0600."),
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 
 			filePath := filepath.Join(dirPath, c.testfile)
 
 			f, err := os.Create(filePath)
-			if err != nil {
-				f.Close()
-				t.Fatalf("Could not write  create config file: %v", err)
-			}
+			defer f.Close()
+			require.NoError(t, err, "Could not write  create config file: %v", err)
 
-			if err = f.Chmod(c.perm); err != nil {
-				t.Fatalf("Could not change the file permission to %s: %v", c.perm, err)
-			}
+			err = f.Chmod(c.perm)
+			require.NoError(t, err, "Could not change the file permission to %s: %v", c.perm, err)
 
 			fi, err := os.Stat(filePath)
-			if err != nil {
-				t.Fatalf("Could not access the fileinfo: %v", err)
-			}
+			require.NoError(t, err, "Could not access the fileinfo: %v", err)
 
 			if err := GetFilePermission(fi); err != nil {
 				assert.EqualError(t, err, c.expectedError.Error())
 			} else {
-				if fi.Mode().Perm().String() != "-rw-------" {
-					t.Fatalf("file %v Permission mismatch source (-rw------) vs destination(%v)", filePath, fi.Mode().Perm().String())
-				}
+				require.Nil(t, err)
 			}
 		})
 	}

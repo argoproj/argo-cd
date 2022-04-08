@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -44,12 +45,11 @@ func TestContextDelete(t *testing.T) {
 	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), 0600)
 	assert.NoError(t, err)
 
-	if err = os.Chmod(testConfigFilePath, 0600); err != nil {
-		t.Fatalf("Could not change the file permission to 0600 %v", err)
-	}
+	err = os.Chmod(testConfigFilePath, 0600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, localConfig.CurrentContext, "localhost:8080")
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "localhost:8080", Server: "localhost:8080", User: "localhost:8080"})
 
