@@ -30,7 +30,7 @@ ADD hack/tool-versions.sh .
 
 RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
-RUN ./install.sh kustomize
+RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 RUN ./install.sh awscli-linux
 
 ####################################################################################################

@@ -4,9 +4,9 @@ set -eux -o pipefail
 . $(dirname $0)/../tool-versions.sh
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)
-DIST_PATH="${PROJECT_ROOT}/dist"
-PATH="${DIST_PATH}:${PATH}"
-[ -d $DIST_PATH ] || mkdir -p $DIST_PATH
+INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
+PATH="${INSTALL_PATH}:${PATH}"
+[ -d $INSTALL_PATH ] || mkdir -p $INSTALL_PATH
 
 KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize4_version}
 
@@ -29,7 +29,7 @@ case $ARCHITECTURE in
       [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
       $(dirname $0)/compare-chksum.sh
       tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
-      sudo install -m 0755 /tmp/kustomize $DIST_PATH/$BINNAME
+      sudo install -m 0755 /tmp/kustomize $INSTALL_PATH/$BINNAME
       ;;
   *)
     case $KUSTOMIZE_VERSION in
@@ -39,7 +39,7 @@ case $ARCHITECTURE in
         BINNAME=kustomize2
         [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
         $(dirname $0)/compare-chksum.sh
-        sudo install -m 0755 ${DOWNLOADS}/${TARGET_FILE} $DIST_PATH/$BINNAME
+        sudo install -m 0755 ${DOWNLOADS}/${TARGET_FILE} $INSTALL_PATH/$BINNAME
         ;;
       *)
         export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
@@ -48,7 +48,7 @@ case $ARCHITECTURE in
         [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
         $(dirname $0)/compare-chksum.sh
         tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
-        sudo install -m 0755 /tmp/kustomize $DIST_PATH/$BINNAME
+        sudo install -m 0755 /tmp/kustomize $INSTALL_PATH/$BINNAME
         ;;
     esac
     ;;
