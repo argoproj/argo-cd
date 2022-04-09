@@ -1,0 +1,11 @@
+# To generate a Status.Decisions from this CRD, requires https://github.com/open-cluster-management/multicloud-operators-placementrule be deployed
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ocm-placement
+data:
+  apiVersion: apps.open-cluster-management.io/v1
+  kind: placementrules
+  statusListKey: decisions
+  matchKey: clusterName

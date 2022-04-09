@@ -1,10 +1,15 @@
 package commands
 
 import (
+	"os"
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 
@@ -419,5 +424,217 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintAppSummaryTable(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "test",
+					TargetRevision: "master",
+					Path:           "/test",
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						ValueFiles: []string{"path1", "path2"},
+					},
+					Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeOutOfSync,
+				},
+				Health: v1alpha1.HealthStatus{
+					Status:  health.HealthStatusProgressing,
+					Message: "health-message",
+				},
+			},
+		}
+
+		windows := &v1alpha1.SyncWindows{}
+
+		printAppSummaryTable(app, "url", windows)
+		return nil
+	})
+
+	expectation := "Name:               test\nProject:            default\nServer:             local\nNamespace:          argocd\nURL:                url\nRepo:               test\nTarget:             master\nPath:               /test\nHelm Values:        path1,path2\nName Prefix:        prefix\nSyncWindow:         Sync Allowed\nSync Policy:        Automated (Prune)\nSync Status:        OutOfSync from master\nHealth Status:      Progressing (health-message)\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print app summary output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintAppConditions(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type:    v1alpha1.ApplicationConditionDeletionError,
+						Message: "test",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+						Message: "test2",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionRepeatedResourceWarning,
+						Message: "test3",
+					},
+				},
+			},
+		}
+		printAppConditions(os.Stdout, app)
+		return nil
+	})
+	expectation := "CONDITION\tMESSAGE\tLAST TRANSITION\nDeletionError\ttest\t<nil>\nExcludedResourceWarning\ttest2\t<nil>\nRepeatedResourceWarning\ttest3\t<nil>\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print app conditions output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintParams(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Source: v1alpha1.ApplicationSource{
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						Parameters: []v1alpha1.HelmParameter{
+							{
+								Name:  "name1",
+								Value: "value1",
+							},
+							{
+								Name:  "name2",
+								Value: "value2",
+							},
+							{
+								Name:  "name3",
+								Value: "value3",
+							},
+						},
+					},
+				},
+			},
+		}
+		printParams(app)
+		return nil
+	})
+	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
+}
+
+func TestAppUrlDefault(t *testing.T) {
+	t.Run("Plain text", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:80",
+			PlainText:  true,
+		}), "test")
+		expectation := "http://localhost:80/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("https", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:443",
+			PlainText:  false,
+		}), "test")
+		expectation := "https://localhost/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTruncateString(t *testing.T) {
+	result := truncateString("argocdtool", 2)
+	expectation := "ar..."
+	if result != expectation {
+		t.Fatalf("Incorrect truncate string %q, should be %q", result, expectation)
+	}
+}
+
+func TestGetService(t *testing.T) {
+	t.Run("Server", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server: "test-server",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-server"
+		if result != expectation {
+			t.Fatalf("Incorrect server %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("Name", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Name: "test-name",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-name"
+		if result != expectation {
+			t.Fatalf("Incorrect server name %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTargetObjects(t *testing.T) {
+	resources := []*v1alpha1.ResourceDiff{
+		{
+			TargetState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+		{
+			TargetState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+	}
+	objects, err := targetObjects(resources)
+	if err != nil {
+		t.Fatal("operation should finish without error")
+	}
+
+	if len(objects) != 2 {
+		t.Fatalf("incorrect number of objects %v, should be 2", len(objects))
+	}
+
+	if objects[0].GetName() != "test-helm-guestbook" {
+		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
+	}
+
+}
+
+func TestPrintApplicationNames(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+		printApplicationNames([]v1alpha1.Application{*app, *app})
+		return nil
+	})
+	expectation := "test\ntest\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
 }

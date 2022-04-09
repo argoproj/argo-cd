@@ -29,7 +29,7 @@ ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
 RUN ./install.sh helm-linux
-RUN ./install.sh kustomize-linux
+RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 RUN ./install.sh awscli-linux
 
 ####################################################################################################
@@ -126,5 +126,6 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller
 
 USER 999

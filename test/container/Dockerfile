@@ -43,7 +43,7 @@ ADD go.sum go.sum
 
 RUN ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
-    ./install.sh kustomize-linux && \
+    ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \

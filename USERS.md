@@ -45,6 +45,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
 1. [Cybozu](https://cybozu-global.com)
 1. [D2iQ](https://www.d2iq.com)
+1. [Datarisk](https://www.datarisk.io/)
 1. [Deloitte](https://www.deloitte.com/)
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
@@ -201,3 +202,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
+1. [Trendyol](https://www.trendyol.com/)

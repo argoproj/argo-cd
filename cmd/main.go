@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
+	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	gitaskpass "github.com/argoproj/argo-cd/v2/cmd/argocd-git-ask-pass/commands"
@@ -44,6 +45,8 @@ func main() {
 		command = notification.NewCommand()
 	case "argocd-git-ask-pass":
 		command = gitaskpass.NewCommand()
+	case "argocd-applicationset-controller":
+		command = applicationset.NewCommand()
 	default:
 		command = cli.NewCommand()
 	}

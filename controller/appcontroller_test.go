@@ -103,6 +103,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		),
 		kubectl,
 		time.Minute,
+		time.Hour,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -857,14 +858,14 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	}
 
 	// no need to refresh just reconciled application
-	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.False(t, needRefresh)
 
 	// refresh app using the 'deepest' requested comparison level
 	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
-	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 	assert.Equal(t, CompareWithRecent, compareWith)
@@ -872,7 +873,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	// refresh application which status is not reconciled using latest commit
 	app.Status.Sync = argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeUnknown}
 
-	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 	assert.Equal(t, CompareWithLatestForceResolve, compareWith)
@@ -883,10 +884,29 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+	}
+
+	{
+		// refresh app using the 'latest' level if comparison expired for hard refresh
+		app := app.DeepCopy()
+		app.Status.Sync = argoappv1.SyncStatus{
+			Status: argoappv1.SyncStatusCodeSynced,
+			ComparedTo: argoappv1.ComparedTo{
+				Source:      app.Spec.Source,
+				Destination: app.Spec.Destination,
+			},
+		}
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &reconciledAt
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
+		assert.True(t, needRefresh)
+		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
+		assert.Equal(t, CompareWithLatest, compareWith)
 	}
 
 	{
@@ -897,7 +917,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		app.Annotations = map[string]string{
 			v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
 		}
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
 		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
@@ -915,7 +935,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 			}},
 		}
 
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 		assert.Equal(t, CompareWithLatestForceResolve, compareWith)

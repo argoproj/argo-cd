@@ -2,6 +2,7 @@ package admin
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,11 @@ import (
 )
 
 func TestProjectAllowListGen(t *testing.T) {
+	// go-mpatch only works on platforms with amd64 architecture
+	if runtime.GOARCH != "amd64" {
+		t.Skip()
+	}
+
 	useMock := true
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}

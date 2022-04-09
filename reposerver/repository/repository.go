@@ -624,7 +624,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				Repo:      r.Repository,
-				Name:      r.Repository,
+				Name:      sanitizeRepoName(r.Repository),
 				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
@@ -632,6 +632,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	return repos, nil
+}
+
+func sanitizeRepoName(repoName string) string {
+	return strings.ReplaceAll(repoName, "/", "-")
 }
 
 func repoExists(repo string, repos []*v1alpha1.Repository) bool {
@@ -1248,10 +1252,11 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds)
+	cleanup, env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	if plugin.Init != nil {
 		_, err := runCommand(*plugin.Init, appPath, env)
@@ -1266,14 +1271,15 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) (func(), []string, error) {
+	cleanup := func() {}
 	env := append(os.Environ(), envVars.Environ()...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		defer func() { _ = closer.Close() }()
+		cleanup = func() { _ = closer.Close() }
 		env = append(env, environ...)
 	}
 	env = append(env, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
@@ -1283,7 +1289,8 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse env vars")
+			cleanup()
+			return nil, nil, fmt.Errorf("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
@@ -1295,7 +1302,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		}
 		env = append(env, pluginEnv.Environ()...)
 	}
-	return env, nil
+	return cleanup, env, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
@@ -1307,10 +1314,12 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds)
+	cleanup, env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
+
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
@@ -1678,33 +1687,40 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
+	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+}
+
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	err = gitClient.Fetch(revision)
-
+	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+	err = gitClient.Fetch("")
 	if err != nil {
-		log.Infof("Failed to fetch revision %s: %v", revision, err)
-		log.Infof("Fallback to fetch default")
-		err = gitClient.Fetch("")
-		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
-		}
-		err = gitClient.Checkout(revision, submoduleEnabled)
-		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
-		}
-		return closer, err
+		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 	}
 
-	err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+	err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
+		// for the given revision, try explicitly fetching it.
+		log.Infof("Failed to checkout revision %s: %v", revision, err)
+		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+
+		err = gitClient.Fetch(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+		}
+
+		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
 	}
 
-	return closer, err
+	return err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

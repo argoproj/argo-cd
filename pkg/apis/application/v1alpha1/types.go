@@ -2442,6 +2442,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.Timeout = K8sServerSideTimeout
+	config.QPS = K8sClientConfigQPS
+	config.Burst = K8sClientConfigBurst
 	return config
 }
 
