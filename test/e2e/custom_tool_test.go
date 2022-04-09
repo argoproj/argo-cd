@@ -116,6 +116,7 @@ func TestCustomToolWithSSHGitCreds(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Timeout(30).
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
