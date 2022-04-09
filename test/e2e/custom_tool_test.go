@@ -94,6 +94,7 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 }
 
 // make sure we can read the Git creds stored in a temporary file
+// see if this test fails
 func TestCustomToolWithSSHGitCreds(t *testing.T) {
 	Given(t).
 		// path does not matter, we ignore it
