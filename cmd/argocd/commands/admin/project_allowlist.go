@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -84,15 +85,15 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResourceList, error) {
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while creating client config: %s", err)
 	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while creating discovery client: %s", err)
 	}
 	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting server resources: %s", err)
 	}
 	return serverResources, nil
 }
