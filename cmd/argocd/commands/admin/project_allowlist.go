@@ -101,18 +101,18 @@ func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResource
 func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading cluster role file: %s", err)
 	}
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %s", err)
 	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %s", err)
 	}
 
 	resourceList := make([]metav1.GroupKind, 0)
