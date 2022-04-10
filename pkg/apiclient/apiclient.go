@@ -17,8 +17,11 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -26,28 +29,30 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/common"
-	accountpkg "github.com/argoproj/argo-cd/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	certificatepkg "github.com/argoproj/argo-cd/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/pkg/apiclient/gpgkey"
-	projectpkg "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/env"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	argoio "github.com/argoproj/argo-cd/util/io"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/util/oidc"
-	tls_util "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v2/util/http"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -109,9 +114,12 @@ type ClientOptions struct {
 	UserAgent            string
 	GRPCWeb              bool
 	GRPCWebRootPath      string
+	Core                 bool
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
+	HttpRetryMax         int
+	KubeOverrides        *clientcmd.ConfigOverrides
 }
 
 type client struct {
@@ -131,6 +139,7 @@ type client struct {
 	proxyListener   net.Listener
 	proxyServer     *grpc.Server
 	proxyUsersCount int
+	httpClient      *http.Client
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -191,7 +200,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.ServerAddr = serverFromEnv
 	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
-		port, err := kube.PortForward("app.kubernetes.io/name=argocd-server", 8080, opts.PortForwardNamespace)
+		if opts.KubeOverrides == nil {
+			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
+		}
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
 		if err != nil {
 			return nil, err
 		}
@@ -247,13 +259,32 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+	}
+
+	if !c.PlainText {
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		c.httpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+	}
 	if !c.GRPCWeb {
 		//test if we need to set it to true
 		//if a call to grpc failed, then try again with GRPCWeb
-		conn, versionIf := c.NewVersionClientOrDie()
-		defer argoio.Close(conn)
-
-		_, err := versionIf.Version(context.Background(), &empty.Empty{})
+		conn, versionIf, err := c.NewVersionClient()
+		if err == nil {
+			defer argoio.Close(conn)
+			_, err = versionIf.Version(context.Background(), &empty.Empty{})
+		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
@@ -324,16 +355,29 @@ func (c *client) HTTPClient() (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.UserAgent != "" {
+		headers.Set("User-Agent", c.UserAgent)
+	}
+
 	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
+		Transport: &http_util.TransportWithHeader{
+			RoundTripper: &http.Transport{
+				TLSClientConfig: tlsConfig,
+				Proxy:           http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+			Header: headers,
 		},
 	}, nil
 }
@@ -348,15 +392,13 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid(jwt.DefaultValidationHelper) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -466,17 +508,26 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
+	retryOpts := []grpc_retry.CallOption{
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
+	}
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
 
 	ctx := context.Background()
 
-	for _, kv := range c.Headers {
-		if len(strings.Split(kv, ":"))%2 == 1 {
-			return nil, nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+	headers, err := parseHeaders(c.Headers)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, vs := range headers {
+		for _, v := range vs {
+			ctx = metadata.AppendToOutgoingContext(ctx, k, v)
 		}
-		ctx = metadata.AppendToOutgoingContext(ctx, strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
 	}
 
 	if c.UserAgent != "" {
@@ -759,4 +810,16 @@ func isCanceledContextErr(err error) bool {
 		}
 	}
 	return false
+}
+
+func parseHeaders(headerStrings []string) (http.Header, error) {
+	headers := http.Header{}
+	for _, kv := range headerStrings {
+		items := strings.Split(kv, ":")
+		if len(items)%2 == 1 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		headers.Add(items[0], items[1])
+	}
+	return headers, nil
 }

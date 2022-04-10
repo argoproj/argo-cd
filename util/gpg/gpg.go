@@ -12,9 +12,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
 
 // Regular expression to match public key beginning
@@ -41,7 +41,7 @@ var verificationAdditionalFields = regexp.MustCompile(`^gpg:\s+issuer\s.+$`)
 // Regular expression to match the signature status of a commit signature verification
 var verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
 
-// This is the recipe for automatic key generation, passed to gpg --batch --generate-key
+// This is the recipe for automatic key generation, passed to gpg --batch --gen-key
 // for initializing our keyring with a trustdb. A new private key will be generated each
 // time argocd-server starts, so it's transient and is not used for anything except for
 // creating the trustdb in a specific argocd-repo-server pod.
@@ -164,7 +164,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		os.Remove(f.Name())
 		return "", err
 	}
-	f.Close()
+	defer f.Close()
 	return f.Name(), nil
 }
 
@@ -261,9 +261,9 @@ func InitializeGnuPG() error {
 		return err
 	}
 
-	f.Close()
+	defer f.Close()
 
-	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--generate-key", f.Name())
+	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--gen-key", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)
@@ -284,7 +284,7 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	f.Close()
+	defer f.Close()
 	return ImportPGPKeys(f.Name())
 }
 
@@ -404,7 +404,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 		}
 	}
 
-	f.Close()
+	defer f.Close()
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
 	cmd := exec.Command("gpg", "--no-permission-warning", "--import-ownertrust", f.Name())
@@ -553,10 +553,18 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 }
 
 // ParsePGPCommitSignature parses the output of "git verify-commit" and returns the result
-func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
+func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	result := PGPVerifyResult{Result: VerifyResultUnknown}
 	parseOk := false
 	linesParsed := 0
+
+	// Shortcut for returning an unknown verification result with a reason
+	unknownResult := func(reason string) PGPVerifyResult {
+		return PGPVerifyResult{
+			Result:  VerifyResultUnknown,
+			Message: reason,
+		}
+	}
 
 	scanner := bufio.NewScanner(strings.NewReader(signature))
 	for scanner.Scan() && linesParsed < MaxVerificationLinesToParse {
@@ -567,7 +575,7 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 		if len(start) == 2 {
 			result.Date = start[1]
 			if !scanner.Scan() {
-				return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
+				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
 			linesParsed += 1
@@ -575,18 +583,18 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			// What key has made the signature?
 			keyID := verificationKeyIDMatch.FindStringSubmatch(scanner.Text())
 			if len(keyID) != 3 {
-				return PGPVerifyResult{}, fmt.Errorf("Could not parse key ID of commit verification output.")
+				return unknownResult("Could not parse key ID of commit verification output.")
 			}
 
 			result.Cipher = keyID[1]
 			result.KeyID = KeyID(keyID[2])
 			if result.KeyID == "" {
-				return PGPVerifyResult{}, fmt.Errorf("Invalid PGP key ID found in verification result: %s", result.KeyID)
+				return unknownResult(fmt.Sprintf("Invalid PGP key ID found in verification result: %s", result.KeyID))
 			}
 
 			// What was the result of signature verification?
 			if !scanner.Scan() {
-				return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
+				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
 			linesParsed += 1
@@ -594,7 +602,7 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			// Skip additional fields
 			for verificationAdditionalFields.MatchString(scanner.Text()) {
 				if !scanner.Scan() {
-					return PGPVerifyResult{}, fmt.Errorf("Unexpected end-of-file while parsing commit verification output.")
+					return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 				}
 
 				linesParsed += 1
@@ -608,7 +616,7 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 			} else {
 				sigState := verificationStatusMatch.FindStringSubmatch(scanner.Text())
 				if len(sigState) != 4 {
-					return PGPVerifyResult{}, fmt.Errorf("Could not parse result of verify operation, check logs for more information.")
+					return unknownResult("Could not parse result of verify operation, check logs for more information.")
 				}
 
 				switch strings.ToLower(sigState[1]) {
@@ -638,13 +646,13 @@ func ParseGitCommitVerification(signature string) (PGPVerifyResult, error) {
 
 	if parseOk && linesParsed < MaxVerificationLinesToParse {
 		// Operation successfull - return result
-		return result, nil
+		return result
 	} else if linesParsed >= MaxVerificationLinesToParse {
 		// Too many output lines, return error
-		return PGPVerifyResult{}, fmt.Errorf("Too many lines of gpg verify-commit output, abort.")
+		return unknownResult("Too many lines of gpg verify-commit output, abort.")
 	} else {
 		// No data found, return error
-		return PGPVerifyResult{}, fmt.Errorf("Could not parse output of verify-commit, no verification data found.")
+		return unknownResult("Could not parse output of verify-commit, no verification data found.")
 	}
 }
 

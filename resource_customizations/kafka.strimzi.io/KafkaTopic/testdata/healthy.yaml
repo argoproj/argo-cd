@@ -1,0 +1,24 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  creationTimestamp: "2021-02-22T16:10:54Z"
+  generation: 1
+  labels:
+    strimzi.io/cluster: my-cluster
+  name: my-topic
+  namespace: default
+  resourceVersion: "134751516"
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/default/kafkatopics/my-topic
+  uid: 13b7644a-ec46-4f24-a198-18962fda4b85
+spec:
+  config:
+    retention.ms: 7200000
+    segment.bytes: 1073741824
+  partitions: 1
+  replicas: 1
+status:
+  conditions:
+  - lastTransitionTime: "2021-02-22T16:10:55.003372Z"
+    status: "True"
+    type: Ready
+  observedGeneration: 1

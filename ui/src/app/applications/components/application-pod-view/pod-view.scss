@@ -13,7 +13,12 @@ $num-stats: 2;
         display: flex;
         margin-bottom: 1em;
         &__section {
-            margin: 0 10px;
+            margin-left: 10px;
+            padding-right: 10px;
+            border-right: 1px solid $argo-color-gray-4;
+            &:last-child {
+                border-right: none;
+            }
         }
     }
 
@@ -31,6 +36,7 @@ $num-stats: 2;
         margin: 10px;
         margin-bottom: 14px !important;
         width: $pod-container-width + 2 * $padding;
+
         &--large {
             width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
         }
@@ -81,9 +87,7 @@ $num-stats: 2;
             &__pods {
                 display: flex;
                 flex-wrap: wrap;
-                max-height: $pod-container-height;
                 width: 100%;
-                overflow: auto;
                 background-color: $argo-color-gray-3;
                 border-radius: 3px;
                 padding: $gutter * 2;
@@ -116,7 +120,7 @@ $num-stats: 2;
             &--suspended {
                 background-color: $argo-status-warning-color;
                 &:hover {
-                    background-color: $argo-status-warning-color - #111;
+                    background-color: darken($argo-status-warning-color, 10%);
                 }
             }
             &--running,
@@ -141,7 +145,15 @@ $num-stats: 2;
                     background-color: $argo-color-gray-6;
                 }
             }
-
+            &__star-icon {
+                background: none;
+                color: #ffce25;
+                display: block;
+                left: 20px;
+                margin: 0px;
+                position: absolute;
+                top: -5px;
+            }
             &__stat-tooltip {
                 text-align: left;
 
@@ -150,7 +162,6 @@ $num-stats: 2;
                     height: 1em;
                     width: 1em;
                     border-radius: 5px;
-                    
                 }
             }
 
@@ -192,6 +203,35 @@ $num-stats: 2;
                         background-color: $argo-color-gray-7;
                     }
                 }
+            }
+        }
+
+        &__quick-start-actions {
+            display: flex;
+            padding-top: 1em;
+            justify-content: center;
+
+            &.disabled {
+                cursor: default !important;
+                color: $argo-color-gray-3 !important;
+            }
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        &__nodes-container {
+            justify-content: center;
+        }
+    }
+
+    @media screen and (max-width: map-get($breakpoints, medium)) {
+        &__node {
+            width: 95%;
+            &--large {
+                width: 95%;
+            }
+            &__pod-container {
+                width: 100%;
             }
         }
     }

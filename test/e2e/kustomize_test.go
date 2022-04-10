@@ -7,10 +7,10 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/util/errors"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestKustomize2AppSource(t *testing.T) {
@@ -32,7 +32,7 @@ func TestKustomize2AppSource(t *testing.T) {
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
 		When().
-		Create().
+		CreateApp().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
@@ -65,11 +65,11 @@ func TestKustomize2AppSource(t *testing.T) {
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
 func TestSyncStatusOptionIgnore(t *testing.T) {
-	var mapName string
+	var oldMap string
 	Given(t).
 		Path("kustomize-cm-gen").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -80,7 +80,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 			assert.Contains(t, resourceStatus.Name, "my-map-")
 			assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
 
-			mapName = resourceStatus.Name
+			oldMap = resourceStatus.Name
 		}).
 		When().
 		// we now force generation of a second CM
@@ -98,19 +98,16 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			assert.Equal(t, 2, len(app.Status.Resources))
-			// new map in-sync
-			{
-				resourceStatus := app.Status.Resources[0]
-				assert.Contains(t, resourceStatus.Name, "my-map-")
-				// make sure we've a new map with changed name
-				assert.NotEqual(t, mapName, resourceStatus.Name)
-				assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
-			}
-			// old map is out of sync
-			{
-				resourceStatus := app.Status.Resources[1]
-				assert.Equal(t, mapName, resourceStatus.Name)
-				assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+			for _, resourceStatus := range app.Status.Resources {
+				// new map in-sync
+				if resourceStatus.Name != oldMap {
+					assert.Contains(t, resourceStatus.Name, "my-map-")
+					// make sure we've a new map with changed name
+					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+
+				} else {
+					assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+				}
 			}
 		})
 }
@@ -121,9 +118,9 @@ func TestKustomizeSSHRemoteBase(t *testing.T) {
 		// not the best test, as we should have two remote repos both with the same SSH private key
 		SSHInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeSSH).
-		Path("ssh-kustomize-base").
+		Path(fixture.LocalOrRemotePath("ssh-kustomize-base")).
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -143,17 +140,18 @@ func TestKustomizeDeclarativeInvalidApp(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "invalid-kustomize/does-not-exist.yaml: no such file or directory"))
 }
 
+// Flag --load_restrictor is no longer supported in Kustomize 4
 func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
 			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.ArgoCDNamespace,
-				"-p", `{ "data": { "kustomize.buildOptions": "--load_restrictor none" } }`))
+				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
 		When().
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/resources/1", "value": "../guestbook_local/guestbook-ui-svc.yaml"}]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -172,7 +170,7 @@ func TestKustomizeImages(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		// pass two flags to check the multi flag logic works
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
@@ -186,7 +184,7 @@ func TestKustomizeNameSuffix(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
@@ -199,7 +197,7 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize").
 		When().
-		Create().
+		CreateApp().
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {

@@ -9,23 +9,24 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/argoproj/argo-cd/v2/common"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var (
 	validJWTPattern                      = regexp.MustCompile(`[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+`)
 	baseURL                              = "http://localhost:4000"
+	rootPath                             = "argocd"
+	baseHRef                             = "argocd"
 	baseLogoutURL                        = "http://localhost:4000/logout"
 	baseLogoutURLwithToken               = "http://localhost:4000/logout?id_token_hint={{token}}"
 	baseLogoutURLwithRedirectURL         = "http://localhost:4000/logout?post_logout_redirect_uri={{logoutRedirectURL}}"
@@ -35,6 +36,7 @@ var (
 	nonOidcToken                         = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MDU1NzQyMTIsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTYwNTU3NDIxMiwic3ViIjoiYWRtaW4ifQ.zDJ4piwWnwsHON-oPusHMXWINlnrRDTQykYogT7afeE"
 	expectedNonOIDCLogoutURL             = "http://localhost:4000"
 	expectedOIDCLogoutURL                = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL
+	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + "/" + rootPath
 )
 
 func TestConstructLogoutURL(t *testing.T) {
@@ -81,6 +83,7 @@ func TestConstructLogoutURL(t *testing.T) {
 		})
 	}
 }
+
 func TestHandlerConstructLogoutURL(t *testing.T) {
 	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
@@ -98,6 +101,38 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 					"requestedIDTokenClaims: {\"groups\": {\"essential\": true}} \n" +
 					"logoutURL: https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}",
 				"url": "http://localhost:4000",
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	kubeClientWithOIDCConfigButNoURL := fake.NewSimpleClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"oidc.config": "name: Okta \n" +
+					"issuer: https://dev-5695098.okta.com \n" +
+					"requestedScopes: [\"openid\", \"profile\", \"email\", \"groups\"] \n" +
+					"requestedIDTokenClaims: {\"groups\": {\"essential\": true}} \n" +
+					"logoutURL: https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}",
+				"url": "",
 			},
 		},
 		&corev1.Secret{
@@ -176,31 +211,39 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfig, "default")
 	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
 	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
+	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, "", session.NewInMemoryUserStateStorage())
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", session.NewUserStateStorage(nil))
 
-	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, "", "default")
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
+	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", "default")
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef, "default")
+	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, nil
+		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
-	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", "default")
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, error) {
+	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef, "default")
+	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
-			return nil, errors.New("invalid jwt")
+			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, nil
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 
+	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
+	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+		if !validJWTPattern.MatchString(tokenString) {
+			return nil, "", errors.New("invalid jwt")
+		}
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
+	}
 	oidcTokenHeader := make(map[string][]string)
 	oidcTokenHeader["Cookie"] = []string{"argocd.token=" + oidcToken}
 	nonOidcTokenHeader := make(map[string][]string)
@@ -236,6 +279,14 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			request:           oidcRequest,
 			responseRecorder:  httptest.NewRecorder(),
 			expectedLogoutURL: expectedOIDCLogoutURL,
+			wantErr:           false,
+		},
+		{
+			name:              "Case: OIDC logout request with valid token but missing URL",
+			handler:           oidcHandlerWithoutBaseURL,
+			request:           oidcRequest,
+			responseRecorder:  httptest.NewRecorder(),
+			expectedLogoutURL: expectedOIDCLogoutURLWithRootPath,
 			wantErr:           false,
 		},
 		{

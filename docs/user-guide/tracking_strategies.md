@@ -40,7 +40,7 @@ If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will
 live state against the resource manifests defined at the tip of the specified branch or the
 resolved commit of the symbolic reference.
 
-To redeploy an app,  makes a changes to your manifests, commit/push to the branch/symbolic reference. They will then detected by Argo CD.
+To redeploy an app, make a change to (at least) one of your manifests, commit and push to the tracked branch/symbolic reference. The change will then be detected by Argo CD.
 
 ### Tag Tracking
 

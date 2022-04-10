@@ -43,6 +43,17 @@ func loadFlags() error {
 	if key != "" {
 		flags[key] = "true"
 	}
+	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+	for k, v := range flags {
+		if strings.Contains(k, "=") && strings.Count(k, "=") == 1 && v == "true" {
+			kv := strings.Split(k, "=")
+			actualKey, actualValue := kv[0], kv[1]
+			if _, ok := flags[actualKey]; !ok {
+				flags[actualKey] = actualValue
+			}
+		}
+	}
 	return nil
 }
 

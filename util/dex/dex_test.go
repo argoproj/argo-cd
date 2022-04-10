@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	// "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const invalidURL = ":://localhost/foo/bar"
@@ -55,7 +56,7 @@ connectors:
   name: GitHub
   config:
     clientID: aabbccddeeff00112233
-    clientSecret: abcdefghijklmnopqrst
+    clientSecret: abcdefghijklmnopqrst\n\r
     orgs:
     - name: your-github-org
 staticClients:
@@ -63,7 +64,7 @@ staticClients:
   name: Argo Workflow
   redirectURIs:
   - https://argo/oauth2/callback
-  secret: abcdefghijklmnopqrst
+  secret:  $dex.acme.clientSecret  
 `
 var badDexConfig = `
 connectors:
@@ -84,9 +85,67 @@ connectors:
     orgs:
     - name: your-github-org
 `
+
+var goodDexConfigWithOauthOverrides = `
+oauth2:
+  passwordConnector: ldap
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+var goodDexConfigWithEnabledApprovalScreen = `
+oauth2:
+  passwordConnector: ldap
+  skipApprovalScreen: false
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
+}
+
+var goodSecretswithCRLF = map[string]string{
+	"dex.github.clientSecret": "foobar\n\r",
+	"dex.acme.clientSecret":   "barfoo\n\r",
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
@@ -184,6 +243,32 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("Secret dereference with extra white space", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+			Secrets:   goodSecretswithCRLF,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		connectors, ok := dexCfg["connectors"].([]interface{})
+		assert.True(t, ok)
+		for i, connectorsIf := range connectors {
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
+			if i == 0 {
+				assert.Equal(t, "foobar", config["clientSecret"])
+			} else if i == 1 {
+				assert.Equal(t, "barfoo", config["clientSecret"])
+			}
+		}
+	})
+
 	t.Run("Redirect config", func(t *testing.T) {
 		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud"}
 		for _, c := range types {
@@ -196,6 +281,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
 			DexConfig: customStaticClientDexConfig,
+			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s)
 		assert.NoError(t, err)
@@ -213,11 +299,80 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
 		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
+	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: customStaticClientDexConfig,
+			Secrets:   goodSecretswithCRLF,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		clients, ok := dexCfg["staticClients"].([]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, 3, len(clients))
+
+		customClient := clients[2].(map[string]interface{})
+		assert.Equal(t, "barfoo", customClient["secret"])
+	})
+	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithOauthOverrides,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.True(t, skipApprScr)
+	})
+	t.Run("Override dex oauth2 with enabled ApprovalScreen", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithEnabledApprovalScreen,
+		}
+		config, err := GenerateDexConfigYAML(&s)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.False(t, skipApprScr)
+	})
 }
 
 func Test_DexReverseProxy(t *testing.T) {
 	t.Run("Good case", func(t *testing.T) {
+		var host string
 		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			host = req.Host
 			rw.WriteHeader(http.StatusOK)
 		}))
 		defer fakeDex.Close()
@@ -225,10 +380,12 @@ func Test_DexReverseProxy(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/")))
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
+		target, _ := url.Parse(fakeDex.URL)
 		resp, err := http.Get(server.URL)
 		assert.NotNil(t, resp)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
 	})
 

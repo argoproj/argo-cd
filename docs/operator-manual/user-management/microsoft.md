@@ -10,7 +10,7 @@
 
 1. From the `Azure Active Directory` > `Enterprise applications` menu, choose `+ New application`
 2. Select `Non-gallery application`
-3. Enter a `Name` for the application (eg. `Argo CD`), then choose `Add`
+3. Enter a `Name` for the application (e.g. `Argo CD`), then choose `Add`
 4. Once the application is created, open it from the `Enterprise applications` menu.
 5. From the `Users and groups` menu of the app, add any users or groups requiring access to the service.
 
@@ -55,7 +55,7 @@ data:
       name: saml
       config:
         entityIssuer: https://my-argo-cd-url/api/dex/callback
-        ssoURL: https://my-login-url (eg. https://login.microsoftonline.com/xxxxx/a/saml2)
+        ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
         caData: |
           MY-BASE64-ENCODED-CERTIFICATE-DATA
         redirectURI: https://my-argo-cd-url/api/dex/callback

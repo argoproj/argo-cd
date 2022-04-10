@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=ubuntu:20.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:21.10
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.14.12 as builder
+FROM docker.io/library/golang:1.17 as builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     make \
     wget \
     gcc \
+    sudo \
     zip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -27,11 +28,9 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh packr-linux
-RUN ./install.sh ksonnet-linux
-RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
-RUN ./install.sh kustomize-linux
+RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+RUN ./install.sh awscli-linux
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -47,24 +46,21 @@ RUN groupadd -g 999 argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
-    chmod g=u /etc/passwd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y git git-lfs python3-pip tini gpg && \
+    apt-get install -y git git-lfs tini gpg tzdata && \
     apt-get clean && \
-    pip3 install awscli==1.18.80 && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
-COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
-COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-# script to add current (possibly arbitrary) user to /etc/passwd at runtime
-# (if it's not already there, to be openshift friendly)
-COPY uid_entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+COPY --from=builder /usr/local/aws-cli/v2/current/dist /usr/local/aws-cli/v2/current/dist
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+# keep uid_entrypoint.sh for backward compatibility
+RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
+RUN ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
 
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
@@ -77,7 +73,6 @@ RUN mkdir -p /app/config/gpg/source && \
     chown argocd /app/config/gpg/keys && \
     chmod 0700 /app/config/gpg/keys
 
-# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd
 
 USER 999
@@ -86,25 +81,23 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM node:12.18.4 as argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:12.18.4 as argocd-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
 
-RUN yarn install
+RUN yarn install --network-timeout 200000
 
 ADD ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN NODE_ENV='production' yarn build
+RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.14.12 as argocd-build
-
-COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
+FROM --platform=$BUILDPLATFORM  docker.io/library/golang:1.17 as argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
@@ -115,26 +108,24 @@ RUN go mod download
 
 # Perform the build
 COPY . .
-RUN make argocd-all
-
-ARG BUILD_ALL_CLIS=true
-RUN if [ "$BUILD_ALL_CLIS" = "true" ] ; then \
-    make BIN_NAME=argocd-darwin-amd64 GOOS=darwin argocd-all && \
-    make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all \
-    ; fi
+COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
+ARG TARGETOS
+ARG TARGETARCH
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make argocd-all
 
 ####################################################################################################
 # Final image
 ####################################################################################################
 FROM argocd-base
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
-COPY --from=argocd-ui ./src/dist/app /shared/app
 
 USER root
-RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-util
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller
 
 USER 999

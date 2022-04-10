@@ -1,8 +1,9 @@
 export {DataLoader, ErrorNotification} from 'argo-ui';
 
 export * from './array-input/array-input';
+export * from './application-selector/application-selector';
 export * from './expandable/expandable';
-export * from './page';
+export * from './page/page';
 export * from './checkbox/checkbox-field';
 export * from './colors';
 export * from './cluster';
@@ -18,7 +19,6 @@ export * from './tags-input/tags-input';
 export * from './monaco-editor';
 export * from './yaml-editor/yaml-editor';
 export * from './progress/progress-popup';
-export * from './info-popup/info-popup';
 export * from './repo';
 export * from './revision';
 export * from './timestamp';

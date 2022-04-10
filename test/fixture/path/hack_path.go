@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 type AddBinDirToPath struct {
@@ -16,10 +16,10 @@ func (h AddBinDirToPath) Close() {
 	_ = os.Setenv("PATH", h.originalPath)
 }
 
-// add the hack path which has the git-ask-pass.sh shell script
+// add the hack path which has the argocd binary
 func NewBinDirToPath() AddBinDirToPath {
 	originalPath := os.Getenv("PATH")
-	binDir, err := filepath.Abs("../../hack")
+	binDir, err := filepath.Abs("../../dist")
 	errors.CheckError(err)
 	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", originalPath, binDir))
 	errors.CheckError(err)

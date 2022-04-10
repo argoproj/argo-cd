@@ -4,44 +4,49 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/ghodss/yaml"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	servercache "github.com/argoproj/argo-cd/server/cache"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func fakeServer() *ArgoCDServer {
+func fakeServer() (*ArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
-		Namespace:       test.FakeArgoCDNamespace,
-		KubeClientset:   kubeclientset,
-		AppClientset:    appClientSet,
-		Insecure:        true,
-		DisableAuth:     true,
-		StaticAssetsDir: "../test/testdata/static",
-		XFrameOptions:   "sameorigin",
+		Namespace:             test.FakeArgoCDNamespace,
+		KubeClientset:         kubeclientset,
+		AppClientset:          appClientSet,
+		Insecure:              true,
+		DisableAuth:           true,
+		XFrameOptions:         "sameorigin",
+		ContentSecurityPolicy: "frame-ancestors 'self';",
 		Cache: servercache.NewCache(
 			appstatecache.NewCache(
 				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
@@ -51,8 +56,9 @@ func fakeServer() *ArgoCDServer {
 			1*time.Minute,
 			1*time.Minute,
 		),
+		RedisClient: redis,
 	}
-	return NewServer(context.Background(), argoCDOpts)
+	return NewServer(context.Background(), argoCDOpts), closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -173,7 +179,7 @@ g, bob, role:admin
 	_ = enf.SetUserPolicy(policy)
 	allowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
-		jwt.StandardClaims{Subject: "admin"},
+		jwt.RegisteredClaims{Subject: "admin"},
 	}
 	for _, c := range allowed {
 		if !assert.True(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
@@ -183,7 +189,7 @@ g, bob, role:admin
 
 	disallowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org3:team3"}},
-		jwt.StandardClaims{Subject: "nobody"},
+		jwt.RegisteredClaims{Subject: "nobody"},
 	}
 	for _, c := range disallowed {
 		if !assert.False(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
@@ -222,7 +228,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
@@ -236,10 +242,10 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -257,10 +263,10 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	argocd := NewServer(context.Background(), argoCDOpts)
 	assert.NotNil(t, argocd)
 
-	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -362,17 +368,11 @@ func TestRevokedToken(t *testing.T) {
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
-	// Now revoke the token by deleting the token
-	existingProj.Spec.Roles[0].JWTTokens = nil
-	existingProj.Status.JWTTokensByRole = nil
-	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(context.Background(), &existingProj, metav1.UpdateOptions{})
-	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
-	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
@@ -392,7 +392,7 @@ func TestAuthenticate(t *testing.T) {
 		},
 		{
 			test:             "TestSessionPresent",
-			user:             "admin",
+			user:             "admin:login",
 			anonymousEnabled: false,
 		},
 		{
@@ -418,7 +418,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create("admin", 0, "")
+				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
 				assert.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
@@ -467,6 +467,17 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+	})
+
+	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
+			Token: "abc.xyz." + strings.Repeat("x", 4093),
+		})
+		assert.NoError(t, err)
+		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -475,7 +486,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "argocd.token=; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 
 }
@@ -493,7 +504,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return
@@ -509,7 +520,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultAppProjectName,
+			Name:      v1alpha1.DefaultAppProjectName,
 			Namespace: test.FakeArgoCDNamespace,
 		},
 		Spec: v1alpha1.AppProjectSpec{
@@ -530,11 +541,184 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), common.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "a!Better!Secret"}
+	argoSettings.Secrets = newSecrets
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+}
+
+func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "argocd",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "cat",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since OICD config created")
+}
+
+func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
+	//Given
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: ""}
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	//When
+	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "cat",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
+	argoSettings.Secrets = newSecrets
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since new OICD config created")
+}
+
+func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	argoSettings.OIDCConfigRAW = ""
+	argoSettings.Secrets = make(map[string]string)
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+}
+
+func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, false, "no error since no config change")
+}
+
+func TestIsMainJsBundle(t *testing.T) {
+	testCases := []struct{
+		name           string
+		url            string
+		isMainJsBundle bool
+	}{
+		{
+			name: "localhost with valid main bundle",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "localhost and deep path with valid main bundle",
+			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "font file",
+			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			isMainJsBundle: false,
+		},
+		{
+			name: "no dot after main",
+			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong extension character",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong hash length",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			isMainJsBundle: false,
+		},
+	}
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+			testUrl, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testUrl)
+			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
+		})
+	}
 }

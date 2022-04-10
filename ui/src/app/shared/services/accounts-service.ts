@@ -10,6 +10,13 @@ export class AccountsService {
         return requests.get(`/account/${name}`).then(res => res.body as Account);
     }
 
+    public changePassword(name: string, currentPassword: string, newPassword: string): Promise<boolean> {
+        return requests
+            .put('/account/password')
+            .send({currentPassword, name, newPassword})
+            .then(res => res.status === 200);
+    }
+
     public createToken(name: string, tokenId: string, expiresIn: number): Promise<string> {
         return requests
             .post(`/account/${name}/token`)

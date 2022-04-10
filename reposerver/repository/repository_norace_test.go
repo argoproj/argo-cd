@@ -1,3 +1,4 @@
+//go:build !race
 // +build !race
 
 package repository
@@ -10,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 func TestHelmDependencyWithConcurrency(t *testing.T) {
@@ -21,8 +22,8 @@ func TestHelmDependencyWithConcurrency(t *testing.T) {
 	// https://github.com/argoproj/argo-cd/issues/4728
 
 	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/dependency", "charts"))
 	}
 	cleanup()
 	defer cleanup()
@@ -32,7 +33,7 @@ func TestHelmDependencyWithConcurrency(t *testing.T) {
 	wg.Add(3)
 	for i := 0; i < 3; i++ {
 		go func() {
-			res, err := helmTemplate("../../util/helm/testdata/helm2-dependency", "../..", nil, &apiclient.ManifestRequest{
+			res, err := helmTemplate("../../util/helm/testdata/dependency", "../..", nil, &apiclient.ManifestRequest{
 				ApplicationSource: &argoappv1.ApplicationSource{},
 				Repos:             []*argoappv1.Repository{&helmRepo},
 			}, false)

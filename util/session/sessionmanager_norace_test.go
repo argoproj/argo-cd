@@ -1,3 +1,4 @@
+//go:build !race
 // +build !race
 
 package session
@@ -9,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestRandomPasswordVerificationDelay(t *testing.T) {
@@ -22,7 +23,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 
 	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, NewInMemoryUserStateStorage())
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	mgr.verificationDelayNoiseEnabled = true
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d

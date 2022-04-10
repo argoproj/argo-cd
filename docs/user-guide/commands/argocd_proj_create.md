@@ -9,15 +9,19 @@ argocd proj create PROJECT [flags]
 ### Options
 
 ```
-      --description string        Project description
-  -d, --dest stringArray          Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
-  -f, --file string               Filename or URL to Kubernetes manifests for the project
-  -h, --help                      help for create
-      --orphaned-resources        Enables orphaned resources monitoring
-      --orphaned-resources-warn   Specifies if applications should be a warning condition when orphaned resources detected
-      --signature-keys strings    GnuPG public key IDs for commit signature verification
-  -s, --src stringArray           Permitted source repository URL
-      --upsert                    Allows to override a project with the same name even if supplied project spec is different from existing spec
+      --allow-cluster-resource stringArray      List of allowed cluster level resources
+      --allow-namespaced-resource stringArray   List of allowed namespaced resources
+      --deny-cluster-resource stringArray       List of denied cluster level resources
+      --deny-namespaced-resource stringArray    List of denied namespaced resources
+      --description string                      Project description
+  -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+  -f, --file string                             Filename or URL to Kubernetes manifests for the project
+  -h, --help                                    help for create
+      --orphaned-resources                      Enables orphaned resources monitoring
+      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
+      --signature-keys strings                  GnuPG public key IDs for commit signature verification
+  -s, --src stringArray                         Permitted source repository URL
+      --upsert                                  Allows to override a project with the same name even if supplied project spec is different from existing spec
 ```
 
 ### Options inherited from parent commands
@@ -26,11 +30,14 @@ argocd proj create PROJECT [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
+      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
+      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

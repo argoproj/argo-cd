@@ -35,6 +35,17 @@ export interface SyncOperation {
     resources?: SyncOperationResource[];
 }
 
+export interface RetryBackoff {
+    duration: string;
+    maxDuration: string;
+    factor: number;
+}
+
+export interface RetryStrategy {
+    limit: number;
+    backoff: RetryBackoff;
+}
+
 export interface RollbackOperation {
     id: number;
     prune: boolean;
@@ -120,7 +131,7 @@ export interface Application {
     operation?: Operation;
 }
 
-type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
+export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 
 export interface ApplicationWatchEvent {
     type: WatchType;
@@ -135,11 +146,11 @@ export interface ComponentParameter {
 
 export interface ApplicationDestination {
     /**
-     * Server overrides the environment server value in the ksonnet app.yaml
+     * Server address of the destination cluster
      */
     server: string;
     /**
-     * Namespace overrides the environment namespace value in the ksonnet app.yaml
+     * Namespace of the destination cluster
      */
     namespace: string;
     /**
@@ -172,8 +183,6 @@ export interface ApplicationSource {
 
     kustomize?: ApplicationSourceKustomize;
 
-    ksonnet?: ApplicationSourceKsonnet;
-
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
@@ -192,12 +201,6 @@ export interface ApplicationSourceKustomize {
     images: string[];
     version: string;
 }
-
-export interface ApplicationSourceKsonnet {
-    environment: string;
-    parameters: KsonnetParameter[];
-}
-
 export interface EnvEntry {
     name: string;
     value: string;
@@ -232,6 +235,7 @@ export interface Automated {
 export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
+    retry?: RetryStrategy;
 }
 
 export interface Info {
@@ -244,8 +248,18 @@ export interface ApplicationSpec {
     source: ApplicationSource;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
+    ignoreDifferences?: ResourceIgnoreDifferences[];
     info?: Info[];
     revisionHistoryLimit?: number;
+}
+
+export interface ResourceIgnoreDifferences {
+    group: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    jsonPointers: string[];
+    jqPathExpressions: string[];
 }
 
 /**
@@ -392,7 +406,11 @@ export interface AppProjectStatus {
 export interface LogEntry {
     content: string;
     timeStamp: models.Time;
+    // first field is inferred on the fly and indicats first log line received from backend
+    first?: boolean;
     last: boolean;
+    timeStampStr: string;
+    podName: string;
 }
 
 // describes plugin settings
@@ -403,6 +421,7 @@ export interface Plugin {
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;
+    statusBadgeRootUrl: string;
     googleAnalytics: {
         trackingID: string;
         anonymizeUsers: boolean;
@@ -419,11 +438,16 @@ export interface AuthSettings {
     help: {
         chatUrl: string;
         chatText: string;
+        binaryUrls: Record<string, string>;
     };
     plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
+    uiBannerContent: string;
+    uiBannerURL: string;
+    uiBannerPermanent: boolean;
+    uiBannerPosition: string;
 }
 
 export interface UserInfo {
@@ -502,36 +526,16 @@ export interface ClusterCacheInfo {
 
 export interface ClusterList extends ItemsList<Cluster> {}
 
-export interface KsonnetEnvironment {
-    k8sVersion: string;
-    path: string;
-    destination: {server: string; namespace: string};
-}
-
-export interface KsonnetParameter {
-    component: string;
-    name: string;
-    value: string;
-}
-
-export interface KsonnetAppSpec {
-    name: string;
-    path: string;
-    environments: {[key: string]: KsonnetEnvironment};
-    parameters: KsonnetParameter[];
-}
-
 export interface HelmChart {
     name: string;
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;
     path: string;
-    ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
@@ -666,6 +670,7 @@ export interface SyncWindow {
     namespaces: string[];
     clusters: string[];
     manualSync: boolean;
+    timeZone: string;
 }
 
 export interface Project {
@@ -674,6 +679,13 @@ export interface Project {
     metadata: models.ObjectMeta;
     spec: ProjectSpec;
     status: AppProjectStatus;
+}
+
+export interface DetailedProjectsResponse {
+    project: Project;
+    globalProjects: Project[];
+    repositories: Repository[];
+    clusters: Cluster[];
 }
 
 export type ProjectList = ItemsList<Project>;
@@ -716,7 +728,6 @@ export interface VersionMessage {
     GoVersion: string;
     Compiler: string;
     Platform: string;
-    KsonnetVersion: string;
     KustomizeVersion: string;
     HelmVersion: string;
     KubectlVersion: string;

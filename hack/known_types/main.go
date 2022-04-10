@@ -7,7 +7,6 @@ import (
 	"go/types"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,14 +37,8 @@ func newCommand() *cobra.Command {
 			packagePath := args[1]
 			outputPath := args[2]
 
-			var imprt types.Importer
-			if runtime.GOOS == "linux" {
-				// nolint:staticcheck
-				imprt = importer.For("source", nil)
-			} else {
-				imprt = importer.Default()
-			}
-
+			// nolint:staticcheck
+			imprt := importer.For("source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
 				return err

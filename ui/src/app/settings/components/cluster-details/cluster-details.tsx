@@ -3,7 +3,8 @@ import * as moment from 'moment';
 import * as React from 'react';
 import {FieldApi, FormField as ReactFormField, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router-dom';
-import {Observable} from 'rxjs';
+import {from, timer} from 'rxjs';
+import {mergeMap} from 'rxjs/operators';
 
 import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, DataLoader, EditablePanel, Page, Timestamp} from '../../../shared/components';
@@ -24,7 +25,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
     return (
-        <DataLoader ref={loaderRef} input={server} load={(url: string) => Observable.timer(0, 1000).flatMap(() => Observable.fromPromise(services.clusters.get(url, '')))}>
+        <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
             {(cluster: Cluster) => (
                 <Page
                     title={server}

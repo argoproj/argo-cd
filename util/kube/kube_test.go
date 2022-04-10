@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
-
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 const depWithoutSelector = `
@@ -154,4 +153,69 @@ func TestSetSvcLabel(t *testing.T) {
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
 	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelKeyAppInstance])
+}
+
+func TestIsValidResourceName(t *testing.T) {
+	assert.True(t, IsValidResourceName("guestbook-ui"))
+	assert.True(t, IsValidResourceName("guestbook-ui1"))
+	assert.False(t, IsValidResourceName("Guestbook-ui"))
+	assert.False(t, IsValidResourceName("-guestbook-ui"))
+}
+
+func TestSetAppInstanceAnnotation(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+
+	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+	assert.Nil(t, err)
+	log.Println(string(manifestBytes))
+
+	var s apiv1.Service
+	err = json.Unmarshal(manifestBytes, &s)
+	assert.Nil(t, err)
+
+	log.Println(s.Name)
+	log.Println(s.ObjectMeta)
+	assert.Equal(t, "my-app", s.ObjectMeta.Annotations[common.LabelKeyAppInstance])
+}
+
+func TestGetAppInstanceAnnotation(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+
+	assert.Equal(t, "my-app", GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance))
+}
+
+func TestGetAppInstanceLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", GetAppInstanceLabel(&obj, common.LabelKeyAppInstance))
+}
+
+func TestRemoveLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	obj.SetLabels(map[string]string{"test": "value"})
+
+	RemoveLabel(&obj, "test")
+
+	assert.Nil(t, obj.GetLabels())
 }

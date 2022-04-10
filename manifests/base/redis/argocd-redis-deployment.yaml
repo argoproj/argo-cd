@@ -16,14 +16,12 @@ spec:
         app.kubernetes.io/name: argocd-redis
     spec:
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
         runAsNonRoot: true
+        runAsUser: 999
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:5.0.10-alpine
+        image: redis:6.2.6-alpine
         imagePullPolicy: Always
         args:
         - "--save"

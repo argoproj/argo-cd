@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	ioutil "github.com/argoproj/argo-cd/util/io"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
 	rediscache "github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
@@ -18,6 +18,9 @@ func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 		cache:      rediscache.New(&rediscache.Options{Redis: client}),
 	}
 }
+
+// compile-time validation of adherance of the CacheClient contract
+var _ CacheClient = &redisCache{}
 
 type redisCache struct {
 	expiration time.Duration

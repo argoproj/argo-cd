@@ -1,29 +1,34 @@
 package logout
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
+	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
-
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 //NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, namespace string) *Handler {
+func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
 	return &Handler{
 		appClientset: appClientset,
 		namespace:    namespace,
 		settingsMgr:  settingsMrg,
 		rootPath:     rootPath,
+		baseHRef:     baseHRef,
 		verifyToken:  sessionMgr.VerifyToken,
+		revokeToken:  sessionMgr.RevokeToken,
 	}
 }
 
@@ -32,7 +37,9 @@ type Handler struct {
 	appClientset versioned.Interface
 	settingsMgr  *settings.SettingsManager
 	rootPath     string
-	verifyToken  func(tokenString string) (jwt.Claims, error)
+	verifyToken  func(tokenString string) (jwt.Claims, string, error)
+	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
+	baseHRef     string
 }
 
 var (
@@ -58,22 +65,39 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoCDSettings.URL, "/"), "/") + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+	argoURL := argoCDSettings.URL
+	if argoURL == "" {
+		// golang does not provide any easy way to determine scheme of current request
+		// so redirecting ot http which will auto-redirect too https if necessary
+		host := strings.TrimRight(r.Host, "/")
+		argoURL = fmt.Sprintf("http://%s", host) + "/" + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+	}
 
-	argocdCookie, err := r.Cookie(common.AuthCookieName)
-	if err != nil {
+	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/")
+
+	cookies := r.Cookies()
+	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
+	if tokenString == "" || err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
 		return
 	}
 
-	tokenString = argocdCookie.Value
+	for _, cookie := range cookies {
+		if !strings.HasPrefix(cookie.Name, common.AuthCookieName) {
+			continue
+		}
 
-	argocdCookie.Value = ""
-	argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/"))
-	w.Header().Set("Set-Cookie", argocdCookie.String())
+		argocdCookie := http.Cookie{
+			Name:  cookie.Name,
+			Value: "",
+		}
 
-	claims, err := h.verifyToken(tokenString)
+		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/"))
+		w.Header().Add("Set-Cookie", argocdCookie.String())
+	}
+
+	claims, _, err := h.verifyToken(tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return
@@ -86,6 +110,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	issuer := jwtutil.StringField(mapClaims, "iss")
+	id := jwtutil.StringField(mapClaims, "jti")
+	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
+		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
+			log.Warnf("failed to invalidate token '%s': %v", id, err)
+		}
+	}
 
 	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)

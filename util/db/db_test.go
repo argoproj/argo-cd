@@ -15,9 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -66,7 +66,7 @@ func TestCreateRepository(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
 func TestCreateRepoCredentials(t *testing.T) {
@@ -87,7 +87,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Nil(t, secret.Data[sshPrivateKey])
+	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",
@@ -103,6 +103,79 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
+}
+
+func TestGetRepositoryCredentials(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://known/repo
+- url: https://secured/repo
+- url: https://missing/repo
+`,
+		"repository.credentials": `
+- url: https://secured
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+- url: https://missing
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: missing-managed-secret
+    key: password
+`}
+	clientset := getClientset(config, newManagedSecret())
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name    string
+		repoURL string
+		want    *v1alpha1.RepoCreds
+		wantErr bool
+	}{
+		{
+			name:    "TestUnknownRepo",
+			repoURL: "https://unknown/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestKnownRepo",
+			repoURL: "https://known/repo",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "TestSecuredRepo",
+			repoURL: "https://secured/repo",
+			want:    &v1alpha1.RepoCreds{URL: "https://secured", Username: "test-username", Password: "test-password"},
+			wantErr: false,
+		},
+		{
+			name:    "TestMissingRepo",
+			repoURL: "https://missing/repo",
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := db.GetRepositoryCredentials(context.TODO(), tt.repoURL)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFound(err))
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestCreateExistingRepository(t *testing.T) {
@@ -295,6 +368,84 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 	assert.Equal(t, "- url: https://github.com/argoproj/argocd-example-apps", strings.Trim(cm.Data["repositories"], "\n"))
 }
 
+func TestRepositorySecretsTrim(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://github.com/argoproj/argocd-example-apps
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+  sshPrivateKeySecret:
+    name: managed-secret
+    key: sshPrivateKey
+  tlsClientCertDataSecret:
+    name: managed-secret
+    key: tlsClientCertData
+  tlsClientCertKeySecret:
+    name: managed-secret
+    key: tlsClientCertKey
+  githubAppPrivateKeySecret:
+    name: managed-secret
+    key: githubAppPrivateKey
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-secret",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			username:            []byte("test-username\n\n"),
+			password:            []byte("test-password\r\r"),
+			sshPrivateKey:       []byte("test-ssh-private-key\n\r"),
+			tlsClientCertData:   []byte("test-tls-client-cert-data\n\r"),
+			tlsClientCertKey:    []byte("test-tls-client-cert-key\n\r"),
+			githubAppPrivateKey: []byte("test-github-app-private-key\n\r"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
+	assert.Nil(t, err)
+	teststruct := []struct {
+		expectedSecret  string
+		retrievedSecret string
+	}{
+		{
+			"test-username",
+			repo.Username,
+		},
+		{
+			"test-password",
+			repo.Password,
+		},
+		{
+			"test-ssh-private-key",
+			repo.SSHPrivateKey,
+		},
+		{
+			"test-tls-client-cert-data",
+			repo.TLSClientCertData,
+		},
+		{
+			"test-tls-client-cert-key",
+			repo.TLSClientCertKey,
+		},
+		{
+			"test-github-app-private-key",
+			repo.GithubAppPrivateKey,
+		},
+	}
+	for _, tt := range teststruct {
+		assert.Equal(t, tt.expectedSecret, tt.retrievedSecret)
+	}
+}
+
 func TestGetClusterSuccessful(t *testing.T) {
 	server := "my-cluster"
 	name := "my-name"
@@ -480,4 +631,121 @@ func TestListHelmRepositories(t *testing.T) {
 	assert.Equal(t, "test-password", repo.Password)
 	assert.Equal(t, "test-cert", repo.TLSClientCertData)
 	assert.Equal(t, "test-key", repo.TLSClientCertKey)
+}
+
+func TestHelmRepositorySecretsTrim(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://argoproj.github.io/argo-helm
+  name: argo
+  type: helm
+  usernameSecret:
+    name: test-secret
+    key: username
+  passwordSecret:
+    name: test-secret
+    key: password
+  tlsClientCertDataSecret:
+    name: test-secret
+    key: cert
+  tlsClientCertKeySecret:
+    name: test-secret
+    key: key
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"username": []byte("test-username\r\n"),
+			"password": []byte("test-password\r\n"),
+			"cert":     []byte("test-cert\n\r"),
+			"key":      []byte("test-key\n\r"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	repo, err := db.GetRepository(context.Background(), "https://argoproj.github.io/argo-helm")
+
+	assert.Nil(t, err)
+	teststruct := []struct {
+		expectedSecret  string
+		retrievedSecret string
+	}{
+		{
+			"test-username",
+			repo.Username,
+		},
+		{
+			"test-password",
+			repo.Password,
+		},
+		{
+			"test-cert",
+			repo.TLSClientCertData,
+		},
+		{
+			"test-key",
+			repo.TLSClientCertKey,
+		},
+	}
+	for _, tt := range teststruct {
+		assert.Equal(t, tt.expectedSecret, tt.retrievedSecret)
+	}
+}
+
+func TestGetClusterServersByName(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("my-cluster-name"),
+			"server": []byte("https://my-cluster-server"),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "my-cluster-name")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"https://my-cluster-server"}, servers)
+}
+
+func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
+	clientset := getClientset(nil)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+}
+
+func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("in-cluster-renamed"),
+			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
 }

@@ -10,6 +10,8 @@ if obj.status ~= nil then
         numTrue = numTrue + 1
       elseif condition.type == "InstallSucceeded" and condition.status == "True" then
         numTrue = numTrue + 1
+      elseif condition.type == "Ready" and condition.status == "False" then
+        numFalse = numFalse + 1
       elseif condition.status == "Unknown" then
         numFalse = numFalse + 1
       end

@@ -1,3 +1,4 @@
+//go:build !race
 // +build !race
 
 package server
@@ -13,11 +14,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/test"
-
-	applicationpkg "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/test"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -27,7 +27,8 @@ func TestUserAgent(t *testing.T) {
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD
 	// that is causing this issue.
 
-	s := fakeServer()
+	s, closer := fakeServer()
+	defer closer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := test.GetFreePort()
@@ -100,9 +101,10 @@ func Test_StaticHeaders(t *testing.T) {
 	// !race:
 	// Same as TestUserAgent
 
-	// Test default policy "sameorigin"
+	// Test default policy "sameorigin" and "frame-ancestors 'self';"
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -127,12 +129,15 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
 	}
 
-	// Test custom policy
+	// Test custom policy for X-Frame-Options and Content-Security-Policy
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		s.XFrameOptions = "deny"
+		s.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -157,12 +162,15 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
 	}
 
-	// Test disabled
+	// Test disabled X-Frame-Options and Content-Security-Policy
 	{
-		s := fakeServer()
+		s, closer := fakeServer()
+		defer closer()
 		s.XFrameOptions = ""
+		s.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		port, err := test.GetFreePort()
@@ -187,5 +195,6 @@ func Test_StaticHeaders(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
+		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
 	}
 }

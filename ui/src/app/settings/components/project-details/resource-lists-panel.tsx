@@ -3,7 +3,7 @@ import * as React from 'react';
 import {FormApi} from 'react-form';
 
 import {EditablePanel} from '../../../shared/components';
-import {GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ApplicationDestination, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 
 function removeEl(items: any[], index: number) {
     return items.slice(0, index).concat(items.slice(index + 1));
@@ -69,6 +69,71 @@ function viewList(type: field, proj: Project) {
     );
 }
 
+const sourceReposInfoByField: {[type: string]: {title: string; helpText: string}} = {
+    sourceRepos: {
+        title: 'source repositories',
+        helpText: 'Git repositories where application manifests are permitted to be retrieved from'
+    }
+};
+
+function viewSourceReposInfoList(type: field, proj: Project) {
+    const info = sourceReposInfoByField[type];
+    const list = proj.spec[type] as Array<string>;
+    return (
+        <React.Fragment>
+            <p className='project-details__list-title'>
+                {info.title} {helpTip(info.helpText)}
+            </p>
+            {(list || []).length > 0 ? (
+                <React.Fragment>
+                    {list.map((repo, i) => (
+                        <div className='row white-box__details-row' key={i}>
+                            <div className='columns small-12'>{repo}</div>
+                        </div>
+                    ))}
+                </React.Fragment>
+            ) : (
+                <p>The {info.title} is empty</p>
+            )}
+        </React.Fragment>
+    );
+}
+
+const destinationsInfoByField: {[type: string]: {title: string; helpText: string}} = {
+    destinations: {
+        title: 'destinations',
+        helpText: 'Cluster and namespaces where applications are permitted to be deployed to'
+    }
+};
+
+function viewDestinationsInfoList(type: field, proj: Project) {
+    const info = destinationsInfoByField[type];
+    const list = proj.spec[type] as Array<ApplicationDestination>;
+    return (
+        <React.Fragment>
+            <p className='project-details__list-title'>
+                {info.title} {helpTip(info.helpText)}
+            </p>
+            {(list || []).length > 0 ? (
+                <React.Fragment>
+                    <div className='row white-box__details-row'>
+                        <div className='columns small-4'>Server</div>
+                        <div className='columns small-8'>Namespace</div>
+                    </div>
+                    {list.map((destination, i) => (
+                        <div className='row white-box__details-row' key={i}>
+                            <div className='columns small-4'>{destination.server}</div>
+                            <div className='columns small-8'>{destination.namespace}</div>
+                        </div>
+                    ))}
+                </React.Fragment>
+            ) : (
+                <p>The {info.title} is empty</p>
+            )}
+        </React.Fragment>
+    );
+}
+
 function editList(type: field, formApi: FormApi) {
     const info = infoByField[type];
 
@@ -114,6 +179,8 @@ export const ResourceListsPanel = ({proj, saveProject, title}: {proj: Project; t
                 {Object.keys(infoByField).map(key => (
                     <React.Fragment key={key}>{viewList(key as field, proj)}</React.Fragment>
                 ))}
+                {!proj.metadata && Object.keys(sourceReposInfoByField).map(key => <React.Fragment key={key}>{viewSourceReposInfoList(key as field, proj)}</React.Fragment>)}
+                {!proj.metadata && Object.keys(destinationsInfoByField).map(key => <React.Fragment key={key}>{viewDestinationsInfoList(key as field, proj)}</React.Fragment>)}
             </React.Fragment>
         }
         edit={
