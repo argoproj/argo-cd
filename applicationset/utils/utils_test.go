@@ -650,3 +650,30 @@ func TestInvalidGenerators(t *testing.T) {
 		assert.Equal(t, c.expectedNames, names, c.testName)
 	}
 }
+
+func TestNormalizeBitbucketBasePath(t *testing.T) {
+	for _, c := range []struct {
+		testName         string
+		basePath         string
+		expectedBasePath string
+	}{
+		{
+			testName:         "default api url",
+			basePath:         "https://company.bitbucket.com",
+			expectedBasePath: "https://company.bitbucket.com/rest",
+		},
+		{
+			testName:         "with /rest suffix",
+			basePath:         "https://company.bitbucket.com/rest",
+			expectedBasePath: "https://company.bitbucket.com/rest",
+		},
+		{
+			testName:         "with /rest/ suffix",
+			basePath:         "https://company.bitbucket.com/rest/",
+			expectedBasePath: "https://company.bitbucket.com/rest",
+		},
+	} {
+		result := NormalizeBitbucketBasePath(c.basePath)
+		assert.Equal(t, c.expectedBasePath, result, c.testName)
+	}
+}
