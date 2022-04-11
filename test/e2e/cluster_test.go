@@ -197,6 +197,11 @@ func TestClusterDeleteDenied(t *testing.T) {
 				Action:   "create",
 				Scope:    ProjectName + "/*",
 			},
+			{
+				Resource: "clusters",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
 		}, "org-admin")
 
 	// Attempt to remove cluster creds by name
@@ -226,4 +231,76 @@ func TestClusterDeleteDenied(t *testing.T) {
 		AndCLIOutput(func(output string, err error) {
 			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
 		})
+}
+
+func TestClusterDelete(t *testing.T) {
+	accountFixture.Given(t).
+		Name("default").
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "create",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "clusters",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "clusters",
+				Action:   "delete",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	clstAction := clusterFixture.
+		GivenWithSameState(t).
+		Name("default").
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		CreateWithRBAC()
+
+	// Check that RBAC is created
+	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
+	if err != nil {
+		t.Errorf("Expected no error from not finding serviceaccount argocd-manager but got:\n%s", err.Error())
+	}
+
+	_, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+	}
+
+	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+	}
+
+	clstAction.DeleteByName().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, "Cluster 'default' removed", output)
+		})
+
+	// Check that RBAC is removed after delete
+	output, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
+	if err == nil {
+		t.Errorf("Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
+	}
+
+	output, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	}
+
+	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	}
 }

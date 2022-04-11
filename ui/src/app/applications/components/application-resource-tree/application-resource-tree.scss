@@ -168,12 +168,20 @@
     }
 
     &__node-content {
-        padding: 10px;
+        padding: 10px 20px 10px 10px;
         line-height: 0.95;
+        display: flex;
+        flex-direction: column;
     }
 
     &__node-title {
         font-size: 0.8em;
+        padding-bottom: 5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: left;
+
     }
 
     &__node-status-icon {
@@ -182,4 +190,11 @@
             margin-right: 2px;
         }
     }
+    &__direction-left {
+        direction: ltl;
+    }
+    &__direction-right {
+        direction: rtl;
+    }
+    
 }

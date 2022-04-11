@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -401,11 +400,6 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestHelm2WithDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM", "HELM2")
-	testHelmWithDependencies(t, "helm2-with-dependencies", false)
-}
-
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 	SkipOnEnv(t, "HELM")
 	testHelmWithDependencies(t, "helm-with-dependencies", true)
@@ -443,9 +437,7 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	}
 
 	helmVer := ""
-	if strings.Contains(chartPath, "helm2") {
-		helmVer = "v2"
-	}
+
 	ctx.Path(chartPath).
 		When().
 		CreateApp("--helm-version", helmVer).

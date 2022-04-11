@@ -28,9 +28,8 @@ ADD hack/install.sh .
 ADD hack/installers installers
 ADD hack/tool-versions.sh .
 
-RUN ./install.sh helm2-linux
 RUN ./install.sh helm-linux
-RUN ./install.sh kustomize-linux
+RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 RUN ./install.sh awscli-linux
 
 ####################################################################################################
@@ -55,7 +54,6 @@ RUN groupadd -g 999 argocd && \
 
 COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
-COPY --from=builder /usr/local/bin/helm2 /usr/local/bin/helm2
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/aws-cli/v2/current/dist /usr/local/aws-cli/v2/current/dist
