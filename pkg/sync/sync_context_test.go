@@ -565,6 +565,52 @@ func TestSync_Replace(t *testing.T) {
 	}
 }
 
+func withServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionServerSideApply})
+	return un
+}
+
+func withReplaceAndServerSideApplyAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Replace=true,ServerSideApply=true"})
+	return un
+}
+
+func TestSync_ServerSideApply(t *testing.T) {
+	testCases := []struct {
+		name            string
+		target          *unstructured.Unstructured
+		live            *unstructured.Unstructured
+		commandUsed     string
+		serverSideApply bool
+	}{
+		{"NoAnnotation", NewPod(), NewPod(), "apply", false},
+		{"ServerSideApplyAnnotationIsSet", withServerSideApplyAnnotation(NewPod()), NewPod(), "apply", true},
+		{"ServerSideApplyAndReplaceAnnotationsAreSet", withReplaceAndServerSideApplyAnnotations(NewPod()), NewPod(), "replace", false},
+		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx()
+
+			tc.target.SetNamespace(FakeArgoCDNamespace)
+			if tc.live != nil {
+				tc.live.SetNamespace(FakeArgoCDNamespace)
+			}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{tc.live},
+				Target: []*unstructured.Unstructured{tc.target},
+			})
+
+			syncCtx.Sync()
+
+			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			assert.Equal(t, tc.commandUsed, kubectl.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
+			assert.Equal(t, tc.serverSideApply, kubectl.GetLastServerSideApply())
+		})
+	}
+}
+
 func TestSelectiveSyncOnly(t *testing.T) {
 	pod1 := NewPod()
 	pod1.SetName("pod-1")

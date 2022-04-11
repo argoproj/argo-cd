@@ -31,6 +31,7 @@ type MockKubectlCmd struct {
 
 	lastCommandPerResource map[kube.ResourceKey]string
 	lastValidate           bool
+	serverSideApply        bool
 	recordLock             sync.RWMutex
 }
 
@@ -63,6 +64,19 @@ func (k *MockKubectlCmd) GetLastValidate() bool {
 	validate := k.lastValidate
 	k.recordLock.RUnlock()
 	return validate
+}
+
+func (k *MockKubectlCmd) SetLastServerSideApply(serverSideApply bool) {
+	k.recordLock.Lock()
+	k.serverSideApply = serverSideApply
+	k.recordLock.Unlock()
+}
+
+func (k *MockKubectlCmd) GetLastServerSideApply() bool {
+	k.recordLock.RLock()
+	serverSideApply := k.serverSideApply
+	k.recordLock.RUnlock()
+	return serverSideApply
 }
 
 func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
@@ -107,8 +121,9 @@ func (k *MockKubectlCmd) UpdateResource(ctx context.Context, obj *unstructured.U
 	return obj, command.Err
 }
 
-func (k *MockKubectlCmd) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate bool) (string, error) {
+func (k *MockKubectlCmd) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool) (string, error) {
 	k.SetLastValidate(validate)
+	k.SetLastServerSideApply(serverSideApply)
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {

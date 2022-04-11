@@ -179,6 +179,12 @@ func WithReplace(replace bool) SyncOpt {
 	}
 }
 
+func WithServerSideApply(serverSideApply bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.serverSideApply = serverSideApply
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -320,6 +326,7 @@ type syncContext struct {
 	resourcesFilter        func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
 	prune                  bool
 	replace                bool
+	serverSideApply        bool
 	pruneLast              bool
 	prunePropagationPolicy *metav1.DeletionPropagation
 
@@ -847,7 +854,7 @@ func (sc *syncContext) ensureCRDReady(name string) error {
 	})
 }
 
-func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validate bool) (common.ResultCode, string) {
+func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
 		dryRunStrategy = cmdutil.DryRunClient
@@ -856,6 +863,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
+	serverSideApply := sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
 	if shouldReplace {
 		if t.liveObj != nil {
 			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances
@@ -875,7 +883,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun bool, force bool, validat
 			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
 		}
 	} else {
-		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate)
+		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply)
 	}
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
