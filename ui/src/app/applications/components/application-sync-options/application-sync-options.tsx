@@ -6,6 +6,7 @@ import * as ReactForm from 'react-form';
 require('./application-sync-options.scss');
 
 export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
+export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];

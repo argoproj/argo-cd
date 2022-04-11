@@ -8,6 +8,7 @@ data:
     p, role:user, applications, create, */*, allow
     p, role:user, applications, delete, *, allow
     p, role:user, applications, delete, */guestbook, deny
+    p, role:user, logs, get, */*, allow
     g, test, role:user
   policy.default: role:unknown
 kind: ConfigMap

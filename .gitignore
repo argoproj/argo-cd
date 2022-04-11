@@ -16,6 +16,7 @@ test-results
 .scratch
 node_modules/
 .kube/
+./test/cmp/*.sock
 
 # ignore built binaries
 cmd/argocd/argocd

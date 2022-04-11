@@ -26,7 +26,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\"}}}"`},
 				},
 			},
 		).
@@ -45,17 +45,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Equal(t, "argocd", output)
 		})
 }
 
@@ -89,17 +79,56 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
+			assert.Equal(t, "argocd", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
+			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Empty(t, output)
+		})
+}
+
+// make sure we can read the Git creds stored in a temporary file
+func TestCustomToolWithSSHGitCreds(t *testing.T) {
+	Given(t).
+		// path does not matter, we ignore it
+		ConfigManagementPlugin(
+			ConfigManagementPlugin{
+				Name: Name(),
+				Generate: Command{
+					Command: []string{"sh", "-c"},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitSSHCommand\":\"$GIT_SSH_COMMAND\",\"GitSSHCredsFileSHA\": \"$(sha256sum $(echo "$GIT_SSH_COMMAND" | grep -oP '\-i \K[/\w]+'))\"}}}"`},
+				},
+			},
+		).
+		CustomCACertAdded().
+		// add the private repo with ssh credentials
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(RepoURLTypeSSH).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Timeout(30).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
+			assert.NoError(t, err)
+			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
+			assert.NoError(t, err)
+			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
 		})
 }
 
@@ -195,6 +224,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
 		})
 }
+
 func startCMPServer(configFile string) {
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
