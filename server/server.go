@@ -754,21 +754,22 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		if !a.DisableAuth {
 			ctx := request.Context()
 			cookies := request.Cookies()
-			tokenString, _ := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if tokenString == "" {
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err == nil && jwtutil.IsValid(tokenString) {
+				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
+				if err != nil {
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
+				} else if claims != nil {
+					// Add claims to the context to inspect for RBAC
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, "claims", claims)
+				}
+				request = request.WithContext(ctx)
+			} else {
 				writer.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-			if err != nil {
-				// nolint:staticcheck
-				ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-			} else if claims != nil {
-				// Add claims to the context to inspect for RBAC
-				// nolint:staticcheck
-				ctx = context.WithValue(ctx, "claims", claims)
-			}
-			request = request.WithContext(ctx)
 		}
 		terminalHandler.ServeHTTP(writer, request)
 	})
