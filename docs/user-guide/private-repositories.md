@@ -142,11 +142,11 @@ Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
-   ![connect repo overview](../assets/repo-add-overview.png)
+    ![connect repo overview](../assets/repo-add-overview.png)
 
 1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-   ![connect repo](../assets/repo-add-github-app.png)
+    ![connect repo](../assets/repo-add-github-app.png)
 
 1. Click `Connect` to test the connection and have the repository added
 
@@ -398,5 +398,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#repositories)
 

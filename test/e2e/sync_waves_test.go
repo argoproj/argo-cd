@@ -16,7 +16,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Path("sync-waves").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		And(func() {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
@@ -66,7 +66,7 @@ func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
         "value": "alpine:ops!"
     }
 ]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -92,7 +92,7 @@ func TestDegradedDeploymentIsSucceededAndSynced(t *testing.T) {
         "value": "alpine:ops!"
     }
 ]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

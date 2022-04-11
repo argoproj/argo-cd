@@ -4,6 +4,10 @@ tests:
     message: Waiting for certificate
   inputPath: testdata/progressing_noStatus.yaml
 - healthStatus:
+    status: Progressing
+    message: Issuing certificate as Secret does not exist
+  inputPath: testdata/progressing_issuing.yaml
+- healthStatus:
     status: Degraded
     message: 'Resource validation failed: spec.acme.config: Required value: no ACME
       solver configuration specified for domain "cd.apps.argoproj.io"'

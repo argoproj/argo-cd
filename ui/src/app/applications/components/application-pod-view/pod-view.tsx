@@ -11,7 +11,7 @@ import {PodViewPreferences, services, ViewPreferences} from '../../../shared/ser
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
 
 import './pod-view.scss';
 
@@ -192,6 +192,15 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 <div>
                                                                                     {pod.metadata.name}
                                                                                     <div>Health: {pod.health}</div>
+                                                                                    {pod.createdAt && (
+                                                                                        <span>
+                                                                                            <span>Created: </span>
+                                                                                            <Moment fromNow={true} ago={true}>
+                                                                                                {pod.createdAt}
+                                                                                            </Moment>
+                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
                                                                             }
                                                                             popperOptions={{
@@ -208,8 +217,13 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 }
                                                                             }}
                                                                             key={pod.metadata.name}>
-                                                                            <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
-                                                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                            <div style={{position: 'relative'}}>
+                                                                                {isYoungerThanXMinutes(pod, 30) && (
+                                                                                    <i className='fas fa-star pod-view__node__pod pod-view__node__pod__star-icon' />
+                                                                                )}
+                                                                                <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                                    <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                </div>
                                                                             </div>
                                                                         </Tooltip>
                                                                     )}

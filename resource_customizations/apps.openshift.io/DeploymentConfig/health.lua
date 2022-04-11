@@ -1,13 +1,13 @@
 health_check = {}
 if obj.status ~= nil then
-  if obj.status.conditions ~= nil then
+  if obj.status.conditions ~= nil and obj.status.replicas ~= nil then
     numTrue = 0
     for i, condition in pairs(obj.status.conditions) do
       if (condition.type == "Available" or condition.type == "Progressing") and condition.status == "True" then
         numTrue = numTrue + 1
       end
     end
-    if numTrue == 2 then
+    if numTrue == 2 or obj.status.replicas == 0 then
       health_check.status = "Healthy"
       health_check.message = "replication controller successfully rolled out"
       return health_check

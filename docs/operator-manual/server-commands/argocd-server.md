@@ -16,12 +16,14 @@ argocd-server [flags]
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
       --as string                                     Username to impersonate for the operation
       --as-group stringArray                          Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                                 UID to impersonate for the operation
       --basehref string                               Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                  Path to a cert file for the certificate authority
       --client-certificate string                     Path to a client certificate file for TLS
       --client-key string                             Path to a client key file for TLS
       --cluster string                                The name of the kubeconfig cluster to use
       --connection-status-cache-expiration duration   Cache expiration for cluster/repo connection status (default 1h0m0s)
+      --content-security-policy value                 Set Content-Security-Policy header in HTTP responses to value. To disable, set to "". (default "frame-ancestors 'self';")
       --context string                                The name of the kubeconfig context to use
       --default-cache-expiration duration             Cache expiration default (default 24h0m0s)
       --dex-server string                             Dex server address (default "http://argocd-dex-server:5556")
