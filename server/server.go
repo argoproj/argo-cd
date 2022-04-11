@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -910,9 +911,19 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
+			if isMainJsBundle(r.URL) {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
+}
+
+var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
+
+func isMainJsBundle(url *url.URL) bool {
+	filename := path.Base(url.Path)
+	return mainJsBundleRegex.Match([]byte(filename))
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
