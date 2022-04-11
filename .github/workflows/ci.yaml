@@ -8,6 +8,9 @@ on:
   pull_request:
     branches:
       - 'master'
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.17'
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,13 +24,14 @@ jobs:
             ${{ runner.os }}-go-
       - uses: actions/setup-go@v2.1.4
         with:
-          go-version: '1.17.6'
+          go-version: ${{ env.GOLANG_VERSION }}
       - run: make test
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.38.0
           args: --timeout 5m
+          skip-go-installation: true
       - uses: codecov/codecov-action@v1.5.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required
