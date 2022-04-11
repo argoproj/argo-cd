@@ -52,6 +52,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --load-cluster-settings           Indicates that config map and secret should be loaded from cluster unless local file path is provided
       --logformat string                Set the logging format. One of: text|json (default "text")
