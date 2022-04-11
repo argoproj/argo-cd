@@ -62,12 +62,12 @@ func (t *terminalSession) Next() *remotecommand.TerminalSize {
 func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	if err != nil {
-		log.Printf("read message err: %v", err)
+		log.Errorf("read message err: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage
 	if err := json.Unmarshal(message, &msg); err != nil {
-		log.Printf("read parse message err: %v", err)
+		log.Errorf("read parse message err: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	switch msg.Operation {
@@ -88,11 +88,11 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 		Data:      string(p),
 	})
 	if err != nil {
-		log.Printf("write parse message err: %v", err)
+		log.Errorf("write parse message err: %v", err)
 		return 0, err
 	}
 	if err := t.wsConn.WriteMessage(websocket.TextMessage, msg); err != nil {
-		log.Printf("write message err: %v", err)
+		log.Errorf("write message err: %v", err)
 		return 0, err
 	}
 	return len(p), nil

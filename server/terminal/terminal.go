@@ -2,7 +2,6 @@ package terminal
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/application"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	apputil "github.com/argoproj/argo-cd/v2/util/app"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -75,12 +75,13 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+	appRBACName := apputil.AppRBACName(*a)
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -163,14 +164,10 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.Close()
 }
 
-// appRBACName formats fully qualified application name for RBAC check
-func appRBACName(app appv1.Application) string {
-	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
-}
-
 func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" && treeNode.Name == podName && treeNode.Name == namespace {
+		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" &&
+			treeNode.Name == podName && treeNode.Namespace == namespace {
 			return true
 		}
 	}
