@@ -94,12 +94,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeContainer.key;
     }
 
-    private appRefresh(app: appModels.Application) {
-        services.applications.get(app.metadata.name, 'normal');
-        AppUtils.setAppRefreshing(app);
-        this.appChanged.next(app);
-    }
-
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
         this.setState({slidingPanelPage: 0});
@@ -122,6 +116,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 return 'Application Details List';
         }
         return '';
+    }
+
+    private appRefresh(app: appModels.Application) {
+        services.applications.get(app.metadata.name, 'normal');
+        AppUtils.setAppRefreshing(app);
+        this.appChanged.next(app);
     }
 
     public render() {
