@@ -1,12 +1,14 @@
 package generators
 
 import (
+	"encoding/json"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/valyala/fasttemplate"
 	"reflect"
 
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
-
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type TransformResult struct {
@@ -15,7 +17,7 @@ type TransformResult struct {
 }
 
 //Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet) ([]TransformResult, error) {
+func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams []map[string]string) ([]TransformResult, error) {
 	res := []TransformResult{}
 	var firstError error
 
@@ -31,7 +33,17 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			}
 			continue
 		}
-
+		if len(genParams) != 0 {
+			err := interpolateGenerator(&requestedGenerator, genParams)
+			if err != nil {
+				log.WithError(err).WithField("generator", g).
+					Error("error interpolating params for generator")
+				if firstError == nil {
+					firstError = err
+				}
+				continue
+			}
+		}
 		params, err := g.GenerateParams(&requestedGenerator, appSet)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
@@ -46,11 +58,9 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			Params:   params,
 			Template: mergedTemplate,
 		})
-
 	}
 
 	return res, firstError
-
 }
 
 func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, generators map[string]Generator) []Generator {
@@ -80,4 +90,30 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	err := mergo.Merge(dest, applicationSetTemplate)
 
 	return *dest, err
+}
+
+func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, currParams []map[string]string) error {
+	tmplBytes, err := json.Marshal(requestedGenerator)
+	if err != nil {
+		return err
+	}
+	tmpParams := make(map[string]string)
+	for _, currParam := range currParams {
+		for k, v := range currParam {
+			tmpParams[k] = v
+		}
+	}
+	log.Info(tmplBytes)
+
+	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
+	render := utils.Render{}
+	replacedTmplStr, err := render.Replace(fstTmpl, tmpParams, true)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal([]byte(replacedTmplStr), requestedGenerator)
+	if err != nil {
+		return err
+	}
+	return nil
 }
