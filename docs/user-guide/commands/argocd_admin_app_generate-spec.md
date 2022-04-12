@@ -88,8 +88,8 @@ argocd admin app generate-spec APPNAME [flags]
       --sync-retry-limit int                       Max number of allowed sync retries
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
-      --values-literal-file string                 Filename or URL to import as a literal Helm values block
-      --values-raw-literal-file string             Filename or URL to import as a literal Helm values raw object
+      --values-literal-file string                 Filename or URL to import as a literal Helm values block (as a string)
+      --values-raw-literal-file string             Filename or URL to import as a literal Helm values block (as a map)
 ```
 
 ### Options inherited from parent commands
