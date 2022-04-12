@@ -52,7 +52,7 @@ metadata:
 	assert.False(t, parent.isParentOf(nonMatchingNameEndPoint))
 }
 
-func TestIsServiceAccoountParentOfSecret(t *testing.T) {
+func TestIsServiceAccountParentOfSecret(t *testing.T) {
 	serviceAccount := c.newResource(strToUnstructured(`
 apiVersion: v1
 kind: ServiceAccount

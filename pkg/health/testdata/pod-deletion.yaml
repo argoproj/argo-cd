@@ -10,7 +10,7 @@ metadata:
   deletionTimestamp: 2018-12-03T10:16:04Z
 spec:
   containers:
-    - image: doesnt-exist
+    - image: does-not-exist
       imagePullPolicy: Always
       name: main
       resources: {}
@@ -59,7 +59,7 @@ status:
       status: "True"
       type: PodScheduled
   containerStatuses:
-    - image: doesnt-exist
+    - image: does-not-exist
       imageID: ""
       lastState: {}
       name: main

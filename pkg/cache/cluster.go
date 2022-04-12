@@ -972,7 +972,7 @@ func (c *clusterCache) processEvent(event watch.EventType, un *unstructured.Unst
 		h(event, un)
 	}
 	key := kube.GetResourceKey(un)
-	if event == watch.Modified && skipAppRequeing(key) {
+	if event == watch.Modified && skipAppRequeuing(key) {
 		return
 	}
 
@@ -1044,8 +1044,8 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	}
 }
 
-// skipAppRequeing checks if the object is an API type which we want to skip requeuing against.
+// skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
-func skipAppRequeing(key kube.ResourceKey) bool {
+func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }

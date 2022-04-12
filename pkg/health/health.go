@@ -47,7 +47,7 @@ var healthOrder = []HealthStatusCode{
 	HealthStatusUnknown,
 }
 
-// IsWorse returns whether or not the new health status code is a worser condition than the current
+// IsWorse returns whether or not the new health status code is a worse condition than the current
 func IsWorse(current, new HealthStatusCode) bool {
 	currentIndex := 0
 	newIndex := 0

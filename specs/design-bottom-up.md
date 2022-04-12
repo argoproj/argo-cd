@@ -57,7 +57,7 @@ Resources of the deprecated extensions API group have duplicates in groups apps,
 * The ReplicaSet from apps group might reference Deployment from the extensions group as a parent.
 * The relationship between Service and Endpoint is not explicit: [kubernetes/#28483](https://github.com/kubernetes/kubernetes/issues/28483)
 * The relationship between ServiceAccount and Token is not explicit.
-* Resources of Openshift deprecated groups authorization.openshift.io and project.openshift.io create
+* Resources of OpenShift deprecated groups authorization.openshift.io and project.openshift.io create
 duplicates in rbac.authorization.k8s.io and core groups.
 
 #### Top-Level Component APIs

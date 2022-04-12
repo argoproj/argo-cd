@@ -178,7 +178,7 @@ type Sync<Term>Store interface {
 type ReconciliationSettings struct {
 	// AppInstanceLabelKey holds label key which is automatically added to every resource managed by the application
 	AppInstanceLabelKey string
-	// ResourcesFilter holds settigns which allows to configure list of managed resource APIs
+	// ResourcesFilter holds settings which allows to configure list of managed resource APIs
 	ResourcesFilter resource.ResourcesFilter
 	// ResourceOverrides holds settings which customize resource diffing logic
 	ResourceOverrides map[scheme.GroupKind]appv1.ResourceOverride

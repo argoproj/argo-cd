@@ -9,7 +9,7 @@ metadata:
   uid: 46c1e8de-f61b-11e8-a057-fe5f49266390
 spec:
   containers:
-  - image: doesnt-exist
+  - image: does-not-exist
     imagePullPolicy: Always
     name: main
     resources: {}
@@ -58,7 +58,7 @@ status:
     status: "True"
     type: PodScheduled
   containerStatuses:
-  - image: doesnt-exist
+  - image: does-not-exist
     imageID: ""
     lastState: {}
     name: main
