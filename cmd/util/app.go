@@ -156,27 +156,11 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "ignore-missing-value-files":
 			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-raw-literal-file":
-			var data []byte
-
-			// read uri
-			parsedURL, err := url.ParseRequestURI(appOpts.valuesRaw)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.valuesRaw)
-			} else {
-				data, err = config.ReadRemoteFile(appOpts.valuesRaw)
-			}
+			data, err := getValuesFromRef(appOpts.valuesRaw)
 			errors.CheckError(err)
 			setHelmOpt(&spec.Source, helmOpts{valuesRaw: data})
 		case "values-literal-file":
-			var data []byte
-
-			// read uri
-			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.values)
-			} else {
-				data, err = config.ReadRemoteFile(appOpts.values)
-			}
+			data, err := getValuesFromRef(appOpts.values)
 			errors.CheckError(err)
 			setHelmOpt(&spec.Source, helmOpts{values: string(data)})
 		case "release-name":
@@ -330,6 +314,20 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 
 	return visited
+}
+
+// getValuesFromRef gets values file contents, either from and http(s) source or from disk.
+func getValuesFromRef(valuesRef string) ([]byte, error) {
+	var data []byte
+
+	// read uri
+	parsedURL, err := url.ParseRequestURI(valuesRef)
+	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		data, err = ioutil.ReadFile(valuesRef)
+	} else {
+		data, err = config.ReadRemoteFile(valuesRef)
+	}
+	return data, err
 }
 
 type kustomizeOpts struct {
