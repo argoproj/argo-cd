@@ -1,6 +1,9 @@
 package pull_request
 
-import "context"
+import (
+	"context"
+	"regexp"
+)
 
 type PullRequest struct {
 	// Number is a number that will be the ID of the pull request.
@@ -14,4 +17,8 @@ type PullRequest struct {
 type PullRequestService interface {
 	// List gets a list of pull requests.
 	List(ctx context.Context) ([]*PullRequest, error)
+}
+
+type Filter struct {
+	BranchMatch *regexp.Regexp
 }
