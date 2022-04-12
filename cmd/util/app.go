@@ -155,14 +155,14 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":
 			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
-		case "values-raw-literal-file":
-			data, err := getValuesFromRef(appOpts.valuesRaw)
-			errors.CheckError(err)
-			setHelmOpt(&spec.Source, helmOpts{valuesRaw: data})
 		case "values-literal-file":
 			data, err := getValuesFromRef(appOpts.values)
 			errors.CheckError(err)
 			setHelmOpt(&spec.Source, helmOpts{values: string(data)})
+		case "values-raw-literal-file":
+			data, err := getValuesFromRef(appOpts.valuesRaw)
+			errors.CheckError(err)
+			setHelmOpt(&spec.Source, helmOpts{valuesRaw: data})
 		case "release-name":
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
 		case "helm-version":
