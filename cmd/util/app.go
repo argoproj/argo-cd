@@ -392,6 +392,7 @@ type helmOpts struct {
 	valueFiles              []string
 	ignoreMissingValueFiles bool
 	values                  string
+	valuesRaw               []byte
 	releaseName             string
 	version                 string
 	helmSets                []string
@@ -399,7 +400,6 @@ type helmOpts struct {
 	helmSetFiles            []string
 	passCredentials         bool
 	skipCrds                bool
-	valuesRaw               []byte
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
