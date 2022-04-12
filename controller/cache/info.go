@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,6 +18,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/resource"
+)
+
+const (
+	// EnvIngressLinkProto is the env variable that tells ArgoCD to generate Ingress resource links using the specified protocol
+	EnvIngressLinkProto = "ARGO_INGRESS_LINK_PROTO"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -155,25 +161,28 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				if host == nil || host == "" {
 					continue
 				}
-				stringPort := "http"
-				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
-					for i := range tls {
-						tlsline, ok := tls[i].(map[string]interface{})
-						secretName := tlsline["secretName"]
-						if ok && secretName != nil {
-							stringPort = "https"
-						}
-						tlshost := tlsline["host"]
-						if tlshost == host {
-							stringPort = "https"
-							continue
-						}
-						if hosts := tlsline["hosts"]; hosts != nil {
-							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
-							if ok {
-								for j := range tlshosts {
-									if tlshosts[j] == host {
-										stringPort = "https"
+				stringPort := os.Getenv(EnvIngressLinkProto)
+				if stringPort == "" {
+					stringPort = "http"
+					if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
+						for i := range tls {
+							tlsline, ok := tls[i].(map[string]interface{})
+							secretName := tlsline["secretName"]
+							if ok && secretName != nil {
+								stringPort = "https"
+							}
+							tlshost := tlsline["host"]
+							if tlshost == host {
+								stringPort = "https"
+								continue
+							}
+							if hosts := tlsline["hosts"]; hosts != nil {
+								tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+								if ok {
+									for j := range tlshosts {
+										if tlshosts[j] == host {
+											stringPort = "https"
+										}
 									}
 								}
 							}
