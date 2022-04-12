@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -171,24 +172,25 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth         bool
-	EnableGZip          bool
-	Insecure            bool
-	StaticAssetsDir     string
-	ListenPort          int
-	MetricsPort         int
-	Namespace           string
-	DexServerAddr       string
-	BaseHRef            string
-	RootPath            string
-	KubeClientset       kubernetes.Interface
-	AppClientset        appclientset.Interface
-	RepoClientset       repoapiclient.Clientset
-	Cache               *servercache.Cache
-	RedisClient         *redis.Client
-	TLSConfigCustomizer tlsutil.ConfigCustomizer
-	XFrameOptions       string
-	ListenHost          string
+	DisableAuth           bool
+	EnableGZip            bool
+	Insecure              bool
+	StaticAssetsDir       string
+	ListenPort            int
+	MetricsPort           int
+	Namespace             string
+	DexServerAddr         string
+	BaseHRef              string
+	RootPath              string
+	KubeClientset         kubernetes.Interface
+	AppClientset          appclientset.Interface
+	RepoClientset         repoapiclient.Clientset
+	Cache                 *servercache.Cache
+	RedisClient           *redis.Client
+	TLSConfigCustomizer   tlsutil.ConfigCustomizer
+	XFrameOptions         string
+	ContentSecurityPolicy string
+	ListenHost            string
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -886,6 +888,10 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		if server.XFrameOptions != "" {
 			w.Header().Set("X-Frame-Options", server.XFrameOptions)
 		}
+		// Set Content-Security-Policy according to configuration
+		if server.ContentSecurityPolicy != "" {
+			w.Header().Set("Content-Security-Policy", server.ContentSecurityPolicy)
+		}
 		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
@@ -905,9 +911,19 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
+			if isMainJsBundle(r.URL) {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
+}
+
+var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
+
+func isMainJsBundle(url *url.URL) bool {
+	filename := path.Base(url.Path)
+	return mainJsBundleRegex.Match([]byte(filename))
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error

@@ -962,6 +962,10 @@ spec:
     port: 7000
     protocol: TCP
     targetPort: webhook
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller
 ---
@@ -1234,6 +1238,8 @@ spec:
         ports:
         - containerPort: 7000
           name: webhook
+        - containerPort: 8080
+          name: metrics
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -1767,6 +1773,12 @@ spec:
               key: server.x.frame.options
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_CONTENT_SECURITY_POLICY
+          valueFrom:
+            configMapKeyRef:
+              key: server.content.security.policy
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
           valueFrom:
             configMapKeyRef:
@@ -1963,6 +1975,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: timeout.reconciliation
+              name: argocd-cm
+              optional: true
+        - name: ARGOCD_HARD_RECONCILIATION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER

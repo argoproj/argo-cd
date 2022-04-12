@@ -23,7 +23,7 @@ function helpTip(text: string) {
 
 export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Applications</h6>
+        <p>APPLICATIONS</p>
         <div>Manage applications assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.applications || []).map((a, i) => (
@@ -38,6 +38,7 @@ export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps)
             <div className='row'>
                 <div className='columns small-6'>
                     <a
+                        className='argo-button argo-button--base'
                         onClick={() => {
                             const newA = '';
                             props.formApi.setValue('window.applications', (props.formApi.values.window.applications || []).concat(newA));
@@ -52,7 +53,7 @@ export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps)
 
 export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Namespaces</h6>
+        <p>NAMESPACES</p>
         <div>Manage namespaces assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.namespaces || []).map((n, i) => (
@@ -67,6 +68,7 @@ export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) =>
             <div className='row'>
                 <div className='columns small-6'>
                     <a
+                        className='argo-button argo-button--base'
                         onClick={() => {
                             const newN = '';
                             props.formApi.setValue('window.namespaces', (props.formApi.values.window.namespaces || []).concat(newN));
@@ -81,7 +83,7 @@ export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) =>
 
 export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Clusters</h6>
+        <p>CLUSTERS</p>
         <div>Manage clusters assigned to this window ("*" for any)</div>
         <div className='argo-table-list__row'>
             {(props.window.clusters || []).map((c, i) => (
@@ -96,6 +98,7 @@ export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
             <div className='row'>
                 <div className='columns small-6'>
                     <a
+                        className='argo-button argo-button--base'
                         onClick={() => {
                             const newC = '';
                             props.formApi.setValue('window.clusters', (props.formApi.values.window.clusters || []).concat(newC));
@@ -157,7 +160,7 @@ function generateSchedule(minute?: string, hour?: string, dom?: string, month?: 
 
 export const ProjectSyncWindowScheduleEdit = (props: ProjectSyncWindowProps) => (
     <React.Fragment>
-        <h6>Schedule</h6>
+        <p>Schedule</p>
         <div className='argo-table-list__head'>
             <div className='row'>
                 <div className='columns small-2'>Minute{helpTip('The minute/minutes assigned to the schedule')}</div>

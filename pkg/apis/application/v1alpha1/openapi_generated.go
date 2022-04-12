@@ -773,7 +773,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					},
 					"version": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Version is the Helm version to use for templating (either \"2\" or \"3\")",
+							Description: "Version is the Helm version to use for templating (\"3\")",
 							Type:        []string{"string"},
 							Format:      "",
 						},

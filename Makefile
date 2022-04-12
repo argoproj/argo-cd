@@ -531,8 +531,7 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	./hack/install.sh kustomize-linux
-	./hack/install.sh helm2-linux
+	./hack/install.sh kustomize
 	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)

@@ -287,8 +287,8 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
 	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/dependency", "charts"))
 	}
 	cleanup()
 	defer cleanup()
@@ -297,7 +297,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 		Repos: []*argoappv1.Repository{&helmRepo},
 	}
@@ -305,7 +305,6 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, res1.Manifests, 10)
 }
-
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
@@ -1130,7 +1129,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 	})
 
@@ -1140,7 +1139,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
-
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService("../..")
 
