@@ -36,7 +36,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		if len(genParams) != 0 {
 			err := interpolateGenerator(&requestedGenerator, genParams)
 			if err != nil {
-				log.WithError(err).WithField("generator", g).
+				log.WithError(err).WithField("genParams", genParams).
 					Error("error interpolating params for generator")
 				if firstError == nil {
 					firstError = err
@@ -92,27 +92,29 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	return *dest, err
 }
 
-func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, currParams []map[string]string) error {
+func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params []map[string]string) error {
 	tmplBytes, err := json.Marshal(requestedGenerator)
 	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error marshalling requested generator for interpolation")
 		return err
 	}
 	tmpParams := make(map[string]string)
-	for _, currParam := range currParams {
+	for _, currParam := range params {
 		for k, v := range currParam {
 			tmpParams[k] = v
 		}
 	}
-	log.Info(tmplBytes)
 
 	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
 	render := utils.Render{}
 	replacedTmplStr, err := render.Replace(fstTmpl, tmpParams, true)
 	if err != nil {
+		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
 		return err
 	}
 	err = json.Unmarshal([]byte(replacedTmplStr), requestedGenerator)
 	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error unmarshalling requested generator for interpolation")
 		return err
 	}
 	return nil
