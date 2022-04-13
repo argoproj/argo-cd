@@ -1,8 +1,9 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.17
+go 1.18
 
 require (
+	code.gitea.io/sdk/gitea v0.15.1
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
@@ -35,6 +36,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.6
+	github.com/google/go-github/v35 v35.3.0
 	github.com/google/go-jsonnet v0.18.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.1.2
@@ -44,9 +46,12 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.0
+	github.com/imdario/mergo v0.3.12
 	github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 	github.com/itchyny/gojq v0.12.3
+	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-isatty v0.0.14
 	github.com/mattn/go-zglob v0.0.3
@@ -64,8 +69,9 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/undefinedlabs/go-mpatch v1.0.6
+	github.com/valyala/fasttemplate v1.2.1
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
+	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
@@ -127,6 +133,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
+	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
@@ -139,6 +146,7 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.4.0 // indirect
 	github.com/golang/glog v1.0.0 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -147,8 +155,8 @@ require (
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/gregdel/pushover v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/huandu/xstrings v1.3.0 // indirect
-	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -183,6 +191,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
@@ -198,6 +207,7 @@ require (
 	golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	gomodules.xyz/notify v0.1.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect

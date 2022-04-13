@@ -50,6 +50,7 @@ notifications trigger run on-sync-status-unknown ./sample-app.yaml \
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")

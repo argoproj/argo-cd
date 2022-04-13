@@ -136,7 +136,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 41
+	const countOfManifests = 46
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -287,8 +287,8 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
 	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/dependency", "charts"))
 	}
 	cleanup()
 	defer cleanup()
@@ -297,7 +297,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 		Repos: []*argoappv1.Repository{&helmRepo},
 	}
@@ -305,7 +305,6 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, res1.Manifests, 10)
 }
-
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
@@ -1093,7 +1092,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 	})
 
@@ -1103,7 +1102,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
-
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService("../..")
 
@@ -1778,4 +1776,52 @@ func TestInit(t *testing.T) {
 	_, err = ioutil.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+}
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
 }
