@@ -30,7 +30,7 @@
     "prop-types": "^15.6.0",
     "react": "^16.9.3",
     "react-autocomplete": "^1.8.1",
-    "react-diff-view": "^2.4.7",
+    "react-diff-view": "^2.4.10",
     "react-dom": "^16.9.3",
     "react-form": "2.16.0",
     "react-ga": "^2.6.0",
