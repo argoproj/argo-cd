@@ -191,7 +191,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.False(t, ok)
 		require.Nil(t, actual)
 	})
-	t.Run("will merge ignore differences correctly", func(t *testing.T) {
+	t.Run("will merge ignore differences correctly removing duplicated configs", func(t *testing.T) {
 		// given
 		gk := "*/*"
 		override := getOverride(gk)
