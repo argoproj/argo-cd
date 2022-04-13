@@ -994,7 +994,7 @@ func TestEnvEntry_IsZero(t *testing.T) {
 		{"Nil", nil, true},
 		{"Empty", &EnvEntry{}, true},
 		{"Name", &EnvEntry{Name: "FOO"}, false},
-		{"Value", &EnvEntry{Value: "foo"}, false},
+		{"YAML", &EnvEntry{Value: "foo"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

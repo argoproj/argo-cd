@@ -1204,11 +1204,6 @@ message SignatureKey {
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 // +kubebuilder:validation:Type=""
 message StringOrObject {
-  // Values as string if Raw == nil
-  optional string values = 1;
-
-  // Raw is Values in raw format if Raw != nil
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension raw = 2;
 }
 
 // SyncOperation contains details about a sync operation.

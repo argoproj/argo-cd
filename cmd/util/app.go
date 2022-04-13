@@ -10,13 +10,10 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"sigs.k8s.io/yaml"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -413,14 +410,13 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values.Values = opts.values
+		src.Helm.Values.SetStringValue(opts.values)
 	}
 	if len(opts.valuesRaw) > 0 {
-		data, err := yaml.YAMLToJSON(opts.valuesRaw)
+		err := src.Helm.Values.SetYAMLValue(opts.valuesRaw)
 		if err != nil {
 			log.Fatal(err)
 		}
-		src.Helm.Values.Raw = &runtime.RawExtension{Raw: data}
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName

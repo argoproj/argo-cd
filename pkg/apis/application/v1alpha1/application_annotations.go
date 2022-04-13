@@ -2,7 +2,7 @@ package v1alpha1
 
 const (
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
-	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
+	// Might take values 'normal'/'hard'. YAML 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh string = "argocd.argoproj.io/refresh"
 
 	// AnnotationKeyManifestGeneratePaths is an annotation that contains a list of semicolon-separated paths in the

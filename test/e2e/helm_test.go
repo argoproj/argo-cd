@@ -202,7 +202,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.Source.Helm.Values.Values)
+			assert.Equal(t, string(data), app.Spec.Source.Helm.Values.YAML())
 		}).
 		When().
 		AppUnSet("--values-literal").
@@ -224,11 +224,7 @@ func TestHelmValuesLiteralFileLocalRawObject(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			data, err = yaml.YAMLToJSON(data)
-			if err != nil {
-				panic(err)
-			}
-			assert.Equal(t, data, app.Spec.Source.Helm.Values.Raw.Raw)
+			assert.Equal(t, data, app.Spec.Source.Helm.Values.YAML())
 		}).
 		When().
 		AppUnSet("--values-raw-literal").
@@ -270,7 +266,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "a: b", app.Spec.Source.Helm.Values.Values)
+			assert.Equal(t, "a: b", app.Spec.Source.Helm.Values.YAML())
 		}).
 		When().
 		AppUnSet("--values-literal").

@@ -3,47 +3,72 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"reflect"
 	"sigs.k8s.io/yaml"
 )
 
-var StringOrObjectMustNotBeArrayError = fmt.Errorf("type StringOrObject must not be an array")
+var StringOrObjectInvalidTypeError = fmt.Errorf("type StringOrObject must be either a string or an object")
 
 // +patchStrategy=replace
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 // +kubebuilder:validation:Type=""
 type StringOrObject struct {
-	// Values as string if Raw == nil
-	Values string `json:"-" protobuf:"bytes,1,opt,name=values"`
-	// Raw is Values in raw format if Raw != nil
-	Raw *runtime.RawExtension `json:"-" protobuf:"bytes,2,opt,name=raw"`
+	stringValue string                `json:"-" protobuf:"bytes,1,opt,name=values"`
+	rawValue    *runtime.RawExtension `json:"-" protobuf:"bytes,2,opt,name=raw"`
+}
+
+func NewStringOrObjectFromString(value string) StringOrObject {
+	return StringOrObject{stringValue: value}
+}
+
+func NewStringOrObjectFromYAML(yamlBytes []byte) (*StringOrObject, error) {
+	stringOrObject := &StringOrObject{}
+	err := stringOrObject.SetYAMLValue(yamlBytes)
+	if err != nil {
+		return nil, err
+	}
+	return stringOrObject, nil
+}
+
+func (o *StringOrObject) SetStringValue(value string) {
+	o.rawValue = nil
+	o.stringValue = value
+}
+
+func (o *StringOrObject) SetYAMLValue(yamlBytes []byte) error {
+	data, err := yaml.YAMLToJSON(yamlBytes)
+	if err != nil {
+		return fmt.Errorf("failed to set YAML value on StringOrObject: %w", err)
+	}
+	o.rawValue = &runtime.RawExtension{Raw: data}
+	return nil
 }
 
 // IsEmpty returns true if the Object is empty
 func (o StringOrObject) IsEmpty() bool {
-	return o.Raw == nil && o.Values == ""
+	return o.rawValue == nil && o.stringValue == ""
 }
 
-// Value returns either the inputValue in Raw or Values
-func (o StringOrObject) Value() []byte {
-	if o.Raw != nil {
-		b, err := yaml.JSONToYAML(o.Raw.Raw)
+// YAML returns the value marshalled to YAML
+func (o StringOrObject) YAML() []byte {
+	if o.rawValue != nil {
+		b, err := yaml.JSONToYAML(o.rawValue.Raw)
 		if err != nil {
+			// This should be impossible, because rawValue isn't set directly.
 			return []byte{}
 		}
 		return b
 	}
-	return []byte(o.Values)
+	return []byte(o.stringValue)
 }
 
 // MarshalJSON implements the json.Marshaller interface.
 func (o StringOrObject) MarshalJSON() ([]byte, error) {
-	if o.Raw == nil {
-		return json.Marshal(o.Values)
+	if o.rawValue == nil {
+		return json.Marshal(o.stringValue)
 	}
-	return o.Raw.MarshalJSON()
+	return o.rawValue.MarshalJSON()
 }
 
 // UnmarshalJSON implements the json.Unmarshaller interface.
@@ -53,23 +78,14 @@ func (o *StringOrObject) UnmarshalJSON(value []byte) error {
 		return err
 	}
 	switch v.(type) {
+	case string:
+		o.stringValue = v.(string)
 	case map[string]interface{}:
 		// it's an object
-		o.Raw = &runtime.RawExtension{}
-		return o.Raw.UnmarshalJSON(value)
-	case []interface{}:
-		return StringOrObjectMustNotBeArrayError
+		o.rawValue = &runtime.RawExtension{}
+		return o.rawValue.UnmarshalJSON(value)
 	default:
-		if string(value) == "null" {
-			return nil
-		}
-
-		// default to string
-		s, err := strconv.Unquote(string(value))
-		if err != nil {
-			return err
-		}
-		o.Values = s
+		return fmt.Errorf("invalid type %q: %w", reflect.TypeOf(v), StringOrObjectInvalidTypeError)
 	}
 
 	return nil
@@ -80,15 +96,7 @@ func (o *StringOrObject) String() string {
 	if o == nil {
 		return "<nil>"
 	}
-	if o.Raw == nil {
-		return o.Values
-	}
-
-	b, err := yaml.JSONToYAML(o.Raw.Raw)
-	if err != nil {
-		return "<nil>"
-	}
-	return string(b)
+	return string(o.YAML())
 }
 
 // ToUnstructured implements the value.UnstructuredConverter interface.

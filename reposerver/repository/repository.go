@@ -738,7 +738,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() { _ = os.RemoveAll(p) }()
-			err = ioutil.WriteFile(p, appHelm.Values.Value(), 0644)
+			err = ioutil.WriteFile(p, appHelm.Values.YAML(), 0644)
 			if err != nil {
 				return nil, err
 			}

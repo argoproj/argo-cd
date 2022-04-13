@@ -640,7 +640,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 			},
 		},
 	})
@@ -668,6 +668,8 @@ func TestGenerateHelmWithValues(t *testing.T) {
 func TestGenerateHelmWithRawValues(t *testing.T) {
 	service := newService("../..")
 
+	values, err := argoappv1.NewStringOrObjectFromYAML([]byte(`cluster: {slaveCount: 2}`))
+	require.NoError(t, err)
 	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
 		AppName: "test",
@@ -675,7 +677,7 @@ func TestGenerateHelmWithRawValues(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.StringOrObject{Raw: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)}},
+				Values:     *values,
 			},
 		},
 	})
@@ -737,7 +739,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 			},
 		},
 	})
@@ -835,7 +837,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 			},
 		},
 		HelmOptions: &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
@@ -846,7 +848,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 // The requested value file (`../../../../../minio/values.yaml`) is outside the repo directory
 // (`~/go/src/github.com/argoproj/argo-cd`), so it is blocked
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
-	t.Run("Values file with relative path pointing outside repo root", func(t *testing.T) {
+	t.Run("stringValue file with relative path pointing outside repo root", func(t *testing.T) {
 		service := newService("../..")
 		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:    &argoappv1.Repository{},
@@ -855,7 +857,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./util/helm/testdata/redis",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../../../../../minio/values.yaml"},
-					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				},
 			},
 		})
@@ -863,7 +865,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 		assert.Contains(t, err.Error(), "outside repository root")
 	})
 
-	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
+	t.Run("stringValue file with relative path pointing inside repo root", func(t *testing.T) {
 		service := newService("./testdata/my-chart")
 		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:    &argoappv1.Repository{},
@@ -872,14 +874,14 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
-					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				},
 			},
 		})
 		assert.NoError(t, err)
 	})
 
-	t.Run("Values file with absolute path stays within repo root", func(t *testing.T) {
+	t.Run("stringValue file with absolute path stays within repo root", func(t *testing.T) {
 		service := newService("./testdata/my-chart")
 		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:    &argoappv1.Repository{},
@@ -888,14 +890,14 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/my-chart-values.yaml"},
-					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				},
 			},
 		})
 		assert.NoError(t, err)
 	})
 
-	t.Run("Values file with absolute path using back-references outside repo root", func(t *testing.T) {
+	t.Run("stringValue file with absolute path using back-references outside repo root", func(t *testing.T) {
 		service := newService("./testdata/my-chart")
 		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:    &argoappv1.Repository{},
@@ -904,7 +906,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				},
 			},
 		})
@@ -921,7 +923,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
-					Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+					Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				},
 			},
 		})
@@ -968,7 +970,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				FileParameters: []argoappv1.HelmFileParameter{
 					argoappv1.HelmFileParameter{
 						Name: "passwordContent",
@@ -995,7 +997,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     argoappv1.StringOrObject{Values: `cluster: {slaveCount: 2}`},
+				Values:     argoappv1.NewStringOrObjectFromString(`cluster: {slaveCount: 2}`),
 				FileParameters: []argoappv1.HelmFileParameter{
 					argoappv1.HelmFileParameter{
 						Name: "passwordContent",
