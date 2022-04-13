@@ -48,17 +48,17 @@ var (
 	K8sMaxIdleConnections = env.ParseNumFromEnv(EnvK8sClientMaxIdleConnections, 500, 0, math.MaxInt32)
 
 	// K8sTLSHandshakeTimeout defines the maximum duration to wait for a TLS handshake to complete
-	K8sTLSHandshakeTimeout = env.ParseDurationFromEnv(EnvK8sTLSHandshakeTimeout, 10*time.Second, 0, math.MaxInt32)
+	K8sTLSHandshakeTimeout = env.ParseDurationFromEnv(EnvK8sTLSHandshakeTimeout, 10*time.Second, 0, math.MaxInt32*time.Second)
 
 	// K8sTCPTimeout defines the TCP timeout to use when performing K8s API requests
-	K8sTCPTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 30*time.Second, 0, math.MaxInt32)
+	K8sTCPTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 30*time.Second, 0, math.MaxInt32*time.Second)
 
 	// K8sTCPKeepAlive defines the interval for sending TCP keep alive to K8s API server
-	K8sTCPKeepAlive = env.ParseDurationFromEnv(EnvK8sTCPKeepAlive, 30*time.Second, 0, math.MaxInt32)
+	K8sTCPKeepAlive = env.ParseDurationFromEnv(EnvK8sTCPKeepAlive, 30*time.Second, 0, math.MaxInt32*time.Second)
 
 	// K8sTCPIdleConnTimeout defines the duration for keeping idle TCP connections to the K8s API server
-	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32)
+	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32*time.Second)
 
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
-	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 32*time.Second, 0, math.MaxInt32)
+	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 0, 0, math.MaxInt32*time.Second)
 )

@@ -63,7 +63,7 @@ performance. For performance reasons controller monitors and caches only preferr
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported then controller falls back to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap.
+* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
