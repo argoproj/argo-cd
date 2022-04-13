@@ -34,7 +34,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		}
 	}
 	t.Run("will return ignore diffs from resource override", func(t *testing.T) {
-		// given
+		// givenn
 		gk := "apps/Deployment"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
@@ -55,7 +55,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.Equal(t, expectedJQExpression, actual.JQPathExpressions)
 	})
 	t.Run("will return ignore diffs from resource override with wildcard", func(t *testing.T) {
-		// given
+		// givenn
 		gk := "*/*"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
