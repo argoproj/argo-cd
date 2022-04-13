@@ -197,8 +197,11 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")
 		expectedManagers := append(ignoreDiff.ManagedFieldsManagers, "repeated-manager")
+		expectedManagers = append(expectedManagers, override[gk].IgnoreDifferences.ManagedFieldsManagers...)
 		expectedJSONPointers := append(ignoreDiff.JSONPointers, "repeated-jsonpointer")
+		expectedJSONPointers = append(expectedJSONPointers, override[gk].IgnoreDifferences.JSONPointers...)
 		expectedJQPath := append(ignoreDiff.JQPathExpressions, "repeated-jqpath")
+		expectedJQPath = append(expectedJQPath, override[gk].IgnoreDifferences.JQPathExpressions...)
 		ignoreDiff.ManagedFieldsManagers = append(ignoreDiff.ManagedFieldsManagers, []string{"repeated-manager", "repeated-manager"}...)
 		ignoreDiff.JSONPointers = append(ignoreDiff.JSONPointers, []string{"repeated-jsonpointer", "repeated-jsonpointer"}...)
 		ignoreDiff.JQPathExpressions = append(ignoreDiff.JQPathExpressions, []string{"repeated-jqpath", "repeated-jqpath"}...)
@@ -211,9 +214,9 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		// then
 		assert.True(t, ok)
 		require.NotNil(t, actual)
-		assert.Equal(t, expectedManagers, actual.ManagedFieldsManagers)
-		assert.Equal(t, expectedJSONPointers, actual.JSONPointers)
-		assert.Equal(t, expectedJQPath, actual.JQPathExpressions)
+		assert.ElementsMatch(t, expectedManagers, actual.ManagedFieldsManagers)
+		assert.ElementsMatch(t, expectedJSONPointers, actual.JSONPointers)
+		assert.ElementsMatch(t, expectedJQPath, actual.JQPathExpressions)
 	})
 
 }
