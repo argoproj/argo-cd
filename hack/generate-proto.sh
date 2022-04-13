@@ -109,7 +109,12 @@ EOF
     rm -f "${SWAGGER_OUT}"
 
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
-    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+    jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) |
+           del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
+           del(.definitions.runtimeRawExtension) |
+           if .definitions.v1alpha1StringOrObject then .definitions.v1alpha1StringOrObject = {"description": "Either a string or an object"} else . end' \
+        "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
