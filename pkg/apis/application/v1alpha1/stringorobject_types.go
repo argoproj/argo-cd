@@ -2,11 +2,14 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
+
+var StringOrObjectMustNotBeArrayError = fmt.Errorf("type StringOrObject must not be an array")
 
 // +patchStrategy=replace
 // +protobuf.options.(gogoproto.goproto_stringer)=false
@@ -23,7 +26,7 @@ func (o StringOrObject) IsEmpty() bool {
 	return o.Raw == nil && o.Values == ""
 }
 
-// Value returns either the value in Raw or Values
+// Value returns either the inputValue in Raw or Values
 func (o StringOrObject) Value() []byte {
 	if o.Raw != nil {
 		b, err := yaml.JSONToYAML(o.Raw.Raw)
@@ -38,10 +41,7 @@ func (o StringOrObject) Value() []byte {
 // MarshalJSON implements the json.Marshaller interface.
 func (o StringOrObject) MarshalJSON() ([]byte, error) {
 	if o.Raw == nil {
-		if o.Values != "" {
-			return json.Marshal(o.Values)
-		}
-		return []byte("null"), nil
+		return json.Marshal(o.Values)
 	}
 	return o.Raw.MarshalJSON()
 }
@@ -50,7 +50,6 @@ func (o StringOrObject) MarshalJSON() ([]byte, error) {
 func (o *StringOrObject) UnmarshalJSON(value []byte) error {
 	var v interface{}
 	if err := json.Unmarshal(value, &v); err != nil {
-		// handle error
 		return err
 	}
 	switch v.(type) {
@@ -58,7 +57,13 @@ func (o *StringOrObject) UnmarshalJSON(value []byte) error {
 		// it's an object
 		o.Raw = &runtime.RawExtension{}
 		return o.Raw.UnmarshalJSON(value)
+	case []interface{}:
+		return StringOrObjectMustNotBeArrayError
 	default:
+		if string(value) == "null" {
+			return nil
+		}
+
 		// default to string
 		s, err := strconv.Unquote(string(value))
 		if err != nil {
