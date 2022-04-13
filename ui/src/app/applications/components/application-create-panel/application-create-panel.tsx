@@ -18,7 +18,6 @@ require('./application-create-panel.scss');
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
-    {type: 'Ksonnet', field: 'ksonnet'},
     {type: 'Directory', field: 'directory'},
     {type: 'Plugin', field: 'plugin'}
 );
@@ -106,6 +105,7 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
+    const [retry, setRetry] = React.useState(false);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const app = formApi.getFormState().values;
@@ -152,8 +152,8 @@ export const ApplicationCreatePanel = (props: {
                             )) || (
                                 <Form
                                     validateError={(a: models.Application) => ({
-                                        'metadata.name': !a.metadata.name && 'Application name is required',
-                                        'spec.project': !a.spec.project && 'Project name is required',
+                                        'metadata.name': !a.metadata.name && 'Application Name is required',
+                                        'spec.project': !a.spec.project && 'Project Name is required',
                                         'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
@@ -205,7 +205,7 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
-                                                        label='Project'
+                                                        label='Project Name'
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
@@ -226,7 +226,13 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
                                                     <FormField formApi={api} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
-                                                    <ApplicationRetryOptions formApi={api} field='spec.syncPolicy.retry' />
+                                                    <ApplicationRetryOptions
+                                                        formApi={api}
+                                                        field='spec.syncPolicy.retry'
+                                                        retry={retry || (api.getFormState().values.spec.syncPolicy && api.getFormState().values.spec.syncPolicy.retry)}
+                                                        setRetry={setRetry}
+                                                        initValues={api.getFormState().values.spec.syncPolicy ? api.getFormState().values.spec.syncPolicy.retry : null}
+                                                    />
                                                 </div>
                                             </div>
                                         );
@@ -449,9 +455,6 @@ export const ApplicationCreatePanel = (props: {
                                                                 break;
                                                             case 'Kustomize':
                                                                 details = {type, path: details.path, kustomize: {path: ''}};
-                                                                break;
-                                                            case 'Ksonnet':
-                                                                details = {type, path: details.path, ksonnet: {name: '', path: '', environments: {}, parameters: []}};
                                                                 break;
                                                             case 'Plugin':
                                                                 details = {type, path: details.path, plugin: {name: '', env: []}};

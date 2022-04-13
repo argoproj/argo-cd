@@ -29,36 +29,30 @@ The Slack notification service configuration includes following settings:
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
 1. Store Oauth access token in `argocd-notifications-secret` secret
 
-    ```yaml
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: <secret-name>
-    stringData:
-      slack-token: <Oauth-access-token>
-    ```
+        apiVersion: v1
+        kind: Secret
+        metadata:
+        name: <secret-name>
+        stringData:
+        slack-token: <Oauth-access-token>
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:
-service
-    ```yaml
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: <config-map-name>
-    data:
-      service.slack: |
-        token: $slack-token
-    ```
+
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+        name: <config-map-name>
+        data:
+        service.slack: |
+            token: $slack-token
 
 1. Add annotation in application yaml file to enable notifications for specific argocd app
 
-    ```yaml
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-      annotations:
-        notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
-    ```
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+        annotations:
+            notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
 
 ## Templates
 

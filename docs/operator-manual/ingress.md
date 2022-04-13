@@ -1,6 +1,6 @@
 # Ingress Configuration
 
-Argo CD runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
+Argo CD API server runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
 Both protocols are exposed by the argocd-server service object on the following ports:
 
 * 443 - gRPC/HTTPS
@@ -95,9 +95,13 @@ spec:
   - host: internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - internal.path.to.argocd.io
@@ -117,9 +121,13 @@ spec:
   - host: grpc-internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
   tls:
   - hosts:
     - grpc-internal.path.to.argocd.io
@@ -141,9 +149,12 @@ spec:
     http:
       paths:
       - path: /api/dex/callback
+        pathType: Prefix
         backend:
-          serviceName: argocd-server
-          servicePort: http
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - external.path.to.argocd.io
@@ -196,9 +207,13 @@ spec:
   - host: argocd.example.com
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
 ```
 
 The above rule terminates TLS at the Argo CD API server, which detects the protocol being used,
@@ -261,9 +276,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
     host: argocd.example.com
   tls:
   - hosts:
@@ -285,9 +304,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
     host: grpc.argocd.example.com
   tls:
   - hosts:
@@ -350,7 +373,6 @@ spec:
           scheme: h2c
   tls:
     certResolver: default
-    options: {}
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
@@ -399,13 +421,19 @@ Once we create this service, we can configure the Ingress to conditionally route
     - host: argocd.argoproj.io
       http:
         paths:
-        - backend:
-            serviceName: argogrpc
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argogrpc
+              port:
+                number: 443
           pathType: ImplementationSpecific
-        - backend:
-            serviceName: argocd-server
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 443
           pathType: ImplementationSpecific
     tls:
     - hosts:
@@ -530,7 +558,41 @@ kubectl -n argocd create secret tls secret-yourdomain-com \
 
 ### Creating an Ingress
 
-And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret:
+And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret.
+
+---
+!!! note
+
+   GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
+
+---
+
+If you use the version earlier than `1.21.3-gke.1600`, you should use the following Ingress resource:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
+spec:
+  tls:
+    - secretName: secret-yourdomain-com
+  rules:
+    - host: argocd.yourdomain.com
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
+```
+
+If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress

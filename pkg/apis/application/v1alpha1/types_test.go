@@ -400,9 +400,6 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
 		Kustomize: &ApplicationSourceKustomize{
 			NamePrefix: "foo",
 		},
@@ -426,9 +423,7 @@ func TestExplicitType(t *testing.T) {
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
+		Helm:      &ApplicationSourceHelm{},
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
@@ -841,7 +836,6 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
 		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
-		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
 	}
@@ -946,24 +940,6 @@ func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceJsonnet{}, true},
 		{"ExtVars", &ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}, false},
 		{"TLAs", &ApplicationSourceJsonnet{TLAs: []JsonnetVar{{}}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.source.IsZero())
-		})
-	}
-}
-
-func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
-	tests := []struct {
-		name   string
-		source *ApplicationSourceKsonnet
-		want   bool
-	}{
-		{"Nil", nil, true},
-		{"Empty", &ApplicationSourceKsonnet{}, true},
-		{"Environment", &ApplicationSourceKsonnet{Environment: "foo"}, false},
-		{"Parameters", &ApplicationSourceKsonnet{Parameters: []KsonnetParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2477,22 +2453,6 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	}
 }
 
-func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
-	src := ApplicationSource{Path: "."}
-
-	assert.True(t, src.AllowsConcurrentProcessing())
-}
-
-func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
-		Parameters: []KsonnetParameter{{
-			Name: "test", Component: "test", Value: "1",
-		}},
-	}}
-
-	assert.False(t, src.AllowsConcurrentProcessing())
-}
-
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 		NameSuffix: "test",
@@ -2595,4 +2555,40 @@ func TestEnvsubst(t *testing.T) {
 
 	assert.Equal(t, "bar", env.Envsubst("$foo"))
 	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
+}
+
+func Test_validateGroupName(t *testing.T) {
+	tcs := []struct {
+		name      string
+		groupname string
+		isvalid   bool
+	}{
+		{"Just a double quote", "\"", false},
+		{"Just two double quotes", "\"\"", false},
+		{"Normal group name", "foo", true},
+		{"Quoted with commas", "\"foo,bar,baz\"", true},
+		{"Quoted without commas", "\"foo\"", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", true},
+		{"Empty group name", "", false},
+		{"Empty group name with quotes", "\"\"", false},
+		{"Unquoted with comma", "foo,bar,baz", false},
+		{"Improperly quoted 1", "\"foo,bar,baz", false},
+		{"Improperly quoted 2", "foo,bar,baz\"", false},
+		{"Runaway quote in unqouted string", "foo,bar\",baz", false},
+		{"Runaway quote in quoted string", "\"foo,\"bar,baz\"", false},
+		{"Invalid characters unqouted", "foo\nbar", false},
+		{"Invalid characters qouted", "\"foo\nbar\"", false},
+		{"Runaway quote 1", "\"foo", false},
+		{"Runaway quote 2", "foo\"", false},
+	}
+	for _, tt := range tcs {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGroupName(tt.groupname)
+			if tt.isvalid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
 }
