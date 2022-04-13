@@ -3,6 +3,7 @@ package generators
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -258,16 +259,42 @@ func TestInterpolateGenerator(t *testing.T) {
 					"path-zero":                      "{{path[0]}}",
 					"path-full":                      "{{path}}",
 				}},
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
-			Values:   nil,
 		},
 	}
 	//mockGitGenerator := getMockGitGenerator()
 	gitGeneratorParams := []map[string]string{
 		{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
 	}
-	interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
+		return
+	}
 	assert.Equal(t, "app3", requestedGenerator.Clusters.Selector.MatchLabels["path-basename"])
 	assert.Equal(t, "p1", requestedGenerator.Clusters.Selector.MatchLabels["path-zero"])
 	assert.Equal(t, "p1/p2/app3", requestedGenerator.Clusters.Selector.MatchLabels["path-full"])
+
+	fileNamePath := argoprojiov1alpha1.GitFileGeneratorItem{
+		Path: "{{name}}",
+	}
+	fileServerPath := argoprojiov1alpha1.GitFileGeneratorItem{
+		Path: "{{server}}",
+	}
+
+	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
+		Git: &argoprojiov1alpha1.GitGenerator{
+			Files:    append([]argoprojiov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
+			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+		},
+	}
+	clusterGeneratorParams := []map[string]string{
+		{"name": "production_01/west", "server": "https://production-01.example.com"},
+	}
+	err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
+	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
+		return
+	}
+	assert.Equal(t, "production_01/west", requestedGenerator.Git.Files[0].Path)
+	assert.Equal(t, "https://production-01.example.com", requestedGenerator.Git.Files[1].Path)
 }

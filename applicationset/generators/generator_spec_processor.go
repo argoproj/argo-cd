@@ -92,6 +92,8 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	return *dest, err
 }
 
+// Currently for Matrix Generator. Allows interpolating the matrix's 2nd child generator with values from the 1st child generator
+// "params" parameter here are params from the 1st child generator. Uses similar process for interpreting values as the actual Application Template
 func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params []map[string]string) error {
 	tmplBytes, err := json.Marshal(requestedGenerator)
 	if err != nil {
