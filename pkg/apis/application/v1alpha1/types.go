@@ -237,7 +237,7 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
-	// Version is the Helm version to use for templating (either "2" or "3")
+	// Version is the Helm version to use for templating ("3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
 	PassCredentials bool `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
@@ -2442,6 +2442,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.Timeout = K8sServerSideTimeout
+	config.QPS = K8sClientConfigQPS
+	config.Burst = K8sClientConfigBurst
 	return config
 }
 

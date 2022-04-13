@@ -2,17 +2,17 @@ name: Create ArgoCD release
 on:
   push:
     tags:
-      - 'release-v*'
-      - '!release-v1.5*'
-      - '!release-v1.4*'
-      - '!release-v1.3*'
-      - '!release-v1.2*'
-      - '!release-v1.1*'
-      - '!release-v1.0*'
-      - '!release-v0*'
+      - "release-v*"
+      - "!release-v1.5*"
+      - "!release-v1.4*"
+      - "!release-v1.3*"
+      - "!release-v1.2*"
+      - "!release-v1.1*"
+      - "!release-v1.0*"
+      - "!release-v0*"
 
 env:
-    GOLANG_VERSION: '1.17.6'
+    GOLANG_VERSION: '1.18'
 
 jobs:
   prepare-release:
@@ -172,7 +172,6 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          helm2 init --client-only
           make manifests-local VERSION=${TARGET_VERSION}
           git diff
           git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
@@ -196,7 +195,6 @@ jobs:
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
         if: ${{ env.DRY_RUN != 'true' }}
 
-
       - uses: docker/setup-qemu-action@v1
       - uses: docker/setup-buildx-action@v1
       - name: Build and push Docker image for release
@@ -213,7 +211,7 @@ jobs:
       - name: Read release notes file
         id: release-notes
         uses: juliangruber/read-file-action@v1
-        with: 
+        with:
           path: ${{ env.RELEASE_NOTES }}
 
       - name: Push changes to release branch
@@ -345,4 +343,3 @@ jobs:
           set -ue
           git push --delete origin ${SOURCE_TAG}
         if: ${{ always() }}
-

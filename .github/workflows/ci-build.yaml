@@ -12,7 +12,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.17.6'
+  GOLANG_VERSION: '1.18'
 
 jobs:
   check-go:
@@ -60,17 +60,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v1
         with:
-          version: v1.38.0
-          args: --timeout 10m --exclude SA5011
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.45.2
+          args: --timeout 10m --exclude SA5011 --verbose
 
   test-go:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
     needs:
       - build-go
+    env:
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -131,6 +138,9 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-go
+    env:
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -212,9 +222,6 @@ jobs:
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
-      - name: Initialize local Helm
-        run: |
-          helm2 init --client-only
       - name: Run codegen
         run: |
           set -x
@@ -344,6 +351,8 @@ jobs:
       ARGOCD_IN_CI: "true"
       ARGOCD_E2E_APISERVER_PORT: "8088"
       ARGOCD_SERVER: "127.0.0.1:8088"
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -407,11 +416,12 @@ jobs:
           # port 8080 which is not visible in netstat -tulpen, but still there
           # with a HTTP listener. We have API server listening on port 8088
           # instead.
+          make controller repo-server server applicationset-controller
           make start-e2e-local 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
-            if test $count -ge 120; then
+            if test $count -ge 180; then
               echo "Timeout"
               exit 1
             fi
