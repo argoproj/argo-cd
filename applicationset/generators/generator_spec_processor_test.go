@@ -200,11 +200,6 @@ func getMockGitGenerator() Generator {
 	return gitGenerator
 }
 
-func getMockMatrixGenerator(generators map[string]Generator) Generator {
-	mockMatrixGenerator := NewMatrixGenerator(generators)
-	return mockMatrixGenerator
-}
-
 func TestGetRelevantGenerators(t *testing.T) {
 
 	testGenerators := map[string]Generator{
@@ -212,10 +207,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 		"Git":      getMockGitGenerator(),
 	}
 
-	mockMatrixGenerator := NewMatrixGenerator(testGenerators)
-	mockMergeGenerator := NewMergeGenerator(testGenerators)
-	testGenerators["Matrix"] = mockMatrixGenerator
-	testGenerators["Merge"] = mockMergeGenerator
+	testGenerators["Matrix"] = NewMatrixGenerator(testGenerators)
+	testGenerators["Merge"] = NewMergeGenerator(testGenerators)
 	testGenerators["List"] = NewListGenerator()
 
 	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
@@ -253,4 +246,28 @@ func TestGetRelevantGenerators(t *testing.T) {
 	relevantGenerators = GetRelevantGenerators(requestedGenerator, testGenerators)
 	assert.Len(t, relevantGenerators, 1)
 	assert.IsType(t, &GitGenerator{}, relevantGenerators[0])
+}
+
+func TestInterpolateGenerator(t *testing.T) {
+	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
+		Clusters: &argoprojiov1alpha1.ClusterGenerator{
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"argocd.argoproj.io/secret-type": "cluster",
+					"path-basename":                  "{{path.basename}}",
+					"path-zero":                      "{{path[0]}}",
+					"path-full":                      "{{path}}",
+				}},
+			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+			Values:   nil,
+		},
+	}
+	//mockGitGenerator := getMockGitGenerator()
+	gitGeneratorParams := []map[string]string{
+		{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
+	}
+	interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	assert.Equal(t, "app3", requestedGenerator.Clusters.Selector.MatchLabels["path-basename"])
+	assert.Equal(t, "p1", requestedGenerator.Clusters.Selector.MatchLabels["path-zero"])
+	assert.Equal(t, "p1/p2/app3", requestedGenerator.Clusters.Selector.MatchLabels["path-full"])
 }
