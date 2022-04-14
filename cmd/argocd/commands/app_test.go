@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
@@ -638,105 +637,4 @@ func TestPrintApplicationNames(t *testing.T) {
 	if output != expectation {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
-}
-
-func Test_unset(t *testing.T) {
-	yaml, err := v1alpha1.NewStringOrObjectFromYAML([]byte("some: yaml"))
-	require.NoError(t, err)
-	kustomizeApp := v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
-				Kustomize: &v1alpha1.ApplicationSourceKustomize{
-					NamePrefix: "some-prefix",
-					NameSuffix: "some-suffix",
-					Version:    "123",
-					Images: v1alpha1.KustomizeImages{
-						"old1=new:tag",
-						"old2=new:tag",
-					},
-				},
-			},
-		},
-	}
-
-	assert.Equal(t, "some-prefix", kustomizeApp.Spec.Source.Kustomize.NamePrefix)
-	unset(&kustomizeApp, unsetOpts{namePrefix: true})
-	assert.Equal(t, "", kustomizeApp.Spec.Source.Kustomize.NamePrefix)
-
-	assert.Equal(t, "some-suffix", kustomizeApp.Spec.Source.Kustomize.NameSuffix)
-	unset(&kustomizeApp, unsetOpts{nameSuffix: true})
-	assert.Equal(t, "", kustomizeApp.Spec.Source.Kustomize.NameSuffix)
-
-	assert.Equal(t, "123", kustomizeApp.Spec.Source.Kustomize.Version)
-	unset(&kustomizeApp, unsetOpts{kustomizeVersion: true})
-	assert.Equal(t, "", kustomizeApp.Spec.Source.Kustomize.Version)
-
-	assert.Equal(t, 2, len(kustomizeApp.Spec.Source.Kustomize.Images))
-	unset(&kustomizeApp, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
-	assert.Equal(t, 1, len(kustomizeApp.Spec.Source.Kustomize.Images))
-
-	helmApp := v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
-				Helm: &v1alpha1.ApplicationSourceHelm{
-					IgnoreMissingValueFiles: true,
-					Parameters: []v1alpha1.HelmParameter{
-						{
-							Name:  "name-1",
-							Value: "value-1",
-						},
-						{
-							Name:  "name-2",
-							Value: "value-2",
-						},
-					},
-					PassCredentials: true,
-					Values:          *yaml,
-					ValueFiles: []string{
-						"values-1.yaml",
-						"values-2.yaml",
-					},
-				},
-			},
-		},
-	}
-
-	assert.Equal(t, 2, len(helmApp.Spec.Source.Helm.Parameters))
-	unset(&helmApp, unsetOpts{parameters: []string{"name-1"}})
-	assert.Equal(t, 1, len(helmApp.Spec.Source.Helm.Parameters))
-
-	assert.Equal(t, 2, len(helmApp.Spec.Source.Helm.ValueFiles))
-	unset(&helmApp, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
-	assert.Equal(t, 1, len(helmApp.Spec.Source.Helm.ValueFiles))
-
-	assert.Equal(t, "some: yaml\n", string(helmApp.Spec.Source.Helm.Values.YAML()))
-	unset(&helmApp, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", string(helmApp.Spec.Source.Helm.Values.YAML()))
-
-	assert.Equal(t, true, helmApp.Spec.Source.Helm.IgnoreMissingValueFiles)
-	unset(&helmApp, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmApp.Spec.Source.Helm.IgnoreMissingValueFiles)
-
-	pluginApp := v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
-				Plugin: &v1alpha1.ApplicationSourcePlugin{
-					Env: v1alpha1.Env{
-						{
-							Name: "env-1",
-							Value: "env-value-1",
-						},
-						{
-							Name: "env-2",
-							Value: "env-value-2",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	assert.Equal(t, 2, len(pluginApp.Spec.Source.Plugin.Env))
-	unset(&pluginApp, unsetOpts{pluginEnvs: []string{"env-1"}})
-	assert.Equal(t, 1, len(pluginApp.Spec.Source.Plugin.Env))
 }
