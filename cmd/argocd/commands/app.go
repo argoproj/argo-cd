@@ -637,6 +637,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	if source.Kustomize != nil {
+		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && len(opts.kustomizeImages) == 0 {
+			return false, true
+		}
+
 		if opts.namePrefix && source.Kustomize.NamePrefix != "" {
 			updated = true
 			source.Kustomize.NamePrefix = ""

@@ -779,3 +779,26 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 }
+
+func Test_unset_nothingToUnset(t *testing.T) {
+	testCases := []struct{
+		name string
+		source v1alpha1.ApplicationSource
+	}{
+		{"kustomize", v1alpha1.ApplicationSource{Kustomize: &v1alpha1.ApplicationSourceKustomize{}}},
+		{"helm", v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{}}},
+		{"plugin", v1alpha1.ApplicationSource{Plugin: &v1alpha1.ApplicationSourcePlugin{}}},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
+			assert.False(t, updated)
+			assert.True(t, nothingToUnset)
+		})
+	}
+}
