@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -73,7 +74,6 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
-	valuesRaw                       string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -89,8 +89,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVarP(&opts.Parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Ignore locally missing valueFiles when setting helm template --values")
-	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block (as a string)")
-	command.Flags().StringVar(&opts.valuesRaw, "values-raw-literal-file", "", "Filename or URL to import as a literal Helm values block (as a map)")
+	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
 	command.Flags().BoolVar(&opts.helmPassCredentials, "helm-pass-credentials", false, "Pass credentials to all domain")
@@ -153,13 +152,17 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "ignore-missing-value-files":
 			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-literal-file":
-			data, err := getValuesFromRef(appOpts.values)
+			var data []byte
+
+			// read uri
+			parsedURL, err := url.ParseRequestURI(appOpts.values)
+			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+				data, err = ioutil.ReadFile(appOpts.values)
+			} else {
+				data, err = config.ReadRemoteFile(appOpts.values)
+			}
 			errors.CheckError(err)
 			setHelmOpt(&spec.Source, helmOpts{values: string(data)})
-		case "values-raw-literal-file":
-			data, err := getValuesFromRef(appOpts.valuesRaw)
-			errors.CheckError(err)
-			setHelmOpt(&spec.Source, helmOpts{valuesRaw: data})
 		case "release-name":
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
 		case "helm-version":
@@ -313,20 +316,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	return visited
 }
 
-// getValuesFromRef gets values file contents, either from and http(s) source or from disk.
-func getValuesFromRef(valuesRef string) ([]byte, error) {
-	var data []byte
-
-	// read uri
-	parsedURL, err := url.ParseRequestURI(valuesRef)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		data, err = ioutil.ReadFile(valuesRef)
-	} else {
-		data, err = config.ReadRemoteFile(valuesRef)
-	}
-	return data, err
-}
-
 type kustomizeOpts struct {
 	namePrefix             string
 	nameSuffix             string
@@ -389,7 +378,6 @@ type helmOpts struct {
 	valueFiles              []string
 	ignoreMissingValueFiles bool
 	values                  string
-	valuesRaw               []byte
 	releaseName             string
 	version                 string
 	helmSets                []string
@@ -410,13 +398,11 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values.SetStringValue(opts.values)
-	}
-	if len(opts.valuesRaw) > 0 {
-		err := src.Helm.Values.SetYAMLValue(opts.valuesRaw)
+		yaml, err := argoappv1.NewStringOrObjectFromYAML([]byte(opts.values))
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(fmt.Errorf("failed to set Helm values option: %w", err))
 		}
+		src.Helm.Values = *yaml
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
