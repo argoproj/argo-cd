@@ -29,8 +29,7 @@ COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
-    ./install.sh awscli-linux
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -57,11 +56,9 @@ COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
 COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=builder /usr/local/aws-cli/v2/current/dist /usr/local/aws-cli/v2/current/dist
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 # keep uid_entrypoint.sh for backward compatibility
-RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh && \
-    ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
+RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
 # support for mounting configuration from a configmap
 WORKDIR /app/config/ssh
@@ -127,6 +124,7 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
-    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller 
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
 
 USER 999
