@@ -33,6 +33,21 @@ type MockKubectlCmd struct {
 	lastValidate           bool
 	serverSideApply        bool
 	recordLock             sync.RWMutex
+
+	convertToVersionFunc *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
+	getResourceFunc      *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+}
+
+// WithConvertToVersionFunc overrides the default ConvertToVersion behavior.
+func (k *MockKubectlCmd) WithConvertToVersionFunc(convertToVersionFunc func(*unstructured.Unstructured, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
+	k.convertToVersionFunc = &convertToVersionFunc
+	return k
+}
+
+// WithGetResourceFunc overrides the default ConvertToVersion behavior.
+func (k *MockKubectlCmd) WithGetResourceFunc(getResourcefunc func(context.Context, *rest.Config, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
+	k.getResourceFunc = &getResourcefunc
+	return k
 }
 
 func (k *MockKubectlCmd) GetLastResourceCommand(key kube.ResourceKey) string {
@@ -88,6 +103,10 @@ func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, preferred bool, re
 }
 
 func (k *MockKubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	if k.getResourceFunc != nil {
+		return (*k.getResourceFunc)(ctx, config, gvk, name, namespace)
+	}
+
 	return nil, nil
 }
 
@@ -143,6 +162,10 @@ func (k *MockKubectlCmd) ReplaceResource(ctx context.Context, obj *unstructured.
 
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+	if k.convertToVersionFunc != nil {
+		return (*k.convertToVersionFunc)(obj, group, version)
+	}
+
 	return obj, nil
 }
 
