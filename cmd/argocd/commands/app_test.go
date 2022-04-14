@@ -656,9 +656,13 @@ func appWithValues(yaml v1alpha1.StringOrObject) v1alpha1.Application {
 func Test_unset(t *testing.T) {
 	app := appWithValues(v1alpha1.NewStringOrObjectFromString("some: yaml"))
 	assert.Equal(t, "some: yaml", string(app.Spec.Source.Helm.Values.YAML()))
+	unset(&app, unsetOpts{valuesLiteral: true})
+	assert.Equal(t, "", string(app.Spec.Source.Helm.Values.YAML()))
 
 	yaml, err := v1alpha1.NewStringOrObjectFromYAML([]byte("some: yaml"))
 	require.NoError(t, err)
 	app = appWithValues(*yaml)
 	assert.Equal(t, "some: yaml\n", string(app.Spec.Source.Helm.Values.YAML()))
+	unset(&app, unsetOpts{valuesLiteral: true})
+	assert.Equal(t, "", string(app.Spec.Source.Helm.Values.YAML()))
 }
