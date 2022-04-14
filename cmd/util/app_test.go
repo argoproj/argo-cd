@@ -246,6 +246,7 @@ func Test_setAppSpecOptions_valuesRawLiteralFile(t *testing.T) {
 	err := yaml.Unmarshal([]byte(congigMapYaml), &unmarshalledYaml)
 	require.NoError(t, err)
 	marshalledYaml, err := yaml.Marshal(unmarshalledYaml)
+	require.NoError(t, err)
 
 	testCases := []struct{
 		name string
