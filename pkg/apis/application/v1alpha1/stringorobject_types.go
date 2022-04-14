@@ -47,7 +47,7 @@ func (o *StringOrObject) SetYAMLValue(yamlBytes []byte) error {
 
 // IsEmpty returns true if the Object is empty
 func (o StringOrObject) IsEmpty() bool {
-	return o.rawValue == nil && o.stringValue == ""
+	return len(o.YAML()) == 0
 }
 
 // YAML returns the value marshalled to YAML
