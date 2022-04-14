@@ -1,6 +1,8 @@
 package util
 
 import (
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -190,6 +192,101 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
+}
+
+var configMapUrl = "https://raw.githubusercontent.com/argoproj/argo-cd/db547567b9eafcba44e3df2883a40b8d03c71bf0/manifests/base/config/argocd-cm.yaml"
+var congigMapYaml = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+`
+
+func Test_setAppSpecOptions_valuesLiteralFile(t *testing.T) {
+	testCases := []struct{
+		name string
+		sourceUrl string
+		expectedYaml string
+	}{
+		{
+			name: "valid yaml",
+			sourceUrl: writeTempFile(t, "some: yaml"),
+			expectedYaml: "some: yaml",
+		},
+		{
+			name: "invalid yaml",
+			sourceUrl: writeTempFile(t, "{some invalid yaml"),
+			expectedYaml: "{some invalid yaml",
+		},
+		{
+			name:         "ConfigMap from URL",
+			sourceUrl:    configMapUrl,
+			expectedYaml: congigMapYaml,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newAppOptionsFixture()
+			assert.NoError(t, f.SetFlag("values-literal-file", testCaseCopy.sourceUrl))
+			assert.Equal(t, testCaseCopy.expectedYaml, string(f.spec.Source.Helm.Values.YAML()))
+		})
+	}
+}
+
+func Test_setAppSpecOptions_valuesRawLiteralFile(t *testing.T) {
+	// Unmarshal and re-marshal so it's sorted.
+	var unmarshalledYaml interface{}
+	err := yaml.Unmarshal([]byte(congigMapYaml), &unmarshalledYaml)
+	require.NoError(t, err)
+	marshalledYaml, err := yaml.Marshal(unmarshalledYaml)
+
+	testCases := []struct{
+		name string
+		sourceUrl string
+		expectedYaml string
+	}{
+		{
+			name: "valid yaml",
+			sourceUrl: writeTempFile(t, "some: yaml"),
+			expectedYaml: "some: yaml\n",
+		},
+		{
+			name:         "ConfigMap from URL",
+			sourceUrl:    configMapUrl,
+			expectedYaml: string(marshalledYaml),
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newAppOptionsFixture()
+			assert.NoError(t, f.SetFlag("values-raw-literal-file", testCaseCopy.sourceUrl))
+			assert.Equal(t, testCaseCopy.expectedYaml, string(f.spec.Source.Helm.Values.YAML()))
+		})
+	}
+}
+
+func writeTempFile(t *testing.T, contents string) string {
+	tempYaml, err := ioutil.TempFile(t.TempDir(), "")
+	require.NoError(t, err)
+	_, err = tempYaml.WriteString(contents)
+	require.NoError(t, err)
+	err = tempYaml.Sync()
+	require.NoError(t, err)
+	err = tempYaml.Close()
+	require.NoError(t, err)
+	return tempYaml.Name()
 }
 
 func Test_setAnnotations(t *testing.T) {
