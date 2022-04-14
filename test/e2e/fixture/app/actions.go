@@ -286,6 +286,11 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 	a.runCli(args...)
 
+	// Adding to see if any failures from sync timeout
+	if a.lastError != nil {
+		a.context.t.Log("logging last sync err: " + a.lastError.Error())
+	}
+
 	return a
 }
 
