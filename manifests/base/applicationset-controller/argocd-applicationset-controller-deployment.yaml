@@ -41,6 +41,13 @@ spec:
             name: gpg-keys
           - mountPath: /app/config/gpg/keys
             name: gpg-keyring
+          securityContext:
+           capabilities:
+             drop:
+             - ALL
+           allowPrivilegeEscalation: false
+           readOnlyRootFilesystem: true 
+           runAsNonRoot: true
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:

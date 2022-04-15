@@ -152,6 +152,13 @@ spec:
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
         name: copyutil
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files

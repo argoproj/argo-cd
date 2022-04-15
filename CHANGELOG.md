@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.3.0 (Unreleased)
+## v2.3.0
 
 ### Argo CD ApplicationSet and Notifications are now part of Argo CD
 
