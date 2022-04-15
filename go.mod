@@ -12,6 +12,7 @@ require (
 	github.com/argoproj/gitops-engine v0.6.1-0.20220328190556-73bcea9c8c8f
 	github.com/argoproj/notifications-engine v0.3.1-0.20220322174744-ac18ca10234c
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
+	github.com/aws/aws-sdk-go v1.38.49
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
 	github.com/casbin/casbin/v2 v2.39.1
@@ -227,6 +228,8 @@ require (
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
 )
+
+require github.com/jmespath/go-jmespath v0.4.0 // indirect
 
 replace (
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
