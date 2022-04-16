@@ -93,27 +93,24 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 }
 
 // Currently for Matrix Generator. Allows interpolating the matrix's 2nd child generator with values from the 1st child generator
-// "params" parameter here are params from the 1st child generator. Uses similar process for interpreting values as the actual Application Template
+// "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
+// Since the Matrix generator currently only allows 2 child generators, effectively this params array will always be size 1 (containing the 1st child generator's params)
+// Uses similar process for interpreting values as the actual Application Template
 func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params []map[string]string) error {
 	tmplBytes, err := json.Marshal(requestedGenerator)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error marshalling requested generator for interpolation")
 		return err
 	}
-	tmpParams := make(map[string]string)
-	for _, currParam := range params {
-		for k, v := range currParam {
-			tmpParams[k] = v
-		}
-	}
 
-	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
 	render := utils.Render{}
-	replacedTmplStr, err := render.Replace(fstTmpl, tmpParams, true)
+	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
+	replacedTmplStr, err := render.Replace(fstTmpl, params[0], true)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
 		return err
 	}
+
 	err = json.Unmarshal([]byte(replacedTmplStr), requestedGenerator)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error unmarshalling requested generator for interpolation")
