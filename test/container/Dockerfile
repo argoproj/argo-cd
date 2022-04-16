@@ -36,11 +36,8 @@ ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
-ADD ./hack/tool-versions.sh .
-ADD ./hack/install.sh .
-ADD ./hack/installers installers
-ADD go.mod go.mod
-ADD go.sum go.sum
+COPY hack/install.sh hack/tool-versions.sh go.* ./
+COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
     ./install.sh kubectl-linux && \
