@@ -1,6 +1,7 @@
 import requests from './requests';
 
 import * as models from '../models';
+import {AuditProjectsResponse} from '../models';
 
 export interface CreateJWTTokenParams {
     project: string;
@@ -60,6 +61,18 @@ export class ProjectsService {
             .query({fields: fields.join(',')})
             .then(res => res.body as models.ProjectList)
             .then(list => list.items || []);
+    }
+
+    public listAugmented(...fields: string[]): Promise<models.AugmentedProject[]> {
+        return Promise.all([requests.get('/audit-projects').then(res => res.body as AuditProjectsResponse), this.list(...fields)]).then(([audit, projects]) =>
+            projects.map(project => {
+                return {
+                    project,
+                    isUnused: audit.unused.projects.some(projectName => project.metadata.name === projectName),
+                    isAdmin: audit.admin.projects.some(projectName => project.metadata.name === projectName)
+                };
+            })
+        );
     }
 
     public get(name: string): Promise<models.Project> {
@@ -171,5 +184,12 @@ export class ProjectsService {
             .get(`/projects/${projectName}/events`)
             .send()
             .then(res => (res.body as models.EventList).items || []);
+    }
+
+    public audit(projectName: string): Promise<models.AuditProjectResponse> {
+        return requests
+            .get(`/audit-projects/${projectName}`)
+            .send()
+            .then(res => res.body as models.AuditProjectResponse);
     }
 }

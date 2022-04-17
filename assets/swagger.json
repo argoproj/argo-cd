@@ -1466,6 +1466,28 @@
         }
       }
     },
+    "/api/v1/audit-projects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "operationId": "ProjectService_AuditProjects",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/projectAuditProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/certificates": {
       "get": {
         "tags": [
@@ -3809,9 +3831,56 @@
         }
       }
     },
+    "projectAuditAdminProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "projectAuditProjectResponse": {
+      "type": "object",
+      "properties": {
+        "isAdmin": {
+          "type": "boolean"
+        },
+        "isUnused": {
+          "type": "boolean"
+        }
+      }
+    },
+    "projectAuditProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "admin": {
+          "$ref": "#/definitions/projectAuditAdminProjectsResponse"
+        },
+        "unused": {
+          "$ref": "#/definitions/projectAuditUnusedProjectsResponse"
+        }
+      }
+    },
+    "projectAuditUnusedProjectsResponse": {
+      "type": "object",
+      "properties": {
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "projectDetailedProjectsResponse": {
       "type": "object",
       "properties": {
+        "audit": {
+          "$ref": "#/definitions/projectAuditProjectResponse"
+        },
         "clusters": {
           "type": "array",
           "items": {

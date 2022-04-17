@@ -49,6 +49,10 @@ message ProjectUpdateRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 1;
 }
 
+message UnusedProjectsRequest {
+
+}
+
 message EmptyResponse {}
 
 message SyncWindowsQuery {
@@ -68,6 +72,25 @@ message DetailedProjectsResponse {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.AppProject project = 2;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repositories = 3;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
+    AuditProjectResponse audit = 5;
+}
+
+message AuditUnusedProjectsResponse {
+  repeated string projects = 1;
+}
+
+message AuditAdminProjectsResponse {
+  repeated string projects = 1;
+}
+
+message AuditProjectsResponse {
+  AuditUnusedProjectsResponse unused = 1;
+  AuditAdminProjectsResponse admin = 2;
+}
+
+message AuditProjectResponse {
+  bool isUnused = 1;
+  bool isAdmin = 2;
 }
 
 // ProjectService
@@ -135,5 +158,9 @@ service ProjectService {
   // GetSchedulesState returns true if there are any active sync syncWindows
   rpc GetSyncWindowsState(SyncWindowsQuery) returns (SyncWindowsResponse) {
       option (google.api.http).get = "/api/v1/projects/{name}/syncwindows";
+  }
+
+  rpc AuditProjects(UnusedProjectsRequest) returns (AuditProjectsResponse) {
+    option (google.api.http).get = "/api/v1/audit-projects";
   }
 }

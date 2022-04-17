@@ -2,7 +2,7 @@ import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
+import {ARGO_WARNING_COLOR, DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -24,7 +24,7 @@ export class ProjectsList extends React.Component {
                             }
                         }}>
                         <div className='projects argo-container'>
-                            <DataLoader load={() => services.projects.list()}>
+                            <DataLoader load={() => services.projects.listAugmented()}>
                                 {projects =>
                                     (projects.length > 0 && (
                                         <div className='argo-table-list argo-table-list--clickable'>
@@ -35,12 +35,32 @@ export class ProjectsList extends React.Component {
                                                 </div>
                                             </div>
                                             {projects.map(proj => (
-                                                <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
+                                                <div
+                                                    className='argo-table-list__row'
+                                                    key={proj.project.metadata.name}
+                                                    onClick={() => ctx.navigation.goto(`./${proj.project.metadata.name}`)}>
                                                     <div className='row'>
                                                         <div className='columns small-3'>
-                                                            <i className='fa fa-object-group' /> {proj.metadata.name}
+                                                            <i className='fa fa-object-group' /> {proj.project.metadata.name}
                                                         </div>
-                                                        <div className='columns small-6'>{proj.spec.description}</div>
+                                                        <div className='columns small-8'>{proj.project.spec.description}</div>
+                                                        <div className={'columns small-1'}>
+                                                            {proj.isUnused && (
+                                                                <i
+                                                                    className='fa fa-align-right fa-exclamation-triangle'
+                                                                    style={{color: ARGO_WARNING_COLOR}}
+                                                                    title='This project is unused. Consider deleting it.'
+                                                                />
+                                                            )}
+                                                            {proj.isUnused && proj.isAdmin && <i>&nbsp;</i>}
+                                                            {proj.isAdmin && (
+                                                                <i
+                                                                    className='fa fa-align-right fa-exclamation-triangle'
+                                                                    style={{color: ARGO_WARNING_COLOR}}
+                                                                    title='This project has admin-level privileges. If this project does not need to manage Argo CD resources, you should further restrict its destination/resources.'
+                                                                />
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

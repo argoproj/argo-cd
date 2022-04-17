@@ -129,6 +129,8 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
+			printUnusedProjectWarning(projIf)
+
 			if visited := cmdutil.SetProjSpecOptions(c.Flags(), &proj.Spec, &opts); visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
@@ -141,6 +143,16 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	}
 	cmdutil.AddProjFlags(command, &opts)
 	return command
+}
+
+func printUnusedProjectWarning(projIf projectpkg.ProjectServiceClient) {
+	audit, err := projIf.AuditProjects(context.Background(), &projectpkg.UnusedProjectsRequest{})
+	if err != nil {
+		log.Infof("failed to list unused Projects: %s", err)
+	}
+	if len(audit.Unused.Projects) > 0 {
+		log.Warnf("WARNING: Consider deleting the following unused projects: " + strings.Join(audit.Unused.Projects, ", "))
+	}
 }
 
 // NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-signature-key` command
@@ -165,6 +177,8 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
+
+			printUnusedProjectWarning(projIf)
 
 			for _, key := range proj.Spec.SignatureKeys {
 				if key.KeyID == signatureKey {

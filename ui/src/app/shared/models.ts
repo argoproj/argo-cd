@@ -681,11 +681,36 @@ export interface Project {
     status: AppProjectStatus;
 }
 
+export interface UnusedProjectsResponse {
+    projects?: string[];
+}
+
+export interface AdminProjectsResponse {
+    projects?: string[];
+}
+
+export interface AuditProjectsResponse {
+    unused: UnusedProjectsResponse;
+    admin: AdminProjectsResponse;
+}
+
+export interface AuditProjectResponse {
+    isUnused: boolean;
+    isAdmin: boolean;
+}
+
+export interface AugmentedProject {
+    project: Project;
+    isUnused: boolean;
+    isAdmin: boolean;
+}
+
 export interface DetailedProjectsResponse {
     project: Project;
     globalProjects: Project[];
     repositories: Repository[];
     clusters: Cluster[];
+    audit?: AuditProjectResponse;
 }
 
 export type ProjectList = ItemsList<Project>;

@@ -5,7 +5,7 @@ import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
-import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
+import {ARGO_WARNING_COLOR, BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
@@ -549,6 +549,18 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     }
 
     private summaryTab(proj: Project, globalProj: ProjectSpec & {count: number}, scopedProj: DetailedProjectsResponse) {
+        const ADMIN_PROJECT_REPO_WARNING = (
+            <div>
+                <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This project allows managing Argo CD resources. Only admins should have push access
+                to these repositories.
+            </div>
+        );
+        const ADMIN_PROJECT_DESTINATION_WARNING = (
+            <div>
+                <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This project allows managing Argo CD resources. If this is not by design, consider
+                restricting destinations to exclude the Argo CD namespace.
+            </div>
+        );
         return (
             <div className='argo-container'>
                 <EditablePanel
@@ -558,6 +570,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     })}
                     values={proj}
                     title='GENERAL'
+                    view={
+                        scopedProj.audit?.isUnused && (
+                            <div>
+                                <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This project is unused. Consider deleting it.
+                            </div>
+                        )
+                    }
                     items={[
                         {
                             title: 'NAME',
@@ -585,6 +604,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>SOURCE REPOSITORIES {helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
                     view={
                         <React.Fragment>
+                            {scopedProj.audit?.isAdmin && ADMIN_PROJECT_REPO_WARNING}
                             {proj.spec.sourceRepos
                                 ? proj.spec.sourceRepos.map((repo, i) => (
                                       <div className='row white-box__details-row' key={i}>
@@ -598,6 +618,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <DataLoader load={() => services.repos.list()}>
                             {repos => (
                                 <React.Fragment>
+                                    {scopedProj.audit?.isAdmin && ADMIN_PROJECT_REPO_WARNING}
                                     {(formApi.values.spec.sourceRepos || []).map((_: Project, i: number) => (
                                         <div className='row white-box__details-row' key={i}>
                                             <div className='columns small-12'>
@@ -628,6 +649,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>SCOPED REPOSITORIES{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
                     view={
                         <React.Fragment>
+                            {scopedProj.audit?.isAdmin && (
+                                <div>
+                                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This project allows managing Argo CD resources. Only admins
+                                    should have push access to these repositories.
+                                </div>
+                            )}
                             {scopedProj.repositories && scopedProj.repositories.length
                                 ? scopedProj.repositories.map((repo, i) => (
                                       <div className='row white-box__details-row' key={i}>
@@ -646,6 +673,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>DESTINATIONS {helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
                     view={
                         <React.Fragment>
+                            {scopedProj.audit?.isAdmin && ADMIN_PROJECT_DESTINATION_WARNING}
                             {proj.spec.destinations ? (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
@@ -670,6 +698,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         <DataLoader load={() => services.clusters.list()}>
                             {clusters => (
                                 <React.Fragment>
+                                    {scopedProj.audit?.isAdmin && ADMIN_PROJECT_DESTINATION_WARNING}
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-4'>Server</div>
                                         <div className='columns small-3'>Name</div>
@@ -725,6 +754,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     title={<React.Fragment>SCOPED CLUSTERS{helpTip('Cluster and namespaces where applications are permitted to be deployed to')}</React.Fragment>}
                     view={
                         <React.Fragment>
+                            {scopedProj.audit?.isAdmin && ADMIN_PROJECT_DESTINATION_WARNING}
                             {scopedProj.clusters && scopedProj.clusters.length
                                 ? scopedProj.clusters.map((cluster, i) => (
                                       <div className='row white-box__details-row' key={i}>

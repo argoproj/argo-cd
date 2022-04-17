@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"strings"
 
@@ -248,11 +249,17 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	proj.NormalizeJWTTokens()
 	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
 
+	audit, err := s.getAudit(ctx, q.Name)
+	if err != nil {
+		log.Errorf("failed to get audit for project %q: %s", q.Name, err)
+	}
+
 	return &project.DetailedProjectsResponse{
 		GlobalProjects: globalProjects,
 		Project:        proj,
 		Repositories:   repositories,
 		Clusters:       clusters,
+		Audit:          audit,
 	}, err
 }
 
@@ -456,6 +463,112 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	}
 
 	return res, nil
+}
+
+var SensitiveGroupKinds = []schema.GroupKind{
+	{Group: "", Kind: "ConfigMap"},
+	{Group: "", Kind: "Secret"},
+	{Group: "", Kind: "Service"},
+	{Group: "", Kind: "ServiceAccount"},
+	{Group: "apps", Kind: "Deployment"},
+	{Group: "apps", Kind: "StatefulSet"},
+	{Group: "networking.k8s.io", Kind: "NetworkPolicy"},
+	{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+	{Group: "rbac.authorization.k8s.io", Kind: "ClusterRoleBinding"},
+	{Group: "rbac.authorization.k8s.io", Kind: "Role"},
+	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"},
+}
+
+func (s *Server) AuditProjects(ctx context.Context, _ *project.UnusedProjectsRequest) (*project.AuditProjectsResponse, error) {
+	projects, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	apps, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	claims := ctx.Value("claims")
+	var unusedProjects []string
+	var adminProjects []string
+	for _, proj := range projects.Items {
+		if !canGet(claims, s.enf, proj.Name) {
+			continue
+		}
+		if canDelete(claims, s.enf, proj.Name) {
+			var isUnused = true
+			for _, app := range apps.Items {
+				if app.Spec.Project == proj.Name {
+					isUnused = false
+					break
+				}
+			}
+			if isUnused {
+				unusedProjects = append(unusedProjects, proj.Name)
+			}
+		}
+		if canUpdate(claims, s.enf, proj.Name) {
+			for _, sensitiveGroupKind := range SensitiveGroupKinds {
+				if proj.IsResourcePermitted(sensitiveGroupKind, s.ns, v1alpha1.ApplicationDestination{Name: "in-cluster", Server: "https://kubernetes.default.svc"}) {
+					adminProjects = append(adminProjects, proj.Name)
+					break
+				}
+			}
+		}
+	}
+
+	return &project.AuditProjectsResponse{
+		Unused: &project.AuditUnusedProjectsResponse{Projects: unusedProjects},
+		Admin: &project.AuditAdminProjectsResponse{Projects: adminProjects},
+	}, nil
+}
+
+func (s *Server) getAudit(ctx context.Context, projName string) (*project.AuditProjectResponse, error) {
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var isUnused = true
+	if canDelete(ctx.Value("claims"), s.enf, proj.Name) {
+		apps, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, app := range apps.Items {
+			if app.Spec.Project == proj.Name {
+				isUnused = false
+				break
+			}
+		}
+	}
+	var isAdmin bool
+	if canUpdate(ctx.Value("claims"), s.enf, proj.Name) {
+		for _, sensitiveGroupKind := range SensitiveGroupKinds {
+			if proj.IsResourcePermitted(sensitiveGroupKind, s.ns, v1alpha1.ApplicationDestination{Name: "in-cluster", Server: "https://kubernetes.default.svc"}) {
+				isAdmin = true
+				break
+			}
+		}
+	}
+
+	return &project.AuditProjectResponse{
+		IsUnused: isUnused,
+		IsAdmin:  isAdmin,
+	}, nil
+}
+
+func canGet(claims any, enf *rbac.Enforcer, projName string) bool {
+	return enf.EnforceErr(claims, rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, projName) == nil
+}
+
+func canUpdate(claims any, enf *rbac.Enforcer, projName string) bool {
+	return enf.EnforceErr(claims, rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, projName) == nil
+}
+
+func canDelete(claims any, enf *rbac.Enforcer, projName string) bool {
+	return enf.EnforceErr(claims, rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, projName) == nil
 }
 
 func (s *Server) NormalizeProjs() error {
