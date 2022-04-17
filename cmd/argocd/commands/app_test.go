@@ -730,7 +730,7 @@ func Test_unset(t *testing.T) {
 	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{parameters: []string{"name-1"}})
+	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
