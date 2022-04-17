@@ -101,6 +101,12 @@ It is defined by the following key pieces of information:
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
+!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
+    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+    to only admins.
+
 An example spec is as follows:
 
 ```yaml
