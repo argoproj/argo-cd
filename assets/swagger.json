@@ -3259,6 +3259,52 @@
         }
       }
     },
+    "/api/v1/stream/events": {
+      "get": {
+        "tags": [
+          "Eventing"
+        ],
+        "operationId": "Eventing_StartEventSource",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The event source name.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "byte",
+            "description": "The event source configuration value.",
+            "name": "config",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of genericEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/genericEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [
@@ -3769,6 +3815,21 @@
         }
       }
     },
+    "genericEvent": {
+      "type": "object",
+      "title": "*\nRepresents an event",
+      "properties": {
+        "name": {
+          "description": "The event source name.",
+          "type": "string"
+        },
+        "payload": {
+          "description": "The event payload.",
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
     "gpgkeyGnuPGPublicKeyCreateResponse": {
       "type": "object",
       "title": "Response to a public key creation request",
@@ -4062,13 +4123,44 @@
         }
       }
     },
+    "repositoryManifest": {
+      "type": "object",
+      "properties": {
+        "compiledManifest": {
+          "type": "string",
+          "title": "The processed manifest that needs to be applied to the cluster"
+        },
+        "line": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The line in the file where the object starts"
+        },
+        "path": {
+          "type": "string",
+          "title": "The path of the raw manifest inside the repo"
+        },
+        "rawManifest": {
+          "description": "The pre-processed manifest (for example the kustomization.yaml \nwhen using kustmize or the values.yaml when using helm).",
+          "type": "string"
+        }
+      }
+    },
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commitAuthor": {
+          "type": "string"
+        },
+        "commitDate": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "commitMessage": {
+          "type": "string"
+        },
         "manifests": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/repositoryManifest"
           }
         },
         "namespace": {

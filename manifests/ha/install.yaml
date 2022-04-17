@@ -5483,16 +5483,96 @@ spec:
                                                 syncOptions:
                                                   items:
                                                     type: string
-                                                  type: array
-                                              type: object
-                                          required:
-                                            - destination
-                                            - project
-                                            - source
-                                          type: object
-                                      required:
-                                        - metadata
-                                        - spec
+                                                type: object
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                              - repoURL
+                                            type: object
+                                          syncPolicy:
+                                            properties:
+                                              automated:
+                                                properties:
+                                                  allowEmpty:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                  selfHeal:
+                                                    type: boolean
+                                                type: object
+                                              retry:
+                                                properties:
+                                                  backoff:
+                                                    properties:
+                                                      duration:
+                                                        type: string
+                                                      factor:
+                                                        format: int64
+                                                        type: integer
+                                                      maxDuration:
+                                                        type: string
+                                                    type: object
+                                                  limit:
+                                                    format: int64
+                                                    type: integer
+                                                type: object
+                                              syncOptions:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            type: object
+                                        required:
+                                          - destination
+                                          - project
+                                          - source
+                                        type: object
+                                    required:
+                                      - metadata
+                                      - spec
+                                    type: object
+                                type: object
+                              scmProvider:
+                                properties:
+                                  bitbucket:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      appPasswordRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                          - key
+                                          - secretName
+                                        type: object
+                                      owner:
+                                        type: string
+                                      user:
+                                        type: string
+                                    required:
+                                      - appPasswordRef
+                                      - owner
+                                      - user
+                                    type: object
+                                  cloneProtocol:
+                                    type: string
+                                  filters:
+                                    items:
+                                      properties:
+                                        branchMatch:
+                                          type: string
+                                        labelMatch:
+                                          type: string
+                                        pathsExist:
+                                          items:
+                                            type: string
+                                          type: array
+                                        repositoryMatch:
+                                          type: string
                                       type: object
                                   type: object
                                 scmProvider:
@@ -7283,81 +7363,47 @@ spec:
                                                   type: object
                                                 path:
                                                   type: string
-                                                plugin:
-                                                  properties:
-                                                    env:
-                                                      items:
-                                                        properties:
-                                                          name:
-                                                            type: string
-                                                          value:
-                                                            type: string
-                                                        required:
-                                                          - name
-                                                          - value
-                                                        type: object
-                                                      type: array
-                                                    name:
-                                                      type: string
-                                                  type: object
-                                                repoURL:
-                                                  type: string
-                                                targetRevision:
-                                                  type: string
-                                              required:
-                                                - repoURL
-                                              type: object
-                                            syncPolicy:
-                                              properties:
-                                                automated:
-                                                  properties:
-                                                    allowEmpty:
-                                                      type: boolean
-                                                    prune:
-                                                      type: boolean
-                                                    selfHeal:
-                                                      type: boolean
-                                                  type: object
-                                                retry:
-                                                  properties:
-                                                    backoff:
-                                                      properties:
-                                                        duration:
-                                                          type: string
-                                                        factor:
-                                                          format: int64
-                                                          type: integer
-                                                        maxDuration:
-                                                          type: string
-                                                      type: object
-                                                    limit:
-                                                      format: int64
-                                                      type: integer
-                                                  type: object
-                                                syncOptions:
-                                                  items:
-                                                    type: string
-                                                  type: array
-                                              type: object
-                                          required:
-                                            - destination
-                                            - project
-                                            - source
-                                          type: object
-                                      required:
-                                        - metadata
-                                        - spec
-                                      type: object
-                                  required:
-                                    - elements
-                                  type: object
-                                matrix:
-                                  x-kubernetes-preserve-unknown-fields: true
-                                merge:
-                                  x-kubernetes-preserve-unknown-fields: true
-                                pullRequest:
-                                  properties:
-                                    github:
+                                                type: array
+                                            type: object
+                                        required:
+                                          - destination
+                                          - project
+                                          - source
+                                        type: object
+                                    required:
+                                      - metadata
+                                      - spec
+                                    type: object
+                                type: object
+                              scmProvider:
+                                properties:
+                                  bitbucket:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      appPasswordRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                          - key
+                                          - secretName
+                                        type: object
+                                      owner:
+                                        type: string
+                                      user:
+                                        type: string
+                                    required:
+                                      - appPasswordRef
+                                      - owner
+                                      - user
+                                    type: object
+                                  cloneProtocol:
+                                    type: string
+                                  filters:
+                                    items:
                                       properties:
                                         api:
                                           type: string
@@ -8596,16 +8642,96 @@ spec:
                                       syncOptions:
                                         items:
                                           type: string
-                                        type: array
-                                    type: object
-                                required:
-                                  - destination
-                                  - project
-                                  - source
-                                type: object
-                            required:
-                              - metadata
-                              - spec
+                                      type: object
+                                    repoURL:
+                                      type: string
+                                    targetRevision:
+                                      type: string
+                                  required:
+                                    - repoURL
+                                  type: object
+                                syncPolicy:
+                                  properties:
+                                    automated:
+                                      properties:
+                                        allowEmpty:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                        selfHeal:
+                                          type: boolean
+                                      type: object
+                                    retry:
+                                      properties:
+                                        backoff:
+                                          properties:
+                                            duration:
+                                              type: string
+                                            factor:
+                                              format: int64
+                                              type: integer
+                                            maxDuration:
+                                              type: string
+                                          type: object
+                                        limit:
+                                          format: int64
+                                          type: integer
+                                      type: object
+                                    syncOptions:
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                              required:
+                                - destination
+                                - project
+                                - source
+                              type: object
+                          required:
+                            - metadata
+                            - spec
+                          type: object
+                      type: object
+                    scmProvider:
+                      properties:
+                        bitbucket:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            appPasswordRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                                - key
+                                - secretName
+                              type: object
+                            owner:
+                              type: string
+                            user:
+                              type: string
+                          required:
+                            - appPasswordRef
+                            - owner
+                            - user
+                          type: object
+                        cloneProtocol:
+                          type: string
+                        filters:
+                          items:
+                            properties:
+                              branchMatch:
+                                type: string
+                              labelMatch:
+                                type: string
+                              pathsExist:
+                                items:
+                                  type: string
+                                type: array
+                              repositoryMatch:
+                                type: string
                             type: object
                         type: object
                       scmProvider:
@@ -10951,7 +11077,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          image: quay.io/codefresh/applicationset:v0.4.2
+          image: quay.io/argoproj/argocd-applicationset:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller
           ports:
@@ -10960,25 +11086,14 @@ spec:
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
-            - mountPath: /app/config/tls
+            - configMap:
+                name: argocd-tls-certs-cm
               name: tls-certs
-            - mountPath: /app/config/gpg/source
+            - configMap:
+                name: argocd-gpg-keys-cm
               name: gpg-keys
-            - mountPath: /app/config/gpg/keys
+            - emptyDir: {}
               name: gpg-keyring
-      serviceAccountName: argocd-applicationset-controller
-      volumes:
-        - configMap:
-            name: argocd-ssh-known-hosts-cm
-          name: ssh-known-hosts
-        - configMap:
-            name: argocd-tls-certs-cm
-          name: tls-certs
-        - configMap:
-            name: argocd-gpg-keys-cm
-          name: gpg-keys
-        - emptyDir: {}
-          name: gpg-keyring
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11032,7 +11147,7 @@ spec:
             - -n
             - /usr/local/bin/argocd
             - /shared/argocd-dex
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           name: copyutil
           volumeMounts:
@@ -11065,7 +11180,7 @@ spec:
       containers:
         - command:
             - argocd-notifications
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           livenessProbe:
             tcpSocket:
@@ -11298,7 +11413,7 @@ spec:
               value: /helm-working-dir
             - name: HELM_DATA_HOME
               value: /helm-working-dir
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
@@ -11327,17 +11442,17 @@ spec:
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
-            - mountPath: /app/config/tls
+            - configMap:
+                name: argocd-tls-certs-cm
               name: tls-certs
-            - mountPath: /app/config/gpg/source
+            - configMap:
+                name: argocd-gpg-keys-cm
               name: gpg-keys
-            - mountPath: /app/config/gpg/keys
+            - emptyDir: {}
               name: gpg-keyring
-            - mountPath: /app/config/reposerver/tls
-              name: argocd-repo-server-tls
-            - mountPath: /tmp
+            - emptyDir: {}
               name: tmp
-            - mountPath: /helm-working-dir
+            - emptyDir: {}
               name: helm-working-dir
             - mountPath: /home/argocd/cmp-server/plugins
               name: plugins
@@ -11347,42 +11462,13 @@ spec:
             - -n
             - /usr/local/bin/argocd
             - /var/run/argocd/argocd-cmp-server
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           name: copyutil
           volumeMounts:
             - mountPath: /var/run/argocd
               name: var-files
-      volumes:
-        - configMap:
-            name: argocd-ssh-known-hosts-cm
-          name: ssh-known-hosts
-        - configMap:
-            name: argocd-tls-certs-cm
-          name: tls-certs
-        - configMap:
-            name: argocd-gpg-keys-cm
-          name: gpg-keys
-        - emptyDir: {}
-          name: gpg-keyring
-        - emptyDir: {}
-          name: tmp
-        - emptyDir: {}
-          name: helm-working-dir
-        - name: argocd-repo-server-tls
-          secret:
-            items:
-              - key: tls.crt
-                path: tls.crt
-              - key: tls.key
-                path: tls.key
-              - key: ca.crt
-                path: ca.crt
-            optional: true
-            secretName: argocd-repo-server-tls
-        - emptyDir: {}
-          name: var-files
-        - emptyDir: {}
-          name: plugins
+            - emptyDir: {}
+              name: plugins
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11574,7 +11660,7 @@ spec:
                   key: server.http.cookie.maxnumber
                   name: argocd-cmd-params-cm
                   optional: true
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -11770,7 +11856,7 @@ spec:
                   key: controller.default.cache.expiration
                   name: argocd-cmd-params-cm
                   optional: true
-          image: quay.io/codefresh/argocd:release-v2.3.3-cap-CR-kustomize-components
+          image: quay.io/codefresh/argocd:latest
           imagePullPolicy: Always
           livenessProbe:
             httpGet:

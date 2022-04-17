@@ -2,28 +2,27 @@ name: Create ArgoCD release
 on:
   push:
     tags:
-      - 'release-v*'
-      - '!release-v1.5*'
-      - '!release-v1.4*'
-      - '!release-v1.3*'
-      - '!release-v1.2*'
-      - '!release-v1.1*'
-      - '!release-v1.0*'
-      - '!release-v0*'
+      - "release-v*"
+      - "!release-v1.5*"
+      - "!release-v1.4*"
+      - "!release-v1.3*"
+      - "!release-v1.2*"
+      - "!release-v1.1*"
+      - "!release-v1.0*"
+      - "!release-v0*"
 
 env:
-    GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: "1.17"
 
 jobs:
   prepare-release:
     name: Perform automatic release on trigger ${{ github.ref }}
-    if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
       # The name of the tag as supplied by the GitHub event
       SOURCE_TAG: ${{ github.ref }}
       # The image namespace where Docker image will be published to
-      IMAGE_NAMESPACE: quay.io/argoproj
+      IMAGE_NAMESPACE: quay.io/codefresh
       # Whether to create & push image and release assets
       DRY_RUN: false
       # Whether a draft release should be created, instead of public one
@@ -33,9 +32,9 @@ jobs:
       # access to public repositories
       UPDATE_HOMEBREW: false
       # Name of the GitHub user for Git config
-      GIT_USERNAME: argo-bot
+      GIT_USERNAME: CI-Codefresh
       # E-Mail of the GitHub user for Git config
-      GIT_EMAIL: argoproj@gmail.com
+      GIT_EMAIL: integration@codefresh.io
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -49,7 +48,8 @@ jobs:
           # Target version must match major.minor.patch and optional -rcX suffix
           # where X must be a number.
           TARGET_VERSION=${SOURCE_TAG#*release-v}
-          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+          # Codefresh change: add to filter below a check for `-cf.*` postfix
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+((-rc[0-9]+)|(-cap-.*))*$'; then
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
@@ -126,16 +126,18 @@ jobs:
 
           # Too short release notes are suspicious. We need at least 100 bytes.
           relNoteLen=$(stat -c '%s' $RELEASE_NOTES)
-          if test $relNoteLen -lt 100; then
-            echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
-            exit 1
-          fi
 
-          # Check for magic string '## Quick Start' in head of release notes
-          if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
-            echo "::error::Release notes seem invalid, quick start section not found."
-            exit 1
-          fi
+          # Codefresh change: disable release notes checks
+          # if test $relNoteLen -lt 100; then
+          #   echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
+          #   exit 1
+          # fi
+
+          # # Check for magic string '## Quick Start' in head of release notes
+          # if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
+          #   echo "::error::Release notes seem invalid, quick start section not found."
+          #   exit 1
+          # fi
 
           # We store path to temporary release notes file for later reading, we
           # need it when creating release.
@@ -161,21 +163,22 @@ jobs:
             exit 1
           fi
 
-      - name: Create VERSION information
-        run: |
-          set -ue
-          echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
-          echo "${TARGET_VERSION}" > VERSION
-          git commit -m "Bump version to ${TARGET_VERSION}" VERSION
+      ## Codefresh change
+      # - name: Create VERSION information
+      #   run: |
+      #     set -ue
+      #     echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
+      #     echo "${TARGET_VERSION}" > VERSION
+      #     git commit -m "Bump version to ${TARGET_VERSION}" VERSION
 
-      - name: Generate new set of manifests
-        run: |
-          set -ue
-          make install-codegen-tools-local
-          helm2 init --client-only
-          make manifests-local VERSION=${TARGET_VERSION}
-          git diff
-          git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
+      # - name: Generate new set of manifests
+      #   run: |
+      #     set -ue
+      #     make install-codegen-tools-local
+      #     helm2 init --client-only
+      #     make manifests-local VERSION=${TARGET_VERSION}
+      #     git diff
+      #     git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
 
       - name: Create the release tag
         run: |
@@ -183,43 +186,38 @@ jobs:
           echo "Creating release ${RELEASE_TAG}"
           git tag ${RELEASE_TAG}
 
-      - name: Login to docker repositories
-        env:
-          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
-          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
-          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
-        run: |
-          set -ue
-          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
-          # Remove the following when Docker Hub is gone
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
-        if: ${{ env.DRY_RUN != 'true' }}
-
-
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
-      - name: Build and push Docker image for release
+      - name: Build Docker image for release
         run: |
           set -ue
           git clean -fd
           mkdir -p dist/
-          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
+          make image IMAGE_TAG="v${TARGET_VERSION}" DOCKER_PUSH=false
           make release-cli
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Push docker image to repository
+        env:
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker push ${{ env.IMAGE_NAMESPACE }}/argocd:v${TARGET_VERSION}
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Read release notes file
         id: release-notes
         uses: juliangruber/read-file-action@v1
-        with: 
+        with:
           path: ${{ env.RELEASE_NOTES }}
 
       - name: Push changes to release branch
         run: |
           set -ue
-          git push origin ${TARGET_BRANCH}
+          # Codefresh change
+          # git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
 
       - name: Create GitHub release
@@ -298,7 +296,7 @@ jobs:
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: ".,./ui" 
+          PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
@@ -345,4 +343,3 @@ jobs:
           set -ue
           git push --delete origin ${SOURCE_TAG}
         if: ${{ always() }}
-

@@ -765,6 +765,12 @@ func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelK
 func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
 
+	repo := &argoappv1.Repository{Repo: app.Spec.Source.RepoURL}
+	gitClient, err := git.NewClientExt(app.Spec.Source.RepoURL, localRepoRoot, repo.GetGitCreds(&git.NoopCredsStore{}), repo.Insecure, repo.EnableLFS, repo.Project)
+	if err != nil {
+		log.Fatalf("failed to create git client: %s", err.Error())
+	}
+
 	res, err := repository.GenerateManifests(context.Background(), local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
@@ -776,10 +782,10 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true, &git.NoopCredsStore{})
+	}, true, &git.NoopCredsStore{}, gitClient)
 	errors.CheckError(err)
 
-	return res.Manifests
+	return res.GetCompiledManifests()
 }
 
 type resourceInfoProvider struct {
@@ -871,7 +877,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				res, err := appIf.GetManifests(context.Background(), &q)
 				errors.CheckError(err)
-				for _, mfst := range res.Manifests {
+				for _, mfst := range res.GetCompiledManifests() {
 					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 					errors.CheckError(err)
 					unstructureds = append(unstructureds, obj)
@@ -1366,7 +1372,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						log.Fatal(err)
 					}
 
-					for _, mfst := range res.Manifests {
+					for _, mfst := range res.GetCompiledManifests() {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
 						for key, selectedValue := range selectedLabels {
@@ -1983,7 +1989,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
-					for _, mfst := range res.Manifests {
+					for _, mfst := range res.GetCompiledManifests() {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)

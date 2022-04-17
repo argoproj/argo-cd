@@ -122,7 +122,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_NAMESPACE?=
+IMAGE_NAMESPACE?=quay.io/codefresh
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -209,7 +209,7 @@ clidocsgen: ensure-gopath
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local notification-docs notification-catalog gogen protogen clientgen openapigen clidocsgen manifests-local
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen

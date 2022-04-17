@@ -54,6 +54,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -621,6 +622,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
+	eventspkg.RegisterEventingServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
 	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
 	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
@@ -757,6 +759,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(eventspkg.RegisterEventingHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)

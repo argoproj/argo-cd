@@ -477,7 +477,7 @@ func TestAppWithSecrets(t *testing.T) {
 			errors.CheckError(err)
 
 			for _, manifest := range manifests.Manifests {
-				assetSecretDataHidden(t, manifest)
+				assetSecretDataHidden(t, manifest.CompiledManifest)
 			}
 
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)

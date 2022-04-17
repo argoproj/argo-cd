@@ -1,18 +1,19 @@
 name: Integration tests
-on: 
+on:
   push:
     branches:
-      - 'master'
-      - 'release-*'
-      - '!release-1.4'
-      - '!release-1.5'
+      # - 'master'
+      - "release-*"
+      - "!release-1.4"
+      - "!release-1.5"
   pull_request:
     branches:
-      - 'master'
+      # - 'master'
+      - "release-*" # Codefresh change instead of `master`
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: "1.17"
 
 jobs:
   check-go:
@@ -60,8 +61,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
           version: v1.38.0
           args: --timeout 10m --exclude SA5011
@@ -237,7 +242,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
-          node-version: '12.18.4'
+          node-version: "12.18.4"
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@v1
@@ -306,24 +311,24 @@ jobs:
           SCANNER_PATH: /tmp/cache/scanner
           OS: linux
         run: |
-            # We do not use the provided action, because it does contain an old
-            # version of the scanner, and also takes time to build.
-            set -e
-            mkdir -p ${SCANNER_PATH}
-            export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-            if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-              unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-            fi
+          # We do not use the provided action, because it does contain an old
+          # version of the scanner, and also takes time to build.
+          set -e
+          mkdir -p ${SCANNER_PATH}
+          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
+          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
+            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
+            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
+          fi
 
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
 
-            # Explicitly set NODE_MODULES
-            export NODE_MODULES=${PWD}/ui/node_modules
-            export NODE_PATH=${PWD}/ui/node_modules
+          # Explicitly set NODE_MODULES
+          export NODE_MODULES=${PWD}/ui/node_modules
+          export NODE_PATH=${PWD}/ui/node_modules
 
-            ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
         if: env.sonar_secret != ''
 
   test-e2e:
@@ -332,9 +337,10 @@ jobs:
     strategy:
       matrix:
         k3s-version: [v1.23.3, v1.22.6, v1.21.2]
-    needs: 
+    needs:
       - build-go
     env:
+      ARGOCD_E2E_SKIP_HELM: "true"
       GOPATH: /home/runner/go
       ARGOCD_FAKE_IN_CLUSTER: "true"
       ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
@@ -426,4 +432,4 @@ jobs:
         with:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
-        if: ${{ failure() }}
+        # if: ${{ failure() }}   # Codefresh change

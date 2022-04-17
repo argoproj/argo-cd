@@ -28,7 +28,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -51,7 +51,11 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{PodManifest},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: PodManifest,
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -76,7 +80,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -104,7 +108,11 @@ func TestCompareAppStateHook(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{string(podBytes)},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: string(podBytes),
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -131,7 +139,11 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{string(podBytes)},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: string(podBytes),
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -156,7 +168,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -183,7 +195,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -225,7 +237,13 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3), toJSON(t, obj4), toJSON(t, obj5)},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: toJSON(t, obj1)},
+				{CompiledManifest: toJSON(t, obj2)},
+				{CompiledManifest: toJSON(t, obj3)},
+				{CompiledManifest: toJSON(t, obj4)},
+				{CompiledManifest: toJSON(t, obj5)},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -277,7 +295,7 @@ func TestSetHealth(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -308,7 +326,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -516,7 +534,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -538,7 +556,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -567,7 +585,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -589,7 +607,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -611,7 +629,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -633,7 +651,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -656,7 +674,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -681,7 +699,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -708,7 +726,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -731,7 +749,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",

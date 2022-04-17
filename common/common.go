@@ -200,6 +200,10 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
+	// EnvApplicationEventCacheDuration controls the expiration of application events cache
+	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
+	// EnvResourceEventCacheDuration controls the expiration of resource events cache
+	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
 )
 
 const (

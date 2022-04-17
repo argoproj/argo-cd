@@ -11,4 +11,4 @@ resources:
 images:
   - name: quay.io/argoproj/argocd
     newName: quay.io/codefresh/argocd
-    newTag: release-v2.3.3-cap-CR-kustomize-components
+    newTag: latest
