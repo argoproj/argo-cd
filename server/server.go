@@ -83,7 +83,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/server/session"
 	"github.com/argoproj/argo-cd/v2/server/settings"
-	"github.com/argoproj/argo-cd/v2/server/terminal"
 	"github.com/argoproj/argo-cd/v2/server/version"
 	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
@@ -749,7 +748,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 	mux.Handle("/api/", handler)
-	terminalHandler := terminal.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		if !a.DisableAuth {
 			ctx := request.Context()

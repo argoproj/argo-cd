@@ -1,4 +1,4 @@
-package terminal
+package application
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/application"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	apputil "github.com/argoproj/argo-cd/v2/util/app"
@@ -34,7 +33,7 @@ type terminalHandler struct {
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationNamespaceLister, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree application.AppResourceTreeFn) *terminalHandler {
+	appResourceTree AppResourceTreeFn) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
