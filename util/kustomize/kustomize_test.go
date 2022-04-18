@@ -2,7 +2,6 @@ package kustomize
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,12 +20,9 @@ const kustomization2b = "Kustomization"
 const kustomization3 = "force_common"
 const kustomization4 = "custom_version"
 
-func testDataDir(testData string) (string, error) {
-	res, err := ioutil.TempDir("", "kustomize-test")
-	if err != nil {
-		return "", err
-	}
-	_, err = exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
+func testDataDir(tb testing.TB, testData string) (string, error) {
+	res := tb.TempDir()
+	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +30,7 @@ func testDataDir(testData string) (string, error) {
 }
 
 func TestKustomizeBuild(t *testing.T) {
-	appPath, err := testDataDir(kustomization1)
+	appPath, err := testDataDir(t, kustomization1)
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
@@ -162,7 +158,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		appPath, err := testDataDir(tc.TestData)
+		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
@@ -211,7 +207,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		appPath, err := testDataDir(tc.TestData)
+		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
@@ -228,9 +224,9 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 }
 
 func TestKustomizeCustomVersion(t *testing.T) {
-	appPath, err := testDataDir(kustomization1)
+	appPath, err := testDataDir(t, kustomization1)
 	assert.Nil(t, err)
-	kustomizePath, err := testDataDir(kustomization4)
+	kustomizePath, err := testDataDir(t, kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
