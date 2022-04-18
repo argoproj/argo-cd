@@ -153,7 +153,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				conn, appIf := argocdClient.NewApplicationClientOrDie()
 				defer argoio.Close(conn)
 				appCreateRequest := applicationpkg.ApplicationCreateRequest{
-					Application: *app,
+					Application: app,
 					Upsert:      &upsert,
 					Validate:    &appOpts.Validate,
 				}
@@ -310,16 +310,16 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
-					Namespace:    namespace,
+					Namespace:    pointer.String(namespace),
 					Kind:         &kind,
 					ResourceName: &resourceName,
-					Follow:       follow,
-					TailLines:    tail,
-					SinceSeconds: sinceSeconds,
+					Follow:       pointer.Bool(follow),
+					TailLines:    pointer.Int64(tail),
+					SinceSeconds: pointer.Int64(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
-					Container:    container,
-					Previous:     previous,
+					Container:    pointer.String(container),
+					Previous:     pointer.Bool(previous),
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -341,8 +341,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 						log.Fatalf("stream read failed: %v", err)
 					}
-					if !msg.Last {
-						fmt.Println(msg.Content)
+					if !msg.GetLast() {
+						fmt.Println(msg.GetContent())
 					} else {
 						return
 					}
@@ -553,7 +553,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
 				Name:     &app.Name,
-				Spec:     app.Spec,
+				Spec:     &app.Spec,
 				Validate: &appOpts.Validate,
 			})
 			errors.CheckError(err)
@@ -690,7 +690,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
 				Name:     &app.Name,
-				Spec:     app.Spec,
+				Spec:     &app.Spec,
 				Validate: &appOpts.Validate,
 			})
 			errors.CheckError(err)
@@ -839,7 +839,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if revision != "" {
 				q := applicationpkg.ApplicationManifestQuery{
 					Name:     &appName,
-					Revision: revision,
+					Revision: &revision,
 				}
 				res, err := appIf.GetManifests(context.Background(), &q)
 				errors.CheckError(err)
@@ -1121,7 +1121,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
 			errors.CheckError(err)
 			appList := apps.Items
 			if len(projects) != 0 {
@@ -1193,10 +1193,10 @@ const (
 	resourceFieldNameWithNamespaceCount = 2
 )
 
-func parseSelectedResources(resources []string) []argoappv1.SyncOperationResource {
-	var selectedResources []argoappv1.SyncOperationResource
+func parseSelectedResources(resources []string) []*argoappv1.SyncOperationResource {
+	var selectedResources []*argoappv1.SyncOperationResource
 	if resources != nil {
-		selectedResources = []argoappv1.SyncOperationResource{}
+		selectedResources = []*argoappv1.SyncOperationResource{}
 		for _, r := range resources {
 			fields := strings.Split(r, resourceFieldDelimiter)
 			if len(fields) != resourceFieldCount {
@@ -1218,7 +1218,7 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 				Name:      name,
 				Namespace: namespace,
 			}
-			selectedResources = append(selectedResources, rsrc)
+			selectedResources = append(selectedResources, &rsrc)
 		}
 	}
 	return selectedResources
@@ -1267,7 +1267,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
@@ -1353,7 +1353,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			appNames := args
 			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: selector})
+				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
 				errors.CheckError(err)
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
@@ -1371,7 +1371,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					q := applicationpkg.ApplicationManifestQuery{
 						Name:     &appName,
-						Revision: revision,
+						Revision: &revision,
 					}
 
 					res, err := appIf.GetManifests(ctx, &q)
@@ -1444,10 +1444,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				syncReq := applicationpkg.ApplicationSyncRequest{
 					Name:        &appName,
-					DryRun:      dryRun,
-					Revision:    revision,
+					DryRun:      &dryRun,
+					Revision:    &revision,
 					Resources:   selectedResources,
-					Prune:       prune,
+					Prune:       &prune,
 					Manifests:   localObjsStrings,
 					Infos:       getInfos(infos),
 					SyncOptions: syncOptionsFactory(),
@@ -1582,7 +1582,7 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncOperationResource) []*resourceState {
+func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) []*resourceState {
 	var states []*resourceState
 	resourceByKey := make(map[kube.ResourceKey]argoappv1.ResourceStatus)
 	for i := range app.Status.Resources {
@@ -1627,9 +1627,15 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	}
 	// filter out not selected resources
 	if len(selectedResources) > 0 {
+		r := []argoappv1.SyncOperationResource{}
+		for _, res := range selectedResources {
+			if res != nil {
+				r = append(r, *res)
+			}
+		}
 		for i := len(states) - 1; i >= 0; i-- {
 			res := states[i]
-			if !argo.ContainsSyncResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
+			if !argo.ContainsSyncResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, r) {
 				states = append(states[:i], states[i+1:]...)
 			}
 		}
@@ -1637,7 +1643,7 @@ func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1
 	return states
 }
 
-func groupResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncOperationResource) map[string]*resourceState {
+func groupResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, result := range getResourceStates(app, selectedResources) {
 		key := result.Key()
@@ -1668,7 +1674,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1921,8 +1927,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
 				Name:  &appName,
-				ID:    depInfo.ID,
-				Prune: prune,
+				Id:    pointer.Int64(depInfo.ID),
+				Prune: pointer.Bool(prune),
 			})
 			errors.CheckError(err)
 
@@ -1990,7 +1996,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if revision != "" {
 					q := applicationpkg.ApplicationManifestQuery{
 						Name:     &appName,
-						Revision: revision,
+						Revision: pointer.String(revision),
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -2079,7 +2085,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				var appOpts cmdutil.AppOptions
 				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec, Validate: &appOpts.Validate})
+				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &updatedSpec, Validate: &appOpts.Validate})
 				if err != nil {
 					return fmt.Errorf("Failed to update application spec:\n%v", err)
 				}
@@ -2153,8 +2159,8 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
 				Name:      &appName,
-				Patch:     patch,
-				PatchType: patchType,
+				Patch:     &patch,
+				PatchType: &patchType,
 			})
 			errors.CheckError(err)
 
@@ -2246,13 +2252,13 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
-				Namespace:    obj.GetNamespace(),
-				ResourceName: obj.GetName(),
-				Version:      gvk.Version,
-				Group:        gvk.Group,
-				Kind:         gvk.Kind,
-				Patch:        patch,
-				PatchType:    patchType,
+				Namespace:    pointer.String(obj.GetNamespace()),
+				ResourceName: pointer.String(obj.GetName()),
+				Version:      pointer.String(gvk.Version),
+				Group:        pointer.String(gvk.Group),
+				Kind:         pointer.String(gvk.Kind),
+				Patch:        pointer.String(patch),
+				PatchType:    pointer.String(patchType),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -2302,11 +2308,11 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &appName,
-				Namespace:    obj.GetNamespace(),
-				ResourceName: obj.GetName(),
-				Version:      gvk.Version,
-				Group:        gvk.Group,
-				Kind:         gvk.Kind,
+				Namespace:    pointer.String(obj.GetNamespace()),
+				ResourceName: pointer.String(obj.GetName()),
+				Version:      pointer.String(gvk.Version),
+				Group:        pointer.String(gvk.Group),
+				Kind:         pointer.String(gvk.Kind),
 				Force:        &force,
 				Orphan:       &orphan,
 			})
