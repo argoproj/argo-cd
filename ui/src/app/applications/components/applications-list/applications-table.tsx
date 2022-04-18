@@ -73,7 +73,7 @@ export const ApplicationsTable = (props: {
                                                                         services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                     }}>
                                                                     <i
-                                                                        className={'fas fa-star'}
+                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
                                                                         style={{
                                                                             cursor: 'pointer',
                                                                             marginRight: '7px',

@@ -117,29 +117,41 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             }`}>
                                             <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})}>
                                                 <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
-                                                    <div className='applications-list__external-link'>
-                                                        <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
-                                                        <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                                            <button
-                                                                className='large-text-height'
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    favList?.includes(app.metadata.name)
-                                                                        ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                        : favList.push(app.metadata.name);
-                                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-                                                                }}>
-                                                                <i
-                                                                    className={'fas fa-star fa-lg'}
-                                                                    style={{cursor: 'pointer', marginLeft: '7px', color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'}}
-                                                                />
-                                                            </button>
-                                                        </Tooltip>
-                                                    </div>
                                                     <div className='row'>
-                                                        <div className='columns small-12'>
+                                                        <div className='columns small-11' style={{paddingRight: '1rem'}}>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
-                                                            <span className='applications-list__title'>{app.metadata.name}</span>
+                                                            {"simple-ingress-development-application-one".length > 30 ? (
+                                                                <Tooltip content={"simple-ingess-development-application-one"}>
+                                                                    <span className='applications-list__title'>{"simple-ingess-development-application-one"}</span>
+                                                                </Tooltip>
+                                                            ) : (
+                                                                <span className='applications-list__title'>{app.metadata.name}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className='columns small-1'>
+                                                            <div className='applications-list__external-link'>
+                                                                <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
+                                                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                                                    <button
+                                                                        className='large-text-height'
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            favList?.includes(app.metadata.name)
+                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
+                                                                                : favList.push(app.metadata.name);
+                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                        }}>
+                                                                        <i
+                                                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                                                                            style={{
+                                                                                cursor: 'pointer',
+                                                                                marginLeft: '7px',
+                                                                                color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'
+                                                                            }}
+                                                                        />
+                                                                    </button>
+                                                                </Tooltip>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className='row'>
