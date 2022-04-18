@@ -66,16 +66,6 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 		}
 	}
 	assert.True(t, found)
-	nonce := ""
-	for _, envVar := range env {
-		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
-			nonce = envVar[len(ASKPASS_NONCE_ENV) + 1:]
-			break
-		}
-	}
-	assert.Contains(t, store.creds, nonce)
-	io.Close(closer)
-	assert.NotContains(t, store.creds, nonce)
 }
 
 func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
