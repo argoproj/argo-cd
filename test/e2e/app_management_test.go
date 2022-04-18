@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -848,17 +847,6 @@ func TestDuplicatedResources(t *testing.T) {
 
 func TestConfigMap(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "config-map", health.HealthStatusHealthy, "my-map  Synced                configmap/my-map created")
-}
-
-func TestFailedConversion(t *testing.T) {
-	if os.Getenv("ARGOCD_E2E_K3S") == "true" {
-		t.SkipNow()
-	}
-	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "apiservice", "v1beta1.metrics.k8s.io"))
-	}()
-
-	testEdgeCasesApplicationResources(t, "failed-conversion", health.HealthStatusProgressing)
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
