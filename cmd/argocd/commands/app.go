@@ -563,20 +563,24 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
+// unsetOpts describe what to unset in an Application.
+type unsetOpts struct {
+	namePrefix bool
+	nameSuffix bool
+	kustomizeVersion bool
+	kustomizeImages []string
+	parameters []string
+	valuesFiles []string
+	valuesLiteral bool
+	ignoreMissingValueFiles bool
+	pluginEnvs []string
+	passCredentials bool
+}
+
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		parameters              []string
-		valuesLiteral           bool
-		valuesFiles             []string
-		ignoreMissingValueFiles bool
-		nameSuffix              bool
-		namePrefix              bool
-		kustomizeVersion        bool
-		kustomizeImages         []string
-		pluginEnvs              []string
-		appOpts                 cmdutil.AppOptions
-	)
+	appOpts := cmdutil.AppOptions{}
+	opts := unsetOpts{}
 	var command = &cobra.Command{
 		Use:   "unset APPNAME parameters",
 		Short: "Unset application parameters",
@@ -600,89 +604,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 
-			updated := false
-			if app.Spec.Source.Kustomize != nil {
-				if namePrefix {
-					updated = true
-					app.Spec.Source.Kustomize.NamePrefix = ""
-				}
-
-				if nameSuffix {
-					updated = true
-					app.Spec.Source.Kustomize.NameSuffix = ""
-				}
-
-				if kustomizeVersion {
-					updated = true
-					app.Spec.Source.Kustomize.Version = ""
-				}
-
-				for _, kustomizeImage := range kustomizeImages {
-					for i, item := range app.Spec.Source.Kustomize.Images {
-						if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
-							updated = true
-							//remove i
-							a := app.Spec.Source.Kustomize.Images
-							copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
-							a[len(a)-1] = ""     // Erase last element (write zero value).
-							a = a[:len(a)-1]     // Truncate slice.
-							app.Spec.Source.Kustomize.Images = a
-						}
-					}
-				}
+			updated, nothingToUnset := unset(&app.Spec.Source, opts)
+			if nothingToUnset {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
-			if app.Spec.Source.Helm != nil {
-				if len(parameters) == 0 && len(valuesFiles) == 0 && !valuesLiteral && !ignoreMissingValueFiles {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				for _, paramStr := range parameters {
-					helmParams := app.Spec.Source.Helm.Parameters
-					for i, p := range helmParams {
-						if p.Name == paramStr {
-							app.Spec.Source.Helm.Parameters = append(helmParams[0:i], helmParams[i+1:]...)
-							updated = true
-							break
-						}
-					}
-				}
-				if valuesLiteral {
-					app.Spec.Source.Helm.Values = ""
-					updated = true
-				}
-				for _, valuesFile := range valuesFiles {
-					specValueFiles := app.Spec.Source.Helm.ValueFiles
-					for i, vf := range specValueFiles {
-						if vf == valuesFile {
-							app.Spec.Source.Helm.ValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
-							updated = true
-							break
-						}
-					}
-				}
-				if ignoreMissingValueFiles {
-					app.Spec.Source.Helm.IgnoreMissingValueFiles = false
-					updated = true
-				}
-				if app.Spec.Source.Helm.PassCredentials {
-					app.Spec.Source.Helm.PassCredentials = false
-					updated = true
-				}
-			}
-
-			if app.Spec.Source.Plugin != nil {
-				if len(pluginEnvs) == 0 {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				for _, env := range pluginEnvs {
-					err = app.Spec.Source.Plugin.RemoveEnvEntry(env)
-					if err == nil {
-						updated = true
-					}
-				}
-			}
-
 			if !updated {
 				return
 			}
@@ -696,16 +622,103 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "Unset a parameter override (e.g. -p guestbook=image)")
-	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "Unset one or more Helm values files")
-	command.Flags().BoolVar(&valuesLiteral, "values-literal", false, "Unset literal Helm values block")
-	command.Flags().BoolVar(&ignoreMissingValueFiles, "ignore-missing-value-files", false, "Unset the helm ignore-missing-value-files option (revert to false)")
-	command.Flags().BoolVar(&nameSuffix, "namesuffix", false, "Kustomize namesuffix")
-	command.Flags().BoolVar(&namePrefix, "nameprefix", false, "Kustomize nameprefix")
-	command.Flags().BoolVar(&kustomizeVersion, "kustomize-version", false, "Kustomize version")
-	command.Flags().StringArrayVar(&kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
-	command.Flags().StringArrayVar(&pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
+	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "Unset a parameter override (e.g. -p guestbook=image)")
+	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Unset one or more Helm values files")
+	command.Flags().BoolVar(&opts.valuesLiteral, "values-literal", false, "Unset literal Helm values block")
+	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Unset the helm ignore-missing-value-files option (revert to false)")
+	command.Flags().BoolVar(&opts.nameSuffix, "namesuffix", false, "Kustomize namesuffix")
+	command.Flags().BoolVar(&opts.namePrefix, "nameprefix", false, "Kustomize nameprefix")
+	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
+	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
+	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
+	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	return command
+}
+
+func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
+	if source.Kustomize != nil {
+		if !opts.namePrefix && !opts.nameSuffix && !opts.kustomizeVersion && len(opts.kustomizeImages) == 0 {
+			return false, true
+		}
+
+		if opts.namePrefix && source.Kustomize.NamePrefix != "" {
+			updated = true
+			source.Kustomize.NamePrefix = ""
+		}
+
+		if opts.nameSuffix && source.Kustomize.NameSuffix != "" {
+			updated = true
+			source.Kustomize.NameSuffix = ""
+		}
+
+		if opts.kustomizeVersion && source.Kustomize.Version != "" {
+			updated = true
+			source.Kustomize.Version = ""
+		}
+
+		for _, kustomizeImage := range opts.kustomizeImages {
+			for i, item := range source.Kustomize.Images {
+				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
+					updated = true
+					//remove i
+					a := source.Kustomize.Images
+					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
+					a[len(a)-1] = ""     // Erase last element (write zero value).
+					a = a[:len(a)-1]     // Truncate slice.
+					source.Kustomize.Images = a
+				}
+			}
+		}
+	}
+	if source.Helm != nil {
+		if len(opts.parameters) == 0 && len(opts.valuesFiles) == 0 && !opts.valuesLiteral && !opts.ignoreMissingValueFiles && !opts.passCredentials {
+			return false, true
+		}
+		for _, paramStr := range opts.parameters {
+			helmParams := source.Helm.Parameters
+			for i, p := range helmParams {
+				if p.Name == paramStr {
+					source.Helm.Parameters = append(helmParams[0:i], helmParams[i+1:]...)
+					updated = true
+					break
+				}
+			}
+		}
+		if opts.valuesLiteral && source.Helm.Values != "" {
+			source.Helm.Values = ""
+			updated = true
+		}
+		for _, valuesFile := range opts.valuesFiles {
+			specValueFiles := source.Helm.ValueFiles
+			for i, vf := range specValueFiles {
+				if vf == valuesFile {
+					source.Helm.ValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
+					updated = true
+					break
+				}
+			}
+		}
+		if opts.ignoreMissingValueFiles && source.Helm.IgnoreMissingValueFiles {
+			source.Helm.IgnoreMissingValueFiles = false
+			updated = true
+		}
+		if opts.passCredentials && source.Helm.PassCredentials {
+			source.Helm.PassCredentials = false
+			updated = true
+		}
+	}
+	if source.Plugin != nil {
+		if len(opts.pluginEnvs) == 0 {
+			return false, true
+		}
+		for _, env := range opts.pluginEnvs {
+			err := source.Plugin.RemoveEnvEntry(env)
+			if err == nil {
+				updated = true
+			}
+		}
+	}
+	return updated, false
 }
 
 // targetObjects deserializes the list of target states into unstructured objects
