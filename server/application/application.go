@@ -175,7 +175,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if q.GetApplication() == nil {
 		return nil, fmt.Errorf("error creating application: application is nil in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, apputil.AppRBACName(q.Application)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, apputil.AppRBACName(*q.Application)); err != nil {
 		return nil, err
 	}
 
