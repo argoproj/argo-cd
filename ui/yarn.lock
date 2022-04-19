@@ -7658,7 +7658,21 @@ react-fast-compare@^3.1.1:
   resolved "https://registry.yarnpkg.com/react-fast-compare/-/react-fast-compare-3.2.0.tgz#641a9da81b6a6320f270e89724fb45a0b39e43bb"
   integrity sha512-rtGImPZ0YyLrscKI9xTpV8psd6I8VAtjKCzQDlzyDvqJA8XOW78TXYQwNRNd8g8JZnDu8q9Fu/1v4HPAVwVdHA==
 
-react-form@2.16.0, react-form@^2.16.0:
+react-form@2.16.3:
+  version "2.16.3"
+  resolved "https://registry.yarnpkg.com/react-form/-/react-form-2.16.3.tgz#c45a575483696ea3f99cf271984fcabcf470f1b2"
+  integrity sha512-Pp0XFvEUkIWUImEsyi8DQ7j3Ls6h8J7BCXPwIzBOv5ZgOynLFwJX+/gYqQRNtSZbjPP4+3FVA4zW3Qktq7H+lw==
+  dependencies:
+    babel-runtime "^6.26.0"
+    circular-json "^0.4.0"
+    classnames "^2.2.5"
+    prop-types "^15.5.10"
+    react-redux "^5.0.6"
+    redux "^3.7.2"
+    redux-logger "^3.0.6"
+    redux-thunk "^2.2.0"
+
+react-form@^2.16.0:
   version "2.16.0"
   resolved "https://registry.yarnpkg.com/react-form/-/react-form-2.16.0.tgz#db7c4d1145a0daa0056010c12bbc5a2f0d749f5f"
   integrity sha512-Y2MAqOTplvmw34THQmXhfzus6IMW5w/7xr7t3RQ0Zfb7YCOfT/hP8YeRDU8QWhyGatSunpc3e/CA3rgfWN8i0A==
