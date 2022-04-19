@@ -110,7 +110,6 @@ rules:
   - argoproj.io
   resources:
   - applications
-  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -121,6 +120,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -1240,6 +1245,13 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -1302,6 +1314,9 @@ spec:
         - containerPort: 5558
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
         volumeMounts:
@@ -1318,6 +1333,13 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -1354,6 +1376,12 @@ spec:
           tcpSocket:
             port: 9001
         name: argocd-notifications-controller
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
         volumeMounts:
         - mountPath: /app/config/tls
           name: tls-certs
@@ -1632,6 +1660,13 @@ spec:
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
         name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
