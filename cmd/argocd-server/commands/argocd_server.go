@@ -10,7 +10,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/otel/trace"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -128,19 +128,15 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
-			tracerProvider := trace.NewNoopTracerProvider()
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				tracerProvider, closer, err = cmdutil.InitTracer("argocd-server", otlpAddress)
+				closer, err = traceutil.InitTracer(context.Background(), "argocd-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
 				defer closer()
 			}
-			// TODO(yeya24): now we register the tracerProvider globally so it can be used by grpc tracing.
-			// Pass it to ArgoCD server for more fine grained tracing.
-			_ = tracerProvider
 
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:              insecure,

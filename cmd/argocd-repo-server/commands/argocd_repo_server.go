@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -109,19 +110,15 @@ func NewCommand() *cobra.Command {
 			}, askPassServer)
 			errors.CheckError(err)
 
-			tracerProvider := trace.NewNoopTracerProvider()
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				tracerProvider, closer, err = cmdutil.InitTracer("argocd-repo-server", otlpAddress)
+				closer, err = traceutil.InitTracer(context.Background(), "argocd-repo-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
 				defer closer()
 			}
-			// TODO(yeya24): now we register the tracerProvider globally so it can be used by grpc tracing.
-			// Pass it to ArgoCD repo server for more fine grained tracing.
-			_ = tracerProvider
 
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
