@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#97d60381c71d2c515746837e6c9e4876c21ddb6e",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
@@ -46,7 +46,9 @@
     "superagent-promise": "^1.1.0",
     "timezones-list": "3.0.1",
     "unidiff": "^1.0.2",
-    "url": "^0.11.0"
+    "url": "^0.11.0",
+    "xterm": "^4.18.0",
+    "xterm-addon-fit": "^0.5.0"
   },
   "resolutions": {
     "@types/react": "^16.9.3",
