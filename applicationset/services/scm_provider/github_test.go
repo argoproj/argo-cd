@@ -44,18 +44,18 @@ func TestGithubListRepos(t *testing.T) {
 	}{
 		{
 			name:     "blank protocol",
-			url:      "git@github.com:argoproj/applicationset.git",
+			url:      "git@github.com:argoproj/argo-cd.git",
 			branches: []string{"master"},
 		},
 		{
 			name:  "ssh protocol",
 			proto: "ssh",
-			url:   "git@github.com:argoproj/applicationset.git",
+			url:   "git@github.com:argoproj/argo-cd.git",
 		},
 		{
 			name:  "https protocol",
 			proto: "https",
-			url:   "https://github.com/argoproj/applicationset.git",
+			url:   "https://github.com/argoproj/argo-cd.git",
 		},
 		{
 			name:     "other protocol",
@@ -65,8 +65,8 @@ func TestGithubListRepos(t *testing.T) {
 		{
 			name:        "all branches",
 			allBranches: true,
-			url:         "git@github.com:argoproj/applicationset.git",
-			branches:    []string{"master", "release-0.1.0"},
+			url:         "git@github.com:argoproj/argo-cd.git",
+			branches:    []string{"master", "release-0.11"},
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestGithubListRepos(t *testing.T) {
 				repos := []*Repository{}
 				branches := []string{}
 				for _, r := range rawRepos {
-					if r.Repository == "applicationset" {
+					if r.Repository == "argo-cd" {
 						repos = append(repos, r)
 						branches = append(branches, r.Branch)
 					}
@@ -102,7 +102,7 @@ func TestGithubHasPath(t *testing.T) {
 	host, _ := NewGithubProvider(context.Background(), "argoproj", "", "", false)
 	repo := &Repository{
 		Organization: "argoproj",
-		Repository:   "applicationset",
+		Repository:   "argo-cd",
 		Branch:       "master",
 	}
 	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
@@ -114,4 +114,20 @@ func TestGithubHasPath(t *testing.T) {
 	checkRateLimit(t, err)
 	assert.Nil(t, err)
 	assert.False(t, ok)
+}
+
+func TestGithubGetBranches(t *testing.T) {
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", "", false)
+	repo := &Repository{
+		Organization: "argoproj",
+		Repository:   "argo-cd",
+		Branch:       "master",
+	}
+	repos, err := host.GetBranches(context.Background(), repo)
+	if err != nil {
+		checkRateLimit(t, err)
+		assert.NoError(t, err)
+	} else {
+		assert.Equal(t, repos[0].Branch, "master")
+	}
 }

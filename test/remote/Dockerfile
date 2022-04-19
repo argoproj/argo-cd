@@ -1,4 +1,4 @@
-FROM golang:1.17 AS go
+FROM golang:1.18 AS go
 
 RUN go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest
@@ -6,7 +6,7 @@ RUN go install github.com/mattn/goreman@latest && \
 FROM ubuntu:21.10
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN  apt-get update && apt-get install -y \
+RUN  apt-get update && apt-get install --no-install-recommends -y \
         ca-certificates \
         curl \
         openssh-server \
@@ -23,7 +23,7 @@ RUN  apt-get update && apt-get install -y \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN mkdir -p /etc/certs
+WORKDIR /etc/certs
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys

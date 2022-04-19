@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -35,7 +36,7 @@ func NewCommand() *cobra.Command {
 			if nonce == "" {
 				errors.CheckError(fmt.Errorf("%s is not set", git.ASKPASS_NONCE_ENV))
 			}
-			conn, err := grpc_util.BlockingDial(context.Background(), "unix", askpass.SocketPath, nil, grpc.WithInsecure())
+			conn, err := grpc_util.BlockingDial(context.Background(), "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer io.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)
