@@ -34,11 +34,11 @@ func (s *memoryCredsStore) Remove(id string) {
 }
 
 func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
-	store := &memoryCredsStore{creds: map[string]cred{}}
+	store := &memoryCredsStore{creds: make(map[string]cred)}
 	creds := NewHTTPSCreds("", "", "", "", true, "", store)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
-	nonce := ""
+	var nonce string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
 			nonce = envVar[len(ASKPASS_NONCE_ENV) + 1:]
@@ -51,8 +51,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
-	store := &memoryCredsStore{creds: map[string]cred{}}
-	creds := NewHTTPSCreds("", "", "", "", true, "", store)
+	creds := NewHTTPSCreds("", "", "", "", true, "", &NoopCredsStore{})
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -69,8 +68,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
-	store := &memoryCredsStore{creds: map[string]cred{}}
-	creds := NewHTTPSCreds("", "", "", "", false, "", store)
+	creds := NewHTTPSCreds("", "", "", "", false, "", &NoopCredsStore{})
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -87,12 +85,11 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
-	store := &memoryCredsStore{creds: map[string]cred{}}
+	store := &memoryCredsStore{creds: make(map[string]cred)}
 	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", store)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
-	cert := ""
-	key := ""
+	var cert, key string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, "GIT_SSL_CERT=") {
 			cert = envVar[13:]
