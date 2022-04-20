@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -99,104 +98,8 @@ func getMockClusterGenerator() Generator {
 }
 
 func getMockGitGenerator() Generator {
-	cases := []struct {
-		name          string
-		directories   []argoprojiov1alpha1.GitDirectoryGeneratorItem
-		repoApps      []string
-		repoError     error
-		expected      []map[string]string
-		expectedError error
-	}{
-		{
-			name:        "happy flow - created apps",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			repoApps: []string{
-				"app1",
-				"app2",
-				"app_3",
-				"p1/app4",
-			},
-			repoError: nil,
-			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3"},
-			},
-			expectedError: nil,
-		},
-		{
-			name:        "It filters application according to the paths",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
-			repoApps: []string{
-				"app1",
-				"p1/app2",
-				"p1/p2/app3",
-				"p1/p2/p3/app4",
-			},
-			repoError: nil,
-			expected: []map[string]string{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
-			},
-			expectedError: nil,
-		},
-		{
-			name:        "It filters application according to the paths with Exclude",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
-			repoApps: []string{
-				"app1",
-				"app2",
-				"p1/app2",
-				"p1/app3",
-				"p2/app3",
-			},
-			repoError: nil,
-			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path.basenameNormalized": "app3"},
-			},
-			expectedError: nil,
-		},
-		{
-			name:        "Expecting same exclude behavior with different order",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
-			repoApps: []string{
-				"app1",
-				"app2",
-				"p1/app2",
-				"p1/app3",
-				"p2/app3",
-			},
-			repoError: nil,
-			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path.basenameNormalized": "app3"},
-			},
-			expectedError: nil,
-		},
-		{
-			name:          "handles empty response from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			repoApps:      []string{},
-			repoError:     nil,
-			expected:      []map[string]string{},
-			expectedError: nil,
-		},
-		{
-			name:          "handles error from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			repoApps:      []string{},
-			repoError:     fmt.Errorf("error"),
-			expected:      []map[string]string{},
-			expectedError: fmt.Errorf("error"),
-		},
-	}
 	argoCDServiceMock := argoCDServiceMock{mock: &mock.Mock{}}
-
-	argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(cases[0].repoApps, cases[0].repoError)
-
+	argoCDServiceMock.mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
 	var gitGenerator = NewGitGenerator(argoCDServiceMock)
 	return gitGenerator
 }
@@ -261,7 +164,6 @@ func TestInterpolateGenerator(t *testing.T) {
 				}},
 		},
 	}
-	//mockGitGenerator := getMockGitGenerator()
 	gitGeneratorParams := []map[string]string{
 		{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
 	}
