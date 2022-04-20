@@ -178,6 +178,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+// getInfos converts a list of string key=value pairs to a list of Info objects.
 func getInfos(infos []string) []*argoappv1.Info {
 	mapInfos, err := label.Parse(infos)
 	errors.CheckError(err)
@@ -400,7 +401,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
-
 			}
 		} else {
 			status = "Sync Allowed"
