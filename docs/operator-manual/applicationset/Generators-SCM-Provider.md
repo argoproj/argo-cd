@@ -189,15 +189,17 @@ spec:
       - repositoryMatch: ^myapp
         pathsExist: [kubernetes/kustomization.yaml]
         labelMatch: deploy-ok
-      # ... OR any repository starting with "otherapp" AND a Helm folder.
+      # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
       - repositoryMatch: ^otherapp
         pathsExist: [helm]
+        pathsDoNotExist: [disabledrepo.txt]
   template:
   # ...
 ```
 
 * `repositoryMatch`: A regexp matched against the repository name.
-* `pathsExist`: An array of paths within the repository that must exist. Can be a file or directory, but do not include the trailing `/` for directories.
+* `pathsExist`: An array of paths within the repository that must exist. Can be a file or directory.
+* `pathsDoNotExist`: An array of paths within the repository that must not exist. Can be a file or directory.
 * `labelMatch`: A regexp matched against repository labels. If any label matches, the repository is included.
 * `branchMatch`: A regexp matched against branch names.
 
