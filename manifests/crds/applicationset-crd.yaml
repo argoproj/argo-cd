@@ -2716,6 +2716,10 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
+                                        pathsDoesntExist:
+                                          items:
+                                            type: string
+                                          type: array
                                         pathsExist:
                                           items:
                                             type: string
@@ -4865,6 +4869,10 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
+                                        pathsDoesntExist:
+                                          items:
+                                            type: string
+                                          type: array
                                         pathsExist:
                                           items:
                                             type: string
@@ -5879,6 +5887,10 @@ spec:
                                 type: string
                               labelMatch:
                                 type: string
+                              pathsDoesntExist:
+                                items:
+                                  type: string
+                                type: array
                               pathsExist:
                                 items:
                                   type: string

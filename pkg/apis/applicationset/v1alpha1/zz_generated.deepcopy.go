@@ -906,6 +906,11 @@ func (in *SCMProviderGeneratorFilter) DeepCopyInto(out *SCMProviderGeneratorFilt
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.PathsDoesntExist != nil {
+		in, out := &in.PathsDoesntExist, &out.PathsDoesntExist
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.LabelMatch != nil {
 		in, out := &in.LabelMatch, &out.LabelMatch
 		*out = new(string)

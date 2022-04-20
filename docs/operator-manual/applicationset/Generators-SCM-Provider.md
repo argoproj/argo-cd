@@ -188,11 +188,11 @@ spec:
       # Include any repository starting with "myapp" AND including a Kustomize config AND labeled with "deploy-ok" ...
       - repositoryMatch: ^myapp
         pathsExist: [kubernetes/kustomization.yaml]
-        pathsDoesntExist: [disabledrepo.txt]
         labelMatch: deploy-ok
-      # ... OR any repository starting with "otherapp" AND a Helm folder.
+      # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
       - repositoryMatch: ^otherapp
         pathsExist: [helm]
+        pathsDoesntExist: [disabledrepo.txt]
   template:
   # ...
 ```
