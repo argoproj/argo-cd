@@ -43,7 +43,7 @@ func NewCommand() *cobra.Command {
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(context.Background(), "argocd-server", otlpAddress)
+				closer, err = traceutil.InitTracer(context.Background(), "argocd-cmp-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}

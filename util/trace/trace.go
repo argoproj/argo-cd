@@ -13,6 +13,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
 )
 
+// InitTracer initializes the trace provider and the otel grpc exporter.
 func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), error) {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -46,7 +47,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), e
 	otel.SetTracerProvider(provider)
 
 	return func() {
-		if err := exporter.Shutdown(context.Background()); err != nil {
+		if err := exporter.Shutdown(ctx); err != nil {
 			log.Errorf("failed to stop exporter: %v", err)
 		}
 	}, nil
