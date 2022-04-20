@@ -31,6 +31,10 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.PathsExist = filter.PathsExist
 			outFilter.FilterType = FilterTypeBranch
 		}
+		if filter.PathsDoesntExist != nil {
+			outFilter.PathsDoesntExist = filter.PathsDoesntExist
+			outFilter.FilterType = FilterTypeBranch
+		}
 		if filter.BranchMatch != nil {
 			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
 			if err != nil {
@@ -76,6 +80,17 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			}
 		}
 	}
+	if len(filter.PathsDoesntExist) != 0 {
+		for _, path := range filter.PathsDoesntExist {
+			hasPath, err := provider.RepoHasPath(ctx, repo, path)
+			if err != nil {
+				return false, err
+			}
+			if hasPath {
+				return false, nil
+			}
+		}
+	}
 
 	return true, nil
 }
@@ -85,12 +100,10 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	if err != nil {
 		return nil, err
 	}
-
 	repos, err := provider.ListRepos(ctx, cloneProtocol)
 	if err != nil {
 		return nil, err
 	}
-
 	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
 	if len(repoFilters) == 0 {
 		repos, err := getBranches(ctx, provider, repos, compiledFilters)
@@ -99,7 +112,6 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 		}
 		return repos, nil
 	}
-
 	filteredRepos := make([]*Repository, 0, len(repos))
 	for _, repo := range repos {
 		for _, filter := range repoFilters {

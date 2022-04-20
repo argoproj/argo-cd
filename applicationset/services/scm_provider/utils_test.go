@@ -72,7 +72,7 @@ func TestFilterLabelMatch(t *testing.T) {
 	assert.Equal(t, "two", repos[1].Repository)
 }
 
-func TestFilterPatchExists(t *testing.T) {
+func TestFilterPathExists(t *testing.T) {
 	provider := &MockProvider{
 		Repos: []*Repository{
 			{
@@ -97,6 +97,29 @@ func TestFilterPatchExists(t *testing.T) {
 	assert.Equal(t, "two", repos[0].Repository)
 }
 
+func TestFilterPathDoesntExists(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "one",
+			},
+			{
+				Repository: "two",
+			},
+			{
+				Repository: "three",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			PathsDoesntExist: []string{"two"},
+		},
+	}
+	repos, err := ListRepos(context.Background(), provider, filters, "")
+	assert.Nil(t, err)
+	assert.Len(t, repos, 2)
+}
 func TestFilterRepoMatchBadRegexp(t *testing.T) {
 	provider := &MockProvider{
 		Repos: []*Repository{
@@ -273,6 +296,10 @@ func TestApplicableFilterMap(t *testing.T) {
 		PathsExist: []string{"test"},
 		FilterType: FilterTypeBranch,
 	}
+	pathDoesntExistsFilter := Filter{
+		PathsDoesntExist: []string{"test"},
+		FilterType:       FilterTypeBranch,
+	}
 	labelMatchFilter := Filter{
 		LabelMatch: &regexp.Regexp{},
 		FilterType: FilterTypeRepo,
@@ -285,8 +312,8 @@ func TestApplicableFilterMap(t *testing.T) {
 		FilterType:  FilterTypeBranch,
 	}
 	filterMap := getApplicableFilters([]*Filter{&branchFilter, &repoFilter,
-		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter})
+		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter, &pathDoesntExistsFilter})
 
 	assert.Len(t, filterMap[FilterTypeRepo], 2)
-	assert.Len(t, filterMap[FilterTypeBranch], 3)
+	assert.Len(t, filterMap[FilterTypeBranch], 4)
 }
