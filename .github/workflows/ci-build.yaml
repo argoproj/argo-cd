@@ -311,7 +311,7 @@ jobs:
           file: coverage.out
       - name: Perform static code analysis using SonarCloud
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SCANNER_VERSION: 4.2.0.1873
           SCANNER_PATH: /tmp/cache/scanner
