@@ -2623,6 +2623,7 @@ func TestGetCAPath(t *testing.T) {
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
+		"..",
 	}
 
 	for _, str := range validcert {
