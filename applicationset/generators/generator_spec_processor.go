@@ -103,6 +103,13 @@ func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 		return err
 	}
 
+	//tmpParams := make([]map[string]string, len(params))
+	//for currIndex, currParam := range params {
+	//	for k, v := range currParam {
+	//		tmpParams[currIndex][k] = v
+	//	}
+	//}
+
 	render := utils.Render{}
 	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
 	replacedTmplStr, err := render.Replace(fstTmpl, params[0], true)

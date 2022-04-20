@@ -48,12 +48,11 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if err != nil {
 		return nil, err
 	}
-	g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, g0)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, a := range g0 {
+		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, []map[string]string{a})
+		if err != nil {
+			return nil, err
+		}
 		for _, b := range g1 {
 			val, err := utils.CombineStringMaps(a, b)
 			if err != nil {
