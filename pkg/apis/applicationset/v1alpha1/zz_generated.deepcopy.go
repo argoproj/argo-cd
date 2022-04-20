@@ -906,8 +906,8 @@ func (in *SCMProviderGeneratorFilter) DeepCopyInto(out *SCMProviderGeneratorFilt
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.PathsDoesntExist != nil {
-		in, out := &in.PathsDoesntExist, &out.PathsDoesntExist
+	if in.PathsDoNotExist != nil {
+		in, out := &in.PathsDoNotExist, &out.PathsDoNotExist
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

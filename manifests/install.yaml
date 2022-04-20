@@ -4868,7 +4868,7 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
-                                        pathsDoesntExist:
+                                        pathsDoNotExist:
                                           items:
                                             type: string
                                           type: array
@@ -7021,7 +7021,7 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
-                                        pathsDoesntExist:
+                                        pathsDoNotExist:
                                           items:
                                             type: string
                                           type: array
@@ -8039,7 +8039,7 @@ spec:
                                 type: string
                               labelMatch:
                                 type: string
-                              pathsDoesntExist:
+                              pathsDoNotExist:
                                 items:
                                   type: string
                                 type: array

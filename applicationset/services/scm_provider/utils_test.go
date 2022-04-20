@@ -113,7 +113,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			PathsDoesntExist: []string{"two"},
+			PathsDoNotExist: []string{"two"},
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
@@ -297,8 +297,8 @@ func TestApplicableFilterMap(t *testing.T) {
 		FilterType: FilterTypeBranch,
 	}
 	pathDoesntExistsFilter := Filter{
-		PathsDoesntExist: []string{"test"},
-		FilterType:       FilterTypeBranch,
+		PathsDoNotExist: []string{"test"},
+		FilterType:      FilterTypeBranch,
 	}
 	labelMatchFilter := Filter{
 		LabelMatch: &regexp.Regexp{},

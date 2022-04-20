@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -31,8 +32,8 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.PathsExist = filter.PathsExist
 			outFilter.FilterType = FilterTypeBranch
 		}
-		if filter.PathsDoesntExist != nil {
-			outFilter.PathsDoesntExist = filter.PathsDoesntExist
+		if filter.PathsDoNotExist != nil {
+			outFilter.PathsDoNotExist = filter.PathsDoNotExist
 			outFilter.FilterType = FilterTypeBranch
 		}
 		if filter.BranchMatch != nil {
@@ -71,6 +72,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 
 	if len(filter.PathsExist) != 0 {
 		for _, path := range filter.PathsExist {
+			path = strings.TrimRight(path, "/")
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 			if err != nil {
 				return false, err
@@ -80,8 +82,9 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			}
 		}
 	}
-	if len(filter.PathsDoesntExist) != 0 {
-		for _, path := range filter.PathsDoesntExist {
+	if len(filter.PathsDoNotExist) != 0 {
+		for _, path := range filter.PathsDoNotExist {
+			path = strings.TrimRight(path, "/")
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 			if err != nil {
 				return false, err
