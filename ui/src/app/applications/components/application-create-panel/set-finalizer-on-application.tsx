@@ -33,7 +33,7 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
                     }}
                 />
                 <label htmlFor={`set-finalizer`}>Set Deletion Finalizer</label>
-                <HelpIcon title='If checked finalizer resources-finalizer.argocd.argoproj.io will be set and application resources deletion will be cascaded' />
+                <HelpIcon title='If checked, the resources deletion finalizer will be set on the application. Potentially destructive, refer to the documentation for more information on the effects of the finalizer.' />
             </React.Fragment>
         </div>
     );
