@@ -38,8 +38,8 @@ func (noopCodec) Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-func (noopCodec) String() string {
-	return "bytes"
+func (noopCodec) Name() string {
+	return "proto"
 }
 
 func toFrame(msg []byte) []byte {
@@ -107,7 +107,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		return nil, nil, err
 	}
 	proxySrv := grpc.NewServer(
-		grpc.CustomCodec(&noopCodec{}),
+		grpc.ForceServerCodec(&noopCodec{}),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {

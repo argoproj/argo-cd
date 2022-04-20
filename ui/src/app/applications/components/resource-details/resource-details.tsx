@@ -16,6 +16,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
@@ -100,6 +101,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             />
                         </div>
                     )
+                },
+                {
+                    key: 'exec',
+                    icon: 'fa fa-terminal',
+                    title: 'Terminal',
+                    content: <PodTerminalViewer applicationName={application.metadata.name} podState={podState} selectedNode={selectedNode} />
                 }
             ]);
         }

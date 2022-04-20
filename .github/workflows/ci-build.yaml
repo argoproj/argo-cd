@@ -12,7 +12,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: '1.18'
 
 jobs:
   check-go:
@@ -222,9 +222,6 @@ jobs:
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
-      - name: Initialize local Helm
-        run: |
-          helm2 init --client-only
       - name: Run codegen
         run: |
           set -x

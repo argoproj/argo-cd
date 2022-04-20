@@ -624,7 +624,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				Repo:      r.Repository,
-				Name:      r.Repository,
+				Name:      sanitizeRepoName(r.Repository),
 				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
@@ -632,6 +632,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	return repos, nil
+}
+
+func sanitizeRepoName(repoName string) string {
+	return strings.ReplaceAll(repoName, "/", "-")
 }
 
 func repoExists(repo string, repos []*v1alpha1.Repository) bool {

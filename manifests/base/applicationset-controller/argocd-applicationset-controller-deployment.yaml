@@ -25,6 +25,8 @@ spec:
           ports:
           - containerPort: 7000
             name: webhook
+          - containerPort: 8080
+            name: metrics
           env:
             - name: NAMESPACE
               valueFrom:
@@ -39,6 +41,13 @@ spec:
             name: gpg-keys
           - mountPath: /app/config/gpg/keys
             name: gpg-keyring
+          securityContext:
+           capabilities:
+             drop:
+             - ALL
+           allowPrivilegeEscalation: false
+           readOnlyRootFilesystem: true 
+           runAsNonRoot: true
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
