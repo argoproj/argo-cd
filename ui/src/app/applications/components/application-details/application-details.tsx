@@ -363,7 +363,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         load={async () => {
                                                             const liveStatePromises = filteredRes.map(async resource => {
                                                                 const resourceRow: any = {...resource, group: resource.group || ''};
-                                                                const liveState = typeof resource.group !== 'undefined' && await services.applications.getResource(application.metadata.name, resource).catch(() => null);
+                                                                const liveState =
+                                                                    typeof resource.group !== 'undefined' &&
+                                                                    (await services.applications.getResource(application.metadata.name, resource).catch(() => null));
                                                                 if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
                                                                     resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
                                                                     if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
