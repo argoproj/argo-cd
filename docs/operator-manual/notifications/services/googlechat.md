@@ -32,7 +32,7 @@ kind: Secret
 metadata:
   name: <secret-name>
 stringData:
-  space-webhook-url: https://chat.googleapis.com/v1/spaces/<space_id>/messages?key=<key>&token=<token>  
+  space-webhook-url: https://chat.googleapis.com/v1/spaces/<space_id>/messages?key=<key>&token=<token>
 ```
 
 6. Create a subscription for your space
@@ -51,7 +51,7 @@ You can send [simple text](https://developers.google.com/chat/reference/message-
 
 ```yaml
 template.app-sync-succeeded: |
-  message: The app {{ .app.metadata.name }} has succesfully synced!
+  message: The app {{ .app.metadata.name }} has successfully synced!
 ```
 
 A card message can be defined as follows:
@@ -65,7 +65,7 @@ template.app-sync-succeeded: |
         sections:
           - widgets:
               - textParagraph:
-                  text: The app {{ .app.metadata.name }} has succesfully synced!
+                  text: The app {{ .app.metadata.name }} has successfully synced!
           - widgets:
               - keyValue:
                   topLabel: Repository
