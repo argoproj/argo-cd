@@ -93,45 +93,6 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		})
 }
 
-// make sure we can read the Git creds stored in a temporary file
-func TestCustomToolWithSSHGitCreds(t *testing.T) {
-	Given(t).
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitSSHCommand\":\"$GIT_SSH_COMMAND\",\"GitSSHCredsFileSHA\": \"$(sha256sum $(echo "$GIT_SSH_COMMAND" | grep -oP '\-i \K[/\w]+'))\"}}}"`},
-				},
-			},
-		).
-		CustomCACertAdded().
-		// add the private repo with ssh credentials
-		CustomSSHKnownHostsAdded().
-		SSHRepoURLAdded(true).
-		RepoURLType(RepoURLTypeSSH).
-		Path("guestbook").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Timeout(30).
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
-			assert.NoError(t, err)
-			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
-			assert.NoError(t, err)
-			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
-		})
-}
-
 // make sure we can echo back the env
 func TestCustomToolWithEnv(t *testing.T) {
 	Given(t).
