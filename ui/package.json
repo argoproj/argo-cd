@@ -26,7 +26,7 @@
     "moment": "^2.29.2",
     "monaco-editor": "^0.33.0",
     "path": "^0.12.7",
-    "prop-types": "^15.6.0",
+    "prop-types": "^15.8.1",
     "react": "^16.9.3",
     "react-autocomplete": "^1.8.1",
     "react-diff-view": "^2.4.10",
