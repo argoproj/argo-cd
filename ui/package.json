@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#97d60381c71d2c515746837e6c9e4876c21ddb6e",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
