@@ -76,7 +76,7 @@ jobs:
     needs:
       - build-go
     env:
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
     steps:
       - name: Create checkout directory
@@ -139,7 +139,7 @@ jobs:
     needs:
       - build-go
     env:
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Create checkout directory
@@ -351,7 +351,7 @@ jobs:
       ARGOCD_IN_CI: "true"
       ARGOCD_E2E_APISERVER_PORT: "8088"
       ARGOCD_SERVER: "127.0.0.1:8088"
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
