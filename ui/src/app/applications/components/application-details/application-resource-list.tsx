@@ -18,11 +18,12 @@ export const ApplicationResourceList = ({
 }) => {
     const [showSyncOrder, setShowSyncOrder] = React.useState(false);
     React.useEffect(() => {
-        resources.forEach(resource => {
+        for (let resource of resources) {
             if (typeof resource.syncOrder !== 'undefined' && resource.syncOrder?.length !== 0) {
                 setShowSyncOrder(true);
+                break;
             }
-        });
+          }
         return () => {
             setShowSyncOrder(false);
         };
