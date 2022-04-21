@@ -159,6 +159,8 @@ spec:
 
 As with all generators, several keys are available for replacement in the generated application.
 
+The following is a comprehensive Helm Application example;
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -180,6 +182,37 @@ spec:
           parameters:
           - name: "image.tag"
             value: "pull-{{head_sha}}"
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+And, here is a robust Kustomize example;
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+    # ...
+  template:
+    metadata:
+      name: 'myapp-{{branch}}-{{number}}'
+    spec:
+      source:
+        repoURL: 'https://github.com/myorg/myrepo.git'
+        targetRevision: '{{head_sha}}'
+        path: kubernetes/
+        kustomize:
+          nameSuffix: {{branch}}
+          commonLabels:
+            app.kubernetes.io/instance: {{branch}}-{{number}}
+          images:
+          - ghcr.io/myorg/myrepo:{{head_sha}}
       project: default
       destination:
         server: https://kubernetes.default.svc
