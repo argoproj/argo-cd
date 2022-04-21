@@ -19,7 +19,7 @@
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.7.4",
     "git-url-parse": "^11.6.0",
-    "js-yaml": "^3.13.1",
+    "js-yaml": "^3.14.1",
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
     "minimatch": "^3.1.2",
