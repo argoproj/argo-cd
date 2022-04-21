@@ -450,6 +450,11 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 			(*out)[key] = val
 		}
 	}
+	if in.Components != nil {
+		in, out := &in.Components, &out.Components
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

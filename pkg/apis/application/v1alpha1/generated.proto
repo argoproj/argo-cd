@@ -264,6 +264,9 @@ message ApplicationSourceKustomize {
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
+
+  // Components specifies a list of kustomize components to add to the kustmization before building
+  repeated string components = 9;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

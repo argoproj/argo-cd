@@ -1,22 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-
 patchesStrategicMerge:
-- overlays/argocd-repo-server-deployment.yaml
-- overlays/argocd-server-deployment.yaml
-- overlays/argocd-application-controller-statefulset.yaml
-
+  - overlays/argocd-repo-server-deployment.yaml
+  - overlays/argocd-server-deployment.yaml
+  - overlays/argocd-application-controller-statefulset.yaml
 
 images:
-- name: quay.io/argoproj/argocd
-  newName: quay.io/argoproj/argocd
-  newTag: v2.3.3
+  - name: quay.io/argoproj/argocd
+    newName: quay.io/codefresh/argocd
+    newTag: release-v2.3.3-cap-CR-kustomize-components
 resources:
-- ../../base/application-controller
-- ../../base/dex
-- ../../base/repo-server
-- ../../base/server
-- ../../base/config
-- ../../base/notification
-- ./redis-ha
+  - ../../base/application-controller
+  - ../../base/dex
+  - ../../base/repo-server
+  - ../../base/server
+  - ../../base/config
+  - ../../base/notification
+  - ./redis-ha
