@@ -179,7 +179,7 @@ Each repository must have a `url` field and, depending on whether you connect us
 
 !!!warning
     When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
-    
+
 Example for HTTPS:
 
 ```yaml
@@ -304,7 +304,7 @@ In the above example, every repository accessed via HTTPS whose URL is prefixed 
 In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
-* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
+* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
 !!! note
     Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
@@ -600,7 +600,7 @@ Resources can be excluded from discovery and sync so that Argo CD is unaware of 
 * There are many of a kind of resources that impacts Argo CD's performance.
 * Restrict Argo CD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
 
-To configure this, edit the `argcd-cm` config map:
+To configure this, edit the `argocd-cm` config map:
 
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -630,7 +630,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 If all three match, then the resource is ignored.
 
 In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
-By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds: 
+By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds:
 
 ```yaml
 apiVersion: v1

@@ -1,6 +1,6 @@
 # End-to-end tests against a real cluster
 
-Using the tools in this directory, you can run the End-to-End testsuite against
+Using the tools in this directory, you can run the End-to-End test suite against
 a real Argo CD workload, that is deployed to a K8s cluster, instead of running
 it against a locally running Argo CD.
 
@@ -131,7 +131,7 @@ In another shell, do a port-forward to the API server's service:
 kubectl -n argocd-e2e port-forward svc/argocd-server 443:4443
 ```
 
-Set Argo CD Server endport:
+Set Argo CD Server port:
 
 ```shell
 export ARGOCD_SERVER=127.0.0.1:4443
@@ -239,13 +239,13 @@ If the tests fail, just re-run above command. All tests that have been previousl
 ## Troubleshooting
 
 * On message:
-  
+
   ```
   time="2021-03-23T09:52:53Z" level=fatal msg="`git push origin master -f` failed exit status 128: fatal: unable to access 'http://127.0.0.1:9081/argo-e2e/testdata.git/': Empty reply from server"
   ```
 
   Your port-forward is probably not setup correctly or broke (e.g. due to pod restart)
 
-* Make sure `argocd-e2e-cluster` pod is running. If you get a CrashLoopBackoff, ensure that you enabled elevated privs as shown above
+* Make sure `argocd-e2e-cluster` pod is running. If you get a CrashLoopBackoff, ensure that you enabled elevated privileges as shown above
 
 * Sometimes, you may run into a timeout especially if the cluster is very busy. In this case, you have to restart the tests. See test recording above.

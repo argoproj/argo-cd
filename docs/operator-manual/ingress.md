@@ -234,7 +234,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-    # If you encounter a redirect loop or are getting a 307 response code 
+    # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
@@ -246,7 +246,7 @@ spec:
       - path: /
         pathType: Prefix
         backend:
-          service: 
+          service:
             name: argocd-server
             port:
               name: https
@@ -376,7 +376,7 @@ spec:
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
-AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both. 
+AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both.
 
 When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group then the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
 
@@ -402,7 +402,7 @@ spec:
   type: NodePort
 ```
 
-Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
+Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName.
 
 ```yaml
   apiVersion: networking.k8s.io/v1
@@ -410,7 +410,7 @@ Once we create this service, we can configure the Ingress to conditionally route
   metadata:
     annotations:
       alb.ingress.kubernetes.io/backend-protocol: HTTPS
-      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends. 
+      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends.
       alb.ingress.kubernetes.io/conditions.argogrpc: |
         [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
@@ -451,7 +451,7 @@ For this we will need these five objects:
 - A secret with your SSL certificate
 - An Ingress for GKE
 
-If you need detail for all the options available for these Google integrations, you can check the [Google docs on configuring Ingress features](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features) 
+If you need detail for all the options available for these Google integrations, you can check the [Google docs on configuring Ingress features](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features)
 
 ### Disable internal TLS
 
@@ -478,7 +478,7 @@ To:
 
 ### Creating a service
 
-Now you need an externally accesible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
 
 The service:
 
@@ -543,7 +543,7 @@ spec:
 ---
 !!! note
 
-    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).  
+    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 
@@ -554,7 +554,7 @@ We need now to create a secret with the SSL certificate we want in our load bala
 ```
 kubectl -n argocd create secret tls secret-yourdomain-com \
   --cert cert-file.crt --key key-file.key
-``` 
+```
 
 ### Creating an Ingress
 
@@ -653,7 +653,7 @@ spec:
         - --rootpath
         - /argo-cd
 ```
-NOTE: The flag `--rootpath` changes both API Server and UI base URL. 
+NOTE: The flag `--rootpath` changes both API Server and UI base URL.
 Example nginx.conf:
 
 ```
