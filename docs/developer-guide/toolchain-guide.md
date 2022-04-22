@@ -244,7 +244,7 @@ If you touched UI code, you should also run the Yarn linter on it:
 Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls, 
 and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. 
 
-1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui).
+1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui) inside the same parent folder as `argo-cd`.
 
 2. `cd` into your `argo-ui` directory, and then run `yarn install`. 
 
