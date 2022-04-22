@@ -167,14 +167,14 @@ func TestInterpolateGenerator(t *testing.T) {
 	gitGeneratorParams := []map[string]string{
 		{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
 	}
-	err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
 	}
-	assert.Equal(t, "app3", requestedGenerator.Clusters.Selector.MatchLabels["path-basename"])
-	assert.Equal(t, "p1", requestedGenerator.Clusters.Selector.MatchLabels["path-zero"])
-	assert.Equal(t, "p1/p2/app3", requestedGenerator.Clusters.Selector.MatchLabels["path-full"])
+	assert.Equal(t, "app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-basename"])
+	assert.Equal(t, "p1", interpolatedGenerator.Clusters.Selector.MatchLabels["path-zero"])
+	assert.Equal(t, "p1/p2/app3", interpolatedGenerator.Clusters.Selector.MatchLabels["path-full"])
 
 	fileNamePath := argoprojiov1alpha1.GitFileGeneratorItem{
 		Path: "{{name}}",
@@ -192,11 +192,11 @@ func TestInterpolateGenerator(t *testing.T) {
 	clusterGeneratorParams := []map[string]string{
 		{"name": "production_01/west", "server": "https://production-01.example.com"},
 	}
-	err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
+	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
 	}
-	assert.Equal(t, "production_01/west", requestedGenerator.Git.Files[0].Path)
-	assert.Equal(t, "https://production-01.example.com", requestedGenerator.Git.Files[1].Path)
+	assert.Equal(t, "production_01/west", interpolatedGenerator.Git.Files[0].Path)
+	assert.Equal(t, "https://production-01.example.com", interpolatedGenerator.Git.Files[1].Path)
 }
