@@ -2,17 +2,19 @@ package git
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type cred struct {
