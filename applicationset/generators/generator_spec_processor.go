@@ -17,7 +17,7 @@ type TransformResult struct {
 }
 
 //Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams []map[string]string) ([]TransformResult, error) {
+func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]string) ([]TransformResult, error) {
 	res := []TransformResult{}
 	var firstError error
 
@@ -99,7 +99,7 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
 // Since the Matrix generator currently only allows 2 child generators, effectively this params array will always be size 1 (containing the 1st child generator's params)
 // Uses similar process for interpreting values as the actual Application Template
-func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params []map[string]string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	interpolatedGenerator := requestedGenerator.DeepCopy()
 	tmplBytes, err := json.Marshal(interpolatedGenerator)
 	if err != nil {
@@ -109,7 +109,7 @@ func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 
 	render := utils.Render{}
 	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
-	replacedTmplStr, err := render.Replace(fstTmpl, params[0], true)
+	replacedTmplStr, err := render.Replace(fstTmpl, params, true)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
 		return *interpolatedGenerator, err
