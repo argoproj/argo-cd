@@ -504,7 +504,7 @@ spec:
 
 ### Creating a BackendConfig
 
-See that previous service referencing a backend config called `argo-backend-config`? So lets deploy it using this yaml:
+See that previous service referencing a backend config called `argocd-backend-config`? So lets deploy it using this yaml:
 
 ```yaml
 apiVersion: cloud.google.com/v1
