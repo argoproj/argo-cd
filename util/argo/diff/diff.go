@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -73,6 +74,12 @@ func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 	return b
 }
 
+// WithGVKParser sets the gvkParser in the diff config.
+func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *DiffConfigBuilder {
+	b.diffConfig.gvkParser = parser
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -108,6 +115,9 @@ type DiffConfig interface {
 	IgnoreAggregatedRoles() bool
 	// Logger used during the diff
 	Logger() *logr.Logger
+	// GVKParser returns a parser able to build a TypedValue used in
+	// structured merge diffs.
+	GVKParser() *k8smanagedfields.GvkParser
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -121,6 +131,7 @@ type diffConfig struct {
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
+	gvkParser             *k8smanagedfields.GvkParser
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -149,6 +160,9 @@ func (c *diffConfig) IgnoreAggregatedRoles() bool {
 }
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
+}
+func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
+	return c.gvkParser
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -309,8 +323,9 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
+				pt := diffConfig.GVKParser().Type(gvk)
 				var err error
-				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)
+				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers, pt)
 				if err != nil {
 					return nil, err
 				}

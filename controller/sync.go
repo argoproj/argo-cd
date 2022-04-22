@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
@@ -44,6 +45,14 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 		return nil, err
 	}
 	return cluster.GetOpenAPISchema(), nil
+}
+
+func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetGVKParser(), nil
 }
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
