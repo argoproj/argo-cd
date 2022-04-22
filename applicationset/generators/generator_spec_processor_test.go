@@ -164,8 +164,8 @@ func TestInterpolateGenerator(t *testing.T) {
 				}},
 		},
 	}
-	gitGeneratorParams := []map[string]string{
-		{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
+	gitGeneratorParams := map[string]string{
+		"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3",
 	}
 	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
 	if err != nil {
@@ -189,8 +189,8 @@ func TestInterpolateGenerator(t *testing.T) {
 			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := []map[string]string{
-		{"name": "production_01/west", "server": "https://production-01.example.com"},
+	clusterGeneratorParams := map[string]string{
+		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
 	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
 	if err != nil {
