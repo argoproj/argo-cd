@@ -8,4 +8,13 @@ var (
 
 	//go:embed desired_deployment.yaml
 	DesiredDeploymentYaml string
+
+	//go:embed live_validating_webhook.yaml
+	LiveValidatingWebhookYaml string
+
+	//go:embed desired_validating_webhook.yaml
+	DesiredValidatingWebhookYaml string
+
+	//go:embed k8s_schema.yaml
+	K8sSchema string
 )
