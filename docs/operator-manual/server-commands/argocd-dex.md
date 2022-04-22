@@ -13,9 +13,7 @@ argocd-dex [flags]
 ### Options
 
 ```
-  -h, --help               help for argocd-dex
-      --logformat string   Set the logging format. One of: text|json (default "text")
-      --loglevel string    Set the logging level. One of: debug|info|warn|error (default "info")
+  -h, --help   help for argocd-dex
 ```
 
 ### SEE ALSO

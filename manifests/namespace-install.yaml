@@ -101,7 +101,6 @@ rules:
   - argoproj.io
   resources:
   - applications
-  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -112,6 +111,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -1270,8 +1275,6 @@ spec:
         name: plugins-home
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: static-files
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts

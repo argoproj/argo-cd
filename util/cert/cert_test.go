@@ -505,7 +505,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.Error(t, err)
 		assert.Len(t, certs, 0)
-		assert.Contains(t, err.Error(), "No certificates found")
+		assert.Contains(t, err.Error(), "no certificates found")
 	})
 
 }
