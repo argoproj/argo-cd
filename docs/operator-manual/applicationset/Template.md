@@ -25,10 +25,10 @@ Here is the template subfield from a Cluster generator:
 The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
 
 - `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
-- `source` defines from which Git repostory to extract the desired Application manifests
+- `source` defines from which Git repository to extract the desired Application manifests
     - **repoURL**: URL of the repository (eg `https://github.com/argoproj/argocd-example-apps.git`)
     - **targetRevision**: Revision (tag/branch/commit) of the repository (eg `HEAD`)
-    - **path**: Path within the repository where Kubernetes manifests (and/or Helm, Kustomize, Jsonnet resources) are located 
+    - **path**: Path within the repository where Kubernetes manifests (and/or Helm, Kustomize, Jsonnet resources) are located
 - `destination`: Defines which Kubernetes cluster/namespace to deploy to
     - **name**: Name of the cluster (within Argo CD) to deploy to
     - **server**: API Server URL for the cluster (Example: `https://kubernetes.default.svc`)
@@ -39,14 +39,14 @@ Note:
 - Referenced clusters must already be defined in Argo CD, for the ApplicationSet controller to use them
 - Only **one** of `name` or `server` may be specified: if both are specified, an error is returned.
 
-The `metadata` field of template may also be used to set an Application `name`, or to add labels or annotations to the Application. 
-    
+The `metadata` field of template may also be used to set an Application `name`, or to add labels or annotations to the Application.
+
 While the ApplicationSet spec provides a basic form of templating, it is not intended to replace the full-fledged configuration management capabilities of tools such as Kustomize, Helm, or Jsonnet.
 
 ### Deploying ApplicationSet resources as part of a Helm chart
 
-ApplicationSet uses the same templating notation as Helm (`{{}}`). If the ApplicationSet templates aren't written as 
-Helm string literals, Helm will throw an error like `function "cluster" not defined`. To avoid that error, write the 
+ApplicationSet uses the same templating notation as Helm (`{{}}`). If the ApplicationSet templates aren't written as
+Helm string literals, Helm will throw an error like `function "cluster" not defined`. To avoid that error, write the
 template as a Helm string literal. For example:
 
 ```yaml
@@ -58,12 +58,12 @@ This _only_ applies if you use Helm to deploy your ApplicationSet resources.
 
 ## Generator templates
 
-In addition to specifying a template within the `.spec.template` of the `ApplicationSet` resource, templates may also be specified within generators. This is useful for overriding the values of the `spec`-level template. 
+In addition to specifying a template within the `.spec.template` of the `ApplicationSet` resource, templates may also be specified within generators. This is useful for overriding the values of the `spec`-level template.
 
 The generator's `template` field takes precedence over the `spec`'s template fields:
 
-- If both templates contain the same field, the generator's field value will be used. 
-- If only one of those templates' fields has a value, that value will be used. 
+- If both templates contain the same field, the generator's field value will be used.
+- If only one of those templates' fields has a value, that value will be used.
 
 Generator templates can thus be thought of as patches against the outer `spec`-level template fields.
 

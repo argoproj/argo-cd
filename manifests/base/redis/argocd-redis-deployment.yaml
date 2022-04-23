@@ -30,6 +30,11 @@ spec:
         - "no"
         ports:
         - containerPort: 6379
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

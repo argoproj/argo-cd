@@ -66,16 +66,16 @@ data:
 
 stringData:
   # github webhook secret
-  webhook.github.secret: shhhh! it's a github secret
+  webhook.github.secret: shhhh! it's a GitHub secret
 
   # gitlab webhook secret
-  webhook.gitlab.secret: shhhh! it's a gitlab secret
+  webhook.gitlab.secret: shhhh! it's a GitLab secret
 
   # bitbucket webhook secret
   webhook.bitbucket.uuid: your-bitbucket-uuid
 
   # bitbucket server webhook secret
-  webhook.bitbucketserver.secret: shhhh! it's a bitbucket server secret
+  webhook.bitbucketserver.secret: shhhh! it's a Bitbucket server secret
 
   # gogs server webhook secret
   webhook.gogs.secret: shhhh! it's a gogs server secret

@@ -460,8 +460,7 @@ func TestHelm3CRD(t *testing.T) {
 
 func TestHelmRepoDiffLocal(t *testing.T) {
 	SkipOnEnv(t, "HELM")
-	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
-	assert.NoError(t, err)
+	helmTmp := t.TempDir()
 	Given(t).
 		CustomCACertAdded().
 		HelmRepoAdded("custom-repo").

@@ -354,6 +354,13 @@ function getActionItems(
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
+    if (resource.kind === 'Pod') {
+        items.push({
+            title: 'Exec',
+            iconClassName: 'fa fa-terminal',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+        });
+    }
     if (isQuickStart) {
         return from([items]);
     }

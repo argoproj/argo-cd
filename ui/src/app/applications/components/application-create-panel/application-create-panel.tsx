@@ -9,6 +9,7 @@ import {ApplicationParameters} from '../application-parameters/application-param
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -218,6 +219,9 @@ export const ApplicationCreatePanel = (props: {
                                                         qeId='application-create-field-sync-policy'
                                                         component={AutoSyncFormField}
                                                     />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <label>Sync Options</label>
