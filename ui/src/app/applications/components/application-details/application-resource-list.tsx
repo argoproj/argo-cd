@@ -6,20 +6,21 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
 import {Consumer} from '../../../shared/context';
+import * as _ from 'lodash';
 
 export const ApplicationResourceList = ({
     resources,
     onNodeClick,
     nodeMenu
 }: {
-    resources: any[];
+    resources: models.ResourceStatus[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
 }) => {
     const [showSyncOrder, setShowSyncOrder] = React.useState(false);
     React.useEffect(() => {
         for (const resource of resources) {
-            if (typeof resource.syncOrder !== 'undefined' && resource.syncOrder?.length !== 0) {
+            if (!_.isEmpty(resource.syncOrder)) {
                 setShowSyncOrder(true);
                 break;
             }

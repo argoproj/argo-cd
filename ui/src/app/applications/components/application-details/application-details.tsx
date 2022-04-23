@@ -366,9 +366,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 const liveState =
                                                                     typeof resource.group !== 'undefined' &&
                                                                     (await services.applications.getResource(application.metadata.name, resource).catch(() => null));
-                                                                if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationHookKey]) {
+                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
                                                                     resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                                                                    if (liveState?.metadata?.annotations && liveState?.metadata?.annotations[models.AnnotationSyncWaveKey]) {
+                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
                                                                         resourceRow.syncOrder =
                                                                             resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
                                                                     }
