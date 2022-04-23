@@ -7842,10 +7842,10 @@ react-side-effect@^2.1.0:
   resolved "https://registry.yarnpkg.com/react-side-effect/-/react-side-effect-2.1.1.tgz#66c5701c3e7560ab4822a4ee2742dee215d72eb3"
   integrity sha512-2FoTQzRNTncBVtnzxFOk2mCpcfxQpenBMbk5kSVBg5UcPqV9fRbgY2zhb7GTWWOlpFmAxhClBDlIq8Rsubz1yQ==
 
-react-svg-piechart@^2.1.1:
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/react-svg-piechart/-/react-svg-piechart-2.4.0.tgz#93e1e2196fee6b664d7435ed9411a7f196334c2c"
-  integrity sha512-IXqvZCxTuiipwPgROyHi6TihR9PVaGDSnqd14Q2NUXx2PzbNnNcW2nVwLOPLUZm3xEVPzaQhBwxrwrsGLh1uDQ==
+react-svg-piechart@^2.4.2:
+  version "2.4.2"
+  resolved "https://registry.yarnpkg.com/react-svg-piechart/-/react-svg-piechart-2.4.2.tgz#4e31d339f91dea2e3fd15e305648a3bef47379fa"
+  integrity sha512-qUw9FkO32E81J/B2aFqWS7SrtmG5xdSr6+mWuKolzP3vH64H8P8idrWLn/Qf4G4sUkCyKpu36fvAWSA6v9BgMw==
 
 react-tabs@^3.2.2:
   version "3.2.3"

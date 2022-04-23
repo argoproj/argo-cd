@@ -39,7 +39,7 @@
     "react-paginate": "^6.5.0",
     "react-router": "^4.3.1",
     "react-router-dom": "^4.2.2",
-    "react-svg-piechart": "^2.1.1",
+    "react-svg-piechart": "^2.4.2",
     "redoc": "^2.0.0-rc.64",
     "rxjs": "^6.6.6",
     "superagent": "^3.8.2",
