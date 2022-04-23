@@ -402,10 +402,10 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
 };
 
 const renderLine = (line: string, isSelected: boolean) => {
-    if (!isSelected) return line
-    try { 
-        return JSON.stringify(JSON.parse(line), null, 2) 
-    } catch { 
-        return line 
+    if (!isSelected) return line;
+    try {
+        return JSON.stringify(JSON.parse(line), null, 2);
+    } catch {
+        return line;
     }
-}
+};
