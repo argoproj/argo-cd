@@ -50,6 +50,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -128,6 +129,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -202,6 +204,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -280,6 +283,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -362,6 +366,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -435,6 +440,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:

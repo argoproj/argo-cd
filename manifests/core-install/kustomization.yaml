@@ -3,9 +3,10 @@ kind: Kustomization
 
 resources:
 - ../crds
-- ../cluster-rbac
+- ../cluster-rbac/application-controller
 - ../base/config
 - ../base/application-controller
+- ../base/applicationset-controller
 - ../base/repo-server
 - ../base/redis
 images:

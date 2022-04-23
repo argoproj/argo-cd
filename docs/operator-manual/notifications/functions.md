@@ -74,6 +74,6 @@ Returns application details. `AppDetail` fields:
   * Methods :
     * `GetParameterValueByName(Name string)` Retrieve value by name in Parameters field
     * `GetFileParameterPathByName(Name string)` Retrieve path by name in FileParameters field
-* `Ksonnet *apiclient.KsonnetAppSpec` - Ksonnet details
+*
 * `Kustomize *apiclient.KustomizeAppSpec` - Kustomize details
 * `Directory *apiclient.DirectoryAppSpec` - Directory details

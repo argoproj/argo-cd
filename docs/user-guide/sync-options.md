@@ -1,5 +1,9 @@
 # Sync Options
 
+ArgoCD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute.
+
+Bellow you can find details about each available Sync Option:
+
 ## No Prune Resources
 
 >v1.1
@@ -71,8 +75,11 @@ You can add this option by following ways
 Example:
 
 ```yaml
-syncPolicy:
-  syncOptions:
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
     - ApplyOutOfSyncOnly=true
 ``` 
 
@@ -91,8 +98,12 @@ using `PrunePropagationPolicy` sync option. Supported policies are background, f
 More information about those policies could be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
 
 ```yaml
-syncOptions:
-- PrunePropagationPolicy=foreground
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - PrunePropagationPolicy=foreground
 ```
 
 ## Prune Last
@@ -101,8 +112,12 @@ This feature is to allow the ability for resource pruning to happen as a final, 
 after the other resources have been deployed and become healthy, and after all other waves completed successfully. 
 
 ```yaml
-syncOptions:
-- PruneLast=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - PruneLast=true
 ```
 
 This can also be configured at individual resource level.
@@ -121,8 +136,12 @@ might use `Replace=true` sync option:
 
 
 ```yaml
-syncOptions:
-- Replace=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Replace=true
 ```
 
 If the `Replace=true` sync option is set the ArgoCD will use `kubectl replace` or `kubectl create` command to apply changes.
@@ -136,12 +155,35 @@ metadata:
 
 ## Fail the sync if a shared resource is found
 
-By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources
-defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will
-fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
+By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
 
 ```yaml
-syncOptions:
-- FailOnSharedResource=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - FailOnSharedResource=true
 ```
 
+## Respect ignore difference configs
+
+This sync option is used to enable ArgoCD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, ArgoCD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+
+  ignoreDifferences:
+  - group: "apps"
+    kind: "Deployment"
+    jsonPointers:
+    - /spec/replicas
+
+  syncPolicy:
+    syncOptions:
+    - RespectIgnoreDifferences=true
+```
+
+The example above shows how an ArgoCD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.

@@ -5,7 +5,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -37,22 +37,23 @@ func NewCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 		DisableAutoGenTag: true,
+		SilenceUsage:      true,
 	}
 
 	command.AddCommand(NewCompletionCommand())
-	command.AddCommand(headless.InitCommand(NewVersionCmd(&clientOpts), &clientOpts, nil))
-	command.AddCommand(headless.InitCommand(NewClusterCommand(&clientOpts, pathOpts), &clientOpts, nil))
-	command.AddCommand(headless.InitCommand(NewApplicationCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewClusterCommand(&clientOpts, pathOpts)))
+	command.AddCommand(initialize.InitCommand(NewApplicationCommand(&clientOpts)))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
-	command.AddCommand(headless.InitCommand(NewRepoCommand(&clientOpts), &clientOpts, nil))
-	command.AddCommand(headless.InitCommand(NewRepoCredsCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(initialize.InitCommand(NewRepoCommand(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewRepoCredsCommand(&clientOpts)))
 	command.AddCommand(NewContextCommand(&clientOpts))
-	command.AddCommand(headless.InitCommand(NewProjectCommand(&clientOpts), &clientOpts, nil))
-	command.AddCommand(headless.InitCommand(NewAccountCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(initialize.InitCommand(NewProjectCommand(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewAccountCommand(&clientOpts)))
 	command.AddCommand(NewLogoutCommand(&clientOpts))
-	command.AddCommand(headless.InitCommand(NewCertCommand(&clientOpts), &clientOpts, nil))
-	command.AddCommand(headless.InitCommand(NewGPGCommand(&clientOpts), &clientOpts, nil))
+	command.AddCommand(initialize.InitCommand(NewCertCommand(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewGPGCommand(&clientOpts)))
 	command.AddCommand(admin.NewAdminCommand())
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
@@ -74,5 +75,9 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
 	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", 0, "Maximum number of retries to establish http connection to Argo CD server")
 	command.PersistentFlags().BoolVar(&clientOpts.Core, "core", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
+
+	clientOpts.KubeOverrides = &clientcmd.ConfigOverrides{}
+	command.PersistentFlags().StringVar(&clientOpts.KubeOverrides.CurrentContext, "kube-context", "", "Directs the command to the given kube-context")
+
 	return command
 }

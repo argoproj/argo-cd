@@ -97,7 +97,7 @@ export const ApplicationNodeInfo = (props: {
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
                         const live = deepMerge(props.live, {}) as any;
-                        if (live && pref.appDetails.hideManagedFields) {
+                        if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
                             delete live.metadata.managedFields;
                         }
                         return (

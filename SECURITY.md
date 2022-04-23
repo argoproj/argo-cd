@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.2 (2020-08-07)**
+Version: **v1.4 (2022-01-23)**
 
 ## Preface
 
@@ -26,8 +26,12 @@ are well aware of the issues that may affect Argo CD and are constantly
 working on the remediation of those that affect Argo CD and our users.
 
 If you believe that we might have missed an issue that we should take a look
-at (that can happen), then please discuss it with us. But please, do validate
-that assumption before at least roughly.
+at (that can happen), then please discuss it with us. If there is a CVE
+assigned to the issue, please do open an issue on our GitHub tracker instead
+of writing to the security contact e-mail, since things reported by scanners
+are public already and the discussion that might emerge is of benefit to the
+general community. However, please validate your scanner results and its
+impact on Argo CD before opening an issue at least roughly.
 
 ## Supported Versions
 
@@ -64,3 +68,9 @@ findings (unless you prefer to stay anonymous, of course).
 Please report vulnerabilities by e-mail to the following address: 
 
 * cncf-argo-security@lists.cncf.io
+
+## Securing your Argo CD Instance
+
+See the [operator manual security page](docs/operator-manual/security.md) for 
+additional information about Argo CD's security features and how to make your 
+Argo CD production ready.

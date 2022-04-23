@@ -253,18 +253,36 @@ func Success(message string) Expectation {
 	}
 }
 
-// asserts that the last command was an error with substring match
-func Error(message, err string) Expectation {
+// Error asserts that the last command was an error with substring match
+func Error(message, err string, matchers ...func(string, string) bool) Expectation {
+	if len(matchers) == 0 {
+		matchers = append(matchers, strings.Contains)
+	}
+	match := func(actual, expected string) bool {
+		for i := range matchers {
+			if !matchers[i](actual, expected) {
+				return false
+			}
+		}
+		return true
+	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError == nil {
 			return failed, "no error"
 		}
-		if !strings.Contains(c.actions.lastOutput, message) {
+		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
-		if !strings.Contains(c.actions.lastError.Error(), err) {
+		if !match(c.actions.lastError.Error(), err) {
 			return failed, fmt.Sprintf("error does not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
 	}
+}
+
+// ErrorRegex asserts that the last command was an error that matches given regex epxression
+func ErrorRegex(messagePattern, err string) Expectation {
+	return Error(messagePattern, err, func(actual, expected string) bool {
+		return regexp.MustCompile(expected).MatchString(actual)
+	})
 }

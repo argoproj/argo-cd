@@ -7,7 +7,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/account";
 
 package account;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 message UpdatePasswordRequest {
@@ -78,7 +77,7 @@ service AccountService {
 
 	// CanI checks if the current account has permission to perform an action
 	rpc CanI(CanIRequest) returns (CanIResponse) {
-		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
+		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource=**}";
 	}
 
 	// UpdatePassword updates an account's password to a new value
