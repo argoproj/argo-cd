@@ -18,7 +18,7 @@ export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]
                     <label key={app.metadata.name} style={{marginTop: '0.5em', cursor: 'pointer'}}>
                         <CheckboxField field={`app/${i}`} />
                         &nbsp;
-                        {app.metadata.name}
+                        {app.isAppOfAppsPattern ? `(App of Apps)${app.metadata.name}` : app.metadata.name}
                         &nbsp;
                         <ComparisonStatusIcon status={app.status.sync.status} />
                         &nbsp;
