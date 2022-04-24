@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -397,12 +396,12 @@ func TestUpdateAppSpec(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	testApp.Spec.Project = ""
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
-		Name: &testApp.Name,
+		Name: testApp.Name,
 		Spec: &testApp.Spec,
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", spec.Project)
-	app, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
+	app, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: testApp.Name})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", app.Spec.Project)
 }
@@ -416,7 +415,7 @@ func TestDeleteApp(t *testing.T) {
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
 
-	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
+	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 
@@ -436,7 +435,7 @@ func TestDeleteApp(t *testing.T) {
 	appServer.appclientset = fakeAppCs
 
 	trueVar := true
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar})
 	assert.Nil(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
@@ -445,7 +444,7 @@ func TestDeleteApp(t *testing.T) {
 	falseVar := false
 	patched = false
 	deleted = false
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: falseVar})
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
@@ -459,7 +458,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, PropagationPolicy: &policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
@@ -468,7 +467,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with cascade disabled and background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar, PropagationPolicy: &policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: falseVar, PropagationPolicy: policy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = cannot set propagation policy when cascading is disabled")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -477,7 +476,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with invalid propagation policy", func(t *testing.T) {
 		invalidPolicy := "invalid"
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &invalidPolicy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar, PropagationPolicy: invalidPolicy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = invalid propagation policy: invalid")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -486,7 +485,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
 		policy := foregroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar, PropagationPolicy: policy})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
@@ -497,7 +496,7 @@ func TestDeleteApp(t *testing.T) {
 func TestDeleteApp_InvalidName(t *testing.T) {
 	appServer := newTestAppServer()
 	_, err := appServer.Delete(context.Background(), &application.ApplicationDeleteRequest{
-		Name: pointer.StringPtr("foo"),
+		Name: "foo",
 	})
 	if !assert.Error(t, err) {
 		return
@@ -515,7 +514,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
-	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
@@ -535,11 +534,11 @@ func TestSyncAndTerminate(t *testing.T) {
 	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
 	assert.Nil(t, err)
 
-	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
+	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 
-	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
+	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
@@ -559,7 +558,7 @@ func TestSyncHelm(t *testing.T) {
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 	assert.NoError(t, err)
 
-	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: app.Name})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
@@ -579,7 +578,7 @@ func TestSyncGit(t *testing.T) {
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 	assert.NoError(t, err)
 	syncReq := &application.ApplicationSyncRequest{
-		Name: &app.Name,
+		Name: app.Name,
 		Manifests: []string{
 			`apiVersion: v1
 			kind: ServiceAccount
@@ -607,8 +606,8 @@ func TestRollbackApp(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 
 	updatedApp, err := appServer.Rollback(context.Background(), &application.ApplicationRollbackRequest{
-		Name: &testApp.Name,
-		Id:   pointer.Int64(1),
+		Name: testApp.Name,
+		Id:   1,
 	})
 
 	assert.Nil(t, err)
@@ -680,19 +679,19 @@ func TestAppJsonPatch(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
 
-	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("garbage")})
+	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: testApp.Name, Patch: "garbage"})
 	assert.Error(t, err)
 	assert.Nil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("[]")})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: testApp.Name, Patch: "[]"})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`)})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: testApp.Name, Patch: `[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`})
 	assert.NoError(t, err)
 	assert.NotContains(t, app.Annotations, "test.annotation")
 }
@@ -706,7 +705,7 @@ func TestAppMergePatch(t *testing.T) {
 	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
-		Name: &testApp.Name, Patch: pointer.String(`{"spec": { "source": { "path": "foo" } }}`), PatchType: pointer.String("merge")})
+		Name: testApp.Name, Patch: `{"spec": { "source": { "path": "foo" } }}`, PatchType: "merge"})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
@@ -717,7 +716,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: testApp.Name})
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(active.ActiveWindows))
 	})
@@ -726,7 +725,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: testApp.Name})
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(active.ActiveWindows))
 	})
@@ -735,7 +734,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: testApp.Name})
 		assert.Contains(t, err.Error(), "not found")
 		assert.Nil(t, active)
 	})
@@ -844,7 +843,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 
 	t.Run("GetAllPods", func(t *testing.T) {
 		podQuery := application.ApplicationPodLogsQuery{
-			Name: &appName,
+			Name: appName,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 2, len(pods))
@@ -855,10 +854,10 @@ func TestLogsGetSelectedPod(t *testing.T) {
 		kind := "ReplicaSet"
 		name := "rs"
 		podQuery := application.ApplicationPodLogsQuery{
-			Name:         &appName,
-			Group:        &group,
-			Kind:         &kind,
-			ResourceName: &name,
+			Name:         appName,
+			Group:        group,
+			Kind:         kind,
+			ResourceName: name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 1, len(pods))
@@ -869,10 +868,10 @@ func TestLogsGetSelectedPod(t *testing.T) {
 		kind := "Deployment"
 		name := "deployment"
 		podQuery := application.ApplicationPodLogsQuery{
-			Name:         &appName,
-			Group:        &group,
-			Kind:         &kind,
-			ResourceName: &name,
+			Name:         appName,
+			Group:        group,
+			Kind:         kind,
+			ResourceName: name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 1, len(pods))
@@ -883,10 +882,10 @@ func TestLogsGetSelectedPod(t *testing.T) {
 		kind := "Service"
 		name := "service"
 		podQuery := application.ApplicationPodLogsQuery{
-			Name:         &appName,
-			Group:        &group,
-			Kind:         &kind,
-			ResourceName: &name,
+			Name:         appName,
+			Group:        group,
+			Kind:         kind,
+			ResourceName: name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
 		assert.Equal(t, 0, len(pods))
@@ -926,8 +925,8 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
-		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
+		Name:    testApp.Name,
+		Refresh: string(appsv1.RefreshTypeNormal),
 	})
 	assert.NoError(t, err)
 
@@ -962,8 +961,8 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
-		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
+		Name:    testApp.Name,
+		Refresh: string(appsv1.RefreshTypeHard),
 	})
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)

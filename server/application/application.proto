@@ -16,62 +16,62 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
 	// the application's name
-	optional string name = 1;
+	string name = 1;
 	// forces application reconciliation if set to true
-	optional string refresh = 2;
+	string refresh = 2;
 	// the project names to restrict returned list applications
 	repeated string projects = 3;
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
-	optional string resourceVersion = 4;
+	string resourceVersion = 4;
 	// the selector to restrict returned list to applications only with matched labels
-	optional string selector = 5;
+	string selector = 5;
 	// the repoURL to restrict returned list applications
-	optional string repo = 6;
+	string repo = 6;
 }
 
 message NodeQuery {
 	// the application's name
-	optional string name = 1;
+	string name = 1;
 }
 
 message RevisionMetadataQuery{
 	// the application's name
-	required string name = 1;
+	string name = 1;
 	// the revision of the app
-	required string revision = 2;
+	string revision = 2;
 }
 
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
-	required string name = 1;
-	required string resourceNamespace = 2;
-	required string resourceName = 3;
-	required string resourceUID = 4;
+	string name = 1;
+	string resourceNamespace = 2;
+	string resourceName = 3;
+	string resourceUID = 4;
 }
 
 // ManifestQuery is a query for manifest resources
 message ApplicationManifestQuery {
-	required string name = 1;
-	optional string revision = 2;
+	string name = 1;
+	string revision = 2;
 }
 
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
-	optional bool upsert = 2;
-	optional bool validate = 3;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+	bool upsert = 2;
+	bool validate = 3;
 }
 
 message ApplicationUpdateRequest {
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
-	optional bool validate = 2;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+	bool validate = 2;
 }
 
 message ApplicationDeleteRequest {
-	required string name = 1;
-	optional bool cascade = 2;
-	optional string propagationPolicy = 3;
+	string name = 1;
+	bool cascade = 2;
+	string propagationPolicy = 3;
 }
 
 message SyncOptions {
@@ -80,78 +80,78 @@ message SyncOptions {
 
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
-	required string name = 1;
-	optional string revision = 2;
-	optional bool dryRun = 3;
-	optional bool prune = 4;
-	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
+	string name = 1;
+	string revision = 2;
+	bool dryRun = 3;
+	bool prune = 4;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7;
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Info infos = 9;
-	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
-	optional SyncOptions syncOptions = 11;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
+	SyncOptions syncOptions = 11;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
-	required string name = 1;
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
-	optional bool validate = 3;
+	string name = 1;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
+	bool validate = 3;
 }
 
 // ApplicationPatchRequest is a request to patch an application
 message ApplicationPatchRequest {
-	required string name = 1;
-	required string patch = 2;
-	required string patchType = 3;
+	string name = 1;
+	string patch = 2;
+	string patchType = 3;
 }
 
 message ApplicationRollbackRequest {
-	required string name = 1;
-	required int64 id = 2;
-	optional bool dryRun = 3;
-	optional bool prune = 4;
+	string name = 1;
+	int64 id = 2;
+	bool dryRun = 3;
+	bool prune = 4;
 }
 
 message ApplicationResourceRequest {
-	required string name = 1;
-	required string namespace = 2;
-	required string resourceName = 3;
-	required string version = 4;
-	required string kind = 5;
-	optional string group = 6;
+	string name = 1;
+	string namespace = 2;
+	string resourceName = 3;
+	string version = 4;
+	string kind = 5;
+	string group = 6;
 }
 
 message ApplicationResourcePatchRequest {
-	required string name = 1;
-	required string namespace = 2;
-	required string resourceName = 3;
-	required string version = 4;
-	required string kind = 5;
-	required string patch = 6;
-	required string patchType = 7;
-	optional string group = 8;
+	string name = 1;
+	string namespace = 2;
+	string resourceName = 3;
+	string version = 4;
+	string kind = 5;
+	string patch = 6;
+	string patchType = 7;
+	string group = 8;
 }
 
 message ApplicationResourceDeleteRequest {
-	required string name = 1;
-	required string namespace = 2;
-	required string resourceName = 3;
-	required string version = 4;
-	required string kind = 5;
-	optional string group = 6;
-	optional bool force = 7;
-	optional bool orphan = 8;
+	string name = 1;
+	string namespace = 2;
+	string resourceName = 3;
+	string version = 4;
+	string kind = 5;
+	string group = 6;
+	bool force = 7;
+	bool orphan = 8;
 }
 
 message ResourceActionRunRequest {
-	required string name = 1;
-	required string namespace = 2;
-	required string resourceName = 3;
-	required string version = 4;
-	required string kind = 5;
-	required string action = 6;
-	optional string group = 7;
+	string name = 1;
+	string namespace = 2;
+	string resourceName = 3;
+	string version = 4;
+	string kind = 5;
+	string action = 6;
+	string group = 7;
 }
 
 message ResourceActionsListResponse {
@@ -159,54 +159,54 @@ message ResourceActionsListResponse {
 }
 
 message ApplicationResourceResponse {
-	required string manifest = 1;
+	string manifest = 1;
 }
 
 message ApplicationPodLogsQuery {
-	required string name = 1;
-	required string namespace = 2;
-	optional string podName = 3;
-	required string container = 4;
-	required int64 sinceSeconds = 5;
-	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
-	required int64 tailLines = 7;
-	required bool follow = 8;
-	optional string untilTime = 9;
-	optional string filter = 10;
-	optional string kind = 11;
-	optional string group = 12;
-	optional string resourceName = 13 ;
-	optional bool previous = 14;
+	string name = 1;
+	string namespace = 2;
+	string podName = 3;
+	string container = 4;
+	int64 sinceSeconds = 5;
+	k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
+	int64 tailLines = 7;
+	bool follow = 8;
+	string untilTime = 9;
+	string filter = 10;
+	string kind = 11;
+	string group = 12;
+	string resourceName = 13 ;
+	bool previous = 14;
 }
 
 message LogEntry {
-	required string content = 1;
+	string content = 1;
 	// deprecated in favor of timeStampStr since meta.v1.Time don't support nano time
-	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2;
-	required bool last = 3;
-	required string timeStampStr = 4;
-	required string podName = 5;
+	k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2;
+	bool last = 3;
+	string timeStampStr = 4;
+	string podName = 5;
 }
 
 message OperationTerminateRequest {
-	required string name = 1;
+	string name = 1;
 }
 
 message ApplicationSyncWindowsQuery {
-	required string name = 1;
+	string name = 1;
 }
 
 message ApplicationSyncWindowsResponse {
 	repeated ApplicationSyncWindow activeWindows = 1;
 	repeated ApplicationSyncWindow assignedWindows = 2;
-	required bool canSync = 3;
+	bool canSync = 3;
 }
 
 message ApplicationSyncWindow {
-	required string kind = 1;
-	required string schedule = 2;
-	required string duration = 3;
-	required bool manualSync = 4;
+	string kind = 1;
+	string schedule = 2;
+	string duration = 3;
+	bool manualSync = 4;
 }
 
 message OperationTerminateResponse {
@@ -214,13 +214,13 @@ message OperationTerminateResponse {
 
 
 message ResourcesQuery {
-	required string applicationName = 1;
+	string applicationName = 1;
 
-	optional string namespace = 2;
-	optional string name = 3;
-	optional string version = 4;
-	optional string group = 5;
-	optional string kind = 6;
+	string namespace = 2;
+	string name = 3;
+	string version = 4;
+	string group = 5;
+	string kind = 6;
 }
 
 message ManagedResourcesResponse {

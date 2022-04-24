@@ -678,11 +678,11 @@ func Test_unset(t *testing.T) {
 		Plugin: &v1alpha1.ApplicationSourcePlugin{
 			Env: v1alpha1.Env{
 				{
-					Name: "env-1",
+					Name:  "env-1",
 					Value: "env-value-1",
 				},
 				{
-					Name: "env-2",
+					Name:  "env-2",
 					Value: "env-value-2",
 				},
 			},
@@ -781,8 +781,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
-	testCases := []struct{
-		name string
+	testCases := []struct {
+		name   string
 		source v1alpha1.ApplicationSource
 	}{
 		{"kustomize", v1alpha1.ApplicationSource{Kustomize: &v1alpha1.ApplicationSourceKustomize{}}},

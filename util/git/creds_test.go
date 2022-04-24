@@ -41,7 +41,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	var nonce string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
-			nonce = envVar[len(ASKPASS_NONCE_ENV) + 1:]
+			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
 			break
 		}
 	}

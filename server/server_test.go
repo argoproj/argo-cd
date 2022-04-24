@@ -676,39 +676,39 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
-	testCases := []struct{
+	testCases := []struct {
 		name           string
 		url            string
 		isMainJsBundle bool
 	}{
 		{
-			name: "localhost with valid main bundle",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost with valid main bundle",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "localhost and deep path with valid main bundle",
-			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost and deep path with valid main bundle",
+			url:            "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "font file",
-			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			name:           "font file",
+			url:            "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
 			isMainJsBundle: false,
 		},
 		{
-			name: "no dot after main",
-			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			name:           "no dot after main",
+			url:            "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong extension character",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			name:           "wrong extension character",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong hash length",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			name:           "wrong hash length",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
 			isMainJsBundle: false,
 		},
 	}

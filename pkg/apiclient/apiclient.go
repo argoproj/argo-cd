@@ -772,7 +772,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: &revision})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: appName, ResourceVersion: revision})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
