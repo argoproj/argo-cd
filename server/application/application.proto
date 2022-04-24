@@ -1,4 +1,4 @@
-syntax = "proto2";
+syntax = "proto3";
 option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/application";
 
 // Application Service
@@ -118,8 +118,8 @@ message ApplicationResourceRequest {
 	required string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
-	required string kind = 6;
+	required string kind = 5;
+	optional string group = 6;
 }
 
 message ApplicationResourcePatchRequest {
@@ -127,10 +127,10 @@ message ApplicationResourcePatchRequest {
 	required string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
-	required string kind = 6;
-	required string patch = 7;
-	required string patchType = 8;
+	required string kind = 5;
+	required string patch = 6;
+	required string patchType = 7;
+	optional string group = 8;
 }
 
 message ApplicationResourceDeleteRequest {
@@ -138,8 +138,8 @@ message ApplicationResourceDeleteRequest {
 	required string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
-	required string kind = 6;
+	required string kind = 5;
+	optional string group = 6;
 	optional bool force = 7;
 	optional bool orphan = 8;
 }
@@ -149,9 +149,9 @@ message ResourceActionRunRequest {
 	required string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
-	required string kind = 6;
-	required string action = 7;
+	required string kind = 5;
+	required string action = 6;
+	optional string group = 7;
 }
 
 message ResourceActionsListResponse {
