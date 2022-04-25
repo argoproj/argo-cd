@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"sigs.k8s.io/structured-merge-diff/v4/typed"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -323,7 +324,11 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
-				pt := diffConfig.GVKParser().Type(gvk)
+
+				var pt *typed.ParseableType
+				if diffConfig.GVKParser() != nil {
+					pt = diffConfig.GVKParser().Type(gvk)
+				}
 				var err error
 				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers, pt)
 				if err != nil {

@@ -14,8 +14,10 @@ import (
 // a field that belongs to one of the trustedManagers it will remove
 // that field from both live and config objects and return the normalized
 // objects in this order. This function won't modify the live and config
-// parameters. It is a no-op if no trustedManagers is provided. It is also
-// a no-op if live or config are nil.
+// parameters. If pt is nil, the normalization will use a deduced parseable
+// type which means that lists and maps are manipulated atomically.
+// It is a no-op if no trustedManagers is provided. It is also a no-op if
+// live or config are nil.
 func Normalize(live, config *unstructured.Unstructured, trustedManagers []string, pt *typed.ParseableType) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	if len(trustedManagers) == 0 {
 		return nil, nil, nil
