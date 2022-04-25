@@ -753,6 +753,8 @@ github.com/leoluz/gitops-engine v0.4.1-0.20220420194103-2281d4b648f6 h1:2Wyz68U+
 github.com/leoluz/gitops-engine v0.4.1-0.20220420194103-2281d4b648f6/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/leoluz/gitops-engine v0.4.1-0.20220422015355-dc13f498bdf2 h1:pHdz+T9IHmv89anzWKu4Vd0d86i16AgazbFpsBYjrys=
 github.com/leoluz/gitops-engine v0.4.1-0.20220422015355-dc13f498bdf2/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
+github.com/leoluz/gitops-engine v0.4.1-0.20220423204209-c10f5e07f992 h1:OZ6CnNJwuk2xN06Otq+rK1PDgV3DwIz5yuCI6e3PnhI=
+github.com/leoluz/gitops-engine v0.4.1-0.20220423204209-c10f5e07f992/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/libopenstorage/openstorage v1.0.0/go.mod h1:Sp1sIObHjat1BeXhfMqLZ14wnOzEhNx2YQedreMcUyc=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
