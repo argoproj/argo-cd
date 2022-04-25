@@ -17,28 +17,28 @@ func TestGiteaListRepos(t *testing.T) {
 		filters                                 []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
-			name:     "blank protocol",
+			name:        "blank protocol",
 			allBranches: false,
-			url:      "git@gitea.com:gitea/go-sdk.git",
-			branches: []string{"master"},
+			url:         "git@gitea.com:gitea/go-sdk.git",
+			branches:    []string{"master"},
 		},
 		{
-			name:  "ssh protocol",
+			name:        "ssh protocol",
 			allBranches: false,
-			proto: "ssh",
-			url:   "git@gitea.com:gitea/go-sdk.git",
+			proto:       "ssh",
+			url:         "git@gitea.com:gitea/go-sdk.git",
 		},
 		{
-			name:  "https protocol",
+			name:        "https protocol",
 			allBranches: false,
-			proto: "https",
-			url:   "https://gitea.com/gitea/go-sdk",
+			proto:       "https",
+			url:         "https://gitea.com/gitea/go-sdk",
 		},
 		{
-			name:     "other protocol",
+			name:        "other protocol",
 			allBranches: false,
-			proto:    "other",
-			hasError: true,
+			proto:       "other",
+			hasError:    true,
 		},
 		{
 			name:        "all branches",

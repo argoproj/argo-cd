@@ -458,7 +458,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy, Cascade: true})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
