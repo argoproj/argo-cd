@@ -339,13 +339,13 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 
 	stdout, err := runCommand(bufferedCtx, config.Spec.Parameters.Dynamic, workDir, os.Environ())
 	if err != nil {
-		return fmt.Errorf("error executing dynamic paramter output command: %s", err)
+		return fmt.Errorf("error executing dynamic parameter output command: %s", err)
 	}
 
 	var r []*apiclient.ParameterAnnouncement
 	err = json.Unmarshal([]byte(stdout), &r)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling dynamic paramter output into ParametersAnnouncementResponse: %s", err)
+		return fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
 	}
 	paramAnnouncements = append(paramAnnouncements, r...)
 
