@@ -4868,6 +4868,10 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
+                                        pathsDoNotExist:
+                                          items:
+                                            type: string
+                                          type: array
                                         pathsExist:
                                           items:
                                             type: string
@@ -7017,6 +7021,10 @@ spec:
                                           type: string
                                         labelMatch:
                                           type: string
+                                        pathsDoNotExist:
+                                          items:
+                                            type: string
+                                          type: array
                                         pathsExist:
                                           items:
                                             type: string
@@ -8031,6 +8039,10 @@ spec:
                                 type: string
                               labelMatch:
                                 type: string
+                              pathsDoNotExist:
+                                items:
+                                  type: string
+                                type: array
                               pathsExist:
                                 items:
                                   type: string
@@ -9057,7 +9069,6 @@ rules:
   - argoproj.io
   resources:
   - applications
-  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -9068,6 +9079,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
 - apiGroups:
   - argoproj.io
   resources:

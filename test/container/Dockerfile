@@ -1,10 +1,10 @@
 FROM redis:6.2.6 as redis
 
-FROM node:12.18.4 as node
+FROM node:12.18.4-buster as node
 
 FROM golang:1.18 as golang
 
-FROM registry:2.7.1 as registry
+FROM registry:2.8 as registry
 
 FROM ubuntu:21.10
 
@@ -22,6 +22,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         make \
         wget \
         gcc \
+        g++ \
         sudo \
         tini \
         zip && \
