@@ -21,12 +21,13 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string   `json:"version"`
-	Init             Command  `json:"init,omitempty"`
-	Generate         Command  `json:"generate"`
-	Discover         Discover `json:"discover"`
-	AllowConcurrency bool     `json:"allowConcurrency"`
-	LockRepo         bool     `json:"lockRepo"`
+	Version          string     `json:"version"`
+	Init             Command    `json:"init,omitempty"`
+	Generate         Command    `json:"generate"`
+	Discover         Discover   `json:"discover"`
+	AllowConcurrency bool       `json:"allowConcurrency"`
+	LockRepo         bool       `json:"lockRepo"`
+	Parameters       Parameters `yaml:"parameters"`
 }
 
 //Discover holds find and fileName
@@ -45,6 +46,21 @@ type Command struct {
 type Find struct {
 	Command
 	Glob string `json:"glob"`
+}
+
+type Static struct {
+	Name    string `yaml:"name"`
+	Title   string `yaml:"title"`
+	Tooltip string `yaml:"tooltip"`
+}
+
+type Dynamic struct {
+	Command []string `yaml:"command"`
+}
+
+type Parameters struct {
+	Static  []Static `yaml:"static"`
+	Dynamic Dynamic  `yaml:"dynamic"`
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
