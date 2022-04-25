@@ -48,19 +48,22 @@ type Find struct {
 	Glob string `json:"glob"`
 }
 
+// Parameters holds static and dynamic configurations
+type Parameters struct {
+	Static  []Static `yaml:"static"`
+	Dynamic Dynamic  `yaml:"dynamic"`
+}
+
+// Static hold the static announcements for CMP's
 type Static struct {
 	Name    string `yaml:"name"`
 	Title   string `yaml:"title"`
 	Tooltip string `yaml:"tooltip"`
 }
 
+// Dynamic hold the dynamic announcements for CMP's
 type Dynamic struct {
 	Command []string `yaml:"command"`
-}
-
-type Parameters struct {
-	Static  []Static `yaml:"static"`
-	Dynamic Dynamic  `yaml:"dynamic"`
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
