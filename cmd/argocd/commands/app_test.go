@@ -638,3 +638,167 @@ func TestPrintApplicationNames(t *testing.T) {
 		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
 	}
 }
+
+func Test_unset(t *testing.T) {
+	kustomizeSource := &v1alpha1.ApplicationSource{
+		Kustomize: &v1alpha1.ApplicationSourceKustomize{
+			NamePrefix: "some-prefix",
+			NameSuffix: "some-suffix",
+			Version:    "123",
+			Images: v1alpha1.KustomizeImages{
+				"old1=new:tag",
+				"old2=new:tag",
+			},
+		},
+	}
+
+	helmSource := &v1alpha1.ApplicationSource{
+		Helm: &v1alpha1.ApplicationSourceHelm{
+			IgnoreMissingValueFiles: true,
+			Parameters: []v1alpha1.HelmParameter{
+				{
+					Name:  "name-1",
+					Value: "value-1",
+				},
+				{
+					Name:  "name-2",
+					Value: "value-2",
+				},
+			},
+			PassCredentials: true,
+			Values:          "some: yaml",
+			ValueFiles: []string{
+				"values-1.yaml",
+				"values-2.yaml",
+			},
+		},
+	}
+
+	pluginSource := &v1alpha1.ApplicationSource{
+		Plugin: &v1alpha1.ApplicationSourcePlugin{
+			Env: v1alpha1.Env{
+				{
+					Name: "env-1",
+					Value: "env-value-1",
+				},
+				{
+					Name: "env-2",
+					Value: "env-value-2",
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
+	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.NamePrefix)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.NameSuffix)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.Version)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "some: yaml", helmSource.Helm.Values)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	assert.Equal(t, "", helmSource.Helm.Values)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+}
+
+func Test_unset_nothingToUnset(t *testing.T) {
+	testCases := []struct{
+		name string
+		source v1alpha1.ApplicationSource
+	}{
+		{"kustomize", v1alpha1.ApplicationSource{Kustomize: &v1alpha1.ApplicationSourceKustomize{}}},
+		{"helm", v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{}}},
+		{"plugin", v1alpha1.ApplicationSource{Plugin: &v1alpha1.ApplicationSourcePlugin{}}},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
+			assert.False(t, updated)
+			assert.True(t, nothingToUnset)
+		})
+	}
+}

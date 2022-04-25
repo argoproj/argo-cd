@@ -216,8 +216,6 @@ spec:
         name: plugins-home
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: static-files
       - name: ssh-known-hosts
         configMap:
           name: argocd-ssh-known-hosts-cm
