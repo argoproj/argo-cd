@@ -35,6 +35,7 @@ var resourceMap map[string]string = map[string]string{
 	"key":         rbacpolicy.ResourceGPGKeys,
 	"log":         rbacpolicy.ResourceLogs,
 	"logs":        rbacpolicy.ResourceLogs,
+	"exec":        rbacpolicy.ResourceExec,
 	"proj":        rbacpolicy.ResourceProjects,
 	"projs":       rbacpolicy.ResourceProjects,
 	"project":     rbacpolicy.ResourceProjects,
@@ -51,6 +52,7 @@ var validRBACResources map[string]bool = map[string]bool{
 	rbacpolicy.ResourceClusters:     true,
 	rbacpolicy.ResourceGPGKeys:      true,
 	rbacpolicy.ResourceLogs:         true,
+	rbacpolicy.ResourceExec:         true,
 	rbacpolicy.ResourceProjects:     true,
 	rbacpolicy.ResourceRepositories: true,
 }

@@ -22,7 +22,7 @@ fi
 # v3.2.1 = https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.2.1/kustomize_kustomize.v3.2.1_linux_amd64
 # v3.3.0 = https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v3.3.0/kustomize_v3.3.0_linux_amd64.tar.gz
 case $ARCHITECTURE in
-  arm|arm64)
+  arm|arm64|s390x|ppc64le)
       export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
       URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${INSTALL_OS}_$ARCHITECTURE.tar.gz
       BINNAME=kustomize

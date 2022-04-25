@@ -22,7 +22,7 @@ export GOBIN="${SRCROOT}/dist"
 mkdir -p $GOBIN
 
 # protoc-gen-go* is used to generate <service>.pb.go from .proto files
-#go_mod_install github.com/golang/protobuf/protoc-gen-go
+# go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
 #go_mod_install github.com/gogo/protobuf/protoc-gen-gogo
 go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
 

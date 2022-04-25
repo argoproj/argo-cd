@@ -432,9 +432,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 
-	tmpDir, err := ioutil.TempDir("", "repository-test-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	service := newService(tmpDir)
 
@@ -454,7 +452,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		errorExpected := step%2 == 0
 
 		// Ensure that the target directory will succeed or fail, so we can verify the cache correctly handles it
-		err = os.RemoveAll(tmpDir)
+		err := os.RemoveAll(tmpDir)
 		assert.NoError(t, err)
 		err = os.MkdirAll(tmpDir, 0777)
 		assert.NoError(t, err)
@@ -1399,7 +1397,6 @@ func mkTempParameters(source string) string {
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	tempDir := mkTempParameters("./testdata/app-parameters")
-	defer os.RemoveAll(tempDir)
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 }
 
@@ -1715,11 +1712,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 }
 
 func TestDirectoryPermissionInitializer(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 
 	file, err := ioutil.TempFile(dir, "")
 	require.NoError(t, err)
@@ -1727,9 +1720,15 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	// remove read permissions
 	assert.NoError(t, os.Chmod(dir, 0000))
-	closer := directoryPermissionInitializer(dir)
+
+	// Remember to restore permissions when the test finishes so dir can
+	// be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	// make sure permission are restored
+	closer := directoryPermissionInitializer(dir)
 	_, err = ioutil.ReadFile(file.Name())
 	require.NoError(t, err)
 
@@ -1755,11 +1754,13 @@ func initGitRepo(repoPath string, remote string) error {
 }
 
 func TestInit(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	repoPath := path.Join(dir, "repo1")
 	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
@@ -1781,8 +1782,7 @@ func TestInit(t *testing.T) {
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
-	rootPath, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
+	rootPath := t.TempDir()
 
 	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
 	require.NoError(t, err)
