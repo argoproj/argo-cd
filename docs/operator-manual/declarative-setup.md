@@ -101,6 +101,12 @@ It is defined by the following key pieces of information:
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
 * `roles` list of entities with definitions of their access to resources within the project.
 
+!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
+    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+    to only admins.
+
 An example spec is as follows:
 
 ```yaml
@@ -173,7 +179,7 @@ Each repository must have a `url` field and, depending on whether you connect us
 
 !!!warning
     When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
-    
+
 Example for HTTPS:
 
 ```yaml
@@ -213,6 +219,7 @@ stringData:
 Example for GitHub App:
 
 ```yaml
+apiVersion: v1
 kind: Secret
 metadata:
   name: github-repo
@@ -221,10 +228,10 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  repo: https://github.com/argoproj/my-private-repository
+  url: https://github.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
-  githubAppPrivateKeySecret: |
+  githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
@@ -238,11 +245,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  repo: https://ghe.example.com/argoproj/my-private-repository
+  url: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: 1
   githubAppInstallationID: 2
   githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
-  githubAppPrivateKeySecret: |
+  githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
@@ -297,7 +304,7 @@ In the above example, every repository accessed via HTTPS whose URL is prefixed 
 In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
-* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
+* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
 !!! note
     Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
@@ -406,6 +413,8 @@ data:
     gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9bx9XUf2lEdWT/ia1NEKjunUqu1xOB/StKDHMoX4/OKyIzuS0q/T1zOATthvasJFoPrAjkohTyaDUz2LN5JoH839hViyEG82yB+MjcFV5MU3N1l1QL3cVUCh93xSaua1N85qivl+siMkPGbO5xR/En4iEY6K2XPASUEMaieWVNTRCtJ4S8H+9
     ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
+    github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+    github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
 ```
 
 !!! note
@@ -591,7 +600,7 @@ Resources can be excluded from discovery and sync so that Argo CD is unaware of 
 * There are many of a kind of resources that impacts Argo CD's performance.
 * Restrict Argo CD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
 
-To configure this, edit the `argcd-cm` config map:
+To configure this, edit the `argocd-cm` config map:
 
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -621,7 +630,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 If all three match, then the resource is ignored.
 
 In addition to exclusions, you might configure the list of included resources using the `resource.inclusions` setting.
-By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds: 
+By default, all resource group/kinds are included. The `resource.inclusions` setting allows customizing the list of included group/kinds:
 
 ```yaml
 apiVersion: v1

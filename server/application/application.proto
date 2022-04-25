@@ -6,7 +6,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/application";
 // Application Service API performs CRUD actions against application resources
 package application;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
@@ -21,13 +20,13 @@ message ApplicationQuery {
 	// forces application reconciliation if set to true
 	optional string refresh = 2;
 	// the project names to restrict returned list applications
-	repeated string project = 3 [(gogoproto.customname) = "Projects"];
+	repeated string projects = 3;
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
-	optional string resourceVersion = 4 [(gogoproto.nullable) = false];
-	// the selector to to restrict returned list to applications only with matched labels
-	optional string selector = 5 [(gogoproto.nullable) = false];
+	optional string resourceVersion = 4;
+	// the selector to restrict returned list to applications only with matched labels
+	optional string selector = 5;
 	// the repoURL to restrict returned list applications
-	optional string repo = 6 [(gogoproto.nullable) = false];
+	optional string repo = 6;
 }
 
 message NodeQuery {
@@ -45,21 +44,21 @@ message RevisionMetadataQuery{
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
 	required string name = 1;
-	required string resourceNamespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
-	required string resourceUID = 4 [(gogoproto.nullable) = false];
+	required string resourceNamespace = 2;
+	required string resourceName = 3;
+	required string resourceUID = 4;
 }
 
 // ManifestQuery is a query for manifest resources
 message ApplicationManifestQuery {
 	required string name = 1;
-	optional string revision = 2 [(gogoproto.nullable) = false];
+	optional string revision = 2;
 }
 
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
+	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
 	optional bool upsert = 2;
 	optional bool validate = 3;
 }
@@ -82,11 +81,11 @@ message SyncOptions {
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	required string name = 1;
-	optional string revision = 2 [(gogoproto.nullable) = false];
-	optional bool dryRun = 3 [(gogoproto.nullable) = false];
-	optional bool prune = 4 [(gogoproto.nullable) = false];
+	optional string revision = 2;
+	optional bool dryRun = 3;
+	optional bool prune = 4;
 	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7;
 	repeated string manifests = 8;
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Info infos = 9;
 	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
@@ -96,97 +95,97 @@ message ApplicationSyncRequest {
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
+	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
 	optional bool validate = 3;
 }
 
 // ApplicationPatchRequest is a request to patch an application
 message ApplicationPatchRequest {
 	required string name = 1;
-	required string patch = 2 [(gogoproto.nullable) = false];
-	required string patchType = 3 [(gogoproto.nullable) = false];
+	required string patch = 2;
+	required string patchType = 3;
 }
 
 message ApplicationRollbackRequest {
 	required string name = 1;
-	required int64 id = 2 [(gogoproto.customname) = "ID", (gogoproto.nullable) = false];
-	optional bool dryRun = 3 [(gogoproto.nullable) = false];
-	optional bool prune = 4 [(gogoproto.nullable) = false];
+	required int64 id = 2;
+	optional bool dryRun = 3;
+	optional bool prune = 4;
 }
 
 message ApplicationResourceRequest {
 	required string name = 1;
-	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
-	required string version = 4 [(gogoproto.nullable) = false];
-	required string group = 5 [(gogoproto.nullable) = false];
-	required string kind = 6 [(gogoproto.nullable) = false];
+	required string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	required string group = 5;
+	required string kind = 6;
 }
 
 message ApplicationResourcePatchRequest {
 	required string name = 1;
-	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
-	required string version = 4 [(gogoproto.nullable) = false];
-	required string group = 5 [(gogoproto.nullable) = false];
-	required string kind = 6 [(gogoproto.nullable) = false];
-	required string patch = 7 [(gogoproto.nullable) = false];
-	required string patchType = 8 [(gogoproto.nullable) = false];
+	required string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	required string group = 5;
+	required string kind = 6;
+	required string patch = 7;
+	required string patchType = 8;
 }
 
 message ApplicationResourceDeleteRequest {
 	required string name = 1;
-	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
-	required string version = 4 [(gogoproto.nullable) = false];
-	required string group = 5 [(gogoproto.nullable) = false];
-	required string kind = 6 [(gogoproto.nullable) = false];
-	optional bool force = 7 [(gogoproto.nullable) = true];
-	optional bool orphan = 8 [(gogoproto.nullable) = true];
+	required string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	required string group = 5;
+	required string kind = 6;
+	optional bool force = 7;
+	optional bool orphan = 8;
 }
 
 message ResourceActionRunRequest {
 	required string name = 1;
-	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
-	required string version = 4 [(gogoproto.nullable) = false];
-	required string group = 5 [(gogoproto.nullable) = false];
-	required string kind = 6 [(gogoproto.nullable) = false];
-	required string action = 7 [(gogoproto.nullable) = false];
+	required string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	required string group = 5;
+	required string kind = 6;
+	required string action = 7;
 }
 
 message ResourceActionsListResponse {
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceAction actions = 1 [(gogoproto.nullable) = false];
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceAction actions = 1;
 }
 
 message ApplicationResourceResponse {
-	required string manifest = 1 [(gogoproto.nullable) = false];
+	required string manifest = 1;
 }
 
 message ApplicationPodLogsQuery {
 	required string name = 1;
-	required string namespace = 2 [(gogoproto.nullable) = false];
+	required string namespace = 2;
 	optional string podName = 3;
-	required string container = 4 [(gogoproto.nullable) = false];
-	required int64 sinceSeconds = 5 [(gogoproto.nullable) = false];
+	required string container = 4;
+	required int64 sinceSeconds = 5;
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
-	required int64 tailLines = 7 [(gogoproto.nullable) = false];
-	required bool follow = 8 [(gogoproto.nullable) = false];
+	required int64 tailLines = 7;
+	required bool follow = 8;
 	optional string untilTime = 9;
 	optional string filter = 10;
 	optional string kind = 11;
 	optional string group = 12;
 	optional string resourceName = 13 ;
-	optional bool previous = 14 [(gogoproto.nullable) = false];
+	optional bool previous = 14;
 }
 
 message LogEntry {
-	required string content = 1 [(gogoproto.nullable) = false];
+	required string content = 1;
 	// deprecated in favor of timeStampStr since meta.v1.Time don't support nano time
-	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false, deprecated=true];
-	required bool last = 3 [(gogoproto.nullable) = false];
-	required string timeStampStr = 4 [(gogoproto.nullable) = false];
-	required string podName = 5 [(gogoproto.nullable) = false];
+	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2;
+	required bool last = 3;
+	required string timeStampStr = 4;
+	required string podName = 5;
 }
 
 message OperationTerminateRequest {
@@ -215,13 +214,13 @@ message OperationTerminateResponse {
 
 
 message ResourcesQuery {
-	required string applicationName = 1 [(gogoproto.nullable) = true];
+	required string applicationName = 1;
 
-	optional string namespace = 2 [(gogoproto.nullable) = false];
-	optional string name = 3 [(gogoproto.nullable) = false];
-	optional string version = 4 [(gogoproto.nullable) = false];
-	optional string group = 5 [(gogoproto.nullable) = false];
-	optional string kind = 6 [(gogoproto.nullable) = false];
+	optional string namespace = 2;
+	optional string name = 3;
+	optional string version = 4;
+	optional string group = 5;
+	optional string kind = 6;
 }
 
 message ManagedResourcesResponse {

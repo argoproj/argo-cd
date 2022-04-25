@@ -78,7 +78,7 @@ spec:
 Additionally, the application kustomize version can be configured using the Parameters tab of the Application Details page, or using the following CLI command:
 
 ```
-argocd app set <appyName> --kustomize-version v3.5.4
+argocd app set <appName> --kustomize-version v3.5.4
 ```
 
 

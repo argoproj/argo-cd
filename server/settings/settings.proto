@@ -37,6 +37,7 @@ message Settings {
     string trackingMethod = 18;
     bool uiBannerPermanent = 19;
     string uiBannerPosition = 20;
+    string statusBadgeRootUrl = 21;
 }
 
 message GoogleAnalyticsConfig {
@@ -50,6 +51,8 @@ message Help {
     string chatUrl = 1;
     // the text for getting chat help, defaults to "Chat now!"
     string chatText = 2;
+    // the URLs for downloading argocd binaries
+    map<string, string> binaryUrls = 3;
 }
 
 // Plugin settings

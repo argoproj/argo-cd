@@ -28,7 +28,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
 
-### TLS certificates used by argocd-sever
+### TLS certificates used by argocd-server
 
 There are two ways to configure the TLS certificates used by `argocd-server`:
 
@@ -38,7 +38,7 @@ There are two ways to configure the TLS certificates used by `argocd-server`:
 * Setting the `tls.crt` and `tls.key` keys in the `argocd-secret` secret to
   hold PEM data of the certificate and the corresponding private key. This
   method is considered deprecated, and only exists for purposes of backwards
-  compatiblity. Changing `argocd-secret` should not be used to override the
+  compatibility. Changing `argocd-secret` should not be used to override the
   TLS certificate anymore.
 
 Argo CD decides which TLS certificate to use for the endpoint of
@@ -47,7 +47,7 @@ Argo CD decides which TLS certificate to use for the endpoint of
 * If the `argocd-server-tls` secret exists and contains a valid key pair in the
   `tls.crt` and `tls.key` keys, this will be used for the certificate of the
   endpoint of `argocd-server`.
-* Otherwise, if the `argocd-secret` secret contains a valid key pair in the 
+* Otherwise, if the `argocd-secret` secret contains a valid key pair in the
  `tls.crt` and `tls.key` keys, this will be used as certificate for the
   endpoint of `argocd-server`.
 * If no `tls.crt` and `tls.key` keys are found in neither of the two mentioned
@@ -83,7 +83,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
 
-### Inbound TLS certificates used by argocd-repo-sever
+### Inbound TLS certificates used by argocd-repo-server
 
 To configure the TLS certificate used by the `argocd-repo-server` workload,
 create a secret named `argocd-repo-server-tls` in the namespace where Argo CD
@@ -114,7 +114,7 @@ on how your workloads connect to the repository server.
 
 Both `argocd-server` and `argocd-application-controller` communicate with the
 `argocd-repo-server` using a gRPC API over TLS. By default,
-`argocd-repo-server` generates a non-persistant, self signed certificate
+`argocd-repo-server` generates a non-persistent, self signed certificate
 to use for its gRPC endpoint on startup. Because the `argocd-repo-server` has
 no means to connect to the K8s control plane API, this certificate is not
 being available to outside consumers for verification. Both, the

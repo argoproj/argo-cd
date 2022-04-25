@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -14,7 +13,7 @@ import (
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -157,63 +156,28 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.StandardClaims{
-		IssuedAt:  jwt.At(now),
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: jwt.At(now),
+		NotBefore: jwt.NewNumericDate(now),
 		Subject:   subject,
 		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = jwt.At(expires)
+		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
 	return mgr.signClaims(claims)
 }
 
-type standardClaims struct {
-	Audience  jwt.ClaimStrings `json:"aud,omitempty"`
-	ExpiresAt int64            `json:"exp,omitempty"`
-	ID        string           `json:"jti,omitempty"`
-	IssuedAt  int64            `json:"iat,omitempty"`
-	Issuer    string           `json:"iss,omitempty"`
-	NotBefore int64            `json:"nbf,omitempty"`
-	Subject   string           `json:"sub,omitempty"`
-}
-
-func unixTimeOrZero(t *jwt.Time) int64 {
-	if t == nil {
-		return 0
-	}
-	return t.Unix()
-}
-
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
-	// log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return "", err
 	}
-	// workaround for https://github.com/argoproj/argo-cd/issues/5217
-	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
-	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
-	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
-	return token.SignedString(settings.ServerSignature, jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
-		if std, ok := v.(jwt.StandardClaims); ok {
-			return json.Marshal(standardClaims{
-				Audience:  std.Audience,
-				ExpiresAt: unixTimeOrZero(std.ExpiresAt),
-				ID:        std.ID,
-				IssuedAt:  unixTimeOrZero(std.IssuedAt),
-				Issuer:    std.Issuer,
-				NotBefore: unixTimeOrZero(std.NotBefore),
-				Subject:   std.Subject,
-			})
-		}
-		return json.Marshal(v)
-	}))
+	return token.SignedString(settings.ServerSignature)
 }
 
 // GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
@@ -499,10 +463,8 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err

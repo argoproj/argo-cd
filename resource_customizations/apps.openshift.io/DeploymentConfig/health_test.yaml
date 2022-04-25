@@ -11,3 +11,7 @@ tests:
     status: Healthy
     message: "replication controller successfully rolled out"
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "replication controller successfully rolled out"
+  inputPath: testdata/healthy_zero_replicas.yaml

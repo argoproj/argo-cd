@@ -21,7 +21,7 @@ spec:
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:6.2.4-alpine
+        image: redis:6.2.6-alpine
         imagePullPolicy: Always
         args:
         - "--save"
@@ -30,6 +30,11 @@ spec:
         - "no"
         ports:
         - containerPort: 6379
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

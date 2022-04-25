@@ -31,4 +31,11 @@
         margin-right: 2px;
         line-height: 14px;
     }
+
+    &__checkboxes {
+        text-align: right;
+        label {
+            padding-right: 2em;
+        }
+    }
 }

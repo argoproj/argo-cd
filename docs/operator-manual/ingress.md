@@ -1,6 +1,6 @@
 # Ingress Configuration
 
-Argo CD runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
+Argo CD API server runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
 Both protocols are exposed by the argocd-server service object on the following ports:
 
 * 443 - gRPC/HTTPS
@@ -32,15 +32,19 @@ metadata:
   name: argocd-server-cli
   namespace: argocd
 spec:
+  # NOTE: the port must be ignored if you have strip_matching_host_port enabled on envoy
   host: argocd.example.com:443
   prefix: /
-  service: argocd-server:443
+  service: argocd-server:80
+  regex_headers:
+    Content-Type: "^application/grpc.*$"
+  grpc: true
 ```
 
-Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for gRPC-web.
+Login with the `argocd` CLI:
 
 ```shell
-argocd login <host>:<port> --grpc-web-root-path /
+argocd login <host>
 ```
 
 ### Option 2: Mapping CRD for Path-based Routing
@@ -70,7 +74,7 @@ The Contour ingress controller can terminate TLS ingress traffic at the edge.
 
 The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
 
-It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
+It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-internal` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
 
 This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
 
@@ -91,9 +95,13 @@ spec:
   - host: internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - internal.path.to.argocd.io
@@ -113,9 +121,13 @@ spec:
   - host: grpc-internal.path.to.argocd.io
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
   tls:
   - hosts:
     - grpc-internal.path.to.argocd.io
@@ -137,9 +149,12 @@ spec:
     http:
       paths:
       - path: /api/dex/callback
+        pathType: Prefix
         backend:
-          serviceName: argocd-server
-          servicePort: http
+          service:
+            name: argocd-server
+            port:
+              name: http
   tls:
   - hosts:
     - external.path.to.argocd.io
@@ -192,9 +207,13 @@ spec:
   - host: argocd.example.com
     http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
 ```
 
 The above rule terminates TLS at the Argo CD API server, which detects the protocol being used,
@@ -215,7 +234,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-    # If you encounter a redirect loop or are getting a 307 response code 
+    # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
@@ -227,7 +246,7 @@ spec:
       - path: /
         pathType: Prefix
         backend:
-          service: 
+          service:
             name: argocd-server
             port:
               name: https
@@ -257,9 +276,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: http
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
     host: argocd.example.com
   tls:
   - hosts:
@@ -281,9 +304,13 @@ spec:
   rules:
   - http:
       paths:
-      - backend:
-          serviceName: argocd-server
-          servicePort: https
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
     host: grpc.argocd.example.com
   tls:
   - hosts:
@@ -346,11 +373,10 @@ spec:
           scheme: h2c
   tls:
     certResolver: default
-    options: {}
 ```
 
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
-AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both. 
+AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both.
 
 When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group then the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
 
@@ -376,7 +402,7 @@ spec:
   type: NodePort
 ```
 
-Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName. 
+Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName.
 
 ```yaml
   apiVersion: networking.k8s.io/v1
@@ -384,7 +410,7 @@ Once we create this service, we can configure the Ingress to conditionally route
   metadata:
     annotations:
       alb.ingress.kubernetes.io/backend-protocol: HTTPS
-      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends. 
+      # Use this annotation (which must match a service name) to route traffic to HTTP2 backends.
       alb.ingress.kubernetes.io/conditions.argogrpc: |
         [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
@@ -395,13 +421,19 @@ Once we create this service, we can configure the Ingress to conditionally route
     - host: argocd.argoproj.io
       http:
         paths:
-        - backend:
-            serviceName: argogrpc
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argogrpc
+              port:
+                number: 443
           pathType: ImplementationSpecific
-        - backend:
-            serviceName: argocd-server
-            servicePort: 443
+        - path: /
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 443
           pathType: ImplementationSpecific
     tls:
     - hosts:
@@ -419,7 +451,7 @@ For this we will need these five objects:
 - A secret with your SSL certificate
 - An Ingress for GKE
 
-If you need detail for all the options available for these Google integrations, you can check the [Google docs on configuring Ingress features](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features) 
+If you need detail for all the options available for these Google integrations, you can check the [Google docs on configuring Ingress features](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features)
 
 ### Disable internal TLS
 
@@ -446,7 +478,7 @@ To:
 
 ### Creating a service
 
-Now you need an externally accesible service. This is practically the same as the internal service Argo CD has, but as a NodePort and with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
 
 The service:
 
@@ -454,13 +486,13 @@ The service:
 apiVersion: v1
 kind: Service
 metadata:
-  name: argocd-server-external
+  name: argocd-server
   namespace: argocd
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
     cloud.google.com/backend-config: '{"ports": {"http":"argocd-backend-config"}}'
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
   - name: http
     port: 80
@@ -472,7 +504,7 @@ spec:
 
 ### Creating a BackendConfig
 
-See that previous service referencing a backend config called `argo-backend-config`? So lets deploy it using this yaml:
+See that previous service referencing a backend config called `argocd-backend-config`? So lets deploy it using this yaml:
 
 ```yaml
 apiVersion: cloud.google.com/v1
@@ -511,7 +543,7 @@ spec:
 ---
 !!! note
 
-    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).  
+    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 
@@ -522,13 +554,22 @@ We need now to create a secret with the SSL certificate we want in our load bala
 ```
 kubectl -n argocd create secret tls secret-yourdomain-com \
   --cert cert-file.crt --key key-file.key
-``` 
+```
 
 ### Creating an Ingress
 
-And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret:
+And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret.
+
+---
+!!! note
+
+   GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
+
+---
+
+If you use the version earlier than `1.21.3-gke.1600`, you should use the following Ingress resource:
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd
@@ -540,19 +581,41 @@ spec:
     - secretName: secret-yourdomain-com
   rules:
     - host: argocd.yourdomain.com
-      http:
-        paths:
-          - path: /*
-            backend:
-              serviceName: argocd-server-external
-              servicePort: http
+    http:
+      paths:
+      - pathType: ImplementationSpecific
+        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
 ```
----
-!!! warning "Deprecation Warning"
 
-    Note that, according to this [deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122), if you're using Kubernetes 1.22+, instead of `networking.k8s.io/v1beta1`, you should use `networking.k8s.io/v1`.
-
----
+If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
+spec:
+  tls:
+    - secretName: secret-yourdomain-com
+  rules:
+    - host: argocd.yourdomain.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
+```
 
 As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
 
@@ -590,7 +653,7 @@ spec:
         - --rootpath
         - /argo-cd
 ```
-NOTE: The flag `--rootpath` changes both API Server and UI base URL. 
+NOTE: The flag `--rootpath` changes both API Server and UI base URL.
 Example nginx.conf:
 
 ```

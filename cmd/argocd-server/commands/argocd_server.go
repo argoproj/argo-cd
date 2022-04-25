@@ -61,6 +61,7 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
 		frameOptions             string
+		contentSecurityPolicy    string
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
 		staticAssetsDir          string
@@ -92,11 +93,13 @@ func NewCommand() *cobra.Command {
 			appclientsetConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
+			vers := common.GetVersion()
+			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
-			appclientset := appclientset.NewForConfigOrDie(appclientsetConfig)
+			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
@@ -124,23 +127,24 @@ func NewCommand() *cobra.Command {
 			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:            insecure,
-				ListenPort:          listenPort,
-				MetricsPort:         metricsPort,
-				Namespace:           namespace,
-				BaseHRef:            baseHRef,
-				RootPath:            rootPath,
-				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
-				RepoClientset:       repoclientset,
-				DexServerAddr:       dexServerAddress,
-				DisableAuth:         disableAuth,
-				EnableGZip:          enableGZip,
-				TLSConfigCustomizer: tlsConfigCustomizer,
-				Cache:               cache,
-				XFrameOptions:       frameOptions,
-				RedisClient:         redisClient,
-				StaticAssetsDir:     staticAssetsDir,
+				Insecure:              insecure,
+				ListenPort:            listenPort,
+				MetricsPort:           metricsPort,
+				Namespace:             namespace,
+				BaseHRef:              baseHRef,
+				RootPath:              rootPath,
+				KubeClientset:         kubeclientset,
+				AppClientset:          appClientSet,
+				RepoClientset:         repoclientset,
+				DexServerAddr:         dexServerAddress,
+				DisableAuth:           disableAuth,
+				EnableGZip:            enableGZip,
+				TLSConfigCustomizer:   tlsConfigCustomizer,
+				Cache:                 cache,
+				XFrameOptions:         frameOptions,
+				ContentSecurityPolicy: contentSecurityPolicy,
+				RedisClient:           redisClient,
+				StaticAssetsDir:       staticAssetsDir,
 			}
 
 			stats.RegisterStackDumper()
@@ -174,6 +178,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
+	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)

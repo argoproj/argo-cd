@@ -16,6 +16,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
@@ -66,13 +67,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     offset: 0,
                     title: 'CONTAINERS',
                     containers: podState.spec.containers || []
-                },
-                {
+                }
+            ];
+            if (podState.spec.initContainers?.length > 0) {
+                containerGroups.push({
                     offset: (podState.spec.containers || []).length,
                     title: 'INIT CONTAINERS',
                     containers: podState.spec.initContainers || []
-                }
-            ];
+                });
+            }
+
+            const onClickContainer = (group: any, i: number) => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext);
+
             tabs = tabs.concat([
                 {
                     key: 'logs',
@@ -80,39 +86,27 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     title: 'LOGS',
                     content: (
                         <div className='application-details__tab-content-full-height'>
-                            <div className='row'>
-                                <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
-                                        <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}</p>}
-                                            {group.containers.map((container: any, i: number) => (
-                                                <div
-                                                    className='application-details__container'
-                                                    key={container.name}
-                                                    onClick={() => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext)}>
-                                                    {group.offset + i === selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                    <span title={container.name}>{container.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer
-                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                        group={node.group}
-                                        kind={node.kind}
-                                        name={node.name}
-                                        namespace={podState.metadata.namespace}
-                                        applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
-                                        page={{number: page, untilTimes}}
-                                        setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
-                                    />
-                                </div>
-                            </div>
+                            <PodsLogsViewer
+                                podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                group={node.group}
+                                kind={node.kind}
+                                name={node.name}
+                                namespace={podState.metadata.namespace}
+                                applicationName={application.metadata.name}
+                                containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                page={{number: page, untilTimes}}
+                                setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                                containerGroups={containerGroups}
+                                onClickContainer={onClickContainer}
+                            />
                         </div>
                     )
+                },
+                {
+                    key: 'exec',
+                    icon: 'fa fa-terminal',
+                    title: 'Terminal',
+                    content: <PodTerminalViewer applicationName={application.metadata.name} podState={podState} selectedNode={selectedNode} />
                 }
             ]);
         }
@@ -145,7 +139,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='appDetails'
                         input={application}
                         load={app =>
-                            services.repos.appDetails(app.spec.source, app.metadata.name).catch(() => ({
+                            services.repos.appDetails(app.spec.source, app.metadata.name, app.spec.project).catch(() => ({
                                 type: 'Directory' as AppSourceType,
                                 path: application.spec.source.path
                             }))

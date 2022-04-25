@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/ghodss/yaml"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
@@ -27,6 +29,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func fakeServer() (*ArgoCDServer, func()) {
@@ -37,12 +40,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 	redis, closer := test.NewInMemoryRedis()
 
 	argoCDOpts := ArgoCDServerOpts{
-		Namespace:     test.FakeArgoCDNamespace,
-		KubeClientset: kubeclientset,
-		AppClientset:  appClientSet,
-		Insecure:      true,
-		DisableAuth:   true,
-		XFrameOptions: "sameorigin",
+		Namespace:             test.FakeArgoCDNamespace,
+		KubeClientset:         kubeclientset,
+		AppClientset:          appClientSet,
+		Insecure:              true,
+		DisableAuth:           true,
+		XFrameOptions:         "sameorigin",
+		ContentSecurityPolicy: "frame-ancestors 'self';",
 		Cache: servercache.NewCache(
 			appstatecache.NewCache(
 				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
@@ -175,7 +179,7 @@ g, bob, role:admin
 	_ = enf.SetUserPolicy(policy)
 	allowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
-		jwt.StandardClaims{Subject: "admin"},
+		jwt.RegisteredClaims{Subject: "admin"},
 	}
 	for _, c := range allowed {
 		if !assert.True(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
@@ -185,7 +189,7 @@ g, bob, role:admin
 
 	disallowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org3:team3"}},
-		jwt.StandardClaims{Subject: "nobody"},
+		jwt.RegisteredClaims{Subject: "nobody"},
 	}
 	for _, c := range disallowed {
 		if !assert.False(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
@@ -544,4 +548,177 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "a!Better!Secret"}
+	argoSettings.Secrets = newSecrets
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+}
+
+func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "argocd",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "cat",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since OICD config created")
+}
+
+func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
+	//Given
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: ""}
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	//When
+	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		Name:         "cat",
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
+	argoSettings.Secrets = newSecrets
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since new OICD config created")
+}
+
+func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	argoSettings.OIDCConfigRAW = ""
+	argoSettings.Secrets = make(map[string]string)
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+}
+
+func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
+	//Given
+	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
+		ClientID:     "$k8ssecret:clientid",
+		ClientSecret: "$k8ssecret:clientsecret"})
+	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+
+	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
+
+	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: string(rawOIDCConfig), Secrets: originalSecrets}
+
+	originalOIDCConfig := argoSettings.OIDCConfig()
+
+	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
+	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
+
+	//When
+	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
+
+	//Then
+	assert.Equal(t, result, false, "no error since no config change")
+}
+
+func TestIsMainJsBundle(t *testing.T) {
+	testCases := []struct{
+		name           string
+		url            string
+		isMainJsBundle bool
+	}{
+		{
+			name: "localhost with valid main bundle",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "localhost and deep path with valid main bundle",
+			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: true,
+		},
+		{
+			name: "font file",
+			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			isMainJsBundle: false,
+		},
+		{
+			name: "no dot after main",
+			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong extension character",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			isMainJsBundle: false,
+		},
+		{
+			name: "wrong hash length",
+			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			isMainJsBundle: false,
+		},
+	}
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+			testUrl, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testUrl)
+			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
+		})
+	}
 }

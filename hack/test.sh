@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux -o pipefail
 
-which go-junit-report || go get github.com/jstemmer/go-junit-report
+which go-junit-report || go install github.com/jstemmer/go-junit-report@latest
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=
@@ -16,9 +16,9 @@ fi
 mkdir -p $TEST_RESULTS
 
 report() {
-  set -eux -o pipefail
+	set -eux -o pipefail
 
-  go-junit-report < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
+	go-junit-report < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
 }
 
 trap 'report' EXIT

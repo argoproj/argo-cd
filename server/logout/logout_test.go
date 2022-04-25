@@ -15,7 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -220,21 +220,21 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef, "default")
 	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
+		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
 	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef, "default")
 	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 
 	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
@@ -242,7 +242,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
-		return &jwt.StandardClaims{Issuer: "okta"}, "", nil
+		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	oidcTokenHeader := make(map[string][]string)
 	oidcTokenHeader["Cookie"] = []string{"argocd.token=" + oidcToken}

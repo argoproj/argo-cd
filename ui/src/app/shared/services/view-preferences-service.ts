@@ -1,7 +1,16 @@
+import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
+
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
+
+export enum AppsDetailsViewKey {
+    Tree = 'tree',
+    Network = 'network',
+    List = 'list',
+    Pods = 'pods'
+}
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
@@ -9,11 +18,15 @@ export interface AppDetailsPreferences {
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
+    hideManagedFields?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    wrapLines: boolean;
+    groupNodes?: boolean;
+    zoom: number;
 }
 
 export interface PodViewPreferences {
@@ -26,6 +39,12 @@ export interface HealthStatusBarPreferences {
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
+
+export enum AppsListViewKey {
+    List = 'list',
+    Summary = 'summary',
+    Tiles = 'tiles'
+}
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
@@ -48,6 +67,7 @@ export class AppsListPreferences {
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
+        pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
@@ -60,6 +80,8 @@ export class AppsListPreferences {
     public view: AppsListViewType;
     public hideFilters: boolean;
     public statusBarView: HealthStatusBarPreferences;
+    public showFavorites: boolean;
+    public favoritesAppList: string[];
 }
 
 export interface ViewPreferences {
@@ -83,6 +105,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
+        hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
@@ -90,7 +113,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false,
+        zoom: 1.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -102,6 +127,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         hideFilters: false,
+        showFavorites: false,
+        favoritesAppList: new Array<string>(),
         statusBarView: {
             showHealthStatusBar: true
         }
@@ -148,6 +175,6 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return Object.assign({}, DEFAULT_PREFERENCES, preferences);
+        return deepMerge(DEFAULT_PREFERENCES, preferences);
     }
 }

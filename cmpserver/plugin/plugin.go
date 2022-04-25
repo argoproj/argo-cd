@@ -1,20 +1,33 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/argoproj/pkg/rand"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/buffered_context"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 )
+
+// cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
+// enough time before the client times out to send a meaningful error message.
+const cmpTimeoutBuffer = 100 * time.Millisecond
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -32,14 +45,91 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 	}
 }
 
-func runCommand(command Command, path string, env []string) (string, error) {
+func (s *Service) Init() error {
+	workDir := common.GetCMPWorkDir()
+	err := os.RemoveAll(workDir)
+	if err != nil {
+		return fmt.Errorf("error removing workdir %q: %s", workDir, err)
+	}
+	err = os.MkdirAll(workDir, 0700)
+	if err != nil {
+		return fmt.Errorf("error creating workdir %q: %s", workDir, err)
+	}
+	return nil
+}
+
+func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
 	}
-	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
+	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
+
 	cmd.Env = env
 	cmd.Dir = path
-	return executil.Run(cmd)
+
+	execId, err := rand.RandString(5)
+	if err != nil {
+		return "", err
+	}
+	logCtx := log.WithFields(log.Fields{"execID": execId})
+
+	// log in a way we can copy-and-paste into a terminal
+	args := strings.Join(cmd.Args, " ")
+	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(args)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
+	cmd.SysProcAttr = newSysProcAttr(true)
+
+	start := time.Now()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		<-ctx.Done()
+		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
+		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+		_ = sysCallKill(-cmd.Process.Pid)
+	}()
+
+	err = cmd.Wait()
+
+	duration := time.Since(start)
+	output := stdout.String()
+
+	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
+
+	if err != nil {
+		err := newCmdError(args, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		logCtx.Error(err.Error())
+		return strings.TrimSuffix(output, "\n"), err
+	}
+
+	return strings.TrimSuffix(output, "\n"), nil
+}
+
+type CmdError struct {
+	Args   string
+	Stderr string
+	Cause  error
+}
+
+func (ce *CmdError) Error() string {
+	res := fmt.Sprintf("`%v` failed %v", ce.Args, ce.Cause)
+	if ce.Stderr != "" {
+		res = fmt.Sprintf("%s: %s", res, ce.Stderr)
+	}
+	return res
+}
+
+func newCmdError(args string, cause error, stderr string) *CmdError {
+	return &CmdError{Args: args, Stderr: stderr, Cause: cause}
 }
 
 // Environ returns a list of environment variables in name=value format from a list of variables
@@ -54,18 +144,59 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 }
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
+	defer cancel()
+	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	if err != nil {
+		return fmt.Errorf("error creating temp dir: %s", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
+		}
+	}()
+
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
+	if err != nil {
+		return fmt.Errorf("generate manifest error receiving stream: %s", err)
+	}
+
+	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
+	if !strings.HasPrefix(appPath, workDir) {
+		return fmt.Errorf("illegal appPath: out of workDir bound")
+	}
+	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
+	if err != nil {
+		return fmt.Errorf("error generating manifests: %s", err)
+	}
+	err = stream.SendAndClose(response)
+	if err != nil {
+		return fmt.Errorf("error sending manifest response: %s", err)
+	}
+	return nil
+}
+
+// generateManifest runs generate command from plugin config file and returns generated manifest files
+func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		log.Infof("Generating manifests with deadline %v from now", time.Until(deadline))
+	} else {
+		log.Info("Generating manifests with no request-level timeout")
+	}
+
 	config := s.initConstants.PluginConfig
 
-	env := append(os.Environ(), environ(q.Env)...)
+	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(config.Spec.Init, q.AppPath, env)
+		_, err := runCommand(ctx, config.Spec.Init, appDir, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(config.Spec.Generate, q.AppPath, env)
+	out, err := runCommand(ctx, config.Spec.Generate, appDir, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -80,58 +211,86 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}, err
 }
 
-// MatchRepository checks whether the application repository type is supported by config management plugin server
-func (s *Service) MatchRepository(ctx context.Context, q *apiclient.RepositoryRequest) (*apiclient.RepositoryResponse, error) {
-	var repoResponse apiclient.RepositoryResponse
+// MatchRepository receives the application stream and checks whether
+// its repository type is supported by the config management plugin
+// server.
+//The checks are implemented in the following order:
+//   1. If spec.Discover.FileName is provided it finds for a name match in Applications files
+//   2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
+//   3. Otherwise it runs the spec.Discover.Find.Command
+func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
+	defer cancel()
+
+	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	if err != nil {
+		return fmt.Errorf("error creating match repository workdir: %s", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			panic(fmt.Sprintf("error removing match repository workdir: %s", err))
+		}
+	}()
+
+	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	if err != nil {
+		return fmt.Errorf("match repository error receiving stream: %s", err)
+	}
+
+	isSupported, err := s.matchRepository(bufferedCtx, workDir)
+	if err != nil {
+		return fmt.Errorf("match repository error: %s", err)
+	}
+	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
+
+	err = stream.SendAndClose(repoResponse)
+	if err != nil {
+		return fmt.Errorf("error sending match repository response: %s", err)
+	}
+	return nil
+}
+
+func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, error) {
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.FileName, "/")
+		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
-		if err != nil || len(matches) == 0 {
-			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
-			return &repoResponse, err
-		} else if len(matches) > 0 {
-			repoResponse.IsSupported = true
-			return &repoResponse, nil
+		if err != nil {
+			e := fmt.Errorf("error finding filename match for pattern %q: %s", pattern, err)
+			log.Debug(e)
+			return false, e
 		}
+		return len(matches) > 0, nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := strings.TrimSuffix(q.Path, "/") + "/" + strings.TrimPrefix(config.Spec.Discover.Find.Glob, "/")
+		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
-		if err != nil || len(matches) == 0 {
-			log.Debugf("Could not find match for pattern %s. Error is %v.", pattern, err)
-			return &repoResponse, err
-		} else if len(matches) > 0 {
-			repoResponse.IsSupported = true
-			return &repoResponse, nil
+		if err != nil {
+			e := fmt.Errorf("error finding glob match for pattern %q: %s", pattern, err)
+			log.Debug(e)
+			return false, e
 		}
+
+		if len(matches) > 0 {
+			return true, nil
+		}
+		return false, nil
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(config.Spec.Discover.Find.Command, q.Path, os.Environ())
+	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, os.Environ())
 	if err != nil {
-		return &repoResponse, err
+		return false, fmt.Errorf("error running find command: %s", err)
 	}
 
-	var isSupported bool
 	if find != "" {
-		isSupported = true
+		return true, nil
 	}
-	return &apiclient.RepositoryResponse{
-		IsSupported: isSupported,
-	}, nil
-}
-
-// GetPluginConfig returns plugin config
-func (s *Service) GetPluginConfig(ctx context.Context, q *apiclient.ConfigRequest) (*apiclient.ConfigResponse, error) {
-	config := s.initConstants.PluginConfig
-	return &apiclient.ConfigResponse{
-		AllowConcurrency: config.Spec.AllowConcurrency,
-		LockRepo:         config.Spec.LockRepo,
-	}, nil
+	return false, nil
 }

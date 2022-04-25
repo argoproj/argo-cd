@@ -13,6 +13,8 @@ p, role:readonly, repositories, get, *, allow
 p, role:readonly, projects, get, *, allow
 p, role:readonly, accounts, get, *, allow
 p, role:readonly, gpgkeys, get, *, allow
+p, role:readonly, logs, get, */*, allow
+p, role:readonly, exec, get, */*, allow
 
 p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow

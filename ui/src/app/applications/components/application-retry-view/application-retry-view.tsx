@@ -17,10 +17,10 @@ const retryOptionsView: Array<(initData: models.RetryStrategy) => React.ReactNod
     initData => buildRetryOptionView('Limit', initData?.limit),
     initData => buildRetryOptionView('Duration', initData?.backoff?.duration),
     initData => buildRetryOptionView('Max Duration', initData?.backoff?.maxDuration),
-    initData => buildRetryOptionView('Factor', initData?.backoff.factor)
+    initData => buildRetryOptionView('Factor', initData?.backoff?.factor)
 ];
 
 export const ApplicationRetryView = ({initValues}: {initValues?: models.RetryStrategy}) => {
-    const result = !initValues ? 'Retry not installed' : retryOptionsView.map((render, i) => render(initValues));
+    const result = !initValues ? 'Retry disabled' : retryOptionsView.map((render, i) => render(initValues));
     return <div className='application-retry-option-view-list'>{result}</div>;
 };

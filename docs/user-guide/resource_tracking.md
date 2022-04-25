@@ -22,7 +22,7 @@ There are however several limitations:
 
 * Labels are truncated to 63 characters. Depending on the size of the label you might want to store a longer name for your application
 * Other external tools might write/append to this label and create conflicts with Argo CD. For example several Helm charts and operators also use this label for generated manifests confusing Argo CD about the owner of the application
-* You might want to deploy more than one Argo CD instance on the same cluster (with cluster wide privilages) and have an easy way to identify which resource is managed by which instance of Argo CD
+* You might want to deploy more than one Argo CD instance on the same cluster (with cluster wide privileges) and have an easy way to identify which resource is managed by which instance of Argo CD
 
 ## Additional tracking methods via an annotation
 
@@ -51,7 +51,7 @@ more with other Kubernetes tools and Argo CD is never confused about the owner o
 
 ## Choosing a tracking method
 
-To actually select your preferred tracking method edit the `resourceTrackingMethod` value contained inside the `argo-cm` configmap.
+To actually select your preferred tracking method edit the `resourceTrackingMethod` value contained inside the `argocd-cm` configmap.
 
 ```yaml
 apiVersion: v1

@@ -1,12 +1,12 @@
 # Security Policy for Argo CD
 
-Version: **v1.2 (2020-08-07)**
+Version: **v1.4 (2022-01-23)**
 
 ## Preface
 
 As a deployment tool, Argo CD needs to have production access which makes
 security a very important topic. The Argoproj team takes security very
-seriously and is continuously working on improving it. 
+seriously and is continuously working on improving it.
 
 ## A word about security scanners
 
@@ -26,8 +26,12 @@ are well aware of the issues that may affect Argo CD and are constantly
 working on the remediation of those that affect Argo CD and our users.
 
 If you believe that we might have missed an issue that we should take a look
-at (that can happen), then please discuss it with us. But please, do validate
-that assumption before at least roughly.
+at (that can happen), then please discuss it with us. If there is a CVE
+assigned to the issue, please do open an issue on our GitHub tracker instead
+of writing to the security contact e-mail, since things reported by scanners
+are public already and the discussion that might emerge is of benefit to the
+general community. However, please validate your scanner results and its
+impact on Argo CD before opening an issue at least roughly.
 
 ## Supported Versions
 
@@ -56,11 +60,17 @@ We will do our best to react quickly on your inquiry, and to coordinate a fix
 and disclosure with you. Sometimes, it might take a little longer for us to
 react (e.g. out of office conditions), so please bear with us in these cases.
 
-We will publish security advisiories using the
+We will publish security advisories using the
 [Git Hub Security Advisories](https://github.com/argoproj/argo-cd/security/advisories)
 feature to keep our community well informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-Please report vulnerabilities by e-mail to the following address: 
+Please report vulnerabilities by e-mail to the following address:
 
 * cncf-argo-security@lists.cncf.io
+
+## Securing your Argo CD Instance
+
+See the [operator manual security page](docs/operator-manual/security.md) for
+additional information about Argo CD's security features and how to make your
+Argo CD production ready.
