@@ -129,7 +129,7 @@ policy.default: role:readonly
 
 ### Associate an Azure AD group to your Azure AD App registration
 
-1. From the `Azure Active Directory` > `Enterprise applications` menu, Searche the App that you created (e.g. `Argo CD`).
+1. From the `Azure Active Directory` > `Enterprise applications` menu, search the App that you created (e.g. `Argo CD`).
    - An Enterprise application with the same name of the Azure AD App registration is created when you add a new Azure AD App registration.
 2. From the `Users and groups` menu of the app, add any users or groups requiring access to the service.
 
@@ -183,7 +183,18 @@ policy.default: role:readonly
 
     If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
 
+        policy.default: role:readonly
+        policy.csv: |
+            p, role:org-admin, applications, *, */*, allow
+            p, role:org-admin, clusters, get, *, allow
+            p, role:org-admin, repositories, get, *, allow
+            p, role:org-admin, repositories, create, *, allow
+            p, role:org-admin, repositories, update, *, allow
+            p, role:org-admin, repositories, delete, *, allow
+            g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
         scopes: '[roles, email]'
+
+    Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
 
 ## Azure AD App Registration Auth using Dex
 
@@ -246,3 +257,4 @@ Authentication successful
 'yourid@example.com' logged in successfully
 Context 'my-argo-cd-url' updated
 ```
+You may get an warning if you are not using a correctly signed certs. Refer to [Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?](https://argo-cd.readthedocs.io/en/stable/faq/#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli).
