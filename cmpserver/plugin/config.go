@@ -56,9 +56,15 @@ type Parameters struct {
 
 // Static hold the static announcements for CMP's
 type Static struct {
-	Name    string `yaml:"name"`
-	Title   string `yaml:"title"`
-	Tooltip string `yaml:"tooltip"`
+	Name           string            `yaml:"name"`
+	Title          string            `yaml:"title"`
+	Tooltip        string            `yaml:"tooltip"`
+	Required       bool              `yaml:"required"`
+	ItemType       string            `yaml:"itemType"`
+	CollectionType string            `yaml:"collectionType"`
+	String_        string            `yaml:"string"`
+	Array          []string          `yaml:"array"`
+	Map            map[string]string `yaml:"map"`
 }
 
 // Dynamic hold the dynamic announcements for CMP's
