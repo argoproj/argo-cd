@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -299,6 +300,8 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
+	config := s.initConstants.PluginConfig
+
 	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
 	if err != nil {
 		return fmt.Errorf("error creating parameters announcement workdir: %s", err)
@@ -315,13 +318,36 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
 	}
 
-	repoResponse := &apiclient.ParametersAnnouncementResponse{
-		ParameterAnnouncements: []*apiclient.ParameterAnnouncement{
-			{
-				Name: "test",
-			},
-		},
+	var paramAnnouncements []*apiclient.ParameterAnnouncement
+	for _, static := range config.Spec.Parameters.Static {
+		paramAnnouncements = append(paramAnnouncements, &apiclient.ParameterAnnouncement{
+			Name:           static.Name,
+			Title:          static.Title,
+			Tooltip:        static.Tooltip,
+			Required:       static.Required,
+			ItemType:       static.ItemType,
+			CollectionType: static.CollectionType,
+			String_:        static.String_,
+			Array:          static.Array,
+			Map:            static.Map,
+		})
 	}
+
+	repoResponse := &apiclient.ParametersAnnouncementResponse{
+		ParameterAnnouncements: paramAnnouncements,
+	}
+
+	stdout, err := runCommand(bufferedCtx, config.Spec.Parameters.Dynamic, workDir, os.Environ())
+	if err != nil {
+		return fmt.Errorf("error executing dynamic paramter output command: %s", err)
+	}
+
+	var r []*apiclient.ParameterAnnouncement
+	err = json.Unmarshal([]byte(stdout), &r)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling dynamic paramter output into ParametersAnnouncementResponse: %s", err)
+	}
+	paramAnnouncements = append(paramAnnouncements, r...)
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
