@@ -20,6 +20,7 @@ type TransformResult struct {
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]string) ([]TransformResult, error) {
 	res := []TransformResult{}
 	var firstError error
+	interpolatedGenerator := requestedGenerator.DeepCopy()
 
 	generators := GetRelevantGenerators(&requestedGenerator, allGenerators)
 	for _, g := range generators {
@@ -35,7 +36,8 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var params []map[string]string
 		if len(genParams) != 0 {
-			interpolatedGenerator, err := interpolateGenerator(&requestedGenerator, genParams)
+			tempInterpolatedGenerator, err := interpolateGenerator(&requestedGenerator, genParams)
+			interpolatedGenerator = &tempInterpolatedGenerator
 			if err != nil {
 				log.WithError(err).WithField("genParams", genParams).
 					Error("error interpolating params for generator")
@@ -44,10 +46,8 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				}
 				continue
 			}
-			params, err = g.GenerateParams(&interpolatedGenerator, appSet)
-		} else {
-			params, err = g.GenerateParams(&requestedGenerator, appSet)
 		}
+		params, err = g.GenerateParams(interpolatedGenerator, appSet)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")
