@@ -300,8 +300,6 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
-	config := s.initConstants.PluginConfig
-
 	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
 	if err != nil {
 		return fmt.Errorf("error creating parameters announcement workdir: %s", err)
@@ -318,6 +316,21 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
 	}
 
+	repoResponse, err := s.getParametersAnnouncement(bufferedCtx, workDir)
+	if err != nil {
+		return fmt.Errorf("get parameters announcement error: %s", err)
+	}
+
+	err = stream.SendAndClose(repoResponse)
+	if err != nil {
+		return fmt.Errorf("error sending parameters announcement response: %s", err)
+	}
+	return nil
+}
+
+func (s *Service) getParametersAnnouncement(ctx context.Context, workDir string) (*apiclient.ParametersAnnouncementResponse, error) {
+	config := s.initConstants.PluginConfig
+
 	var staticParamAnnouncements []*apiclient.ParameterAnnouncement
 	for _, static := range config.Spec.Parameters.Static {
 		staticParamAnnouncements = append(staticParamAnnouncements, &apiclient.ParameterAnnouncement{
@@ -327,30 +340,25 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 			Required:       static.Required,
 			ItemType:       static.ItemType,
 			CollectionType: static.CollectionType,
-			String_:        static.String_,
+			String_:        static.String,
 			Array:          static.Array,
 			Map:            static.Map,
 		})
 	}
 
-	stdout, err := runCommand(bufferedCtx, config.Spec.Parameters.Dynamic, workDir, os.Environ())
+	stdout, err := runCommand(ctx, config.Spec.Parameters.Dynamic, workDir, os.Environ())
 	if err != nil {
-		return fmt.Errorf("error executing dynamic parameter output command: %s", err)
+		return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
 	}
 
 	var dynamicParamAnnouncements []*apiclient.ParameterAnnouncement
 	err = json.Unmarshal([]byte(stdout), &dynamicParamAnnouncements)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
+		return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
 	}
 
 	repoResponse := &apiclient.ParametersAnnouncementResponse{
 		ParameterAnnouncements: append(staticParamAnnouncements, dynamicParamAnnouncements...),
 	}
-
-	err = stream.SendAndClose(repoResponse)
-	if err != nil {
-		return fmt.Errorf("error sending parameters announcement response: %s", err)
-	}
-	return nil
+	return repoResponse, nil
 }

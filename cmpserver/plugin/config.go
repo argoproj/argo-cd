@@ -62,7 +62,7 @@ type Static struct {
 	Required       bool              `yaml:"required,omitempty"`
 	ItemType       string            `yaml:"itemType,omitempty"`
 	CollectionType string            `yaml:"collectionType,omitempty"`
-	String_        string            `yaml:"string,omitempty"`
+	String         string            `yaml:"string,omitempty"`
 	Array          []string          `yaml:"array,omitempty"`
 	Map            map[string]string `yaml:"map,omitempty"`
 }
