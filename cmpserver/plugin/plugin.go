@@ -294,3 +294,38 @@ func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, er
 	}
 	return false, nil
 }
+
+func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPluginService_GetParametersAnnouncementServer) error {
+	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
+	defer cancel()
+
+	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	if err != nil {
+		return fmt.Errorf("error creating parameters announcement workdir: %s", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			panic(fmt.Sprintf("error removing parameters announcement repository workdir: %s", err))
+		}
+	}()
+
+	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	if err != nil {
+		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
+	}
+
+	repoResponse := &apiclient.ParametersAnnouncementResponse{
+		ParameterAnnouncements: []*apiclient.ParameterAnnouncement{
+			{
+				Name: "test",
+			},
+		},
+	}
+
+	err = stream.SendAndClose(repoResponse)
+	if err != nil {
+		return fmt.Errorf("error sending parameters announcement response: %s", err)
+	}
+	return nil
+}
