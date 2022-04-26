@@ -3,6 +3,7 @@ package reposerver
 import (
 	"crypto/tls"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"os"
 	"path/filepath"
 
@@ -66,8 +67,14 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}
 
 	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		otelgrpc.StreamServerInterceptor(),
+		grpc_logrus.StreamServerInterceptor(serverLog),
+		grpc_prometheus.StreamServerInterceptor,
+		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
