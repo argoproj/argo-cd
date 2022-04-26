@@ -484,9 +484,9 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 	env := []string{jsonParam}
 
 	for _, param := range p {
-		envBaseName := fmt.Sprintf("PARAM_%S", escaped(param.Name))
+		envBaseName := fmt.Sprintf("PARAM_%s", escaped(param.Name))
 		if param.String_ != nil {
-			env = append(env, fmt.Sprintf("%s=%s", envBaseName, param.String_))
+			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
 		if param.Map != nil {
 			for key, value := range param.Map {
@@ -495,7 +495,7 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 		}
 		if param.Array != nil {
 			for i, value := range param.Array {
-				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, i, value))
+				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
 	}
