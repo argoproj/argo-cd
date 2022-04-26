@@ -359,6 +359,29 @@ spec:
                             type: array
                           name:
                             type: string
+                          parameters:
+                            items:
+                              properties:
+                                array:
+                                  description: Array is the value of an array type
+                                    parameter.
+                                  items:
+                                    type: string
+                                  type: array
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map is the value of a map type parameter.
+                                  type: object
+                                name:
+                                  description: Name is the name identifying a parameter.
+                                  type: string
+                                string:
+                                  description: String_ is the value of a string type
+                                    parameter.
+                                  type: string
+                              type: object
+                            type: array
                         type: object
                       repoURL:
                         description: RepoURL is the URL to the repository (Git or
@@ -705,6 +728,27 @@ spec:
                         type: array
                       name:
                         type: string
+                      parameters:
+                        items:
+                          properties:
+                            array:
+                              description: Array is the value of an array type parameter.
+                              items:
+                                type: string
+                              type: array
+                            map:
+                              additionalProperties:
+                                type: string
+                              description: Map is the value of a map type parameter.
+                              type: object
+                            name:
+                              description: Name is the name identifying a parameter.
+                              type: string
+                            string:
+                              description: String_ is the value of a string type parameter.
+                              type: string
+                          type: object
+                        type: array
                     type: object
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
@@ -1061,6 +1105,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1434,6 +1501,31 @@ spec:
                                     type: array
                                   name:
                                     type: string
+                                  parameters:
+                                    items:
+                                      properties:
+                                        array:
+                                          description: Array is the value of an array
+                                            type parameter.
+                                          items:
+                                            type: string
+                                          type: array
+                                        map:
+                                          additionalProperties:
+                                            type: string
+                                          description: Map is the value of a map type
+                                            parameter.
+                                          type: object
+                                        name:
+                                          description: Name is the name identifying
+                                            a parameter.
+                                          type: string
+                                        string:
+                                          description: String_ is the value of a string
+                                            type parameter.
+                                          type: string
+                                      type: object
+                                    type: array
                                 type: object
                               repoURL:
                                 description: RepoURL is the URL to the repository
@@ -1778,6 +1870,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -2112,6 +2229,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -2421,6 +2563,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -2708,6 +2867,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -2997,6 +3173,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -3262,6 +3455,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -3557,6 +3767,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -3844,6 +4071,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -4133,6 +4377,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -4398,6 +4659,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -4754,6 +5032,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -5157,6 +5452,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -5415,6 +5727,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -5710,6 +6039,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -5997,6 +6343,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -6286,6 +6649,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -6551,6 +6931,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -6907,6 +7304,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -7310,6 +7724,23 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
                                                 type: object
                                               repoURL:
                                                 type: string
@@ -7572,6 +8003,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -7925,6 +8373,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -8328,6 +8793,23 @@ spec:
                                           type: array
                                         name:
                                           type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
                                       type: object
                                     repoURL:
                                       type: string
@@ -8591,6 +9073,23 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    string:
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             type: string

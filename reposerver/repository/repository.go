@@ -1298,6 +1298,11 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
 		}
 		env = append(env, pluginEnv.Environ()...)
+		paramEnv, err := q.ApplicationSource.Plugin.Parameters.Environ()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate env vars from parameters: %w", err)
+		}
+		env = append(env, paramEnv...)
 	}
 	return env, nil
 }
