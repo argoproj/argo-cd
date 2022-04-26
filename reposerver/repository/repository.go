@@ -1270,8 +1270,17 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
-	env := append(os.Environ(), envVars.Environ()...)
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
+	envVars := env.Environ()
+	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
+	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+
+	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin, creds)
+}
+
+// getPluginParamEnvs gets environment variables for plugin parameter announcement generation.
+func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin, creds git.Creds) ([]string, error) {
+	env := append(os.Environ(), envVars...)
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -1280,8 +1289,6 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
-	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	parsedEnv := make(v1alpha1.Env, len(env))
 	for i, v := range env {
@@ -1292,18 +1299,19 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		parsedEnv[i] = parsedVar
 	}
 
-	if q.ApplicationSource.Plugin != nil {
-		pluginEnv := q.ApplicationSource.Plugin.Env
+	if plugin != nil {
+		pluginEnv := plugin.Env
 		for i, j := range pluginEnv {
 			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
 		}
 		env = append(env, pluginEnv.Environ()...)
-		paramEnv, err := q.ApplicationSource.Plugin.Parameters.Environ()
+		paramEnv, err := plugin.Parameters.Environ()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate env vars from parameters: %w", err)
 		}
 		env = append(env, paramEnv...)
 	}
+
 	return env, nil
 }
 
@@ -1381,7 +1389,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
-			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot); err != nil {
+			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore); err != nil {
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
@@ -1532,7 +1540,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 	return nil
 }
 
-func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string) error {
+func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore) error {
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	// detect config management plugin server (sidecar)
@@ -1546,8 +1554,20 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	if err != nil {
 		return fmt.Errorf("error getting generateManifestStream: %s", err)
 	}
-	// TODO: send actual env vars.
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, []string{})
+
+	envVars := []string{
+		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_PATH=%s", q.Source.Path),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
+	}
+
+	creds := q.Repo.GetGitCreds(store)
+	env, err := getPluginParamEnvs(envVars, q.Source.Plugin, creds)
+	if err != nil {
+		return fmt.Errorf("failed to get env vars for plugin: %w", err)
+	}
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
@@ -1561,15 +1581,15 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	var announcementConverted []*apiclient.ParameterAnnouncement
 	for _, pluginAnnouncement := range announcement.ParameterAnnouncements {
 		announcementConverted = append(announcementConverted, &apiclient.ParameterAnnouncement{
-			Name:                 pluginAnnouncement.Name,
-			Title:                pluginAnnouncement.Title,
-			Tooltip: pluginAnnouncement.Tooltip,
-			Required: pluginAnnouncement.Required,
-			ItemType: pluginAnnouncement.ItemType,
+			Name:           pluginAnnouncement.Name,
+			Title:          pluginAnnouncement.Title,
+			Tooltip:        pluginAnnouncement.Tooltip,
+			Required:       pluginAnnouncement.Required,
+			ItemType:       pluginAnnouncement.ItemType,
 			CollectionType: pluginAnnouncement.CollectionType,
-			String_: pluginAnnouncement.String_,
-			Array: pluginAnnouncement.Array,
-			Map: pluginAnnouncement.Map,
+			String_:        pluginAnnouncement.String_,
+			Array:          pluginAnnouncement.Array,
+			Map:            pluginAnnouncement.Map,
 		})
 	}
 	res.Plugin = &apiclient.PluginAppSpec{
