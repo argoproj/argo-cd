@@ -310,12 +310,16 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		}
 	}()
 
-	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
 	}
+	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
+	if !strings.HasPrefix(appPath, workDir) {
+		return fmt.Errorf("illegal appPath: out of workDir bound")
+	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, workDir, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %s", err)
 	}
@@ -327,7 +331,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, workDir string, staticAnnouncements []Static, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
+func getParametersAnnouncement(ctx context.Context, appDir string, staticAnnouncements []Static, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
 	var staticParamAnnouncements []*apiclient.ParameterAnnouncement
 	for _, static := range staticAnnouncements {
 		staticParamAnnouncements = append(staticParamAnnouncements, &apiclient.ParameterAnnouncement{
@@ -343,7 +347,7 @@ func getParametersAnnouncement(ctx context.Context, workDir string, staticAnnoun
 		})
 	}
 
-	stdout, err := runCommand(ctx, command, workDir, os.Environ())
+	stdout, err := runCommand(ctx, command, appDir, os.Environ())
 	if err != nil {
 		return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
 	}
