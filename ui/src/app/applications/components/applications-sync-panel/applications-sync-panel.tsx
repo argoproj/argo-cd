@@ -110,19 +110,6 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                     return;
                                 }
                             }
-                            // const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
-                            // setReplace(replace);
-                            // if (replace) {
-                            //     const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
-                            //         <div>
-                            //             <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
-                            //         </div>
-                            //     ));
-                            //     if (!confirmed) {
-                            //         setPending(false);
-                            //         return;
-                            //     }
-                            // }
                             if (selectedApps.length === 0) {
                                 ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                                 setPending(false);
