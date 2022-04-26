@@ -15,7 +15,7 @@
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
-    "dagre": "^0.8.2",
+    "dagre": "^0.8.5",
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.7.4",
     "git-url-parse": "^11.6.0",
