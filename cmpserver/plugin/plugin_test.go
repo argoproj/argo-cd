@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 )
 
@@ -225,4 +226,22 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	after := time.Now()
 	assert.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
+}
+
+func Test_getParametersAnnouncement(t *testing.T) {
+	static := []Static{
+		{
+			Name: "a",
+		},
+		{
+			Name: "b",
+		},
+	}
+	command := Command{
+		Command: []string{"echo"},
+		Args:    []string{`[]`},
+	}
+	res, err := getParametersAnnouncement(context.Background(), "", static, command)
+	require.NoError(t, err)
+	assert.Equal(t, []*apiclient.ParameterAnnouncement{{Name: "a"}, {Name: "b"}}, res.ParameterAnnouncements)
 }

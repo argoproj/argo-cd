@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/pkg/rand"
 
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
@@ -22,8 +23,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
@@ -316,7 +315,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
 	}
 
-	repoResponse, err := s.getParametersAnnouncement(bufferedCtx, workDir)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, workDir, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %s", err)
 	}
@@ -328,11 +327,9 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func (s *Service) getParametersAnnouncement(ctx context.Context, workDir string) (*apiclient.ParametersAnnouncementResponse, error) {
-	config := s.initConstants.PluginConfig
-
+func getParametersAnnouncement(ctx context.Context, workDir string, staticAnnouncements []Static, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
 	var staticParamAnnouncements []*apiclient.ParameterAnnouncement
-	for _, static := range config.Spec.Parameters.Static {
+	for _, static := range staticAnnouncements {
 		staticParamAnnouncements = append(staticParamAnnouncements, &apiclient.ParameterAnnouncement{
 			Name:           static.Name,
 			Title:          static.Title,
@@ -346,7 +343,7 @@ func (s *Service) getParametersAnnouncement(ctx context.Context, workDir string)
 		})
 	}
 
-	stdout, err := runCommand(ctx, config.Spec.Parameters.Dynamic, workDir, os.Environ())
+	stdout, err := runCommand(ctx, command, workDir, os.Environ())
 	if err != nil {
 		return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
 	}
