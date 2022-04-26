@@ -24,7 +24,6 @@ export const ApplicationResourceList = ({
                 <div className='columns small-2 xxxlarge-2'>NAME</div>
                 <div className='columns small-2 xxxlarge-2'>GROUP/KIND</div>
                 <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
-                {/* {showSyncOrder && <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>} */}
                 <div className='columns small-3 xxxlarge-3'>NAMESPACE</div>
                 <div className='columns small-2 xxxlarge-2'>STATUS</div>
             </div>
