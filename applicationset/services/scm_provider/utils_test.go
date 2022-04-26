@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
@@ -289,4 +290,41 @@ func TestApplicableFilterMap(t *testing.T) {
 
 	assert.Len(t, filterMap[FilterTypeRepo], 2)
 	assert.Len(t, filterMap[FilterTypeBranch], 3)
+}
+
+func TestRepoBranchDoNotExist(t *testing.T) {
+	// Branch doesn't exists
+	valid := struct {
+		name, proto, url                        string
+		hasError, allBranches, includeSubgroups bool
+		branches                                []string
+		filters                                 []v1alpha1.SCMProviderGeneratorFilter
+	}{
+		name:        "valid repo",
+		allBranches: false,
+		url:         "git@gitea.com:gitea/go-sdk.git",
+		branches:    []string{"specificthis"},
+	}
+	t.Run(valid.name, func(t *testing.T) {
+		provider, _ := NewGiteaProvider(context.Background(), "gitea", "", "https://gitea.com/", valid.allBranches, false)
+		_, err := ListRepos(context.Background(), provider, valid.filters, valid.proto)
+		assert.Nilf(t, err, "Expected No errors")
+	})
+
+	invalid := struct {
+		name, proto, url                        string
+		hasError, allBranches, includeSubgroups bool
+		branches                                []string
+		filters                                 []v1alpha1.SCMProviderGeneratorFilter
+	}{
+		name:        "invalid_repo",
+		allBranches: false,
+		proto:       "https",
+		url:         "https://gitea.com/gitea2/go-sdk",
+	}
+	t.Run(invalid.name, func(t *testing.T) {
+		provider, _ := NewGiteaProvider(context.Background(), "gitea2", "", "https://gitea.com/", invalid.allBranches, false)
+		_, err := ListRepos(context.Background(), provider, invalid.filters, invalid.proto)
+		assert.NotNilf(t, err, "Expected Error")
+	})
 }
