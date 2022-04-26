@@ -372,6 +372,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                         resourceRow.syncOrder =
                                                                             resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
                                                                     }
+                                                                } else {
+                                                                    resourceRow.syncOrder = '-';
                                                                 }
                                                                 return resourceRow;
                                                             });
