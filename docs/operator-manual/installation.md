@@ -5,7 +5,7 @@ Argo CD has two type of installations: multi-tenant and core.
 ## Multi-Tenant
 
 The multi-tenant installation is the most common way to install Argo CD. This type of installation is typically used to service multiple application developer teams
-in the organization and maintained by a platform team. 
+in the organization and maintained by a platform team.
 
 The end-users can access Argo CD via the API server using the Web UI or `argocd` CLI. The `argocd` CLI has to be configured using `argocd login <server-host>` command
 (learn more [here](../user-guide/commands/argocd_login.md)).
@@ -48,7 +48,7 @@ High Availability installation is recommended for production use. This bundle in
 
 ## Core
 
-The core installation is most suitable for cluster administrators who indepently use Argo CD and don't need multi-tenancy features. This installation
+The core installation is most suitable for cluster administrators who independently use Argo CD and don't need multi-tenancy features. This installation
 includes fewer components and is easier to setup. The bundle does not include the API server or UI, and installs the lightweight (non-HA) version of each component.
 
 The end-users need Kubernetes access to manage Argo CD. The `argocd` CLI has to be configured using the following commands:

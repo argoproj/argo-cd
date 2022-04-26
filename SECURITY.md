@@ -6,7 +6,7 @@ Version: **v1.4 (2022-01-23)**
 
 As a deployment tool, Argo CD needs to have production access which makes
 security a very important topic. The Argoproj team takes security very
-seriously and is continuously working on improving it. 
+seriously and is continuously working on improving it.
 
 ## A word about security scanners
 
@@ -60,17 +60,17 @@ We will do our best to react quickly on your inquiry, and to coordinate a fix
 and disclosure with you. Sometimes, it might take a little longer for us to
 react (e.g. out of office conditions), so please bear with us in these cases.
 
-We will publish security advisiories using the
+We will publish security advisories using the
 [Git Hub Security Advisories](https://github.com/argoproj/argo-cd/security/advisories)
 feature to keep our community well informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-Please report vulnerabilities by e-mail to the following address: 
+Please report vulnerabilities by e-mail to the following address:
 
 * cncf-argo-security@lists.cncf.io
 
 ## Securing your Argo CD Instance
 
-See the [operator manual security page](docs/operator-manual/security.md) for 
-additional information about Argo CD's security features and how to make your 
+See the [operator manual security page](docs/operator-manual/security.md) for
+additional information about Argo CD's security features and how to make your
 Argo CD production ready.
