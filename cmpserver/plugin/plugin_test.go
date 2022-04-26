@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
@@ -228,20 +229,52 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	assert.Less(t, after.Sub(before), 1*time.Second)
 }
 
-func Test_getParametersAnnouncement(t *testing.T) {
-	static := []Static{
-		{
-			Name: "a",
-		},
-		{
-			Name: "b",
-		},
-	}
+func Test_getParametersAnnouncement_empty_command(t *testing.T) {
+	staticYAML := `
+- name: static-a
+- name: static-b
+`
+	static := &[]Static{}
+	err := yaml.Unmarshal([]byte(staticYAML), static)
+	require.NoError(t, err)
 	command := Command{
 		Command: []string{"echo"},
 		Args:    []string{`[]`},
 	}
-	res, err := getParametersAnnouncement(context.Background(), "", static, command)
+	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
 	require.NoError(t, err)
-	assert.Equal(t, []*apiclient.ParameterAnnouncement{{Name: "a"}, {Name: "b"}}, res.ParameterAnnouncements)
+	assert.Equal(t, []*apiclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
+}
+
+func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
+	staticYAML := `
+- name: static-a
+- name: static-b
+`
+	static := &[]Static{}
+	err := yaml.Unmarshal([]byte(staticYAML), static)
+	require.NoError(t, err)
+	command := Command{
+		Command: []string{"echo"},
+		Args:    []string{`[{"name": "dynamic-a"}, {"name": "dynamic-b"}]`},
+	}
+	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
+	require.NoError(t, err)
+	expected := []*apiclient.ParameterAnnouncement{
+		{Name: "static-a"},
+		{Name: "static-b"},
+		{Name: "dynamic-a"},
+		{Name: "dynamic-b"},
+	}
+	assert.Equal(t, expected, res.ParameterAnnouncements)
+}
+
+func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
+	command := Command{
+		Command: []string{"echo"},
+		Args:    []string{`[`},
+	}
+	_, err := getParametersAnnouncement(context.Background(), "", []Static{}, command)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
