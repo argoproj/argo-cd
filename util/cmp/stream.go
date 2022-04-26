@@ -77,17 +77,6 @@ func newSenderOption(opts ...SenderOption) *senderOption {
 	return so
 }
 
-// WithChunkSize defines the chunk size used while sending files over
-// the gRPC stream. Will only overwrite the DefaultChunkSize if the
-// given size is greater than zero.
-func WithChunkSize(size int) SenderOption {
-	return func(opt *senderOption) {
-		if size > 0 {
-			opt.chunkSize = size
-		}
-	}
-}
-
 func WithTarDoneChan(ch chan<- bool) SenderOption {
 	return func(opt *senderOption) {
 		opt.tarDoneChan = ch
