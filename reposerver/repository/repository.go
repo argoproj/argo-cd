@@ -1375,6 +1375,10 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			if err := populateKustomizeAppDetails(res, q, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
 			}
+		case v1alpha1.ApplicationSourceTypePlugin:
+			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot); err != nil {
+				return fmt.Errorf("failed to populate plugin app details: %w", err)
+			}
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res, v1alpha1.TrackingMethod(q.TrackingMethod))
 		return nil
@@ -1520,6 +1524,52 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		return err
 	}
 	res.Kustomize.Images = images
+	return nil
+}
+
+func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string) error {
+	res.Plugin = &apiclient.PluginAppSpec{}
+
+	// detect config management plugin server (sidecar)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
+	if err != nil {
+		return fmt.Errorf("failed to detect CMP for app: %w", err)
+	}
+	defer io.Close(conn)
+
+	generateManifestStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
+	if err != nil {
+		return fmt.Errorf("error getting generateManifestStream: %s", err)
+	}
+	// TODO: send actual env vars.
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, []string{})
+	if err != nil {
+		return fmt.Errorf("error sending file to cmp-server: %s", err)
+	}
+
+	announcement, err := generateManifestStream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("failed to get parameter anouncement: %w", err)
+	}
+
+	// TODO: share types so conversion is unnecessary.
+	var announcementConverted []*apiclient.ParameterAnnouncement
+	for _, pluginAnnouncement := range announcement.ParameterAnnouncements {
+		announcementConverted = append(announcementConverted, &apiclient.ParameterAnnouncement{
+			Name:                 pluginAnnouncement.Name,
+			Title:                pluginAnnouncement.Title,
+			Tooltip: pluginAnnouncement.Tooltip,
+			Required: pluginAnnouncement.Required,
+			ItemType: pluginAnnouncement.ItemType,
+			CollectionType: pluginAnnouncement.CollectionType,
+			String_: pluginAnnouncement.String_,
+			Array: pluginAnnouncement.Array,
+			Map: pluginAnnouncement.Map,
+		})
+	}
+	res.Plugin = &apiclient.PluginAppSpec{
+		ParametersAnnouncement: announcementConverted,
+	}
 	return nil
 }
 
