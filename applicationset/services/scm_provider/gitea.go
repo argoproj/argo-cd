@@ -46,7 +46,16 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 
 func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
-		branch, _, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
+		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
+		if status.StatusCode == 404 {
+			// The gitea API sometimes specifies a non-existing branch as the default. Try to fall back to a reasonable
+			// default.
+			var branches []*gitea.Branch
+			branches, _, err = g.client.ListRepoBranches(g.owner, repo.Repository, gitea.ListRepoBranchesOptions{})
+			if err == nil && len(branches) == 1 {
+				branch = branches[0]
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
