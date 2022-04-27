@@ -171,8 +171,5 @@ func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 }
 
 func checkBranchDoNotExist(err error) bool {
-	if errors.Is(err, BranchDoNotExist) {
-		return true
-	}
-	return false
+	return errors.Is(err, BranchDoNotExist)
 }
