@@ -90,7 +90,7 @@ A user is only able to delete an ApplicationSet if they have permissions to dele
 
 #### **ApplicationSet Update Algorithm:**
 
-A user can only update an ApplicationSet if the user has permission to update all of the Applications currently owned by the ApplicationSet.
+A user can only update an ApplicationSet if the user has permission to create, update, delete all of the Applications currently owned by the ApplicationSet.
 
 * When the user makes a change to an ApplicationSet, we assume that it's possible that the change might affect any or all of the Applications, and thus we require the user to have write access to all of those Applications.
 * We likewise check that the resulting generated Applications are also compliant with the user's permissions.
@@ -220,6 +220,13 @@ spec:
 * Users might be more familiar with Argo CD CLI style commands
 * Some folks are less literate in YAML, and thus don't grok YAML's hierarchy/parsing rules (which is totally fair, they are initially obtuse)
 * CLI has the advantage of hiding the hierarchy (for better or worse)
+
+
+#### A new component for Application Set
+
+The Application Set will follow the same design as the rest of ArgoCD project by having separate components with different responsibilities. With that, Application Set Controller will not expose any API (internal or external) and be a simple Kubernetes Controller with a single responsibility of reconciling ApplicationSet resources. In order to expose the API endpoints for Application Set controller, we need to come up with a new additional server running Application Set controller + Application Set API.
+
+Later, we would plan to move the code of this new server into existing controller package, but this would require a separate proposal on it's own.
 
 ## Alternatives
 
