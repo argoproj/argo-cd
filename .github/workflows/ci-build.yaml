@@ -14,6 +14,10 @@ env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.18'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
