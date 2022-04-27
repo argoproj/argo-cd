@@ -1,0 +1,15 @@
+bases:
+  - ../../../manifests/base
+
+configMapGenerator:
+  - name: helm-plugin-config
+    files:
+      - plugin.yaml
+      - generate.sh
+      - get-parameters.sh
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+patchesStrategicMerge:
+  - argocd-repo-server-deployment-patch.yaml
