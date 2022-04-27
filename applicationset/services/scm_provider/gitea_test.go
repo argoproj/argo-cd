@@ -19,20 +19,20 @@ func TestGiteaListRepos(t *testing.T) {
 		{
 			name:     "blank protocol",
 			allBranches: false,
-			url:      "git@gitea.com:gitea/go-sdk.git",
-			branches: []string{"master"},
+			url:      "git@gitea.com:test-argocd/pr-test.git",
+			branches: []string{"main"},
 		},
 		{
 			name:  "ssh protocol",
 			allBranches: false,
 			proto: "ssh",
-			url:   "git@gitea.com:gitea/go-sdk.git",
+			url:   "git@gitea.com:test-argocd/pr-test.git",
 		},
 		{
 			name:  "https protocol",
 			allBranches: false,
 			proto: "https",
-			url:   "https://gitea.com/gitea/go-sdk",
+			url:   "https://gitea.com/test-argocd/pr-test",
 		},
 		{
 			name:     "other protocol",
@@ -43,14 +43,14 @@ func TestGiteaListRepos(t *testing.T) {
 		{
 			name:        "all branches",
 			allBranches: true,
-			url:         "git@gitea.com:gitea/go-sdk.git",
-			branches:    []string{"master", "release/v0.11", "release/v0.12", "release/v0.13", "release/v0.14", "release/v0.15"},
+			url:         "git@gitea.com:test-argocd/pr-test.git",
+			branches:    []string{"main"},
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGiteaProvider(context.Background(), "gitea", "", "https://gitea.com/", c.allBranches, false)
+			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", "https://gitea.com/", c.allBranches, false)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				assert.NotNil(t, err)
@@ -61,7 +61,7 @@ func TestGiteaListRepos(t *testing.T) {
 				repos := []*Repository{}
 				branches := []string{}
 				for _, r := range rawRepos {
-					if r.Repository == "go-sdk" {
+					if r.Repository == "pr-test" {
 						repos = append(repos, r)
 						branches = append(branches, r.Branch)
 					}
