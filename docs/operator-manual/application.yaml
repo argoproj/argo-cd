@@ -23,6 +23,7 @@ spec:
     # helm specific config
     chart: chart-name  # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
     helm:
+      passCredentials: false # If true then adds --pass-credentials to Helm commands to pass credentials to all domains
       # Extra parameters to set (same as setting through values.yaml, but these take precedence)
       parameters:
       - name: "nginx-ingress.controller.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname"
