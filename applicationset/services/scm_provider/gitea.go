@@ -46,7 +46,10 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 
 func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
-		branch, _, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
+		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
+		if status.StatusCode == 404 {
+			return nil, fmt.Errorf("got 404 while getting default branch %q for repo %q - check your repo config: %w", repo.Branch, repo.Repository, err)
+		}
 		if err != nil {
 			return nil, err
 		}
