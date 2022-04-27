@@ -2,9 +2,9 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -127,7 +127,7 @@ func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repo
 	for _, repo := range repos {
 		reposFilled, err := provider.GetBranches(ctx, repo)
 		if err != nil {
-			if checkBranchDoNotExist(err.Error()) {
+			if checkBranchDoNotExist(err) {
 				continue
 			}
 			return nil, err
@@ -170,9 +170,8 @@ func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 	return filterMap
 }
 
-func checkBranchDoNotExist(error string) bool {
-	error = strings.ToLower(error)
-	if strings.Contains(error, "not found") || strings.Contains(error, "notfound") || strings.Contains(error, "404") || strings.Contains(error, "do not exists") {
+func checkBranchDoNotExist(err error) bool {
+	if errors.Is(err, BranchDoNotExist) {
 		return true
 	}
 	return false

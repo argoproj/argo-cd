@@ -2,8 +2,11 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"regexp"
 )
+
+var BranchDoNotExist = errors.New("Branch Not Found")
 
 // An abstract repository from an API provider.
 type Repository struct {
