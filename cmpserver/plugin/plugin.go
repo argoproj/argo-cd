@@ -332,9 +332,9 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 }
 
 func getParametersAnnouncement(ctx context.Context, appDir string, staticAnnouncements []Static, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
-	var staticParamAnnouncements []*apiclient.ParameterAnnouncement
+	var announcements []*apiclient.ParameterAnnouncement
 	for _, static := range staticAnnouncements {
-		staticParamAnnouncements = append(staticParamAnnouncements, &apiclient.ParameterAnnouncement{
+		announcements = append(announcements, &apiclient.ParameterAnnouncement{
 			Name:           static.Name,
 			Title:          static.Title,
 			Tooltip:        static.Tooltip,
@@ -347,19 +347,24 @@ func getParametersAnnouncement(ctx context.Context, appDir string, staticAnnounc
 		})
 	}
 
-	stdout, err := runCommand(ctx, command, appDir, os.Environ())
-	if err != nil {
-		return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
-	}
+	if len(command.Command) > 0 {
+		stdout, err := runCommand(ctx, command, appDir, os.Environ())
+		if err != nil {
+			return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
+		}
 
-	var dynamicParamAnnouncements []*apiclient.ParameterAnnouncement
-	err = json.Unmarshal([]byte(stdout), &dynamicParamAnnouncements)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
+		var dynamicParamAnnouncements []*apiclient.ParameterAnnouncement
+		err = json.Unmarshal([]byte(stdout), &dynamicParamAnnouncements)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
+		}
+
+		// dynamic goes first, because static should take precedence by being later.
+		announcements = append(dynamicParamAnnouncements, announcements...)
 	}
 
 	repoResponse := &apiclient.ParametersAnnouncementResponse{
-		ParameterAnnouncements: append(staticParamAnnouncements, dynamicParamAnnouncements...),
+		ParameterAnnouncements: announcements,
 	}
 	return repoResponse, nil
 }
