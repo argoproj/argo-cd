@@ -277,11 +277,11 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
                         Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio'/>
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
                         Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio'/>
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
                 </div>
             </div>
