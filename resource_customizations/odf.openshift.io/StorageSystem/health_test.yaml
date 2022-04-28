@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "The StorageSystem is progressing"
+  inputPath: testdata/status_missing.yaml
+- healthStatus:
+    status: Progressing
+    message: "1: Available | False 2: Progressing | True 3: StorageSystemInvalid | False 4: VendorCsvReady | True 5: VendorSystemPresent | True "
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: Available | False 2: Progressing | False 3: StorageSystemInvalid | True 4: VendorCsvReady | True 5: VendorSystemPresent | True "
+  inputPath: testdata/storagesysteminvalid.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: Available | False 2: Progressing | False 3: StorageSystemInvalid | False 4: VendorCsvReady | False 5: VendorSystemPresent | True "
+  inputPath: testdata/vendorcsvready.yaml
+- healthStatus:
+    status: Degraded
+    message: "1: Available | False 2: Progressing | False 3: StorageSystemInvalid | False 4: VendorCsvReady | True 5: VendorSystemPresent | False "
+  inputPath: testdata/vendorsystempresent.yaml
+- healthStatus:
+    status: Healthy
+    message: "1: Available | True 2: Progressing | False 3: StorageSystemInvalid | False 4: VendorCsvReady | True 5: VendorSystemPresent | True "
+  inputPath: testdata/healthy.yaml

@@ -1,0 +1,89 @@
+apiVersion: odf.openshift.io/v1alpha1
+kind: StorageSystem
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"odf.openshift.io/v1alpha1","kind":"StorageSystem","metadata":{"labels":{"app.kubernetes.io/instance":"openshift-data-foundation-operator"},"name":"ocs-storagecluster-storagesystem","namespace":"openshift-storage"},"spec":{"kind":"storagecluster.ocs.openshift.io/v1","name":"ocs-storagecluster","namespace":"openshift-storage"}}
+  resourceVersion: '1264623'
+  name: ocs-storagecluster-storagesystem
+  uid: a795cdf4-ab4a-4655-bfbf-350cffc2e706
+  creationTimestamp: '2022-04-28T16:39:24Z'
+  generation: 1
+  managedFields:
+    - apiVersion: odf.openshift.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+          'f:labels':
+            .: {}
+            'f:app.kubernetes.io/instance': {}
+        'f:spec':
+          .: {}
+          'f:kind': {}
+          'f:name': {}
+          'f:namespace': {}
+      manager: argocd-application-controller
+      operation: Update
+      time: '2022-04-28T16:39:24Z'
+    - apiVersion: odf.openshift.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:finalizers':
+            .: {}
+            'v:"storagesystem.odf.openshift.io"': {}
+      manager: manager
+      operation: Update
+      time: '2022-04-28T16:40:29Z'
+    - apiVersion: odf.openshift.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:conditions': {}
+      manager: manager
+      operation: Update
+      subresource: status
+      time: '2022-04-28T16:40:29Z'
+  namespace: openshift-storage
+  finalizers:
+    - storagesystem.odf.openshift.io
+  labels:
+    app.kubernetes.io/instance: openshift-data-foundation-operator
+spec:
+  kind: storagecluster.ocs.openshift.io/v1
+  name: ocs-storagecluster
+  namespace: openshift-storage
+status:
+  conditions:
+    - lastHeartbeatTime: '2022-04-28T16:40:39Z'
+      lastTransitionTime: '2022-04-28T16:40:39Z'
+      message: Reconcile is completed successfully
+      reason: ReconcileCompleted
+      status: 'False'
+      type: Available
+    - lastHeartbeatTime: '2022-04-28T16:40:39Z'
+      lastTransitionTime: '2022-04-28T16:40:39Z'
+      message: Reconcile is completed successfully
+      reason: ReconcileCompleted
+      status: 'True'
+      type: Progressing
+    - lastHeartbeatTime: '2022-04-28T16:40:39Z'
+      lastTransitionTime: '2022-04-28T16:40:29Z'
+      message: StorageSystem CR is valid
+      reason: Valid
+      status: 'False'
+      type: StorageSystemInvalid
+    - lastHeartbeatTime: '2022-04-28T16:40:39Z'
+      lastTransitionTime: '2022-04-28T16:40:39Z'
+      reason: Ready
+      status: 'True'
+      type: VendorCsvReady
+    - lastHeartbeatTime: '2022-04-28T16:40:39Z'
+      lastTransitionTime: '2022-04-28T16:40:39Z'
+      reason: Found
+      status: 'True'
+      type: VendorSystemPresent
