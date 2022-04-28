@@ -15,14 +15,11 @@ interface Progress {
     title: string;
 }
 
-const InstanceLabel = 'app.kubernetes.io/instance';
-
 export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     const [isPending, setPending] = React.useState(false);
-    const [appList, setAppList] = React.useState(apps);
     const syncHandler = (currentForm: FormApi, ctx: ContextApis, applications: models.Application[]) => {
         const formValues = currentForm.getFormState().values;
         const replaceChecked = formValues.syncOptions?.includes('Replace=true');
@@ -51,29 +48,6 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
             currentForm.submitForm(null);
         }
     };
-
-    React.useEffect(() => {
-        const appOfAppsList: string[] = [];
-        apps.forEach(app => {
-            const appName = app.metadata.labels && app.metadata.labels[InstanceLabel];
-            if (appName?.length > 0 && appOfAppsList.indexOf(appName) < 0) {
-                appOfAppsList.push(app.metadata.labels[InstanceLabel]);
-            }
-        });
-        const newAppList: models.Application[] = apps.map(app => {
-            const newApp = {...app, isAppOfAppsPattern: false};
-            if (appOfAppsList.indexOf(app.metadata.name) > -1) {
-                newApp.isAppOfAppsPattern = true;
-            }
-            return newApp;
-        });
-
-        setAppList(newAppList);
-
-        return () => {
-            setAppList([]);
-        };
-    }, [apps, form]);
     return (
         <Consumer>
             {ctx => (
@@ -83,7 +57,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => syncHandler(form, ctx, appList)}>
+                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => syncHandler(form, ctx, apps)}>
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Sync
                             </button>{' '}
@@ -171,7 +145,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
 
                                     <ApplicationRetryOptions formApi={formApi} />
 
-                                    <ApplicationSelector apps={appList} formApi={formApi} />
+                                    <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>
                             </React.Fragment>
                         )}
