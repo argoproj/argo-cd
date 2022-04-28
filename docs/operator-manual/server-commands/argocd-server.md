@@ -40,6 +40,7 @@ argocd-server [flags]
       --metrics-port int                              Start metrics on given port (default 8083)
   -n, --namespace string                              If present, the namespace scope for this CLI request
       --oidc-cache-expiration duration                Cache expiration for OIDC state (default 3m0s)
+      --otlp-address string                           OpenTelemetry collector address to send traces to
       --password string                               Password for basic authentication to the API server
       --port int                                      Listen on given port (default 8080)
       --redis string                                  Redis server hostname and port (e.g. argocd-redis:6379). 

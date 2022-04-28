@@ -193,7 +193,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Upsert: repoOpts.Upsert,
 			}
 
-			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
 		},
@@ -203,7 +203,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
+// NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm REPO",
@@ -216,7 +216,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
@@ -252,7 +252,7 @@ func printRepoUrls(repos appsv1.Repositories) {
 	}
 }
 
-// NewRepoListCommand returns a new instance of an `argocd repo rm` command
+// NewRepoListCommand returns a new instance of an `argocd repo list` command
 func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output  string
@@ -273,7 +273,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -294,7 +294,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoGetCommand returns a new instance of an `argocd repo rm` command
+// NewRepoGetCommand returns a new instance of an `argocd repo get` command
 func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output  string

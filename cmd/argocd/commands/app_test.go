@@ -1,6 +1,11 @@
 package commands
 
 import (
+	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os"
 	"testing"
 	"time"
@@ -15,6 +20,64 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
+
+func Test_getInfos(t *testing.T) {
+	testCases := []struct{
+		name string
+		infos []string
+		expectedInfos []*v1alpha1.Info
+	}{
+		{
+			name: "empty",
+			infos: []string{},
+			expectedInfos: []*v1alpha1.Info{},
+		},
+		{
+			name: "simple key value",
+			infos: []string{"key1=value1", "key2=value2"},
+			expectedInfos: []*v1alpha1.Info{
+				{Name: "key1", Value: "value1"},
+				{Name: "key2", Value: "value2"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			infos := getInfos(testCase.infos)
+			assert.Len(t, infos, len(testCase.expectedInfos))
+			sort := func(a, b *v1alpha1.Info) bool { return a.Name < b.Name }
+			assert.Empty(t, cmp.Diff(testCase.expectedInfos, infos, cmpopts.SortSlices(sort)))
+		})
+	}
+}
+
+func Test_getRefreshType(t *testing.T) {
+	refreshTypeNormal := string(v1alpha1.RefreshTypeNormal)
+	refreshTypeHard := string(v1alpha1.RefreshTypeHard)
+	testCases := []struct{
+		refresh bool
+		hardRefresh bool
+		expected *string
+	}{
+		{false, false, nil},
+		{false, true, &refreshTypeHard},
+		{true, false, &refreshTypeNormal},
+		{true, true, &refreshTypeHard},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(fmt.Sprintf("hardRefresh=%t refresh=%t", testCase.hardRefresh, testCase.refresh), func(t *testing.T) {
+			refreshType := getRefreshType(testCase.refresh, testCase.hardRefresh)
+			if testCase.expected == nil {
+				assert.Nil(t, refreshType)
+			} else {
+				assert.NotNil(t, refreshType)
+				assert.Equal(t, *testCase.expected, *refreshType)
+			}
+		})
+	}
+}
 
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 
@@ -257,6 +320,59 @@ func TestFilterResources(t *testing.T) {
 	})
 }
 
+func Test_groupObjsByKey(t *testing.T) {
+	localObjs := []*unstructured.Unstructured{
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      "pod-name",
+					"namespace": "default",
+				},
+			},
+		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "apiextensions.k8s.io/v1",
+				"kind": "CustomResourceDefinition",
+				"metadata": map[string]interface{}{
+					"name": "certificates.cert-manager.io",
+				},
+			},
+		},
+	}
+	liveObjs := []*unstructured.Unstructured{
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      "pod-name",
+					"namespace": "default",
+				},
+			},
+		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "apiextensions.k8s.io/v1",
+				"kind": "CustomResourceDefinition",
+				"metadata": map[string]interface{}{
+					"name": "certificates.cert-manager.io",
+				},
+			},
+		},
+	}
+
+	expected := map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.ResourceKey{Group:"", Kind:"Pod", Namespace:"default", Name:"pod-name"}: localObjs[0],
+		kube.ResourceKey{Group:"apiextensions.k8s.io", Kind:"CustomResourceDefinition", Namespace:"", Name:"certificates.cert-manager.io"}: localObjs[1],
+	}
+
+	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
+	assert.Equal(t, expected, objByKey)
+}
+
 func TestFormatSyncPolicy(t *testing.T) {
 
 	t.Run("Policy not defined", func(t *testing.T) {
@@ -463,16 +579,56 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			},
 		}
 
-		windows := &v1alpha1.SyncWindows{}
+		windows := &v1alpha1.SyncWindows{
+			{
+				Kind: "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Applications: []string{
+					"*-prod",
+				},
+				ManualSync: true,
+			},
+			{
+				Kind: "deny",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Namespaces: []string{
+					"default",
+				},
+			},
+			{
+				Kind: "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Clusters: []string{
+					"in-cluster",
+					"cluster1",
+				},
+			},
+		}
 
 		printAppSummaryTable(app, "url", windows)
 		return nil
 	})
 
-	expectation := "Name:               test\nProject:            default\nServer:             local\nNamespace:          argocd\nURL:                url\nRepo:               test\nTarget:             master\nPath:               /test\nHelm Values:        path1,path2\nName Prefix:        prefix\nSyncWindow:         Sync Allowed\nSync Policy:        Automated (Prune)\nSync Status:        OutOfSync from master\nHealth Status:      Progressing (health-message)\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print app summary output %q, should be %q", output, expectation)
-	}
+	expectation := `Name:               test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                url
+Repo:               test
+Target:             master
+Path:               /test
+Helm Values:        path1,path2
+Name Prefix:        prefix
+SyncWindow:         Sync Denied
+Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing (health-message)
+`
+	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
 
 func TestPrintAppConditions(t *testing.T) {
@@ -620,7 +776,12 @@ func TestTargetObjects(t *testing.T) {
 	if objects[0].GetName() != "test-helm-guestbook" {
 		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
 	}
+}
 
+func TestTargetObjects_invalid(t *testing.T) {
+	resources := []*v1alpha1.ResourceDiff{{TargetState: "{"}}
+	_, err := targetObjects(resources)
+	assert.Error(t, err)
 }
 
 func TestPrintApplicationNames(t *testing.T) {
