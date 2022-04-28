@@ -171,7 +171,6 @@ message PluginAppSpec {
     repeated ParameterAnnouncement parametersAnnouncement = 1;
 }
 
-
 message HelmChartsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }

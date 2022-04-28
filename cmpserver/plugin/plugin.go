@@ -16,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
@@ -143,20 +144,31 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 	return environ
 }
 
+// getTempDirMustCleanup creates a temporary directory and returns a cleanup function. The cleanup function panics if
+// cleanup fails. Use this function when failing to clean up the temporary directory is a security risk.
+func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err error) {
+	workDir, err = files.CreateTempDir(baseDir)
+	if err != nil {
+		return "", nil, fmt.Errorf("error creating temp dir: %s", err)
+	}
+	cleanup = func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			panic(fmt.Sprintf("error removing plugin workdir: %s", err))
+		}
+	}
+	return workDir, cleanup, nil
+}
+
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
 func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
-	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating temp dir: %s", err)
+		return fmt.Errorf("error creating workdir for manifest generation: %s", err)
 	}
-	defer func() {
-		if err := os.RemoveAll(workDir); err != nil {
-			// we panic here as the workDir may contain sensitive information
-			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
-		}
-	}()
+	defer cleanup()
 
 	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
 	if err != nil {
@@ -222,16 +234,11 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
-	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating match repository workdir: %s", err)
+		return fmt.Errorf("error creating workdir for repository matching: %s", err)
 	}
-	defer func() {
-		if err := os.RemoveAll(workDir); err != nil {
-			// we panic here as the workDir may contain sensitive information
-			panic(fmt.Sprintf("error removing match repository workdir: %s", err))
-		}
-	}()
+	defer cleanup()
 
 	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
@@ -299,16 +306,11 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
-	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
+	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating parameters announcement workdir: %s", err)
+		return fmt.Errorf("error creating workdir for generating parameter announcements: %s", err)
 	}
-	defer func() {
-		if err := os.RemoveAll(workDir); err != nil {
-			// we panic here as the workDir may contain sensitive information
-			panic(fmt.Sprintf("error removing parameters announcement repository workdir: %s", err))
-		}
-	}()
+	defer cleanup()
 
 	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
@@ -331,29 +333,14 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, appDir string, staticAnnouncements []Static, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
-	var announcements []*apiclient.ParameterAnnouncement
-	for _, static := range staticAnnouncements {
-		announcements = append(announcements, &apiclient.ParameterAnnouncement{
-			Name:           static.Name,
-			Title:          static.Title,
-			Tooltip:        static.Tooltip,
-			Required:       static.Required,
-			ItemType:       static.ItemType,
-			CollectionType: static.CollectionType,
-			String_:        static.String,
-			Array:          static.Array,
-			Map:            static.Map,
-		})
-	}
-
+func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
 	if len(command.Command) > 0 {
 		stdout, err := runCommand(ctx, command, appDir, os.Environ())
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
 		}
 
-		var dynamicParamAnnouncements []*apiclient.ParameterAnnouncement
+		var dynamicParamAnnouncements []*repoclient.ParameterAnnouncement
 		err = json.Unmarshal([]byte(stdout), &dynamicParamAnnouncements)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)

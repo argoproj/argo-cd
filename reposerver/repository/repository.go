@@ -1577,23 +1577,8 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		return fmt.Errorf("failed to get parameter anouncement: %w", err)
 	}
 
-	// TODO: share types so conversion is unnecessary.
-	var announcementConverted []*apiclient.ParameterAnnouncement
-	for _, pluginAnnouncement := range announcement.ParameterAnnouncements {
-		announcementConverted = append(announcementConverted, &apiclient.ParameterAnnouncement{
-			Name:           pluginAnnouncement.Name,
-			Title:          pluginAnnouncement.Title,
-			Tooltip:        pluginAnnouncement.Tooltip,
-			Required:       pluginAnnouncement.Required,
-			ItemType:       pluginAnnouncement.ItemType,
-			CollectionType: pluginAnnouncement.CollectionType,
-			String_:        pluginAnnouncement.String_,
-			Array:          pluginAnnouncement.Array,
-			Map:            pluginAnnouncement.Map,
-		})
-	}
 	res.Plugin = &apiclient.PluginAppSpec{
-		ParametersAnnouncement: announcementConverted,
+		ParametersAnnouncement: announcement.ParameterAnnouncements,
 	}
 	return nil
 }

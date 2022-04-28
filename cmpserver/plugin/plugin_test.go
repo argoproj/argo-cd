@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 )
 
@@ -234,7 +235,7 @@ func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 - name: static-a
 - name: static-b
 `
-	static := &[]Static{}
+	static := &[]*repoclient.ParameterAnnouncement{}
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{
@@ -243,7 +244,7 @@ func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 	}
 	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
 	require.NoError(t, err)
-	assert.Equal(t, []*apiclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
+	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
 
 func Test_getParametersAnnouncement_no_command(t *testing.T) {
@@ -251,13 +252,13 @@ func Test_getParametersAnnouncement_no_command(t *testing.T) {
 - name: static-a
 - name: static-b
 `
-	static := &[]Static{}
+	static := &[]*repoclient.ParameterAnnouncement{}
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{}
 	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
 	require.NoError(t, err)
-	assert.Equal(t, []*apiclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
+	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
 
 func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
@@ -265,7 +266,7 @@ func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
 - name: static-a
 - name: static-b
 `
-	static := &[]Static{}
+	static := &[]*repoclient.ParameterAnnouncement{}
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{
@@ -274,7 +275,7 @@ func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
 	}
 	res, err := getParametersAnnouncement(context.Background(), "", *static, command)
 	require.NoError(t, err)
-	expected := []*apiclient.ParameterAnnouncement{
+	expected := []*repoclient.ParameterAnnouncement{
 		{Name: "dynamic-a"},
 		{Name: "dynamic-b"},
 		{Name: "static-a"},
@@ -288,7 +289,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[`},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []Static{}, command)
+	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
@@ -298,7 +299,26 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Command: []string{"exit"},
 		Args:    []string{"1"},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []Static{}, command)
+	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
+}
+
+func Test_getTempDirMustCleanup(t *testing.T) {
+	tempDir := t.TempDir()
+	workDir, cleanup, err := getTempDirMustCleanup(tempDir)
+	require.NoError(t, err)
+	require.DirExists(t, workDir)
+
+	// Induce a cleanup error to verify panic behavior.
+	err = os.Chmod(tempDir, 0000)
+	require.NoError(t, err)
+	assert.Panics(t, func() {
+		cleanup()
+	}, "cleanup must panic to protect from directory traversal vulnerabilities")
+
+	err = os.Chmod(tempDir, 0700)
+	require.NoError(t, err)
+	cleanup()
+	assert.NoDirExists(t, workDir)
 }

@@ -6,6 +6,7 @@ package apiclient
 import (
 	context "context"
 	fmt "fmt"
+	apiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -362,143 +363,20 @@ func (m *RepositoryResponse) GetIsSupported() bool {
 	return false
 }
 
-type ParameterAnnouncement struct {
-	// name is the name identifying a parameter.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// title is a human-readable text of the parameter name.
-	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	// tooltip is a human-readable description of the parameter.
-	Tooltip string `protobuf:"bytes,3,opt,name=tooltip,proto3" json:"tooltip,omitempty"`
-	// required defines if this given parameter is mandatory.
-	Required bool `protobuf:"varint,4,opt,name=required,proto3" json:"required,omitempty"`
-	// itemType determines the primitive data type represented by the parameter. Parameters are always encoded as
-	// strings, but this field lets them be interpreted as other primitive types.
-	ItemType string `protobuf:"bytes,5,opt,name=itemType,proto3" json:"itemType,omitempty"`
-	// collectionType is the type of value this parameter holds - either a single value (a string) or a collection
-	// (array or map). If collectionType is set, only the field with that type will be used. If collectionType is not
-	// set, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.
-	CollectionType string `protobuf:"bytes,6,opt,name=collectionType,proto3" json:"collectionType,omitempty"`
-	// string is the default value of the parameter if the parameter is a string.
-	String_ string `protobuf:"bytes,7,opt,name=string,proto3" json:"string,omitempty"`
-	// array is the default value of the parameter if the parameter is an array.
-	Array []string `protobuf:"bytes,8,rep,name=array,proto3" json:"array,omitempty"`
-	// map is the default value of the parameter if the parameter is a map.
-	Map                  map[string]string `protobuf:"bytes,9,rep,name=map,proto3" json:"map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *ParameterAnnouncement) Reset()         { *m = ParameterAnnouncement{} }
-func (m *ParameterAnnouncement) String() string { return proto.CompactTextString(m) }
-func (*ParameterAnnouncement) ProtoMessage()    {}
-func (*ParameterAnnouncement) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{5}
-}
-func (m *ParameterAnnouncement) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ParameterAnnouncement) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ParameterAnnouncement.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *ParameterAnnouncement) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ParameterAnnouncement.Merge(m, src)
-}
-func (m *ParameterAnnouncement) XXX_Size() int {
-	return m.Size()
-}
-func (m *ParameterAnnouncement) XXX_DiscardUnknown() {
-	xxx_messageInfo_ParameterAnnouncement.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ParameterAnnouncement proto.InternalMessageInfo
-
-func (m *ParameterAnnouncement) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetTitle() string {
-	if m != nil {
-		return m.Title
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetTooltip() string {
-	if m != nil {
-		return m.Tooltip
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetRequired() bool {
-	if m != nil {
-		return m.Required
-	}
-	return false
-}
-
-func (m *ParameterAnnouncement) GetItemType() string {
-	if m != nil {
-		return m.ItemType
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetCollectionType() string {
-	if m != nil {
-		return m.CollectionType
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetString_() string {
-	if m != nil {
-		return m.String_
-	}
-	return ""
-}
-
-func (m *ParameterAnnouncement) GetArray() []string {
-	if m != nil {
-		return m.Array
-	}
-	return nil
-}
-
-func (m *ParameterAnnouncement) GetMap() map[string]string {
-	if m != nil {
-		return m.Map
-	}
-	return nil
-}
-
 // ParametersAnnouncementResponse contains a list of announcements. This list represents all the parameters which a CMP
 // is able to accept.
 type ParametersAnnouncementResponse struct {
-	ParameterAnnouncements []*ParameterAnnouncement `protobuf:"bytes,1,rep,name=parameterAnnouncements,proto3" json:"parameterAnnouncements,omitempty"`
-	XXX_NoUnkeyedLiteral   struct{}                 `json:"-"`
-	XXX_unrecognized       []byte                   `json:"-"`
-	XXX_sizecache          int32                    `json:"-"`
+	ParameterAnnouncements []*apiclient.ParameterAnnouncement `protobuf:"bytes,1,rep,name=parameterAnnouncements,proto3" json:"parameterAnnouncements,omitempty"`
+	XXX_NoUnkeyedLiteral   struct{}                           `json:"-"`
+	XXX_unrecognized       []byte                             `json:"-"`
+	XXX_sizecache          int32                              `json:"-"`
 }
 
 func (m *ParametersAnnouncementResponse) Reset()         { *m = ParametersAnnouncementResponse{} }
 func (m *ParametersAnnouncementResponse) String() string { return proto.CompactTextString(m) }
 func (*ParametersAnnouncementResponse) ProtoMessage()    {}
 func (*ParametersAnnouncementResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{6}
+	return fileDescriptor_b21875a7079a06ed, []int{5}
 }
 func (m *ParametersAnnouncementResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -527,7 +405,7 @@ func (m *ParametersAnnouncementResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ParametersAnnouncementResponse proto.InternalMessageInfo
 
-func (m *ParametersAnnouncementResponse) GetParameterAnnouncements() []*ParameterAnnouncement {
+func (m *ParametersAnnouncementResponse) GetParameterAnnouncements() []*apiclient.ParameterAnnouncement {
 	if m != nil {
 		return m.ParameterAnnouncements
 	}
@@ -545,7 +423,7 @@ func (m *File) Reset()         { *m = File{} }
 func (m *File) String() string { return proto.CompactTextString(m) }
 func (*File) ProtoMessage()    {}
 func (*File) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b21875a7079a06ed, []int{7}
+	return fileDescriptor_b21875a7079a06ed, []int{6}
 }
 func (m *File) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -587,8 +465,6 @@ func init() {
 	proto.RegisterType((*EnvEntry)(nil), "plugin.EnvEntry")
 	proto.RegisterType((*ManifestResponse)(nil), "plugin.ManifestResponse")
 	proto.RegisterType((*RepositoryResponse)(nil), "plugin.RepositoryResponse")
-	proto.RegisterType((*ParameterAnnouncement)(nil), "plugin.ParameterAnnouncement")
-	proto.RegisterMapType((map[string]string)(nil), "plugin.ParameterAnnouncement.MapEntry")
 	proto.RegisterType((*ParametersAnnouncementResponse)(nil), "plugin.ParametersAnnouncementResponse")
 	proto.RegisterType((*File)(nil), "plugin.File")
 }
@@ -596,49 +472,42 @@ func init() {
 func init() { proto.RegisterFile("cmpserver/plugin/plugin.proto", fileDescriptor_b21875a7079a06ed) }
 
 var fileDescriptor_b21875a7079a06ed = []byte{
-	// 672 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0xcf, 0x6e, 0x13, 0x3f,
-	0x10, 0xee, 0x26, 0x69, 0xba, 0x99, 0x54, 0xbf, 0x5f, 0x64, 0x41, 0x59, 0xa2, 0x36, 0x44, 0x7b,
-	0xa8, 0x72, 0x21, 0x91, 0x02, 0xaa, 0x2a, 0x24, 0x24, 0x5a, 0x54, 0x5a, 0x81, 0x82, 0x22, 0x17,
-	0x2e, 0xdc, 0xdc, 0xcd, 0x34, 0x31, 0xdd, 0xb5, 0x8d, 0xd7, 0x1b, 0x14, 0x4e, 0xbc, 0x07, 0x0f,
-	0xc0, 0xab, 0x70, 0xe4, 0xce, 0x05, 0xf5, 0x49, 0xd0, 0x7a, 0xff, 0x24, 0x6a, 0xd3, 0x9e, 0xd6,
-	0xdf, 0x8c, 0xe7, 0xf3, 0x37, 0xf3, 0x79, 0x0d, 0x7b, 0x41, 0xa4, 0x62, 0xd4, 0x73, 0xd4, 0x03,
-	0x15, 0x26, 0x53, 0x2e, 0xf2, 0x4f, 0x5f, 0x69, 0x69, 0x24, 0xa9, 0x67, 0xc8, 0xff, 0xee, 0x40,
-	0xeb, 0x48, 0xa9, 0x73, 0xa3, 0x91, 0x45, 0x14, 0xbf, 0x24, 0x18, 0x1b, 0xf2, 0x12, 0xdc, 0x08,
-	0x0d, 0x9b, 0x30, 0xc3, 0x3c, 0xa7, 0xeb, 0xf4, 0x9a, 0xc3, 0x27, 0xfd, 0xbc, 0x7a, 0xc4, 0x04,
-	0xbf, 0xc4, 0xd8, 0xe4, 0x5b, 0x47, 0xf9, 0xb6, 0xb3, 0x0d, 0x5a, 0x96, 0x10, 0x1f, 0x6a, 0x97,
-	0x3c, 0x44, 0xaf, 0x62, 0x4b, 0xb7, 0x8b, 0xd2, 0x37, 0x3c, 0xc4, 0xb3, 0x0d, 0x6a, 0x73, 0xc7,
-	0x0d, 0xd8, 0xd2, 0x19, 0x85, 0xff, 0xd3, 0x81, 0x47, 0x77, 0xd0, 0x12, 0x0f, 0xb6, 0x98, 0x52,
-	0xef, 0x59, 0x84, 0x56, 0x48, 0x83, 0x16, 0x90, 0x74, 0x00, 0x98, 0x52, 0x14, 0xc3, 0x31, 0x33,
-	0x33, 0x7b, 0x54, 0x83, 0xae, 0x44, 0x48, 0x1b, 0xdc, 0x60, 0x86, 0xc1, 0x55, 0x9c, 0x44, 0x5e,
-	0xd5, 0x66, 0x4b, 0x4c, 0x08, 0xd4, 0x62, 0xfe, 0x0d, 0xbd, 0x5a, 0xd7, 0xe9, 0x55, 0xa9, 0x5d,
-	0x13, 0x1f, 0xaa, 0x28, 0xe6, 0xde, 0x66, 0xb7, 0xda, 0x6b, 0x0e, 0x5b, 0x85, 0xe6, 0x13, 0x31,
-	0x3f, 0x11, 0x46, 0x2f, 0x68, 0x9a, 0xf4, 0x9f, 0x83, 0x5b, 0x04, 0x52, 0x0e, 0xb1, 0x94, 0x65,
-	0xd7, 0xe4, 0x01, 0x6c, 0xce, 0x59, 0x98, 0x60, 0x2e, 0x27, 0x03, 0xfe, 0x18, 0x5a, 0xcb, 0xf6,
-	0x62, 0x25, 0x45, 0x8c, 0x64, 0x17, 0x1a, 0x51, 0x1e, 0x8b, 0x3d, 0xa7, 0x5b, 0xed, 0x35, 0xe8,
-	0x32, 0x90, 0xf6, 0x16, 0xcb, 0x44, 0x07, 0xf8, 0x61, 0xa1, 0x0a, 0xb2, 0x95, 0x88, 0x7f, 0x00,
-	0x84, 0xa2, 0x92, 0x31, 0x37, 0x52, 0x2f, 0x4a, 0xce, 0x2e, 0x34, 0x79, 0x7c, 0x9e, 0x28, 0x25,
-	0xb5, 0xc1, 0x89, 0x15, 0xe6, 0xd2, 0xd5, 0x90, 0xff, 0xa7, 0x02, 0x0f, 0xc7, 0x4c, 0xb3, 0x08,
-	0x0d, 0xea, 0x23, 0x21, 0x64, 0x22, 0x02, 0x8c, 0x50, 0x98, 0xbb, 0xba, 0x31, 0xdc, 0x84, 0x65,
-	0x37, 0x16, 0xa4, 0x8e, 0x18, 0x29, 0x43, 0xc3, 0x55, 0x3e, 0xd6, 0x02, 0xa6, 0x13, 0x4f, 0x2d,
-	0xe5, 0x1a, 0x27, 0x76, 0xb2, 0x2e, 0x2d, 0x71, 0x9a, 0xe3, 0x06, 0x23, 0xdb, 0xcf, 0x66, 0xe6,
-	0x46, 0x81, 0xc9, 0x3e, 0xfc, 0x17, 0xc8, 0x30, 0xc4, 0xc0, 0x70, 0x29, 0xec, 0x8e, 0xba, 0xdd,
-	0x71, 0x23, 0x4a, 0x76, 0xa0, 0x1e, 0x1b, 0xcd, 0xc5, 0xd4, 0xdb, 0xb2, 0xf9, 0x1c, 0xa5, 0x3a,
-	0x99, 0xd6, 0x6c, 0xe1, 0xb9, 0x76, 0x8e, 0x19, 0x20, 0x87, 0x50, 0x8d, 0x98, 0xf2, 0x1a, 0xd6,
-	0xcf, 0xfd, 0xc2, 0xcf, 0xb5, 0xdd, 0xf7, 0x47, 0x4c, 0xe5, 0x2e, 0x47, 0x4c, 0xb5, 0x0f, 0xc0,
-	0x2d, 0x02, 0xa4, 0x05, 0xd5, 0x2b, 0x5c, 0xe4, 0x63, 0x49, 0x97, 0xeb, 0x3d, 0x7e, 0x51, 0x39,
-	0x74, 0xfc, 0xaf, 0xd0, 0x29, 0xe9, 0xe3, 0x55, 0xfe, 0xd2, 0xa1, 0x8f, 0xb0, 0xa3, 0xd6, 0x09,
-	0xc8, 0xae, 0x40, 0x73, 0xb8, 0x77, 0xaf, 0x4c, 0x7a, 0x47, 0xb1, 0xbf, 0x0b, 0xb5, 0xf4, 0xdf,
-	0x4a, 0xa5, 0x05, 0xb3, 0x44, 0x5c, 0x59, 0xb9, 0xdb, 0x34, 0x03, 0xc3, 0x1f, 0x15, 0xd8, 0x7b,
-	0x2d, 0xc5, 0x25, 0x9f, 0x8e, 0x98, 0x60, 0x53, 0x5b, 0x33, 0xb6, 0xc7, 0x9c, 0xa3, 0x9e, 0xf3,
-	0x00, 0xc9, 0x5b, 0x68, 0x9d, 0xa2, 0x40, 0xcd, 0x0c, 0x16, 0x17, 0x95, 0x78, 0x85, 0x94, 0x9b,
-	0x8f, 0x43, 0xdb, 0xbb, 0xfd, 0x14, 0x64, 0xed, 0xf9, 0x1b, 0x3d, 0x87, 0xbc, 0x83, 0xff, 0x47,
-	0xcc, 0x04, 0xb3, 0xe5, 0xfd, 0xbc, 0x87, 0xaa, 0x5d, 0x64, 0x6e, 0xdf, 0x66, 0x4b, 0xc6, 0xe0,
-	0xf1, 0x29, 0x9a, 0xf5, 0x43, 0xbd, 0x87, 0xf6, 0xb6, 0xdb, 0x6b, 0xed, 0x48, 0x8f, 0x38, 0x7e,
-	0xf5, 0xeb, 0xba, 0xe3, 0xfc, 0xbe, 0xee, 0x38, 0x7f, 0xaf, 0x3b, 0xce, 0xa7, 0xe1, 0x94, 0x9b,
-	0x59, 0x72, 0xd1, 0x0f, 0x64, 0x34, 0x60, 0x7a, 0x2a, 0x95, 0x96, 0x9f, 0xed, 0xe2, 0x69, 0x30,
-	0x19, 0xcc, 0x87, 0x83, 0xe5, 0x9b, 0xca, 0x14, 0x0f, 0x42, 0x8e, 0xc2, 0x5c, 0xd4, 0xed, 0x83,
-	0xfa, 0xec, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x47, 0xf3, 0x00, 0x14, 0x71, 0x05, 0x00, 0x00,
+	// 558 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0xc1, 0x6e, 0xd3, 0x4c,
+	0x10, 0xae, 0x9b, 0xb4, 0x4d, 0x26, 0x95, 0xfe, 0x68, 0xf5, 0x0b, 0x4c, 0xd4, 0x86, 0xe0, 0x03,
+	0xca, 0x85, 0x44, 0x32, 0x88, 0x1b, 0x12, 0x2d, 0x2a, 0xad, 0x40, 0x41, 0xd1, 0x96, 0x0b, 0xdc,
+	0xb6, 0xce, 0x24, 0x59, 0x6a, 0xef, 0x2e, 0xeb, 0xb5, 0xa5, 0xc0, 0x85, 0xf7, 0xe0, 0x01, 0x78,
+	0x15, 0x8e, 0x3c, 0x02, 0xca, 0x93, 0x20, 0xaf, 0xed, 0xd8, 0xa2, 0x6d, 0x38, 0x79, 0xe6, 0x9b,
+	0x99, 0x6f, 0xbf, 0x9d, 0x99, 0x35, 0x1c, 0x07, 0x91, 0x8a, 0x51, 0xa7, 0xa8, 0xc7, 0x2a, 0x4c,
+	0x16, 0x5c, 0x14, 0x9f, 0x91, 0xd2, 0xd2, 0x48, 0xb2, 0x9f, 0x7b, 0xbd, 0xb3, 0x05, 0x37, 0xcb,
+	0xe4, 0x6a, 0x14, 0xc8, 0x68, 0xcc, 0xf4, 0x42, 0x2a, 0x2d, 0x3f, 0x59, 0xe3, 0x49, 0x30, 0x1b,
+	0xa7, 0xfe, 0x58, 0xa3, 0x92, 0x05, 0x8d, 0x35, 0xb9, 0x91, 0x7a, 0x55, 0x33, 0x73, 0x3a, 0xef,
+	0x9b, 0x03, 0xdd, 0x13, 0xa5, 0x2e, 0x8d, 0x46, 0x16, 0x51, 0xfc, 0x9c, 0x60, 0x6c, 0xc8, 0x0b,
+	0x68, 0x45, 0x68, 0xd8, 0x8c, 0x19, 0xe6, 0x3a, 0x03, 0x67, 0xd8, 0xf1, 0x1f, 0x8e, 0x0a, 0x11,
+	0x13, 0x26, 0xf8, 0x1c, 0x63, 0x53, 0xa4, 0x4e, 0x8a, 0xb4, 0x8b, 0x1d, 0xba, 0x29, 0x21, 0x1e,
+	0x34, 0xe7, 0x3c, 0x44, 0x77, 0xd7, 0x96, 0x1e, 0x96, 0xa5, 0xaf, 0x79, 0x88, 0x17, 0x3b, 0xd4,
+	0xc6, 0x4e, 0xdb, 0x70, 0xa0, 0x73, 0x0a, 0xef, 0x87, 0x03, 0xf7, 0xef, 0xa0, 0x25, 0x2e, 0x1c,
+	0x30, 0xa5, 0xde, 0xb1, 0x08, 0xad, 0x90, 0x36, 0x2d, 0x5d, 0xd2, 0x07, 0x60, 0x4a, 0x51, 0x0c,
+	0xa7, 0xcc, 0x2c, 0xed, 0x51, 0x6d, 0x5a, 0x43, 0x48, 0x0f, 0x5a, 0xc1, 0x12, 0x83, 0xeb, 0x38,
+	0x89, 0xdc, 0x86, 0x8d, 0x6e, 0x7c, 0x42, 0xa0, 0x19, 0xf3, 0x2f, 0xe8, 0x36, 0x07, 0xce, 0xb0,
+	0x41, 0xad, 0x4d, 0x3c, 0x68, 0xa0, 0x48, 0xdd, 0xbd, 0x41, 0x63, 0xd8, 0xf1, 0xbb, 0xa5, 0xe6,
+	0x33, 0x91, 0x9e, 0x09, 0xa3, 0x57, 0x34, 0x0b, 0x7a, 0xcf, 0xa0, 0x55, 0x02, 0x19, 0x87, 0xa8,
+	0x64, 0x59, 0x9b, 0xfc, 0x0f, 0x7b, 0x29, 0x0b, 0x13, 0x2c, 0xe4, 0xe4, 0x8e, 0x37, 0x85, 0x6e,
+	0x75, 0xbd, 0x58, 0x49, 0x11, 0x23, 0x39, 0x82, 0x76, 0x54, 0x60, 0xb1, 0xeb, 0x0c, 0x1a, 0xc3,
+	0x36, 0xad, 0x80, 0xec, 0x6e, 0xb1, 0x4c, 0x74, 0x80, 0xef, 0x57, 0xaa, 0x24, 0xab, 0x21, 0xde,
+	0x73, 0x20, 0x74, 0x33, 0xc8, 0x0d, 0xe7, 0x00, 0x3a, 0x3c, 0xbe, 0x4c, 0x94, 0x92, 0xda, 0xe0,
+	0xcc, 0x0a, 0x6b, 0xd1, 0x3a, 0xe4, 0x7d, 0x85, 0xfe, 0x94, 0x69, 0x16, 0xa1, 0x41, 0x1d, 0x9f,
+	0x08, 0x21, 0x13, 0x11, 0x60, 0x84, 0xa2, 0xd2, 0xf5, 0x01, 0xee, 0xa9, 0x32, 0xa3, 0x9e, 0x90,
+	0x8b, 0xec, 0xf8, 0x8f, 0x46, 0xb5, 0x0d, 0x9a, 0xde, 0x96, 0x49, 0xef, 0x20, 0xf0, 0x8e, 0xa0,
+	0x99, 0x6d, 0x40, 0xd6, 0xa4, 0x60, 0x99, 0x88, 0x6b, 0x2b, 0xf0, 0x90, 0xe6, 0x8e, 0xff, 0x7d,
+	0x17, 0x8e, 0x5f, 0x49, 0x31, 0xe7, 0x8b, 0x09, 0x13, 0x6c, 0x61, 0x6b, 0xa6, 0x76, 0x06, 0x97,
+	0xa8, 0x53, 0x1e, 0x20, 0x79, 0x03, 0xdd, 0x73, 0x14, 0xa8, 0x99, 0xc1, 0xb2, 0x9d, 0xc4, 0x2d,
+	0xe7, 0xf4, 0xf7, 0x0a, 0xf7, 0xdc, 0x9b, 0x0b, 0x9b, 0x5f, 0xd1, 0xdb, 0x19, 0x3a, 0xe4, 0x2d,
+	0xfc, 0x37, 0x61, 0x26, 0x58, 0x56, 0x5d, 0xdc, 0x42, 0xd5, 0x2b, 0x23, 0x37, 0x7b, 0x6e, 0xc9,
+	0x18, 0x3c, 0x38, 0x47, 0x73, 0x7b, 0x63, 0xb7, 0xd0, 0x3e, 0x2e, 0x23, 0xdb, 0x47, 0x92, 0x1d,
+	0x71, 0xfa, 0xf2, 0xe7, 0xba, 0xef, 0xfc, 0x5a, 0xf7, 0x9d, 0xdf, 0xeb, 0xbe, 0xf3, 0xd1, 0xff,
+	0xc7, 0xd3, 0xaf, 0x7e, 0x20, 0x4c, 0xf1, 0x20, 0xe4, 0x28, 0xcc, 0xd5, 0xbe, 0x7d, 0xee, 0x4f,
+	0xff, 0x04, 0x00, 0x00, 0xff, 0xff, 0x33, 0x34, 0xb3, 0x95, 0x5e, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1169,113 +1038,6 @@ func (m *RepositoryResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ParameterAnnouncement) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ParameterAnnouncement) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ParameterAnnouncement) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if len(m.Map) > 0 {
-		for k := range m.Map {
-			v := m.Map[k]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintPlugin(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(k)
-			copy(dAtA[i:], k)
-			i = encodeVarintPlugin(dAtA, i, uint64(len(k)))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintPlugin(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x4a
-		}
-	}
-	if len(m.Array) > 0 {
-		for iNdEx := len(m.Array) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Array[iNdEx])
-			copy(dAtA[i:], m.Array[iNdEx])
-			i = encodeVarintPlugin(dAtA, i, uint64(len(m.Array[iNdEx])))
-			i--
-			dAtA[i] = 0x42
-		}
-	}
-	if len(m.String_) > 0 {
-		i -= len(m.String_)
-		copy(dAtA[i:], m.String_)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.String_)))
-		i--
-		dAtA[i] = 0x3a
-	}
-	if len(m.CollectionType) > 0 {
-		i -= len(m.CollectionType)
-		copy(dAtA[i:], m.CollectionType)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.CollectionType)))
-		i--
-		dAtA[i] = 0x32
-	}
-	if len(m.ItemType) > 0 {
-		i -= len(m.ItemType)
-		copy(dAtA[i:], m.ItemType)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.ItemType)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.Required {
-		i--
-		if m.Required {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.Tooltip) > 0 {
-		i -= len(m.Tooltip)
-		copy(dAtA[i:], m.Tooltip)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.Tooltip)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.Title) > 0 {
-		i -= len(m.Title)
-		copy(dAtA[i:], m.Title)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.Title)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarintPlugin(dAtA, i, uint64(len(m.Name)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *ParametersAnnouncementResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1484,59 +1246,6 @@ func (m *RepositoryResponse) Size() (n int) {
 	_ = l
 	if m.IsSupported {
 		n += 2
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *ParameterAnnouncement) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Name)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	l = len(m.Title)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	l = len(m.Tooltip)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	if m.Required {
-		n += 2
-	}
-	l = len(m.ItemType)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	l = len(m.CollectionType)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	l = len(m.String_)
-	if l > 0 {
-		n += 1 + l + sovPlugin(uint64(l))
-	}
-	if len(m.Array) > 0 {
-		for _, s := range m.Array {
-			l = len(s)
-			n += 1 + l + sovPlugin(uint64(l))
-		}
-	}
-	if len(m.Map) > 0 {
-		for k, v := range m.Map {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + len(k) + sovPlugin(uint64(len(k))) + 1 + len(v) + sovPlugin(uint64(len(v)))
-			n += mapEntrySize + 1 + sovPlugin(uint64(mapEntrySize))
-		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -2206,428 +1915,6 @@ func (m *RepositoryResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ParameterAnnouncement) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowPlugin
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ParameterAnnouncement: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ParameterAnnouncement: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Title", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Title = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Tooltip", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Tooltip = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Required", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Required = bool(v != 0)
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ItemType", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ItemType = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CollectionType", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CollectionType = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field String_", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.String_ = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Array", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Array = append(m.Array, string(dAtA[iNdEx:postIndex]))
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Map", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPlugin
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Map == nil {
-				m.Map = make(map[string]string)
-			}
-			var mapkey string
-			var mapvalue string
-			for iNdEx < postIndex {
-				entryPreIndex := iNdEx
-				var wire uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowPlugin
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					wire |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				fieldNum := int32(wire >> 3)
-				if fieldNum == 1 {
-					var stringLenmapkey uint64
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowPlugin
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						stringLenmapkey |= uint64(b&0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					intStringLenmapkey := int(stringLenmapkey)
-					if intStringLenmapkey < 0 {
-						return ErrInvalidLengthPlugin
-					}
-					postStringIndexmapkey := iNdEx + intStringLenmapkey
-					if postStringIndexmapkey < 0 {
-						return ErrInvalidLengthPlugin
-					}
-					if postStringIndexmapkey > l {
-						return io.ErrUnexpectedEOF
-					}
-					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
-					iNdEx = postStringIndexmapkey
-				} else if fieldNum == 2 {
-					var stringLenmapvalue uint64
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowPlugin
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						stringLenmapvalue |= uint64(b&0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					intStringLenmapvalue := int(stringLenmapvalue)
-					if intStringLenmapvalue < 0 {
-						return ErrInvalidLengthPlugin
-					}
-					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-					if postStringIndexmapvalue < 0 {
-						return ErrInvalidLengthPlugin
-					}
-					if postStringIndexmapvalue > l {
-						return io.ErrUnexpectedEOF
-					}
-					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
-					iNdEx = postStringIndexmapvalue
-				} else {
-					iNdEx = entryPreIndex
-					skippy, err := skipPlugin(dAtA[iNdEx:])
-					if err != nil {
-						return err
-					}
-					if (skippy < 0) || (iNdEx+skippy) < 0 {
-						return ErrInvalidLengthPlugin
-					}
-					if (iNdEx + skippy) > postIndex {
-						return io.ErrUnexpectedEOF
-					}
-					iNdEx += skippy
-				}
-			}
-			m.Map[mapkey] = mapvalue
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipPlugin(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthPlugin
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *ParametersAnnouncementResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2686,7 +1973,7 @@ func (m *ParametersAnnouncementResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ParameterAnnouncements = append(m.ParameterAnnouncements, &ParameterAnnouncement{})
+			m.ParameterAnnouncements = append(m.ParameterAnnouncements, &apiclient.ParameterAnnouncement{})
 			if err := m.ParameterAnnouncements[len(m.ParameterAnnouncements)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}

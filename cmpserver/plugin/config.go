@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -50,21 +51,8 @@ type Find struct {
 
 // Parameters holds static and dynamic configurations
 type Parameters struct {
-	Static  []Static `yaml:"static"`
-	Dynamic Command  `yaml:"dynamic"`
-}
-
-// Static hold the static announcements for CMP's
-type Static struct {
-	Name           string            `yaml:"name,omitempty"`
-	Title          string            `yaml:"title,omitempty"`
-	Tooltip        string            `yaml:"tooltip,omitempty"`
-	Required       bool              `yaml:"required,omitempty"`
-	ItemType       string            `yaml:"itemType,omitempty"`
-	CollectionType string            `yaml:"collectionType,omitempty"`
-	String         string            `yaml:"string,omitempty"`
-	Array          []string          `yaml:"array,omitempty"`
-	Map            map[string]string `yaml:"map,omitempty"`
+	Static  []*apiclient.ParameterAnnouncement `yaml:"static"`
+	Dynamic Command                            `yaml:"dynamic"`
 }
 
 // Dynamic hold the dynamic announcements for CMP's
