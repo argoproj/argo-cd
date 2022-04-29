@@ -819,7 +819,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: Always
         name: redis
         ports:
