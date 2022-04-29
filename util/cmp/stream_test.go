@@ -30,7 +30,7 @@ func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 		return message, nil
 	case <-m.done:
 		return nil, io.EOF
-	case <-time.After(500 * time.Millisecond):
+	case <-time.After(50000 * time.Millisecond):
 		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }

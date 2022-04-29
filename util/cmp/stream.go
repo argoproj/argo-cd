@@ -88,7 +88,7 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
-	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, &opt.tarDoneChan)
+	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, opt)
 	if err != nil {
 		return err
 	}
@@ -106,15 +106,15 @@ func SendRepoStream(ctx context.Context, appPath, repoPath string, sender Stream
 	return nil
 }
 
-func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, tarDoneChan *chan<-bool) (*os.File, *pluginclient.AppStreamRequest, error) {
+func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
 	// compress all files in appPath in tgz
 	tgz, checksum, err := compressFiles(repoPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
-	if tarDoneChan != nil {
-		*tarDoneChan <- true
-		close(*tarDoneChan)
+	if opt != nil && opt.tarDoneChan != nil {
+		opt.tarDoneChan <- true
+		close(opt.tarDoneChan)
 	}
 
 	fi, err := tgz.Stat()
