@@ -10335,6 +10335,8 @@ spec:
           name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /tmp
+          name: tmp
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -10348,6 +10350,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11255,7 +11259,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11293,7 +11297,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11339,7 +11343,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:

@@ -14,6 +14,10 @@ env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.18'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
@@ -403,7 +407,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.6-alpine
+          docker pull redis:7.0.0-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

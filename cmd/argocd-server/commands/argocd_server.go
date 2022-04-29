@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -49,6 +50,7 @@ func NewCommand() *cobra.Command {
 		insecure                 bool
 		listenPort               int
 		metricsPort              int
+		otlpAddress              string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
@@ -151,12 +153,20 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
+			var closer func()
 			for {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
+				if otlpAddress != "" {
+					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress)
+					if err != nil {
+						log.Fatalf("failed to initialize tracing: %v", err)
+					}
+				}
 				argocd := server.NewServer(ctx, argoCDOpts)
 				argocd.Run(ctx, listenPort, metricsPort)
 				cancel()
+				closer()
 			}
 		},
 	}
@@ -176,6 +186,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")

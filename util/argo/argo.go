@@ -16,10 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -119,38 +117,6 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		time.Sleep(100 * time.Millisecond)
 	}
 	return nil, err
-}
-
-// WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp
-// If refresh timestamp is not present, will use current timestamp at time of call
-func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
-	var cancel context.CancelFunc
-	if timeout != nil {
-		ctx, cancel = context.WithTimeout(ctx, *timeout)
-		defer cancel()
-	}
-	ch := kube.WatchWithRetry(ctx, func() (i watch.Interface, e error) {
-		fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
-		listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-		return appIf.Watch(ctx, listOpts)
-	})
-	for next := range ch {
-		if next.Error != nil {
-			return nil, next.Error
-		}
-		app, ok := next.Object.(*argoappv1.Application)
-		if !ok {
-			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
-		}
-		annotations := app.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		if _, ok := annotations[argoappv1.AnnotationKeyRefresh]; !ok {
-			return app, nil
-		}
-	}
-	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
 func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
