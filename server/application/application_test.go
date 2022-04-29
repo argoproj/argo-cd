@@ -435,7 +435,7 @@ func TestDeleteApp(t *testing.T) {
 	appServer.appclientset = fakeAppCs
 
 	trueVar := true
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: trueVar}})
 	assert.Nil(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
@@ -444,7 +444,7 @@ func TestDeleteApp(t *testing.T) {
 	falseVar := false
 	patched = false
 	deleted = false
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{falseVar}})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: falseVar}})
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
@@ -458,7 +458,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy, XCascade: &application.ApplicationDeleteRequest_Cascade{true}})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: true}})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
@@ -467,7 +467,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with cascade disabled and background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{falseVar}, PropagationPolicy: policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: falseVar}, PropagationPolicy: policy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = cannot set propagation policy when cascading is disabled")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -476,7 +476,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with invalid propagation policy", func(t *testing.T) {
 		invalidPolicy := "invalid"
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}, PropagationPolicy: invalidPolicy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: trueVar}, PropagationPolicy: invalidPolicy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = invalid propagation policy: invalid")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -485,7 +485,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
 		policy := foregroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}, PropagationPolicy: policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{Cascade: trueVar}, PropagationPolicy: policy})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
