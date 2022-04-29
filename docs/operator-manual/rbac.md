@@ -9,7 +9,7 @@ Once SSO or local users are configured, additional RBAC roles can be defined, an
 
 Argo CD has two pre-defined roles but RBAC configuration allows defining roles and groups (see below).
 
-* `role:readonly` - read-only access to all resources
+* `role:readonly` - read-only access to all resources (except the [`exec` resource](#exec-resource))
 * `role:admin` - unrestricted access to all resources
 
 These default built-in role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
@@ -31,6 +31,18 @@ Breaking down the permissions definition differs slightly between applications a
 Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
 
 Actions: `get`, `create`, `update`, `delete`, `sync`, `override`, `action`
+
+#### `exec` resource
+
+`exec` is a special resource. When enabled with the `get` action, this privilege allows a user to `exec` into Pods via 
+the Argo CD UI. The functionality is similar to `kubectl exec`.
+
+`exec` is a powerful privilege. It allows the user to run arbitrary code on any Pod managed by an Application for which
+they have `get` privileges. If the Pod mounts a ServiceAccount token (which is the default behavior of Kubernetes),
+then the user effectively has the same privileges as that ServiceAccount.
+
+The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
+ConfigMap.
 
 ## Tying It All Together
 

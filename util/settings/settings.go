@@ -97,6 +97,8 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// ExecEnabled indicates whether the UI exec feature is enabled
+	ExecEnabled bool `json:"execEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -402,6 +404,8 @@ const (
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
+	// execEnabledKey is the key to configure whether the UI exec feature is enabled
+	execEnabledKey = "exec.enabled"
 )
 
 var (
@@ -1266,6 +1270,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		settings.PasswordPattern = common.PasswordPatten
 	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
+	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid

@@ -3707,6 +3707,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "execEnabled": {
+          "type": "boolean"
+        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
