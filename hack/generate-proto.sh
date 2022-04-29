@@ -14,7 +14,10 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 
 # output tool versions
 protoc --version
-jq --version
+protoc-gen-openapiv2 --version
+buf --version
+protoc-gen-gogo --version
+protoc-gen-go-grpc --version
 
 export GO111MODULE=off
 
@@ -56,3 +59,6 @@ go-to-protobuf \
     --proto-import=${protoc_include}
 
 [ -e ./v2 ] && rm -rf v2
+
+cd pkg && buf mod update && buf generate
+cd .. && mv assets/doc.swagger.json assets/swagger.json

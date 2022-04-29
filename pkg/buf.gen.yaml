@@ -22,5 +22,9 @@ plugins:
     opt:
      - paths=source_relative
      - logtostderr=true
-    # - name: swagger
-    # out: ./assets
+  - name: openapiv2
+    out: ../assets
+    strategy: all
+    opt:
+     - merge_file_name=doc
+     - allow_merge=true
