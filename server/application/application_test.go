@@ -29,11 +29,11 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repoclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository/mocks"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/assets"
@@ -63,23 +63,23 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-func fakeAppList() *apiclient.AppList {
-	return &apiclient.AppList{
+func fakeAppList() *repoclient.AppList {
+	return &repoclient.AppList{
 		Apps: map[string]string{
 			"some/path": "Ksonnet",
 		},
 	}
 }
 
-func fakeResolveRevesionResponse() *apiclient.ResolveRevisionResponse {
-	return &apiclient.ResolveRevisionResponse{
+func fakeResolveRevesionResponse() *repoclient.ResolveRevisionResponse {
+	return &repoclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
 		AmbiguousRevision: "HEAD (f9ba9e98119bf8c1176fbd65dbae26a71d044add)",
 	}
 }
 
-func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
-	return &apiclient.ResolveRevisionResponse{
+func fakeResolveRevesionResponseHelm() *repoclient.ResolveRevisionResponse {
+	return &repoclient.ResolveRevisionResponse{
 		Revision:          "0.7.*",
 		AmbiguousRevision: "0.7.* (0.7.2)",
 	}
@@ -88,9 +88,9 @@ func fakeResolveRevesionResponseHelm() *apiclient.ResolveRevisionResponse {
 func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient := mocks.RepoServerServiceClient{}
 	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repoclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&repoclient.RepoAppDetailsResponse{}, nil)
+	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&repoclient.TestRepositoryResponse{}, nil)
 
 	if isHelm {
 		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevesionResponseHelm(), nil)
@@ -435,7 +435,7 @@ func TestDeleteApp(t *testing.T) {
 	appServer.appclientset = fakeAppCs
 
 	trueVar := true
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}})
 	assert.Nil(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
@@ -444,7 +444,7 @@ func TestDeleteApp(t *testing.T) {
 	falseVar := false
 	patched = false
 	deleted = false
-	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: falseVar})
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{falseVar}})
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
@@ -458,7 +458,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy, Cascade: true})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, PropagationPolicy: policy, XCascade: &application.ApplicationDeleteRequest_Cascade{true}})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
@@ -467,7 +467,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with cascade disabled and background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: falseVar, PropagationPolicy: policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{falseVar}, PropagationPolicy: policy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = cannot set propagation policy when cascading is disabled")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -476,7 +476,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with invalid propagation policy", func(t *testing.T) {
 		invalidPolicy := "invalid"
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar, PropagationPolicy: invalidPolicy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}, PropagationPolicy: invalidPolicy})
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = invalid propagation policy: invalid")
 		assert.False(t, patched)
 		assert.False(t, deleted)
@@ -485,7 +485,7 @@ func TestDeleteApp(t *testing.T) {
 
 	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
 		policy := foregroundPropagationPolicy
-		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, Cascade: trueVar, PropagationPolicy: policy})
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: app.Name, XCascade: &application.ApplicationDeleteRequest_Cascade{trueVar}, PropagationPolicy: policy})
 		assert.Nil(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
@@ -946,12 +946,12 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	testApp.ObjectMeta.ResourceVersion = "1"
 	appServer := newTestAppServer(testApp)
 
-	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
+	var getAppDetailsQuery *repoclient.RepoServerAppDetailsQuery
 	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *repoclient.RepoServerAppDetailsQuery) bool {
 		getAppDetailsQuery = q
 		return true
-	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	})).Return(&repoclient.RepoAppDetailsResponse{}, nil)
 	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
 
 	var patched int32

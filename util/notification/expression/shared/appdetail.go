@@ -3,7 +3,7 @@ package shared
 import (
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 )
 
 type CommitMetadata struct {
@@ -23,12 +23,12 @@ type AppDetail struct {
 	// Helm details
 	Helm *CustomHelmAppSpec
 	// Kustomize details
-	Kustomize *apiclient.KustomizeAppSpec
+	Kustomize *repository.KustomizeAppSpec
 	// Directory details
-	Directory *apiclient.DirectoryAppSpec
+	Directory *repository.DirectoryAppSpec
 }
 
-type CustomHelmAppSpec apiclient.HelmAppSpec
+type CustomHelmAppSpec repository.HelmAppSpec
 
 func (has CustomHelmAppSpec) GetParameterValueByName(Name string) string {
 	var value string

@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/controller/testdata"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
 )
@@ -34,7 +34,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -71,7 +71,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -124,7 +124,7 @@ func TestSyncComparisonError(t *testing.T) {
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests:    []string{},
 			Namespace:    test.FakeDestNamespace,
 			Server:       test.FakeClusterURL,
@@ -171,7 +171,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}
 		data := fakeData{
 			apps: []runtime.Object{app, project},
-			manifestResponse: &apiclient.ManifestResponse{
+			manifestResponse: &repository.ManifestResponse{
 				Manifests: []string{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,

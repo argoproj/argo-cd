@@ -14,11 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -32,7 +32,7 @@ import (
 // Server provides a Repository service
 type Server struct {
 	db            db.ArgoDB
-	repoClientset apiclient.Clientset
+	repoClientset repository.Clientset
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
 	appLister     applisters.ApplicationNamespaceLister
@@ -42,7 +42,7 @@ type Server struct {
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
@@ -204,7 +204,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
-func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
+func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*repository.Refs, error) {
 	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 	}
 	defer io.Close(conn)
 
-	return repoClient.ListRefs(ctx, &apiclient.ListRefsRequest{
+	return repoClient.ListRefs(ctx, &repository.ListRefsRequest{
 		Repo: repo,
 	})
 }
@@ -258,7 +258,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	}
 	defer io.Close(conn)
 
-	apps, err := repoClient.ListApps(ctx, &apiclient.ListAppsRequest{
+	apps, err := repoClient.ListApps(ctx, &repository.ListAppsRequest{
 		Repo:     repo,
 		Revision: q.Revision,
 	})
@@ -275,7 +275,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 // GetAppDetails shows parameter values to various config tools (e.g. helm/kustomize values)
 // This is used by UI for parameter form fields during app create & edit pages.
 // It is also used when showing history of parameters used in previous syncs in the app history.
-func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
+func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDetailsQuery) (*repository.RepoAppDetailsResponse, error) {
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
@@ -336,7 +336,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+	return repoClient.GetAppDetails(ctx, &repository.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
@@ -347,7 +347,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 }
 
 // GetHelmCharts returns list of helm charts in the specified repository
-func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
+func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*repository.HelmChartsResponse, error) {
 	repo, err := s.getRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
@@ -360,7 +360,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 		return nil, err
 	}
 	defer io.Close(conn)
-	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
+	return repoClient.GetHelmCharts(ctx, &repository.HelmChartsRequest{Repo: repo})
 }
 
 // Create creates a repository or repository credential set
@@ -532,7 +532,7 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 	}
 	defer io.Close(conn)
 
-	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+	_, err = repoClient.TestRepository(ctx, &repository.TestRepositoryRequest{
 		Repo: repo,
 	})
 	return err

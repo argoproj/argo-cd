@@ -1,0 +1,26 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/argoproj/argo-cd/v2/pkg
+    except:
+     - buf.build/googleapis/googleapis
+     - buf.build/evalsocket/k8s
+     - buf.build/gogo/protobuf
+plugins:
+  - name: gogofast
+    out: ./
+    opt: 
+     - paths=source_relative
+  - name: go-grpc
+    out: ./
+    opt: 
+     - paths=source_relative
+     - require_unimplemented_servers=false
+  - name: grpc-gateway
+    out: ./
+    opt:
+     - paths=source_relative
+     - logtostderr=true
+    # - name: swagger
+    # out: ./assets

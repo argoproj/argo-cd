@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package apiclient.reposerver.repository;
+
+import "apis/application/v1alpha1/generated.proto";
+
+// ManifestRequest is a query for manifest generation.
+message ManifestRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+  // revision, potentially un-resolved
+  string revision = 2;
+  bool noCache = 3;
+  string appLabelKey = 4;
+  // Name of the application for which the request is triggered
+  string appName = 5;
+  string namespace = 8;
+  apis.application.v1alpha1.ApplicationSource applicationSource = 10;
+  repeated apis.application.v1alpha1.Repository repos = 11;
+  repeated apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
+  apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
+  string kubeVersion = 14;
+  repeated string apiVersions = 15;
+  // Request to verify the signature when generating the manifests (only for Git repositories)
+  bool verifySignature = 16;
+  repeated apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
+  bool noRevisionCache = 18;
+  string trackingMethod = 19;
+  map<string, bool> enabledSourceTypes = 20;
+  apis.application.v1alpha1.HelmOptions helmOptions = 21;
+}
+
+// TestRepositoryRequest is a query to test repository is valid or not and has valid access.
+message TestRepositoryRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+}
+
+// TestRepositoryResponse represents the TestRepository response
+message TestRepositoryResponse {
+  // Request to verify the signature when generating the manifests (only for Git repositories)
+  bool verifiedRepository = 1;
+}
+
+// ResolveRevisionRequest
+message ResolveRevisionRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+  apis.application.v1alpha1.Application app = 2;
+  string ambiguousRevision = 3;
+}
+
+// ResolveRevisionResponse
+message ResolveRevisionResponse {
+  // returns the resolved revision
+  string revision = 1;
+  string ambiguousRevision = 2;
+}
+
+message ManifestResponse {
+  repeated string manifests = 1;
+  string namespace = 2;
+  string server = 3;
+  // resolved revision
+  string revision = 4;
+  string sourceType = 6;
+  // Raw response of git verify-commit operation (always the empty string for Helm)
+  string verifyResult = 7;
+}
+
+message ListRefsRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+}
+
+// A subset of the repository's named refs
+message Refs {
+  repeated string branches = 1;
+  repeated string tags = 2;
+}
+
+// ListAppsRequest requests a repository directory structure
+message ListAppsRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+  string revision = 2;
+  map<string, bool> enabledSourceTypes = 3;
+}
+
+// AppList returns the contents of the repo of a ListApps request
+message AppList {
+  map<string, string> apps = 1;
+}
+
+// RepoServerAppDetailsQuery contains query information for app details request
+message RepoServerAppDetailsQuery {
+  apis.application.v1alpha1.Repository repo = 1;
+  apis.application.v1alpha1.ApplicationSource source = 2;
+  repeated apis.application.v1alpha1.Repository repos = 3;
+  apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 4;
+  string appName = 5;
+  bool noCache = 6;
+  bool noRevisionCache = 7;
+  string trackingMethod = 8;
+  map<string, bool> enabledSourceTypes = 9;
+  apis.application.v1alpha1.HelmOptions helmOptions = 10;
+}
+
+// RepoAppDetailsResponse application details
+message RepoAppDetailsResponse {
+  string type = 1;
+  HelmAppSpec helm = 3;
+  KustomizeAppSpec kustomize = 4;
+  DirectoryAppSpec directory = 5;
+}
+
+message RepoServerRevisionMetadataRequest {
+  // the repo
+  apis.application.v1alpha1.Repository repo = 1;
+  // the revision within the repo
+  string revision = 2;
+  // whether to check signature on revision
+  bool checkSignature = 3;
+}
+
+// HelmAppSpec contains helm app name  in source repo
+message HelmAppSpec {
+  string name = 1;
+  repeated string valueFiles = 3;
+  // the output of `helm inspect values`
+  repeated apis.application.v1alpha1.HelmParameter parameters = 4;
+  // the contents of values.yaml
+  string values = 5;
+  // helm file parameters
+  repeated apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
+}
+
+// KustomizeAppSpec contains kustomize images
+message KustomizeAppSpec {
+  // images is a list of available images.
+  repeated string images = 3;
+}
+
+// DirectoryAppSpec contains directory
+message DirectoryAppSpec {}
+
+message HelmChartsRequest {
+  apis.application.v1alpha1.Repository repo = 1;
+}
+
+message HelmChart {
+  string name = 1;
+  repeated string versions = 2;
+}
+
+message HelmChartsResponse {
+  repeated HelmChart items = 1;
+}
+
+// ManifestService
+service RepoServerService {
+  // GenerateManifest generates manifest for application in specified repo name and revision
+  rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {}
+
+  // Returns a bool val if the repository is valid and has proper access
+  rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {}
+
+  // Returns a valid revision
+  rpc ResolveRevision(ResolveRevisionRequest) returns (ResolveRevisionResponse) {}
+
+  // Returns a list of refs (e.g. branches and tags) in the repo
+  rpc ListRefs(ListRefsRequest) returns (Refs) {}
+
+  // ListApps returns a list of apps in the repo
+  rpc ListApps(ListAppsRequest) returns (AppList) {}
+
+  // Generate manifest for application in specified repo name and revision
+  rpc GetAppDetails(RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {}
+
+  // Get the meta-data (author, date, tags, message) for a specific revision of the repo
+  rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (apis.application.v1alpha1.RevisionMetadata) {}
+
+  // GetHelmCharts returns list of helm charts in the specified repository
+  rpc GetHelmCharts(HelmChartsRequest) returns (HelmChartsResponse) {}
+}

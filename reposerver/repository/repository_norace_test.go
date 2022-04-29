@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 func TestHelmDependencyWithConcurrency(t *testing.T) {
@@ -33,7 +33,7 @@ func TestHelmDependencyWithConcurrency(t *testing.T) {
 	wg.Add(3)
 	for i := 0; i < 3; i++ {
 		go func() {
-			res, err := helmTemplate("../../util/helm/testdata/dependency", "../..", nil, &apiclient.ManifestRequest{
+			res, err := helmTemplate("../../util/helm/testdata/dependency", "../..", nil, &repository.ManifestRequest{
 				ApplicationSource: &argoappv1.ApplicationSource{},
 				Repos:             []*argoappv1.Repository{&helmRepo},
 			}, false)

@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	repoclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
@@ -77,8 +77,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
-		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
-		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.MaxRecvMsgSize(repoclient.MaxGRPCMessageSize),
+		grpc.MaxSendMsgSize(repoclient.MaxGRPCMessageSize),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be
@@ -108,7 +108,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
+	repoclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)

@@ -15,8 +15,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	pluginclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	pluginclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io/files"

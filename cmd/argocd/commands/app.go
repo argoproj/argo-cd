@@ -38,10 +38,10 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repoapiclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
@@ -158,7 +158,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				appCreateRequest := applicationpkg.ApplicationCreateRequest{
 					Application: app,
 					Upsert:      upsert,
-					Validate:    appOpts.Validate,
+					XValidate:   &applicationpkg.ApplicationCreateRequest_Validate{appOpts.Validate},
 				}
 				created, err := appIf.Create(context.Background(), &appCreateRequest)
 				errors.CheckError(err)
@@ -556,9 +556,9 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     app.Name,
-				Spec:     &app.Spec,
-				Validate: appOpts.Validate,
+				Name:      app.Name,
+				Spec:      &app.Spec,
+				XValidate: &applicationpkg.ApplicationUpdateSpecRequest_Validate{appOpts.Validate},
 			})
 			errors.CheckError(err)
 		},
@@ -619,9 +619,9 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     app.Name,
-				Spec:     &app.Spec,
-				Validate: appOpts.Validate,
+				Name:      app.Name,
+				Spec:      &app.Spec,
+				XValidate: &applicationpkg.ApplicationUpdateSpecRequest_Validate{appOpts.Validate},
 			})
 			errors.CheckError(err)
 		},
@@ -1036,7 +1036,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Name: appName,
 				}
 				if c.Flag("cascade").Changed {
-					appDeleteReq.Cascade = cascade
+					appDeleteReq.XCascade = &applicationpkg.ApplicationDeleteRequest_Cascade{cascade}
 				}
 				if c.Flag("propagation-policy").Changed {
 					appDeleteReq.PropagationPolicy = propagationPolicy
@@ -2102,7 +2102,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				var appOpts cmdutil.AppOptions
 				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: app.Name, Spec: &updatedSpec, Validate: appOpts.Validate})
+				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: app.Name, Spec: &updatedSpec, XValidate: &applicationpkg.ApplicationUpdateSpecRequest_Validate{appOpts.Validate}})
 				if err != nil {
 					return fmt.Errorf("Failed to update application spec:\n%v", err)
 				}

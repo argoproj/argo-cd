@@ -21,10 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -153,7 +153,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient repository.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
@@ -162,7 +162,7 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
 
-	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+	_, err := repoClient.TestRepository(ctx, &repository.TestRepositoryRequest{
 		Repo: repo,
 	})
 
@@ -176,7 +176,7 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 func ValidateRepo(
 	ctx context.Context,
 	app *argoappv1.Application,
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	db db.ArgoDB,
 	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
@@ -452,7 +452,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, app *argoappv1.Application, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, app *argoappv1.Application, repoClient repository.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" {
@@ -462,7 +462,7 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		})
 	}
 
-	req := apiclient.ManifestRequest{
+	req := repository.ManifestRequest{
 		Repo: &argoappv1.Repository{
 			Repo:  spec.Source.RepoURL,
 			Type:  repoRes.Type,

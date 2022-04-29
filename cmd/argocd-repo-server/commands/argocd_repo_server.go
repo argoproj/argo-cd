@@ -16,8 +16,8 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
+	repoclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/reposerver"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
@@ -116,7 +116,7 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
+					conn, err := repoclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &repoclient.TLSConfiguration{DisableTLS: disableTLS})
 					if err != nil {
 						return err
 					}

@@ -39,12 +39,12 @@ import (
 
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -104,7 +104,7 @@ type ApplicationController struct {
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
 	selfHealTimeout               time.Duration
-	repoClientset                 apiclient.Clientset
+	repoClientset                 repository.Clientset
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -121,7 +121,7 @@ func NewApplicationController(
 	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,

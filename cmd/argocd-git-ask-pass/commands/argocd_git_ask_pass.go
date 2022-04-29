@@ -12,7 +12,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
+	askpassclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/askpass"
+	askpass "github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -39,9 +40,9 @@ func NewCommand() *cobra.Command {
 			conn, err := grpc_util.BlockingDial(context.Background(), "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer io.Close(conn)
-			client := askpass.NewAskPassServiceClient(conn)
+			client := askpassclient.NewAskPassServiceClient(conn)
 
-			creds, err := client.GetCredentials(context.Background(), &askpass.CredentialsRequest{Nonce: nonce})
+			creds, err := client.GetCredentials(context.Background(), &askpassclient.CredentialsRequest{Nonce: nonce})
 			errors.CheckError(err)
 			switch {
 			case strings.HasPrefix(os.Args[1], "Username"):

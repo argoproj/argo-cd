@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -21,19 +22,19 @@ const (
 
 // Clientset represents config management plugin server api clients
 type Clientset interface {
-	NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error)
+	NewConfigManagementPluginClient() (io.Closer, plugin.ConfigManagementPluginServiceClient, error)
 }
 
 type clientSet struct {
 	address string
 }
 
-func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
+func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, plugin.ConfigManagementPluginServiceClient, error) {
 	conn, err := NewConnection(c.address)
 	if err != nil {
 		return nil, nil, err
 	}
-	return conn, NewConfigManagementPluginServiceClient(conn), nil
+	return conn, plugin.NewConfigManagementPluginServiceClient(conn), nil
 }
 
 func NewConnection(address string) (*grpc.ClientConn, error) {

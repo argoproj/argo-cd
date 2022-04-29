@@ -1,0 +1,12 @@
+version: v1
+name: buf.build/argoproj/argo-cd
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/evalsocket/k8s
+  - buf.build/gogo/protobuf
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE

@@ -10,8 +10,9 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	plugin "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
+	pluginclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -98,7 +99,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string) (io.Clos
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
 			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
-			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
+			cmpclientset := plugin.NewConfigManagementPluginClientSet(address)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
 			if err != nil {

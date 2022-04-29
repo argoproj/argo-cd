@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	pluginclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
+
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -94,7 +96,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plugin service: %s", err)
 	}
-	apiclient.RegisterConfigManagementPluginServiceServer(server, pluginService)
+	pluginclient.RegisterConfigManagementPluginServiceServer(server, pluginService)
 
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)

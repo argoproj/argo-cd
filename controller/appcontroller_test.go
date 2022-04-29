@@ -31,11 +31,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -49,7 +49,7 @@ type namespacedResource struct {
 
 type fakeData struct {
 	apps                   []runtime.Object
-	manifestResponse       *apiclient.ManifestResponse
+	manifestResponse       *repository.ManifestResponse
 	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources    map[kube.ResourceKey]namespacedResource
 	configMapData          map[string]string
@@ -697,7 +697,7 @@ func TestNormalizeApplication(t *testing.T) {
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -1002,7 +1002,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -1187,7 +1187,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -1220,7 +1220,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
@@ -1247,7 +1247,7 @@ func TestGetAppHosts(t *testing.T) {
 	app := newFakeApp()
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
+		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,

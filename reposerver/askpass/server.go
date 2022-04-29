@@ -11,13 +11,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type Server interface {
 	git.CredsStore
-	AskPassServiceServer
+	askpass.AskPassServiceServer
 	Run(path string) error
 }
 
@@ -33,7 +34,7 @@ func NewServer() *server {
 	}
 }
 
-func (s *server) GetCredentials(_ context.Context, q *CredentialsRequest) (*CredentialsResponse, error) {
+func (s *server) GetCredentials(_ context.Context, q *askpass.CredentialsRequest) (*askpass.CredentialsResponse, error) {
 	if q.Nonce == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "missing nonce")
 	}
@@ -41,7 +42,7 @@ func (s *server) GetCredentials(_ context.Context, q *CredentialsRequest) (*Cred
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "unknown nonce")
 	}
-	return &CredentialsResponse{Username: creds.Username, Password: creds.Password}, nil
+	return &askpass.CredentialsResponse{Username: creds.Username, Password: creds.Password}, nil
 }
 
 func (s *server) Start(path string) (io.Closer, error) {
@@ -51,7 +52,7 @@ func (s *server) Start(path string) (io.Closer, error) {
 		return nil, err
 	}
 	server := grpc.NewServer()
-	RegisterAskPassServiceServer(server, s)
+	askpass.RegisterAskPassServiceServer(server, s)
 	go func() {
 		_ = server.Serve(listener)
 	}()

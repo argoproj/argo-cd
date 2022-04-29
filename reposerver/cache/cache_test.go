@@ -10,9 +10,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 )
 
@@ -71,12 +71,12 @@ func TestCache_ListApps(t *testing.T) {
 func TestCache_GetManifests(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	q := &apiclient.ManifestRequest{}
+	q := &repository.ManifestRequest{}
 	value := &CachedManifestResponse{}
 	err := cache.GetManifests("my-revision", &ApplicationSource{}, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	res := &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}
+	res := &CachedManifestResponse{ManifestResponse: &repository.ManifestResponse{SourceType: "my-source-type"}}
 	err = cache.SetManifests("my-revision", &ApplicationSource{}, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res)
 	assert.NoError(t, err)
 	// cache miss
@@ -97,16 +97,16 @@ func TestCache_GetManifests(t *testing.T) {
 	// cache hit
 	err = cache.GetManifests("my-revision", &ApplicationSource{}, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value)
 	assert.NoError(t, err)
-	assert.Equal(t, &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}, value)
+	assert.Equal(t, &CachedManifestResponse{ManifestResponse: &repository.ManifestResponse{SourceType: "my-source-type"}}, value)
 }
 
 func TestCache_GetAppDetails(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	value := &apiclient.RepoAppDetailsResponse{}
+	value := &repository.RepoAppDetailsResponse{}
 	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, value, "")
 	assert.Equal(t, ErrCacheMiss, err)
-	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
+	res := &repository.RepoAppDetailsResponse{Type: "my-type"}
 	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, res, "")
 	assert.NoError(t, err)
 	//cache miss
@@ -118,7 +118,7 @@ func TestCache_GetAppDetails(t *testing.T) {
 	// cache hit
 	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, value, "")
 	assert.NoError(t, err)
-	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
+	assert.Equal(t, &repository.RepoAppDetailsResponse{Type: "my-type"}, value)
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
@@ -137,7 +137,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		1*time.Minute,
 	)
 
-	response := apiclient.ManifestResponse{
+	response := repository.ManifestResponse{
 		Namespace: "default",
 		Revision:  "revision",
 		Manifests: []string{"sample-text"},
@@ -154,7 +154,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		NumberOfCachedResponsesReturned: 0,
 		NumberOfConsecutiveFailures:     0,
 	}
-	err := repoCache.SetManifests(response.Revision, appSrc, &apiclient.ManifestRequest{}, response.Namespace, "", appKey, appValue, store)
+	err := repoCache.SetManifests(response.Revision, appSrc, &repository.ManifestRequest{}, response.Namespace, "", appKey, appValue, store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using 'GetManifests' and confirm it works
 	retrievedVal := &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, &apiclient.ManifestRequest{}, response.Namespace, "", appKey, appValue, retrievedVal)
+	err = repoCache.GetManifests(response.Revision, appSrc, &repository.ManifestRequest{}, response.Namespace, "", appKey, appValue, retrievedVal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Retrieve the value using GetManifests and confirm it returns a cache miss
 	retrievedVal = &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, &apiclient.ManifestRequest{}, response.Namespace, "", appKey, appValue, retrievedVal)
+	err = repoCache.GetManifests(response.Revision, appSrc, &repository.ManifestRequest{}, response.Namespace, "", appKey, appValue, retrievedVal)
 
 	assert.True(t, err == cacheutil.ErrCacheMiss)
 
@@ -242,7 +242,7 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 	pre := &CachedManifestResponse{
 		CacheEntryHash:        "value",
 		FirstFailureTimestamp: 1,
-		ManifestResponse: &apiclient.ManifestResponse{
+		ManifestResponse: &repository.ManifestResponse{
 			Manifests: []string{"one", "two"},
 		},
 		MostRecentError:                 "error",
@@ -256,7 +256,7 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 	unequal := &CachedManifestResponse{
 		CacheEntryHash:        "diff-value",
 		FirstFailureTimestamp: 1,
-		ManifestResponse: &apiclient.ManifestResponse{
+		ManifestResponse: &repository.ManifestResponse{
 			Manifests: []string{"one", "two"},
 		},
 		MostRecentError:                 "error",

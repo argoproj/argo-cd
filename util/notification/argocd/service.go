@@ -10,8 +10,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -28,7 +28,7 @@ type Service interface {
 func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoServerAddress string, disableTLS bool, strictValidation bool) (*argoCDService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	settingsMgr := settings.NewSettingsManager(ctx, clientset, namespace)
-	tlsConfig := apiclient.TLSConfiguration{
+	tlsConfig := repository.TLSConfiguration{
 		DisableTLS:       disableTLS,
 		StrictValidation: strictValidation,
 	}
@@ -43,7 +43,7 @@ func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoServ
 		}
 		tlsConfig.Certificates = pool
 	}
-	repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, 5, tlsConfig)
+	repoClientset := repository.NewRepoServerClientset(repoServerAddress, 5, tlsConfig)
 	closer, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
 		cancel()
@@ -63,7 +63,7 @@ type argoCDService struct {
 	clientset        kubernetes.Interface
 	namespace        string
 	settingsMgr      *settings.SettingsManager
-	repoServerClient apiclient.RepoServerServiceClient
+	repoServerClient repository.RepoServerServiceClient
 	dispose          func()
 }
 
@@ -73,7 +73,7 @@ func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string,
 	if err != nil {
 		return nil, err
 	}
-	metadata, err := svc.repoServerClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
+	metadata, err := svc.repoServerClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{
 		Repo:     repo,
 		Revision: commitSHA,
 	})
@@ -114,7 +114,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1
 	if err != nil {
 		return nil, err
 	}
-	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &repository.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,

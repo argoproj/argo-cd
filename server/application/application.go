@@ -37,11 +37,11 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	apputil "github.com/argoproj/argo-cd/v2/util/app"
@@ -78,7 +78,7 @@ type Server struct {
 	appLister      applisters.ApplicationNamespaceLister
 	appInformer    cache.SharedIndexInformer
 	appBroadcaster *broadcasterHandler
-	repoClientset  apiclient.Clientset
+	repoClientset  repository.Clientset
 	kubectl        kube.Kubectl
 	db             db.ArgoDB
 	enf            *rbac.Enforcer
@@ -96,7 +96,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationNamespaceLister,
 	appInformer cache.SharedIndexInformer,
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
@@ -183,7 +183,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	defer s.projectLock.RUnlock(q.Application.Spec.Project)
 
 	a := q.GetApplication()
-	err := s.validateAndNormalizeApp(ctx, a, q.Validate)
+	validate := true
+	if q.GetXValidate() != nil {
+		validate = q.GetValidate()
+	}
+	err := s.validateAndNormalizeApp(ctx, a, validate)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +227,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 }
 
 func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, action func(
-	client apiclient.RepoServerServiceClient,
+	client repository.RepoServerServiceClient,
 	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*v1alpha1.RepoCreds,
@@ -286,7 +290,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 }
 
 // GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
+func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*repository.ManifestResponse, error) {
 	a, err := s.appLister.Get(q.Name)
 	if err != nil {
 		return nil, err
@@ -295,9 +299,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	var manifestInfo *apiclient.ManifestResponse
+	var manifestInfo *repository.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
+		client repository.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
 		revision := a.Spec.Source.TargetRevision
 		if q.GetRevision() != "" {
 			revision = q.GetRevision()
@@ -326,7 +330,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return err
 		}
 
-		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
+		manifestInfo, err = client.GenerateManifest(ctx, &repository.ManifestRequest{
 			Repo:               repo,
 			Revision:           revision,
 			AppLabelKey:        appInstanceLabelKey,
@@ -412,7 +416,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	if refreshType == appv1.RefreshTypeHard {
 		// force refresh cached application details
 		if err := s.queryRepoServer(ctx, a, func(
-			client apiclient.RepoServerServiceClient,
+			client repository.RepoServerServiceClient,
 			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
@@ -420,7 +424,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
-			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+			_, err := client.GetAppDetails(ctx, &repository.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &app.Spec.Source,
 				AppName:            app.Name,
@@ -622,7 +626,12 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	return s.validateAndUpdateApp(ctx, q.Application, false, q.Validate)
+	validate := true
+	if q.GetXValidate() != nil {
+		validate = q.GetValidate()
+	}
+
+	return s.validateAndUpdateApp(ctx, q.Application, false, validate)
 }
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
@@ -638,7 +647,11 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 	a.Spec = *q.GetSpec()
-	a, err = s.validateAndUpdateApp(ctx, a, false, q.Validate)
+	validate := true
+	if q.GetXValidate() != nil {
+		validate = q.GetValidate()
+	}
+	a, err = s.validateAndUpdateApp(ctx, a, false, validate)
 	if err != nil {
 		return nil, err
 	}
@@ -705,12 +718,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	if !q.Cascade && q.GetPropagationPolicy() != "" {
+	if q.GetXCascade() != nil && !q.GetCascade() && q.GetPropagationPolicy() != "" {
 		return nil, status.Error(codes.InvalidArgument, "cannot set propagation policy when cascading is disabled")
 	}
 
 	patchFinalizer := false
-	if q.Cascade {
+	if q.GetXCascade() == nil || q.GetCascade() {
 		// validate the propgation policy
 		policyFinalizer := getPropagationPolicyFinalizer(q.GetPropagationPolicy())
 		if policyFinalizer == "" {
@@ -1139,7 +1152,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 	defer ioutil.Close(conn)
-	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
+	return repoClient.GetRevisionMetadata(ctx, &repository.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
 		Revision:       q.GetRevision(),
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
@@ -1592,7 +1605,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		}
 	}
 
-	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &repository.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,

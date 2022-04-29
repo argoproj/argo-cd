@@ -4,8 +4,8 @@ import (
 	"golang.org/x/net/context"
 
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -14,13 +14,13 @@ import (
 // Server provides a Certificate service
 type Server struct {
 	db            db.ArgoDB
-	repoClientset apiclient.Clientset
+	repoClientset repository.Clientset
 	enf           *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Certificate service
 func NewServer(
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 ) *Server {

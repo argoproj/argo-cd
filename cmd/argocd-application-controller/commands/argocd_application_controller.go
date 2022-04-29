@@ -17,9 +17,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -91,7 +91,7 @@ func NewCommand() *cobra.Command {
 				resyncDuration = time.Duration(appResyncPeriod) * time.Second
 			}
 
-			tlsConfig := apiclient.TLSConfiguration{
+			tlsConfig := repository.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
 			}
@@ -109,7 +109,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
+			repoClientset := repository.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

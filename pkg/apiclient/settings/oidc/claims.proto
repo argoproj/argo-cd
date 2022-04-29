@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package apiclient.settings.oidc;
+
+message Claim {
+  bool essential = 1;
+  string value = 2;
+  repeated string values = 3;
+}

@@ -16,8 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -203,11 +203,11 @@ func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, tracki
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc), trackingMethod)
 }
 
-func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *repository.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
 	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res)
 }
 
-func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
+func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, res *repository.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod) error {
 	return c.cache.SetItem(appDetailsCacheKey(revision, appSrc, trackingMethod), res, c.repoCacheExpiration, res == nil)
 }
 
@@ -266,10 +266,10 @@ type CachedManifestResponse struct {
 
 	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
 
-	CacheEntryHash                  string                      `json:"cacheEntryHash"`
-	ManifestResponse                *apiclient.ManifestResponse `json:"manifestResponse"`
-	MostRecentError                 string                      `json:"mostRecentError"`
-	FirstFailureTimestamp           int64                       `json:"firstFailureTimestamp"`
-	NumberOfConsecutiveFailures     int                         `json:"numberOfConsecutiveFailures"`
-	NumberOfCachedResponsesReturned int                         `json:"numberOfCachedResponsesReturned"`
+	CacheEntryHash                  string                       `json:"cacheEntryHash"`
+	ManifestResponse                *repository.ManifestResponse `json:"manifestResponse"`
+	MostRecentError                 string                       `json:"mostRecentError"`
+	FirstFailureTimestamp           int64                        `json:"firstFailureTimestamp"`
+	NumberOfConsecutiveFailures     int                          `json:"numberOfConsecutiveFailures"`
+	NumberOfCachedResponsesReturned int                          `json:"numberOfCachedResponsesReturned"`
 }

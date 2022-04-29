@@ -19,12 +19,12 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository/mocks"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
@@ -219,19 +219,19 @@ func TestValidateRepo(t *testing.T) {
 	helmRepos := []*argoappv1.Repository{{Repo: "sample helm repo"}}
 
 	repoClient := &mocks.RepoServerServiceClient{}
-	repoClient.On("GetAppDetails", context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	repoClient.On("GetAppDetails", context.Background(), &repository.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &app.Spec.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https", "http"}},
 		NoRevisionCache:  true,
-	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	}).Return(&repository.RepoAppDetailsResponse{}, nil)
 
 	repo.Type = "git"
-	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+	repoClient.On("TestRepository", context.Background(), &repository.TestRepositoryRequest{
 		Repo: repo,
-	}).Return(&apiclient.TestRepositoryResponse{
+	}).Return(&repository.TestRepositoryResponse{
 		VerifiedRepository: true,
 	}, nil)
 
@@ -244,9 +244,9 @@ func TestValidateRepo(t *testing.T) {
 	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
 	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
 
-	var receivedRequest *apiclient.ManifestRequest
+	var receivedRequest *repository.ManifestRequest
 
-	repoClient.On("GenerateManifest", context.Background(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+	repoClient.On("GenerateManifest", context.Background(), mock.MatchedBy(func(req *repository.ManifestRequest) bool {
 		receivedRequest = req
 		return true
 	})).Return(nil, nil)

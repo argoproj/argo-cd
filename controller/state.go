@@ -24,10 +24,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -94,7 +94,7 @@ type appStateManager struct {
 	appclientset         appclientset.Interface
 	projInformer         cache.SharedIndexInformer
 	kubectl              kubeutil.Kubectl
-	repoClientset        apiclient.Clientset
+	repoClientset        repository.Clientset
 	liveStateCache       statecache.LiveStateCache
 	cache                *appstatecache.Cache
 	namespace            string
@@ -102,7 +102,7 @@ type appStateManager struct {
 	resourceTracking     argo.ResourceTracking
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -170,7 +170,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, err
 	}
 	ts.AddCheckpoint("version_ms")
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:               repo,
 		Repos:              permittedHelmRepos,
 		Revision:           revision,
@@ -282,7 +282,7 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
 // revision.
-func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *apiclient.ManifestResponse) []appv1.ApplicationCondition {
+func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestInfo *repository.ManifestResponse) []appv1.ApplicationCondition {
 	now := metav1.Now()
 	conditions := make([]appv1.ApplicationCondition, 0)
 	// We need to have some data in the verification result to parse, otherwise there was no signature
@@ -353,7 +353,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
-	var manifestInfo *apiclient.ManifestResponse
+	var manifestInfo *repository.ManifestResponse
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
@@ -634,7 +634,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 func NewAppStateManager(
 	db db.ArgoDB,
 	appclientset appclientset.Interface,
-	repoClientset apiclient.Clientset,
+	repoClientset repository.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
 	settingsMgr *settings.SettingsManager,

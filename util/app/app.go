@@ -7,5 +7,5 @@ import (
 
 // AppRBACName formats fully qualified application name for RBAC check
 func AppRBACName(app appv1.Application) string {
-	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
+	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.GetName())
 }

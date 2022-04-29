@@ -22,7 +22,7 @@ import (
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	pluginclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/cmpserver/plugin"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
@@ -133,7 +133,7 @@ func newCmdError(args string, cause error, stderr string) *CmdError {
 }
 
 // Environ returns a list of environment variables in name=value format from a list of variables
-func environ(envVars []*apiclient.EnvEntry) []string {
+func environ(envVars []*pluginclient.EnvEntry) []string {
 	var environ []string
 	for _, item := range envVars {
 		if item != nil && item.Name != "" && item.Value != "" {
@@ -144,7 +144,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 }
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+func (s *Service) GenerateManifest(stream pluginclient.ConfigManagementPluginService_GenerateManifestServer) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 	workDir, err := files.CreateTempDir(common.GetCMPWorkDir())
@@ -179,7 +179,7 @@ func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginServic
 }
 
 // generateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
+func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*pluginclient.EnvEntry) (*pluginclient.ManifestResponse, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		log.Infof("Generating manifests with deadline %v from now", time.Until(deadline))
 	} else {
@@ -192,21 +192,21 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 	if len(config.Spec.Init.Command) > 0 {
 		_, err := runCommand(ctx, config.Spec.Init, appDir, env)
 		if err != nil {
-			return &apiclient.ManifestResponse{}, err
+			return &pluginclient.ManifestResponse{}, err
 		}
 	}
 
 	out, err := runCommand(ctx, config.Spec.Generate, appDir, env)
 	if err != nil {
-		return &apiclient.ManifestResponse{}, err
+		return &pluginclient.ManifestResponse{}, err
 	}
 
 	manifests, err := kube.SplitYAMLToString([]byte(out))
 	if err != nil {
-		return &apiclient.ManifestResponse{}, err
+		return &pluginclient.ManifestResponse{}, err
 	}
 
-	return &apiclient.ManifestResponse{
+	return &pluginclient.ManifestResponse{
 		Manifests: manifests,
 	}, err
 }
@@ -218,7 +218,7 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 //   1. If spec.Discover.FileName is provided it finds for a name match in Applications files
 //   2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
 //   3. Otherwise it runs the spec.Discover.Find.Command
-func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+func (s *Service) MatchRepository(stream pluginclient.ConfigManagementPluginService_MatchRepositoryServer) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
@@ -242,7 +242,7 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	if err != nil {
 		return fmt.Errorf("match repository error: %s", err)
 	}
-	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
+	repoResponse := &pluginclient.RepositoryResponse{IsSupported: isSupported}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
