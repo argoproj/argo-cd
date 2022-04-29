@@ -2151,7 +2151,6 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
