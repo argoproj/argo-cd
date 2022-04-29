@@ -170,7 +170,11 @@ type GenerateManifestStream interface {
 }
 
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) GenerateManifest(stream GenerateManifestStream) error {
+func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	return s.generateManifestGeneric(stream)
+}
+
+func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
@@ -244,7 +248,11 @@ type MatchRepositoryStream interface {
 //   1. If spec.Discover.FileName is provided it finds for a name match in Applications files
 //   2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
 //   3. Otherwise it runs the spec.Discover.Find.Command
-func (s *Service) MatchRepository(stream MatchRepositoryStream) error {
+func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+	return s.matchRepositoryGeneric(stream)
+}
+
+func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
@@ -321,7 +329,11 @@ type ParametersAnnouncementStream interface {
 	SendAndClose(response *apiclient.ParametersAnnouncementResponse) error
 }
 
-func (s *Service) GetParametersAnnouncement(stream ParametersAnnouncementStream) error {
+func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPluginService_GetParametersAnnouncementServer) error {
+	return s.getParametersAnnouncementGeneric(stream)
+}
+
+func (s *Service) getParametersAnnouncementGeneric(stream ParametersAnnouncementStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 

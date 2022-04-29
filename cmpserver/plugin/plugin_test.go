@@ -514,7 +514,7 @@ func TestService_GenerateManifest(t *testing.T) {
 	t.Run("successful generate", func(t *testing.T) {
 		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
-		err = service.GenerateManifest(s)
+		err = service.generateManifestGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		assert.Equal(t, []string{"{\"apiVersion\":\"v1\",\"data\":{\"foo\":\"bar\"},\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"}, s.response.Manifests)
@@ -525,7 +525,7 @@ func TestService_GenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
-		err = service.GenerateManifest(s)
+		err = service.generateManifestGeneric(s)
 		require.ErrorContains(t, err, "illegal appPath")
 		assert.Nil(t, s.response)
 	})
@@ -588,7 +588,7 @@ func TestService_MatchRepository(t *testing.T) {
 	t.Run("supported app", func(t *testing.T) {
 		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
-		err = service.MatchRepository(s)
+		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		assert.True(t, s.response.IsSupported)
@@ -597,7 +597,7 @@ func TestService_MatchRepository(t *testing.T) {
 	t.Run("unsupported app", func(t *testing.T) {
 		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
 		require.NoError(t, err)
-		err = service.MatchRepository(s)
+		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		assert.False(t, s.response.IsSupported)
@@ -661,7 +661,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	t.Run("successful response", func(t *testing.T) {
 		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
-		err = service.GetParametersAnnouncement(s)
+		err = service.getParametersAnnouncementGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		require.Len(t, s.response.ParameterAnnouncements, 1)
@@ -672,7 +672,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
-		err = service.GetParametersAnnouncement(s)
+		err = service.getParametersAnnouncementGeneric(s)
 		require.ErrorContains(t, err, "illegal appPath")
 		require.Nil(t, s.response)
 	})
