@@ -104,29 +104,24 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmDependencyBuild(t *testing.T) {
-	testCases := map[string]string{"Helm": "dependency", "Helm2": "helm2-dependency"}
 	helmRepos := []HelmRepository{{Name: "bitnami", Repo: "https://charts.bitnami.com/bitnami"}}
-	for name := range testCases {
-		t.Run(name, func(t *testing.T) {
-			chart := testCases[name]
-			clean := func() {
-				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/charts", chart))
-				_ = os.RemoveAll(fmt.Sprintf("./testdata/%s/Chart.lock", chart))
-			}
-			clean()
-			defer clean()
-			h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), helmRepos, false, "", "", false)
-			assert.NoError(t, err)
-			err = h.Init()
-			assert.NoError(t, err)
-			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-			assert.Error(t, err)
-			err = h.DependencyBuild()
-			assert.NoError(t, err)
-			_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-			assert.NoError(t, err)
-		})
+	chart := "dependency"
+	clean := func() {
+		_ = os.RemoveAll("./testdata/dependency/charts")
+		_ = os.RemoveAll("./testdata/dependency/Chart.lock")
 	}
+	clean()
+	defer clean()
+	h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), helmRepos, false, "", "", false)
+	assert.NoError(t, err)
+	err = h.Init()
+	assert.NoError(t, err)
+	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+	assert.Error(t, err)
+	err = h.DependencyBuild()
+	assert.NoError(t, err)
+	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
+	assert.NoError(t, err)
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {

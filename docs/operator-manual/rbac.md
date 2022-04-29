@@ -28,7 +28,7 @@ Breaking down the permissions definition differs slightly between applications a
 
 ### RBAC Resources and Actions
 
-Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`
+Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
 
 Actions: `get`, `create`, `update`, `delete`, `sync`, `override`, `action`
 
@@ -56,6 +56,8 @@ data:
     p, role:org-admin, repositories, create, *, allow
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
+    p, role:org-admin, logs, get, *, allow
+    p, role:org-admin, exec, get, *, allow
 
     g, your-github-org:your-team, role:org-admin
 ```
@@ -70,11 +72,13 @@ p, role:staging-db-admins, applications, get, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, override, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, sync, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, update, staging-db-admins/*, allow
+p, role:staging-db-admins, logs, get, staging-db-admins/*, allow
+p, role:staging-db-admins, exec, get, staging-db-admins/*, allow
 p, role:staging-db-admins, projects, get, staging-db-admins, allow
 g, db-admins, role:staging-db-admins
 ```
 
-This example defines a *role* called `staging-db-admins` with *seven permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
+This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `get` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
 
 ## Anonymous Access
 

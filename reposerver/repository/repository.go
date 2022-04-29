@@ -28,6 +28,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -45,6 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/app/discovery"
 	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -360,16 +362,64 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		return ok, err
 	}
 
+	tarConcluded := false
+	var promise *ManifestResponsePromise
+
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
-		res, err = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
-		return err
+		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
+		// The fist channel to send the message will resume this operation.
+		// The main purpose for using channels here is to be able to unlock
+		// the repository as soon as the lock in not required anymore. In
+		// case of CMP the repo is compressed (tgz) and sent to the cmp-server
+		// for manifest generation.
+		select {
+		case err := <-promise.errCh:
+			return err
+		case resp := <-promise.responseCh:
+			res = resp
+		case tarDone := <-promise.tarDoneCh:
+			tarConcluded = tarDone
+		}
+		return nil
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
 
+	// if the tarDoneCh message is sent it means that the manifest
+	// generation is being managed by the cmp-server. In this case
+	// we have to wait for the responseCh to send the manifest
+	// response.
+	if tarConcluded && res == nil {
+		select {
+		case resp := <-promise.responseCh:
+			res = resp
+		case err := <-promise.errCh:
+			return nil, err
+		}
+	}
+
 	return res, err
+}
+
+type ManifestResponsePromise struct {
+	responseCh <-chan *apiclient.ManifestResponse
+	tarDoneCh  <-chan bool
+	errCh      <-chan error
+}
+
+func NewManifestResponsePromise(responseCh <-chan *apiclient.ManifestResponse, tarDoneCh <-chan bool, errCh chan error) *ManifestResponsePromise {
+	return &ManifestResponsePromise{
+		responseCh: responseCh,
+		tarDoneCh:  tarDoneCh,
+		errCh:      errCh,
+	}
+}
+
+type generateManifestCh struct {
+	responseCh chan<- *apiclient.ManifestResponse
+	tarDoneCh  chan<- bool
+	errCh      chan<- error
 }
 
 // runManifestGen will be called by runRepoOperation if:
@@ -377,14 +427,33 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest) *ManifestResponsePromise {
+
+	responseCh := make(chan *apiclient.ManifestResponse)
+	tarDoneCh := make(chan bool)
+	errCh := make(chan error)
+	responsePromise := NewManifestResponsePromise(responseCh, tarDoneCh, errCh)
+
+	channels := &generateManifestCh{
+		responseCh: responseCh,
+		tarDoneCh:  tarDoneCh,
+		errCh:      errCh,
+	}
+	go s.runManifestGenAsync(ctx, repoRoot, commitSHA, cacheKey, opContextSrc, q, channels)
+	return responsePromise
+}
+
+func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
+	defer func() {
+		close(ch.errCh)
+		close(ch.responseCh)
+	}()
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore)
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, WithCMPTarDoneChannel(ch.tarDoneCh))
 	}
 	if err != nil {
-
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
 
@@ -394,7 +463,8 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
-				return nil, cacheErr
+				ch.errCh <- cacheErr
+				return
 			}
 
 			// If this is the first error we have seen, store the time (we only use the first failure, as this
@@ -409,11 +479,13 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
-				return nil, cacheErr
+				ch.errCh <- cacheErr
+				return
 			}
 
 		}
-		return nil, err
+		ch.errCh <- err
+		return
 	}
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
@@ -429,7 +501,7 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 	}
-	return manifestGenCacheEntry.ManifestResponse, nil
+	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
 
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
@@ -552,7 +624,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				Repo:      r.Repository,
-				Name:      r.Repository,
+				Name:      sanitizeRepoName(r.Repository),
 				EnableOCI: u.Scheme == "oci",
 			}
 			repos = append(repos, repo)
@@ -560,6 +632,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	return repos, nil
+}
+
+func sanitizeRepoName(repoName string) string {
+	return strings.ReplaceAll(repoName, "/", "-")
 }
 
 func repoExists(repo string, repos []*v1alpha1.Repository) bool {
@@ -766,8 +842,31 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 	return nil
 }
 
+type GenerateManifestOpt func(*generateManifestOpt)
+type generateManifestOpt struct {
+	cmpTarDoneCh chan<- bool
+}
+
+func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
+	o := &generateManifestOpt{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
+}
+
+// WithCMPTarDoneChannel defines the channel to be used to signalize when the tarball
+// generation is concluded when generating manifests with the CMP server. This is used
+// to unlock the git repo as soon as possible.
+func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarDoneCh = ch
+	}
+}
+
 // GenerateManifests generates manifests from a path
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
@@ -796,7 +895,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
-			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
+			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh)
 			if err != nil {
 				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 			}
@@ -1203,7 +1302,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
 	// detect config management plugin server (sidecar)
 	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
 	if err != nil {
@@ -1211,31 +1310,14 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	}
 	defer io.Close(conn)
 
-	config, err := cmpClient.GetPluginConfig(context.Background(), &pluginclient.ConfigRequest{})
-	if err != nil {
-		return nil, err
-	}
-	if config.LockRepo {
-		manifestGenerateLock.Lock(repoPath)
-		defer manifestGenerateLock.Unlock(repoPath)
-	} else if !config.AllowConcurrency {
-		manifestGenerateLock.Lock(appPath)
-		defer manifestGenerateLock.Unlock(appPath)
-	}
-
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
 	env, err := getPluginEnvs(envVars, q, creds)
 	if err != nil {
 		return nil, err
 	}
-
-	cmpManifests, err := cmpClient.GenerateManifest(ctx, &pluginclient.ManifestRequest{
-		AppPath:  appPath,
-		RepoPath: repoPath,
-		Env:      toEnvEntry(env),
-	})
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
 	}
 	var manifests []*unstructured.Unstructured
 	for _, manifestString := range cmpManifests.Manifests {
@@ -1248,16 +1330,23 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	return manifests, nil
 }
 
-func toEnvEntry(envVars []string) []*pluginclient.EnvEntry {
-	envEntry := make([]*pluginclient.EnvEntry, 0)
-	for _, env := range envVars {
-		pair := strings.Split(env, "=")
-		if len(pair) != 2 {
-			continue
-		}
-		envEntry = append(envEntry, &pluginclient.EnvEntry{Name: pair[0], Value: pair[1]})
+// generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
+// The cmp-server will generate the manifests. Returns a response object with the generated
+// manifests.
+func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool) (*pluginclient.ManifestResponse, error) {
+	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
+	if err != nil {
+		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
 	}
-	return envEntry
+	opts := []cmp.SenderOption{
+		cmp.WithTarDoneChan(tarDoneCh),
+	}
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
+	}
+
+	return generateManifestStream.CloseAndRecv()
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
@@ -1593,33 +1682,40 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
+	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+}
+
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	err = gitClient.Fetch(revision)
-
+	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+	err = gitClient.Fetch("")
 	if err != nil {
-		log.Infof("Failed to fetch revision %s: %v", revision, err)
-		log.Infof("Fallback to fetch default")
-		err = gitClient.Fetch("")
-		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
-		}
-		err = gitClient.Checkout(revision, submoduleEnabled)
-		if err != nil {
-			return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
-		}
-		return closer, err
+		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 	}
 
-	err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+	err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
-		return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
+		// for the given revision, try explicitly fetching it.
+		log.Infof("Failed to checkout revision %s: %v", revision, err)
+		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+
+		err = gitClient.Fetch(revision)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+		}
+
+		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+		}
 	}
 
-	return closer, err
+	return err
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

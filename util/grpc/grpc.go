@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
@@ -59,9 +60,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		}
 	}
 
-	dialer := func(address string, timeout time.Duration) (net.Conn, error) {
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
+	dialer := func(ctx context.Context, address string) (net.Conn, error) {
 
 		conn, err := (&net.Dialer{Cancel: ctx.Done()}).Dial(network, address)
 		if err != nil {
@@ -86,8 +85,8 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		opts = append(opts,
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			grpc.WithDialer(dialer),
-			grpc.WithInsecure(), // we are handling TLS, so tell grpc not to
+			grpc.WithContextDialer(dialer),
+			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 10 * time.Second}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)

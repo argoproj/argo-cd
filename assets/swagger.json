@@ -245,7 +245,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -509,7 +509,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -3147,7 +3147,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -4951,7 +4951,7 @@
         },
         "version": {
           "type": "string",
-          "title": "Version is the Helm version to use for templating (either \"2\" or \"3\")"
+          "title": "Version is the Helm version to use for templating (\"3\")"
         }
       }
     },

@@ -24,6 +24,8 @@ export interface PodLogsProps {
     page: {number: number; untilTimes: string[]};
     timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
+    containerGroups?: any[];
+    onClickContainer?: (group: any, i: number) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
@@ -42,6 +44,30 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const [viewTimestamps, setViewTimestamps] = useState(false);
     const [showPreviousLogs, setPreviousLogs] = useState(false);
 
+    const containerItems: {title: any; action: () => any}[] = [];
+    if (props.containerGroups?.length > 0) {
+        props.containerGroups.forEach(group => {
+            containerItems.push({
+                title: group.offset === 0 ? 'CONTAINER' : 'INIT CONTAINER',
+                action: null
+            });
+
+            group.containers.forEach((container: any, index: number) => {
+                const title = (
+                    <div className='d-inline-block'>
+                        <i className={`fa fa-angle-right ${container.name === props.containerName ? '' : 'invisible'}`} />
+                        <span title={container.name} className='container-item'>
+                            {container.name.toUpperCase()}
+                        </span>
+                    </div>
+                );
+                containerItems.push({
+                    title,
+                    action: () => (container.name === props.containerName ? {} : props.onClickContainer(group, index))
+                });
+            });
+        });
+    }
     interface FilterData {
         literal: string;
         inverse: boolean;
@@ -148,6 +174,18 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 <i className='fa fa-download' />
                             </button>
                         </Tooltip>
+                        {props.containerGroups?.length > 0 && (
+                            <DropDownMenu
+                                anchor={() => (
+                                    <Tooltip content='Containers'>
+                                        <button className='argo-button argo-button--base'>
+                                            <i className='fa fa-stream' />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                                items={containerItems}
+                            />
+                        )}
                         <Tooltip content='Follow'>
                             <button
                                 className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
