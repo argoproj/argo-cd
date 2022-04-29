@@ -120,9 +120,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                     <div className='row'>
                                                         <div className='columns small-11' style={{paddingRight: '1rem'}}>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
-                                                            {'simple-ingress-development-application-one'.length > 30 ? (
-                                                                <Tooltip content={'simple-ingess-development-application-one'}>
-                                                                    <span className='applications-list__title'>{'simple-ingess-development-application-one'}</span>
+                                                            {app.metadata.name.length > 30 ? (
+                                                                <Tooltip content={app.metadata.name}>
+                                                                    <span className='applications-list__title'>{app.metadata.name}</span>
                                                                 </Tooltip>
                                                             ) : (
                                                                 <span className='applications-list__title'>{app.metadata.name}</span>
