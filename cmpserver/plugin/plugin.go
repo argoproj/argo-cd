@@ -46,8 +46,7 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 	}
 }
 
-func (s *Service) Init() error {
-	workDir := common.GetCMPWorkDir()
+func (s *Service) Init(workDir string) error {
 	err := os.RemoveAll(workDir)
 	if err != nil {
 		return fmt.Errorf("error removing workdir %q: %s", workDir, err)
