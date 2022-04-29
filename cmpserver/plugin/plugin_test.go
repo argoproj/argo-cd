@@ -1,7 +1,10 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -241,7 +245,7 @@ func TestGenerateManifest(t *testing.T) {
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 
-		res1, err := service.generateManifest(context.Background(), "", nil)
+		res1, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
 		require.NoError(t, err)
 		require.NotNil(t, res1)
 
@@ -255,7 +259,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"bad-command"}})
 
-		res, err := service.generateManifest(context.Background(), "", nil)
+		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
 		assert.ErrorContains(t, err, "executable file not found")
 		assert.Nil(t, res.Manifests)
 	})
@@ -264,7 +268,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"echo", "invalid yaml: }"}})
 
-		res, err := service.generateManifest(context.Background(), "", nil)
+		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
 		assert.ErrorContains(t, err, "failed to unmarshal manifest")
 		assert.Nil(t, res.Manifests)
 	})
@@ -450,5 +454,226 @@ func TestEnviron(t *testing.T) {
 			{Name: "name2", Value: "value2"},
 		})
 		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
+	})
+}
+
+type MockGenerateManifestStream struct {
+	metadataSent bool
+	fileSent bool
+	metadataRequest *apiclient.AppStreamRequest
+	fileRequest *apiclient.AppStreamRequest
+	response *apiclient.ManifestResponse
+}
+
+func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer cmp.CloseAndDelete(tgz)
+
+	tgzBuffer := bytes.NewBuffer(nil)
+	_, err = io.Copy(tgzBuffer, tgz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy manifest targz to a byte buffer: %w", err)
+	}
+
+	return &MockGenerateManifestStream{
+		metadataRequest: mr,
+		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+	}, nil
+}
+
+func (m *MockGenerateManifestStream) SendAndClose(response *apiclient.ManifestResponse) error {
+	m.response = response
+	return nil
+}
+
+func (m *MockGenerateManifestStream) Recv() (*apiclient.AppStreamRequest, error) {
+	if !m.metadataSent {
+		m.metadataSent = true
+		return m.metadataRequest, nil
+	}
+
+	if !m.fileSent {
+		m.fileSent = true
+		return m.fileRequest, nil
+	}
+	return nil, io.EOF
+}
+
+func (m *MockGenerateManifestStream) Context() context.Context {
+	return context.Background()
+}
+
+func TestService_GenerateManifest(t *testing.T) {
+	configFilePath := "./testdata/kustomize/config"
+	service, err := newService(configFilePath)
+	require.NoError(t, err)
+
+	t.Run("successful generate", func(t *testing.T) {
+		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		err = service.GenerateManifest(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		assert.Equal(t, []string{"{\"apiVersion\":\"v1\",\"data\":{\"foo\":\"bar\"},\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"}, s.response.Manifests)
+	})
+
+	t.Run("out-of-bounds app path", func(t *testing.T) {
+		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		// set a malicious app path on the metadata
+		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
+		err = service.GenerateManifest(s)
+		require.ErrorContains(t, err, "illegal appPath")
+		assert.Nil(t, s.response)
+	})
+}
+
+type MockMatchRepositoryStream struct {
+	metadataSent bool
+	fileSent bool
+	metadataRequest *apiclient.AppStreamRequest
+	fileRequest *apiclient.AppStreamRequest
+	response *apiclient.RepositoryResponse
+}
+
+func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer cmp.CloseAndDelete(tgz)
+
+	tgzBuffer := bytes.NewBuffer(nil)
+	_, err = io.Copy(tgzBuffer, tgz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy manifest targz to a byte buffer: %w", err)
+	}
+
+	return &MockMatchRepositoryStream{
+		metadataRequest: mr,
+		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+	}, nil
+}
+
+func (m *MockMatchRepositoryStream) SendAndClose(response *apiclient.RepositoryResponse) error {
+	m.response = response
+	return nil
+}
+
+func (m *MockMatchRepositoryStream) Recv() (*apiclient.AppStreamRequest, error) {
+	if !m.metadataSent {
+		m.metadataSent = true
+		return m.metadataRequest, nil
+	}
+
+	if !m.fileSent {
+		m.fileSent = true
+		return m.fileRequest, nil
+	}
+	return nil, io.EOF
+}
+
+func (m *MockMatchRepositoryStream) Context() context.Context {
+	return context.Background()
+}
+
+func TestService_MatchRepository(t *testing.T) {
+	configFilePath := "./testdata/kustomize/config"
+	service, err := newService(configFilePath)
+	require.NoError(t, err)
+
+	t.Run("supported app", func(t *testing.T) {
+		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		err = service.MatchRepository(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		assert.True(t, s.response.IsSupported)
+	})
+
+	t.Run("unsupported app", func(t *testing.T) {
+		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
+		require.NoError(t, err)
+		err = service.MatchRepository(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		assert.False(t, s.response.IsSupported)
+	})
+}
+
+type MockParametersAnnouncementStream struct {
+	metadataSent bool
+	fileSent bool
+	metadataRequest *apiclient.AppStreamRequest
+	fileRequest *apiclient.AppStreamRequest
+	response *apiclient.ParametersAnnouncementResponse
+}
+
+func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer cmp.CloseAndDelete(tgz)
+
+	tgzBuffer := bytes.NewBuffer(nil)
+	_, err = io.Copy(tgzBuffer, tgz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy manifest targz to a byte buffer: %w", err)
+	}
+
+	return &MockParametersAnnouncementStream{
+		metadataRequest: mr,
+		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+	}, nil
+}
+
+func (m *MockParametersAnnouncementStream) SendAndClose(response *apiclient.ParametersAnnouncementResponse) error {
+	m.response = response
+	return nil
+}
+
+func (m *MockParametersAnnouncementStream) Recv() (*apiclient.AppStreamRequest, error) {
+	if !m.metadataSent {
+		m.metadataSent = true
+		return m.metadataRequest, nil
+	}
+
+	if !m.fileSent {
+		m.fileSent = true
+		return m.fileRequest, nil
+	}
+	return nil, io.EOF
+}
+
+func (m *MockParametersAnnouncementStream) Context() context.Context {
+	return context.Background()
+}
+
+func TestService_GetParametersAnnouncement(t *testing.T) {
+	configFilePath := "./testdata/kustomize/config"
+	service, err := newService(configFilePath)
+	require.NoError(t, err)
+
+	t.Run("successful response", func(t *testing.T) {
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		err = service.GetParametersAnnouncement(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		require.Len(t, s.response.ParameterAnnouncements, 1)
+		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[0])
+	})
+	t.Run("out of bounds app", func(t *testing.T) {
+		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		// set a malicious app path on the metadata
+		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
+		err = service.GetParametersAnnouncement(s)
+		require.ErrorContains(t, err, "illegal appPath")
+		require.Nil(t, s.response)
 	})
 }

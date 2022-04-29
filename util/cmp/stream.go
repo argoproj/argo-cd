@@ -88,27 +88,11 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
-	// compress all files in appPath in tgz
-	tgz, checksum, err := compressFiles(repoPath)
+	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, &opt.tarDoneChan)
 	if err != nil {
-		return fmt.Errorf("error compressing repo files: %w", err)
+		return err
 	}
-	defer closeAndDelete(tgz)
-	if opt.tarDoneChan != nil {
-		opt.tarDoneChan <- true
-		close(opt.tarDoneChan)
-	}
-
-	fi, err := tgz.Stat()
-	if err != nil {
-		return fmt.Errorf("error getting tgz stat: %w", err)
-	}
-	appRelPath, err := files.RelativePath(appPath, repoPath)
-	if err != nil {
-		return fmt.Errorf("error building app relative path: %s", err)
-	}
-	// send metadata first
-	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())
+	defer CloseAndDelete(tgz)
 	err = sender.Send(mr)
 	if err != nil {
 		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w", err)
@@ -120,6 +104,30 @@ func SendRepoStream(ctx context.Context, appPath, repoPath string, sender Stream
 		return fmt.Errorf("error sending tgz file to cmp-server: %w", err)
 	}
 	return nil
+}
+
+func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, tarDoneChan *chan<-bool) (*os.File, *pluginclient.AppStreamRequest, error) {
+	// compress all files in appPath in tgz
+	tgz, checksum, err := compressFiles(repoPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
+	}
+	if tarDoneChan != nil {
+		*tarDoneChan <- true
+		close(*tarDoneChan)
+	}
+
+	fi, err := tgz.Stat()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
+	}
+	appRelPath, err := files.RelativePath(appPath, repoPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error building app relative path: %s", err)
+	}
+	// send metadata first
+	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())
+	return tgz, mr, err
 }
 
 // sendFile will send the file over the gRPC stream using a
@@ -135,7 +143,7 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File, opt *send
 		}
 		n, err := reader.Read(chunk)
 		if n > 0 {
-			fr := appFileRequest(chunk[:n])
+			fr := AppFileRequest(chunk[:n])
 			if e := sender.Send(fr); e != nil {
 				return fmt.Errorf("error sending stream: %w", err)
 			}
@@ -150,7 +158,7 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File, opt *send
 	return nil
 }
 
-func closeAndDelete(f *os.File) {
+func CloseAndDelete(f *os.File) {
 	if f == nil {
 		return
 	}
@@ -180,7 +188,7 @@ func compressFiles(appPath string) (*os.File, string, error) {
 	hasher := sha256.New()
 	err = files.Tgz(appPath, excluded, tgzFile, hasher)
 	if err != nil {
-		closeAndDelete(tgzFile)
+		CloseAndDelete(tgzFile)
 		return nil, "", fmt.Errorf("error creating app tgz file: %w", err)
 	}
 	checksum := hex.EncodeToString(hasher.Sum(nil))
@@ -189,7 +197,7 @@ func compressFiles(appPath string) (*os.File, string, error) {
 	// reposition the offset to the beginning of the file for proper reads
 	_, err = tgzFile.Seek(0, io.SeekStart)
 	if err != nil {
-		closeAndDelete(tgzFile)
+		CloseAndDelete(tgzFile)
 		return nil, "", fmt.Errorf("error processing tgz file: %w", err)
 	}
 	return tgzFile, checksum, nil
@@ -237,19 +245,19 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 	}
 	_, err = fileBuffer.WriteTo(file)
 	if err != nil {
-		closeAndDelete(file)
+		CloseAndDelete(file)
 		return nil, fmt.Errorf("error writing file: %w", err)
 	}
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		closeAndDelete(file)
+		CloseAndDelete(file)
 		return nil, fmt.Errorf("seek error: %w", err)
 	}
 	return file, nil
 }
 
-// appFileRequest build the file payload for the ManifestRequest
-func appFileRequest(chunk []byte) *pluginclient.AppStreamRequest {
+// AppFileRequest build the file payload for the ManifestRequest
+func AppFileRequest(chunk []byte) *pluginclient.AppStreamRequest {
 	return &pluginclient.AppStreamRequest{
 		Request: &pluginclient.AppStreamRequest_File{
 			File: &pluginclient.File{

@@ -159,8 +159,18 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 	return workDir, cleanup, nil
 }
 
+type Stream interface {
+	Recv() (*apiclient.AppStreamRequest, error)
+	Context() context.Context
+}
+
+type GenerateManifestStream interface {
+	Stream
+	SendAndClose(response *apiclient.ManifestResponse) error
+}
+
 // GenerateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) GenerateManifest(stream apiclient.ConfigManagementPluginService_GenerateManifestServer) error {
+func (s *Service) GenerateManifest(stream GenerateManifestStream) error {
 	ctx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
@@ -222,6 +232,11 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 	}, err
 }
 
+type MatchRepositoryStream interface {
+	Stream
+	SendAndClose(response *apiclient.RepositoryResponse) error
+}
+
 // MatchRepository receives the application stream and checks whether
 // its repository type is supported by the config management plugin
 // server.
@@ -229,7 +244,7 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 //   1. If spec.Discover.FileName is provided it finds for a name match in Applications files
 //   2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
 //   3. Otherwise it runs the spec.Discover.Find.Command
-func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+func (s *Service) MatchRepository(stream MatchRepositoryStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
@@ -301,7 +316,12 @@ func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, er
 	return false, nil
 }
 
-func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPluginService_GetParametersAnnouncementServer) error {
+type ParametersAnnouncementStream interface {
+	Stream
+	SendAndClose(response *apiclient.ParametersAnnouncementResponse) error
+}
+
+func (s *Service) GetParametersAnnouncement(stream ParametersAnnouncementStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
