@@ -14,3 +14,4 @@ kubectl_version=1.17.8
 kubectx_version=0.6.3
 kustomize4_version=4.4.1
 protoc_version=3.17.3
+buf_version=1.4.0
