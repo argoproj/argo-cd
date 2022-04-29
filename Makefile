@@ -267,7 +267,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	docker build -t argocd-ui --target argocd-ui .
+	DOCKER_BUILDKIT=1 docker build -t argocd-ui --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
 	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
@@ -561,3 +561,7 @@ list:
 .PHONY: applicationset-controller
 applicationset-controller:
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
+
+.PHONY: checksums
+checksums:
+	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done
