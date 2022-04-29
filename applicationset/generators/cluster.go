@@ -3,6 +3,7 @@ package generators
 import (
 	"context"
 	"fmt"
+	"github.com/valyala/fasttemplate"
 	"regexp"
 	"strings"
 	"time"
@@ -36,6 +37,8 @@ type ClusterGenerator struct {
 	namespace       string
 	settingsManager *settings.SettingsManager
 }
+
+var render = &utils.Render{}
 
 func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
 
@@ -107,7 +110,11 @@ func (g *ClusterGenerator) GenerateParams(
 			params["server"] = cluster.Server
 
 			for key, value := range appSetGenerator.Clusters.Values {
-				params[fmt.Sprintf("values.%s", key)] = value
+				// NB: This will only template name and server since those are the only values we will have here. Is that desirable?
+				err := replaceTemplatedString(value, params, key)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			log.WithField("cluster", "local cluster").Info("matched local cluster")
@@ -129,7 +136,12 @@ func (g *ClusterGenerator) GenerateParams(
 			params[fmt.Sprintf("metadata.labels.%s", key)] = value
 		}
 		for key, value := range appSetGenerator.Clusters.Values {
-			params[fmt.Sprintf("values.%s", key)] = value
+			// TODO: Do we want to allow interpolation from other values? If so we'd need to do a second pass. For now
+			// only interpolations from labels, annotations, server and name should be supported.
+			err := replaceTemplatedString(value, params, key)
+			if err != nil {
+				return nil, err
+			}
 		}
 		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
 
@@ -137,6 +149,16 @@ func (g *ClusterGenerator) GenerateParams(
 	}
 
 	return res, nil
+}
+
+func replaceTemplatedString(value string, params map[string]string, key string) error {
+	fstTmpl := fasttemplate.New(value, "{{", "}}")
+	replacedTmplStr, err := render.Replace(fstTmpl, params, true)
+	if err != nil {
+		return err
+	}
+	params[fmt.Sprintf("values.%s", key)] = replacedTmplStr
+	return nil
 }
 
 func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {

@@ -38,7 +38,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	}
 
 	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
-	replacedTmplStr, err := r.replace(fstTmpl, params, true)
+	replacedTmplStr, err := r.Replace(fstTmpl, params, true)
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 }
 
 // Replace executes basic string substitution of a template with replacement values.
-// 'allowUnresolved' indicates whether or not it is acceptable to have unresolved variables
+// 'allowUnresolved' indicates whether it is acceptable to have unresolved variables
 // remaining in the substituted template.
-func (r *Render) replace(fstTmpl *fasttemplate.Template, replaceMap map[string]string, allowUnresolved bool) (string, error) {
+func (r *Render) Replace(fstTmpl *fasttemplate.Template, replaceMap map[string]string, allowUnresolved bool) (string, error) {
 	var unresolvedErr error
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 
