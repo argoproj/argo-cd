@@ -293,10 +293,11 @@ type GitFileGeneratorItem struct {
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
 type SCMProviderGenerator struct {
 	// Which provider to use and config for it.
-	Github    *SCMProviderGeneratorGithub    `json:"github,omitempty"`
-	Gitlab    *SCMProviderGeneratorGitlab    `json:"gitlab,omitempty"`
-	Bitbucket *SCMProviderGeneratorBitbucket `json:"bitbucket,omitempty"`
-	Gitea     *SCMProviderGeneratorGitea     `json:"gitea,omitempty"`
+	Github          *SCMProviderGeneratorGithub          `json:"github,omitempty"`
+	Gitlab          *SCMProviderGeneratorGitlab          `json:"gitlab,omitempty"`
+	Bitbucket       *SCMProviderGeneratorBitbucket       `json:"bitbucket,omitempty"`
+	BitbucketServer *SCMProviderGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
+	Gitea           *SCMProviderGeneratorGitea           `json:"gitea,omitempty"`
 	// Filters for which repos should be considered.
 	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty"`
 	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
@@ -321,7 +322,7 @@ type SCMProviderGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty"`
 }
 
-// SCMProviderGeneratorGithub defines a connection info specific to GitHub.
+// SCMProviderGeneratorGithub defines connection info specific to GitHub.
 type SCMProviderGeneratorGithub struct {
 	// GitHub org to scan. Required.
 	Organization string `json:"organization"`
@@ -333,7 +334,7 @@ type SCMProviderGeneratorGithub struct {
 	AllBranches bool `json:"allBranches,omitempty"`
 }
 
-// SCMProviderGeneratorGitlab defines a connection info specific to Gitlab.
+// SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
 type SCMProviderGeneratorGitlab struct {
 	// Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.
 	Group string `json:"group"`
@@ -359,6 +360,18 @@ type SCMProviderGeneratorBitbucket struct {
 	AllBranches bool `json:"allBranches,omitempty"`
 }
 
+// SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server.
+type SCMProviderGeneratorBitbucketServer struct {
+	// Project to scan. Required.
+	Project string `json:"project"`
+	// The Bitbucket Server REST API URL to talk to. Required.
+	API string `json:"api"`
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty"`
+}
+
 // SCMProviderGeneratorFilter is a single repository filter.
 // If multiple filter types are set on a single struct, they will be AND'd together. All filters must
 // pass for a repo to be included.
@@ -367,6 +380,8 @@ type SCMProviderGeneratorFilter struct {
 	RepositoryMatch *string `json:"repositoryMatch,omitempty"`
 	// An array of paths, all of which must exist.
 	PathsExist []string `json:"pathsExist,omitempty"`
+	// An array of paths, all of which must not exist.
+	PathsDoNotExist []string `json:"pathsDoNotExist,omitempty"`
 	// A regex which must match at least one label.
 	LabelMatch *string `json:"labelMatch,omitempty"`
 	// A regex which must match the branch name.
@@ -376,14 +391,17 @@ type SCMProviderGeneratorFilter struct {
 // PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.
 type PullRequestGenerator struct {
 	// Which provider to use and config for it.
-	Github *PullRequestGeneratorGithub `json:"github,omitempty"`
-	Gitea  *PullRequestGeneratorGitea  `json:"gitea,omitempty"`
+	Github          *PullRequestGeneratorGithub          `json:"github,omitempty"`
+	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty"`
+	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
+	// Filters for which pull requests should be considered.
+	Filters []PullRequestGeneratorFilter `json:"filters,omitempty"`
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
 }
 
-// PullRequestGenerator defines a connection info specific to Gitea.
+// PullRequestGenerator defines connection info specific to Gitea.
 type PullRequestGeneratorGitea struct {
 	// Gitea org or user to scan. Required.
 	Owner string `json:"owner"`
@@ -397,7 +415,7 @@ type PullRequestGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty"`
 }
 
-// PullRequestGenerator defines a connection info specific to GitHub.
+// PullRequestGenerator defines connection info specific to GitHub.
 type PullRequestGeneratorGithub struct {
 	// GitHub org or user to scan. Required.
 	Owner string `json:"owner"`
@@ -409,6 +427,33 @@ type PullRequestGeneratorGithub struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty"`
+}
+
+// PullRequestGenerator defines connection info specific to BitbucketServer.
+type PullRequestGeneratorBitbucketServer struct {
+	// Project to scan. Required.
+	Project string `json:"project"`
+	// Repo name to scan. Required.
+	Repo string `json:"repo"`
+	// The Bitbucket REST API URL to talk to e.g. https://bitbucket.org/rest Required.
+	API string `json:"api"`
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty"`
+}
+
+// BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
+type BasicAuthBitbucketServer struct {
+	// Username for Basic auth
+	Username string `json:"username"`
+	// Password (or personal access token) reference.
+	PasswordRef *SecretRef `json:"passwordRef"`
+}
+
+// PullRequestGeneratorFilter is a single pull request filter.
+// If multiple filter types are set on a single struct, they will be AND'd together. All filters must
+// pass for a pull request to be included.
+type PullRequestGeneratorFilter struct {
+	BranchMatch *string `json:"branchMatch,omitempty"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

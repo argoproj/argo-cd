@@ -41,6 +41,15 @@ spec:
             name: gpg-keys
           - mountPath: /app/config/gpg/keys
             name: gpg-keyring
+          - mountPath: /tmp
+            name: tmp
+          securityContext:
+           capabilities:
+             drop:
+             - ALL
+           allowPrivilegeEscalation: false
+           readOnlyRootFilesystem: true 
+           runAsNonRoot: true
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -54,3 +63,5 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp

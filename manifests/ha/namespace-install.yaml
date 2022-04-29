@@ -110,7 +110,6 @@ rules:
   - argoproj.io
   resources:
   - applications
-  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -121,6 +120,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -1029,7 +1034,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1131,7 +1135,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -1240,6 +1243,13 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -1249,6 +1259,8 @@ spec:
           name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /tmp
+          name: tmp
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -1262,6 +1274,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1302,6 +1316,9 @@ spec:
         - containerPort: 5558
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
         volumeMounts:
@@ -1318,6 +1335,13 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -1354,6 +1378,12 @@ spec:
           tcpSocket:
             port: 9001
         name: argocd-notifications-controller
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
         volumeMounts:
         - mountPath: /app/config/tls
           name: tls-certs
@@ -1632,6 +1662,13 @@ spec:
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
         name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
@@ -1905,8 +1942,6 @@ spec:
         name: plugins-home
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: static-files
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -2116,7 +2151,6 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -2149,7 +2183,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2187,7 +2221,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2233,7 +2267,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:
