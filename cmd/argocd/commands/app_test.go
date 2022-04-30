@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"os"
-	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 
@@ -22,18 +23,18 @@ import (
 )
 
 func Test_getInfos(t *testing.T) {
-	testCases := []struct{
-		name string
-		infos []string
+	testCases := []struct {
+		name          string
+		infos         []string
 		expectedInfos []*v1alpha1.Info
 	}{
 		{
-			name: "empty",
-			infos: []string{},
+			name:          "empty",
+			infos:         []string{},
 			expectedInfos: []*v1alpha1.Info{},
 		},
 		{
-			name: "simple key value",
+			name:  "simple key value",
 			infos: []string{"key1=value1", "key2=value2"},
 			expectedInfos: []*v1alpha1.Info{
 				{Name: "key1", Value: "value1"},
@@ -55,10 +56,10 @@ func Test_getInfos(t *testing.T) {
 func Test_getRefreshType(t *testing.T) {
 	refreshTypeNormal := string(v1alpha1.RefreshTypeNormal)
 	refreshTypeHard := string(v1alpha1.RefreshTypeHard)
-	testCases := []struct{
-		refresh bool
+	testCases := []struct {
+		refresh     bool
 		hardRefresh bool
-		expected *string
+		expected    *string
 	}{
 		{false, false, nil},
 		{false, true, &refreshTypeHard},
@@ -335,7 +336,7 @@ func Test_groupObjsByKey(t *testing.T) {
 		{
 			Object: map[string]interface{}{
 				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind": "CustomResourceDefinition",
+				"kind":       "CustomResourceDefinition",
 				"metadata": map[string]interface{}{
 					"name": "certificates.cert-manager.io",
 				},
@@ -356,7 +357,7 @@ func Test_groupObjsByKey(t *testing.T) {
 		{
 			Object: map[string]interface{}{
 				"apiVersion": "apiextensions.k8s.io/v1",
-				"kind": "CustomResourceDefinition",
+				"kind":       "CustomResourceDefinition",
 				"metadata": map[string]interface{}{
 					"name": "certificates.cert-manager.io",
 				},
@@ -365,8 +366,8 @@ func Test_groupObjsByKey(t *testing.T) {
 	}
 
 	expected := map[kube.ResourceKey]*unstructured.Unstructured{
-		kube.ResourceKey{Group:"", Kind:"Pod", Namespace:"default", Name:"pod-name"}: localObjs[0],
-		kube.ResourceKey{Group:"apiextensions.k8s.io", Kind:"CustomResourceDefinition", Namespace:"", Name:"certificates.cert-manager.io"}: localObjs[1],
+		kube.ResourceKey{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
+		kube.ResourceKey{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
 	}
 
 	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
@@ -581,7 +582,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 
 		windows := &v1alpha1.SyncWindows{
 			{
-				Kind: "allow",
+				Kind:     "allow",
 				Schedule: "0 0 * * *",
 				Duration: "24h",
 				Applications: []string{
@@ -590,7 +591,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				ManualSync: true,
 			},
 			{
-				Kind: "deny",
+				Kind:     "deny",
 				Schedule: "0 0 * * *",
 				Duration: "24h",
 				Namespaces: []string{
@@ -598,7 +599,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				},
 			},
 			{
-				Kind: "allow",
+				Kind:     "allow",
 				Schedule: "0 0 * * *",
 				Duration: "24h",
 				Clusters: []string{
@@ -839,11 +840,11 @@ func Test_unset(t *testing.T) {
 		Plugin: &v1alpha1.ApplicationSourcePlugin{
 			Env: v1alpha1.Env{
 				{
-					Name: "env-1",
+					Name:  "env-1",
 					Value: "env-value-1",
 				},
 				{
-					Name: "env-2",
+					Name:  "env-2",
 					Value: "env-value-2",
 				},
 			},
@@ -942,8 +943,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
-	testCases := []struct{
-		name string
+	testCases := []struct {
+		name   string
 		source v1alpha1.ApplicationSource
 	}{
 		{"kustomize", v1alpha1.ApplicationSource{Kustomize: &v1alpha1.ApplicationSourceKustomize{}}},
@@ -962,4 +963,69 @@ func Test_unset_nothingToUnset(t *testing.T) {
 			assert.True(t, nothingToUnset)
 		})
 	}
+}
+
+func TestPrintApplicationTableNotWide(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "table"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	assert.Equal(t, output, expectation)
+}
+
+func TestPrintApplicationTableWide(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
+					Path:           "guestbook",
+					TargetRevision: "123",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "wide"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	assert.Equal(t, output, expectation)
 }
