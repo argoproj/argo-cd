@@ -16,7 +16,6 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 protoc --version
 protoc-gen-openapiv2 --version
 buf --version
-protoc-gen-gogo --version
 protoc-gen-go-grpc --version
 
 export GO111MODULE=off
@@ -57,7 +56,7 @@ go-to-protobuf \
     --apimachinery-packages=$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}") \
     --proto-import=./vendor \
     --proto-import=${protoc_include}
-
+find pkg/apis -type f -name *.proto -exec sed -i 's/package .*apis/package apis/' {} +
 [ -e ./v2 ] && rm -rf v2
 
 cd pkg && buf mod update && buf generate
