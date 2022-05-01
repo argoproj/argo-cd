@@ -569,16 +569,16 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 // unsetOpts describe what to unset in an Application.
 type unsetOpts struct {
-	namePrefix bool
-	nameSuffix bool
-	kustomizeVersion bool
-	kustomizeImages []string
-	parameters []string
-	valuesFiles []string
-	valuesLiteral bool
+	namePrefix              bool
+	nameSuffix              bool
+	kustomizeVersion        bool
+	kustomizeImages         []string
+	parameters              []string
+	valuesFiles             []string
+	valuesLiteral           bool
 	ignoreMissingValueFiles bool
-	pluginEnvs []string
-	passCredentials bool
+	pluginEnvs              []string
+	passCredentials         bool
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -1210,35 +1210,44 @@ const (
 	resourceFieldNameWithNamespaceCount = 2
 )
 
-func parseSelectedResources(resources []string) []*argoappv1.SyncOperationResource {
-	var selectedResources []*argoappv1.SyncOperationResource
-	if resources != nil {
-		selectedResources = []*argoappv1.SyncOperationResource{}
-		for _, r := range resources {
-			fields := strings.Split(r, resourceFieldDelimiter)
-			if len(fields) != resourceFieldCount {
-				log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
-			}
-			name := fields[2]
-			namespace := ""
-			if strings.Contains(fields[2], resourceFieldNamespaceDelimiter) {
-				nameFields := strings.Split(fields[2], resourceFieldNamespaceDelimiter)
-				if len(nameFields) != resourceFieldNameWithNamespaceCount {
-					log.Fatalf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, r)
-				}
-				namespace = nameFields[0]
-				name = nameFields[1]
-			}
-			rsrc := argoappv1.SyncOperationResource{
-				Group:     fields[0],
-				Kind:      fields[1],
-				Name:      name,
-				Namespace: namespace,
-			}
-			selectedResources = append(selectedResources, &rsrc)
+// resource is GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
+func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResource, error) {
+	// retrieve name and namespace in case if format is GROUP:KIND:NAMESPACE/NAME, otherwise return name and empty namespace
+	nameRetriever := func(resourceName, resource string) (string, string, error) {
+		if !strings.Contains(resourceName, resourceFieldNamespaceDelimiter) {
+			return resourceName, "", nil
 		}
+		nameFields := strings.Split(resourceName, resourceFieldNamespaceDelimiter)
+		if len(nameFields) != resourceFieldNameWithNamespaceCount {
+			return "", "", fmt.Errorf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, resource)
+		}
+		namespace := nameFields[0]
+		name := nameFields[1]
+		return name, namespace, nil
 	}
-	return selectedResources
+
+	var selectedResources []*argoappv1.SyncOperationResource
+	if resources == nil {
+		return selectedResources, nil
+	}
+
+	for _, resource := range resources {
+		fields := strings.Split(resource, resourceFieldDelimiter)
+		if len(fields) != resourceFieldCount {
+			return nil, fmt.Errorf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resource)
+		}
+		name, namespace, err := nameRetriever(fields[2], resource)
+		if err != nil {
+			return nil, err
+		}
+		selectedResources = append(selectedResources, &argoappv1.SyncOperationResource{
+			Group:     fields[0],
+			Kind:      fields[1],
+			Name:      name,
+			Namespace: namespace,
+		})
+	}
+	return selectedResources, nil
 }
 
 func getWatchOpts(watch watchOpts) watchOpts {
@@ -1278,7 +1287,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 			watch = getWatchOpts(watch)
-			selectedResources := parseSelectedResources(resources)
+			selectedResources, err := parseSelectedResources(resources)
+			errors.CheckError(err)
 			appNames := args
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			closer, appIf := acdClient.NewApplicationClientOrDie()
@@ -1415,7 +1425,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 				}
 
-				selectedResources := parseSelectedResources(resources)
+				selectedResources, err := parseSelectedResources(resources)
+				errors.CheckError(err)
 
 				var localObjsStrings []string
 				diffOption := &DifferenceOption{}
@@ -1514,7 +1525,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 				}
 				ctx := context.Background()
-				_, err := appIf.Sync(ctx, &syncReq)
+				_, err = appIf.Sync(ctx, &syncReq)
 				errors.CheckError(err)
 
 				if !async {
