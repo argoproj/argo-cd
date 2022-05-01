@@ -631,6 +631,8 @@ spec:
           name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /tmp
+          name: tmp
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -644,6 +646,8 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -815,7 +819,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:6.2.6-alpine
+        image: redis:7.0.0-alpine
         imagePullPolicy: Always
         name: redis
         ports:
