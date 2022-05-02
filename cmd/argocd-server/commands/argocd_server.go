@@ -166,7 +166,9 @@ func NewCommand() *cobra.Command {
 				argocd := server.NewServer(ctx, argoCDOpts)
 				argocd.Run(ctx, listenPort, metricsPort)
 				cancel()
-				closer()
+				if closer != nil {
+					closer()
+				}
 			}
 		},
 	}
