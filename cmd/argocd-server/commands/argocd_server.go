@@ -153,8 +153,8 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
-			var closer func()
 			for {
+				var closer func()
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
@@ -166,7 +166,9 @@ func NewCommand() *cobra.Command {
 				argocd := server.NewServer(ctx, argoCDOpts)
 				argocd.Run(ctx, listenPort, metricsPort)
 				cancel()
-				closer()
+				if closer != nil {
+					closer()
+				}
 			}
 		},
 	}
