@@ -975,28 +975,19 @@ func (s *Server) streamApplicationEvents(
 
 	logCtx.Info("streaming application events")
 
-	isChildApp := false
-	if a.Labels != nil {
-		isChildApp = a.Labels["app.kubernetes.io/instance"] != ""
+	appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
+	if err != nil {
+		return fmt.Errorf("failed to get application event: %w", err)
 	}
 
-	if !isChildApp {
-		// application events for child apps would be sent by its parent app
-		// as resource event
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
-		if err != nil {
-			return fmt.Errorf("failed to get application event: %w", err)
-		}
+	if appEvent == nil {
+		// event did not have an OperationState - skip all events
+		return nil
+	}
 
-		if appEvent == nil {
-			// event did not have an OperationState - skip all events
-			return nil
-		}
-
-		logWithAppStatus(a, logCtx, ts).Info("sending application event")
-		if err := stream.Send(appEvent); err != nil {
-			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
-		}
+	logWithAppStatus(a, logCtx, ts).Info("sending application event")
+	if err := stream.Send(appEvent); err != nil {
+		return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
 	}
 
 	// get the desired state manifests of the application
