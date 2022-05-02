@@ -1,4 +1,4 @@
-FROM redis:6.2.6 as redis
+FROM redis:7.0.0 as redis
 
 FROM node:12.18.4-buster as node
 
