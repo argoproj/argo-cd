@@ -118,7 +118,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})}>
                                                 <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
                                                     <div className='row'>
-                                                        <div className='columns small-10'>
+                                                        <div
+                                                            className={
+                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
+                                                                    ? 'columns small-10'
+                                                                    : 'columns small-11'
+                                                            }>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             {app.metadata.name.length > 30 ? (
                                                                 <Tooltip content={app.metadata.name}>
@@ -128,7 +133,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 <span className='applications-list__title'>{app.metadata.name}</span>
                                                             )}
                                                         </div>
-                                                        <div className='columns small-2'>
+                                                        <div
+                                                            className={
+                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
+                                                                    ? 'columns small-2'
+                                                                    : 'columns small-1'
+                                                            }>
                                                             <div className='applications-list__external-link'>
                                                                 <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
