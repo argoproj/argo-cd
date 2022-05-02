@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
@@ -647,4 +649,51 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 			app.Annotations[annotation[0]] = ""
 		}
 	}
+}
+
+// liveObjects deserializes the list of live states into unstructured objects
+func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(resources))
+	for i, resState := range resources {
+		obj, err := resState.LiveObject()
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
+func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
+	liveObjs, err := LiveObjects(resources)
+	errors.CheckError(err)
+	filteredObjects := make([]*unstructured.Unstructured, 0)
+	for i := range liveObjs {
+		obj := liveObjs[i]
+		if obj == nil {
+			continue
+		}
+		gvk := obj.GroupVersionKind()
+		if groupChanged && group != gvk.Group {
+			continue
+		}
+		if namespace != "" && namespace != obj.GetNamespace() {
+			continue
+		}
+		if resourceName != "" && resourceName != obj.GetName() {
+			continue
+		}
+		if kind != "" && kind != gvk.Kind {
+			continue
+		}
+		deepCopy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, deepCopy)
+	}
+	if len(filteredObjects) == 0 {
+		log.Fatal("No matching resource found")
+	}
+	if len(filteredObjects) > 1 && !all {
+		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
+	return filteredObjects
 }
