@@ -966,7 +966,7 @@ func Test_unset_nothingToUnset(t *testing.T) {
 }
 
 func TestPrintApplicationTableNotWide(t *testing.T) {
-	output, _ := captureOutput(func() error {
+	output, err := captureOutput(func() error {
 		app := &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app-name",
@@ -991,12 +991,13 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
+	assert.NoError(t, err)
 	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
 func TestPrintApplicationTableWide(t *testing.T) {
-	output, _ := captureOutput(func() error {
+	output, err := captureOutput(func() error {
 		app := &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app-name",
@@ -1026,6 +1027,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
+	assert.NoError(t, err)
 	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
