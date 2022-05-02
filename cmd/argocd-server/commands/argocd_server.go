@@ -153,8 +153,8 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
-			var closer func()
 			for {
+				var closer func()
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
