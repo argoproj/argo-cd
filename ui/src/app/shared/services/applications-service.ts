@@ -280,7 +280,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 patchType
             })
             .send(JSON.stringify(patch))
@@ -297,7 +297,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 force,
                 orphan
             })
