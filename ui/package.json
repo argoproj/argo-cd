@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#97d60381c71d2c515746837e6c9e4876c21ddb6e",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
@@ -32,7 +32,7 @@
     "react-diff-view": "^2.4.10",
     "react-dom": "^16.9.3",
     "react-form": "2.16.3",
-    "react-ga": "^2.6.0",
+    "react-ga": "^2.7.0",
     "react-helmet": "^5.2.0",
     "react-hot-loader": "^3.1.3",
     "react-moment": "^0.9.7",

@@ -33,6 +33,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -131,6 +132,7 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 			askPassServer := askpass.NewServer()
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
