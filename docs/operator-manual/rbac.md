@@ -9,7 +9,7 @@ Once SSO or local users are configured, additional RBAC roles can be defined, an
 
 Argo CD has two pre-defined roles but RBAC configuration allows defining roles and groups (see below).
 
-* `role:readonly` - read-only access to all resources (except the [`exec` resource](#exec-resource))
+* `role:readonly` - read-only access to all resources
 * `role:admin` - unrestricted access to all resources
 
 These default built-in role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
