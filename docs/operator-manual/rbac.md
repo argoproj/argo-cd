@@ -42,7 +42,16 @@ they have `create` privileges. If the Pod mounts a ServiceAccount token (which i
 then the user effectively has the same privileges as that ServiceAccount.
 
 The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
-ConfigMap.
+ConfigMap. You will also need to add the following to the argocd-api-server Role or ClusterRole.
+
+```yaml
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+```
 
 ## Tying It All Together
 
