@@ -34,11 +34,11 @@ Actions: `get`, `create`, `update`, `delete`, `sync`, `override`, `action`
 
 #### `exec` resource
 
-`exec` is a special resource. When enabled with the `get` action, this privilege allows a user to `exec` into Pods via 
+`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 `exec` is a powerful privilege. It allows the user to run arbitrary code on any Pod managed by an Application for which
-they have `get` privileges. If the Pod mounts a ServiceAccount token (which is the default behavior of Kubernetes),
+they have `create` privileges. If the Pod mounts a ServiceAccount token (which is the default behavior of Kubernetes),
 then the user effectively has the same privileges as that ServiceAccount.
 
 The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
