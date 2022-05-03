@@ -267,3 +267,4 @@ spec:
 * `branch`: The default branch of the repository.
 * `sha`: The Git commit SHA for the branch
 * `labels`: A comma-separated list of repository labels
+* `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
