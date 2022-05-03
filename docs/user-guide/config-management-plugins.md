@@ -26,7 +26,7 @@ spec:
     command: []
     args: []
   # The generate command runs in the Application source directory each time manifests are generated. Standard output
-  # must be ONLY valid JSON or YAML manifests. A non-zero exit code will fail manifest generation.
+  # must be ONLY valid YAML manifests. A non-zero exit code will fail manifest generation.
   # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
