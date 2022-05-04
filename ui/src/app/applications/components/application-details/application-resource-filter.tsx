@@ -153,7 +153,7 @@ export const Filters = (props: {
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
-                <div className={'filter' + ' ' + `filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
+                <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
                         value={!!pref.orphanedResources}
                         onChange={val => {

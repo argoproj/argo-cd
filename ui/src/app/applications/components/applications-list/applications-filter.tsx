@@ -217,7 +217,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     return (
-        <div className={'filter' + ' ' + `filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}>
+        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}>
             <Checkbox
                 value={!!props.pref.showFavorites}
                 onChange={val => {
