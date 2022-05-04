@@ -4,7 +4,7 @@
 .filter {
     background-color: white;
     padding: 10px;
-    box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     margin-bottom: 1em;
 
@@ -88,11 +88,11 @@
     &__panel {
         transition: width 0.2s ease-in-out;
         background-color: $argo-color-gray-3;
-        box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.1);
+        box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
         padding: 10px;
         overflow-y: hidden;
         overflow-x: hidden;
-        z-index: 1;
+        z-index: 2;
 
         position: fixed;
         width: 240px;
@@ -146,7 +146,7 @@
                 display: none;
             }
 
-            &__title {
+            .filters-group__panel__title {
                 display: none;
             }
 

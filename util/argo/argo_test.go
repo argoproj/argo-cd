@@ -127,12 +127,6 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 		assert.Nil(t, spec.Source.Helm)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}})
-		assert.NotNil(t, spec.Source.Ksonnet)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}})
-		assert.Nil(t, spec.Source.Ksonnet)
-	}
-	{
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
 		assert.NotNil(t, spec.Source.Directory)
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
@@ -169,44 +163,6 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 	assert.Equal(t, 1, len(conditions))
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
-}
-
-func Test_enrichSpec(t *testing.T) {
-	t.Run("Empty", func(t *testing.T) {
-		spec := &argoappv1.ApplicationSpec{}
-		enrichSpec(spec, &apiclient.RepoAppDetailsResponse{})
-		assert.Empty(t, spec.Destination.Server)
-		assert.Empty(t, spec.Destination.Namespace)
-	})
-	t.Run("Ksonnet", func(t *testing.T) {
-		spec := &argoappv1.ApplicationSpec{
-			Source: argoappv1.ApplicationSource{
-				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-					Environment: "qa",
-				},
-			},
-		}
-		response := &apiclient.RepoAppDetailsResponse{
-			Ksonnet: &apiclient.KsonnetAppSpec{
-				Environments: map[string]*apiclient.KsonnetEnvironment{
-					"prod": {
-						Destination: &apiclient.KsonnetEnvironmentDestination{
-							Server:    "my-server",
-							Namespace: "my-namespace",
-						},
-					},
-				},
-			},
-		}
-		enrichSpec(spec, response)
-		assert.Empty(t, spec.Destination.Server)
-		assert.Empty(t, spec.Destination.Namespace)
-
-		spec.Source.Ksonnet.Environment = "prod"
-		enrichSpec(spec, response)
-		assert.Equal(t, "my-server", spec.Destination.Server)
-		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
-	})
 }
 
 func TestAPIResourcesToStrings(t *testing.T) {
@@ -268,6 +224,7 @@ func TestValidateRepo(t *testing.T) {
 		Source:           &app.Spec.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		HelmOptions:      &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https", "http"}},
 		NoRevisionCache:  true,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 

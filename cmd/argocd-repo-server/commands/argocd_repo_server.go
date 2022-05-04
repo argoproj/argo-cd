@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
@@ -29,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -61,11 +64,16 @@ func getPauseGenerationOnFailureForRequests() int {
 	return env.ParseNumFromEnv(common.EnvPauseGenerationRequests, defaultPauseGenerationOnFailureForRequests, 0, math.MaxInt32)
 }
 
+func getSubmoduleEnabled() bool {
+	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+}
+
 func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit       int64
 		listenPort             int
 		metricsPort            int
+		otlpAddress            string
 		cacheSrc               func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer    tls.ConfigCustomizer
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
@@ -90,6 +98,7 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
+			askPassServer := askpass.NewServer()
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
@@ -97,8 +106,19 @@ func NewCommand() *cobra.Command {
 				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
 				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
-			})
+				SubmoduleEnabled:                             getSubmoduleEnabled(),
+			}, askPassServer)
 			errors.CheckError(err)
+
+			if otlpAddress != "" {
+				var closer func()
+				var err error
+				closer, err = traceutil.InitTracer(context.Background(), "argocd-repo-server", otlpAddress)
+				if err != nil {
+					log.Fatalf("failed to initialize tracing: %v", err)
+				}
+				defer closer()
+			}
 
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
@@ -128,6 +148,7 @@ func NewCommand() *cobra.Command {
 			})
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", metricsPort), nil)) }()
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -159,6 +180,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)

@@ -101,11 +101,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 			},
 		},
 	}
-	if a.context.env != "" {
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: a.context.env,
-		}
-	}
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
@@ -318,6 +313,11 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	return a
 }
 
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
+	return a
+}
+
 func (a *Actions) And(block func()) *Actions {
 	a.context.t.Helper()
 	block()
@@ -326,7 +326,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	return &Consequences{a.context, a}
+	return &Consequences{a.context, a, 15}
 }
 
 func (a *Actions) runCli(args ...string) {

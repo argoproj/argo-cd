@@ -88,6 +88,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.x.frame.options
                 optional: true
+        - name: ARGOCD_SERVER_CONTENT_SECURITY_POLICY
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.content.security.policy
+                optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
           valueFrom:
               configMapKeyRef:
@@ -210,8 +216,6 @@ spec:
         name: plugins-home
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: static-files
       - name: ssh-known-hosts
         configMap:
           name: argocd-ssh-known-hosts-cm

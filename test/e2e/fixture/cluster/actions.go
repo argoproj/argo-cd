@@ -7,6 +7,9 @@ import (
 	"log"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -63,6 +66,30 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
+func (a *Actions) CreateWithRBAC(args ...string) *Actions {
+	pathOpts := clientcmd.NewDefaultPathOptions()
+	config, err := pathOpts.GetStartingConfig()
+	if err != nil {
+		a.lastError = err
+		return a
+	}
+	clientConfig := clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{})
+	conf, err := clientConfig.ClientConfig()
+	if err != nil {
+		a.lastError = err
+		return a
+	}
+	client := kubernetes.NewForConfigOrDie(conf)
+
+	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{})
+	if err != nil {
+		a.lastError = err
+		return a
+	}
+
+	return a.Create()
+}
+
 func (a *Actions) List() *Actions {
 	a.context.t.Helper()
 	a.runCli("cluster", "list")
@@ -72,6 +99,20 @@ func (a *Actions) List() *Actions {
 func (a *Actions) Get() *Actions {
 	a.context.t.Helper()
 	a.runCli("cluster", "get", a.context.server)
+	return a
+}
+
+func (a *Actions) DeleteByName() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("cluster", "rm", a.context.name)
+	return a
+}
+
+func (a *Actions) DeleteByServer() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("cluster", "rm", a.context.server)
 	return a
 }
 

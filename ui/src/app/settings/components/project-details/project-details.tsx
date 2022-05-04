@@ -217,6 +217,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     }}
                                                     header={
                                                         <div>
+                                                            <button onClick={() => this.projectRoleFormApi.submitForm(null)} className='argo-button argo-button--base'>
+                                                                {params.get('newRole') != null ? 'Create' : 'Update'}
+                                                            </button>{' '}
                                                             <button
                                                                 onClick={() => {
                                                                     this.setState({token: ''});
@@ -224,9 +227,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 }}
                                                                 className='argo-button argo-button--base-o'>
                                                                 Cancel
-                                                            </button>{' '}
-                                                            <button onClick={() => this.projectRoleFormApi.submitForm(null)} className='argo-button argo-button--base'>
-                                                                {params.get('newRole') != null ? 'Create' : 'Update'}
                                                             </button>{' '}
                                                             {params.get('newRole') === null ? (
                                                                 <button
@@ -302,14 +302,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         <div>
                                                             <button
                                                                 onClick={() => {
-                                                                    this.setState({token: ''});
-                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
-                                                                }}
-                                                                className='argo-button argo-button--base-o'>
-                                                                Cancel
-                                                            </button>{' '}
-                                                            <button
-                                                                onClick={() => {
                                                                     if (params.get('newWindow') === null) {
                                                                         this.projectSyncWindowsFormApi.setValue('id', Number(params.get('editWindow')));
                                                                     }
@@ -317,6 +309,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 }}
                                                                 className='argo-button argo-button--base'>
                                                                 {params.get('newWindow') != null ? 'Create' : 'Update'}
+                                                            </button>{' '}
+                                                            <button
+                                                                onClick={() => {
+                                                                    this.setState({token: ''});
+                                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
+                                                                }}
+                                                                className='argo-button argo-button--base-o'>
+                                                                Cancel
                                                             </button>{' '}
                                                             {params.get('newWindow') === null ? (
                                                                 <button

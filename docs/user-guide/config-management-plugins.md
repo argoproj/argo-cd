@@ -5,11 +5,10 @@ Argo CD allows integrating more config management tools using config management 
 ## Installing a CMP
 
 There are two ways to install a Config Management Plugin (CMP):
-1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
 
+1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
    This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
-
    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
 
 ### Option 1: Configure plugins via Argo CD configmap
@@ -32,7 +31,7 @@ The following changes are required to configure a new plugin:
                 args: ["sample args"]
               lockRepo: true                 # Defaults to false. See below.
     
-    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
 
 3. [Create an Application which uses your new CMP](#using-a-cmp).
 
@@ -82,9 +81,9 @@ application repository is supported by the plugin or not.
       command: [sh, -c, find . -name env.yaml]
 ```
 
-If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an 
-application repository is supported by the plugin or not. The `find` command should return a non-error exit code when 
-the application source type is supported. 
+If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an
+application repository is supported by the plugin or not. The `find` command should return a non-error exit code
+and produce output to stdout when the application source type is supported.
 
 If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set `lockRepo` to `true` so that your plugin will have exclusive access to the
 repository at the time it is executed. Otherwise, two applications synced at the same time may result in a race condition and sync failure.
@@ -137,8 +136,6 @@ containers:
       name: var-files
     - mountPath: /home/argocd/cmp-server/plugins
       name: plugins
-    - mountPath: /tmp
-      name: tmp
     # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml

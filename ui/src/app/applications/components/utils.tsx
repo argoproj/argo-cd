@@ -272,15 +272,16 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                         onChange={() => handleStateChange('foreground')}
                         defaultChecked={true}
                         style={{marginRight: '5px'}}
+                        id='foreground-delete-radio'
                     />
                     <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
                         Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
                         Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
                 </div>
             </div>
@@ -352,6 +353,13 @@ function getActionItems(
             title: 'Logs',
             iconClassName: 'fa fa-align-left',
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+        });
+    }
+    if (resource.kind === 'Pod') {
+        items.push({
+            title: 'Exec',
+            iconClassName: 'fa fa-terminal',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
         });
     }
     if (isQuickStart) {
@@ -806,9 +814,6 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
-        return app.spec.source.ksonnet.parameters.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }

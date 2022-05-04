@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
+	"reflect"
 	"regexp"
 	go_runtime "runtime"
 	"strings"
@@ -32,10 +34,12 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	netCtx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -155,9 +159,11 @@ type ArgoCDServer struct {
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
+	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationNamespaceLister
+	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh           chan struct{}
@@ -169,24 +175,25 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth         bool
-	EnableGZip          bool
-	Insecure            bool
-	StaticAssetsDir     string
-	ListenPort          int
-	MetricsPort         int
-	Namespace           string
-	DexServerAddr       string
-	BaseHRef            string
-	RootPath            string
-	KubeClientset       kubernetes.Interface
-	AppClientset        appclientset.Interface
-	RepoClientset       repoapiclient.Clientset
-	Cache               *servercache.Cache
-	RedisClient         *redis.Client
-	TLSConfigCustomizer tlsutil.ConfigCustomizer
-	XFrameOptions       string
-	ListenHost          string
+	DisableAuth           bool
+	EnableGZip            bool
+	Insecure              bool
+	StaticAssetsDir       string
+	ListenPort            int
+	MetricsPort           int
+	Namespace             string
+	DexServerAddr         string
+	BaseHRef              string
+	RootPath              string
+	KubeClientset         kubernetes.Interface
+	AppClientset          appclientset.Interface
+	RepoClientset         repoapiclient.Clientset
+	Cache                 *servercache.Cache
+	RedisClient           *redis.Client
+	TLSConfigCustomizer   tlsutil.ConfigCustomizer
+	XFrameOptions         string
+	ContentSecurityPolicy string
+	ListenHost            string
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -249,11 +256,13 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 		projInformer:     projInformer,
+		projLister:       projLister,
 		appInformer:      appInformer,
 		appLister:        appLister,
 		policyEnforcer:   policyEnf,
 		userStateStorage: userStateStorage,
 		staticAssets:     http.FS(staticFS),
+		db:               db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset),
 	}
 }
 
@@ -280,15 +289,15 @@ func (a *ArgoCDServer) healthCheck(r *http.Request) error {
 func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	a.userStateStorage.Init(ctx)
 
-	grpcS := a.newGRPCServer()
+	grpcS, appResourceTreeFn := a.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
 		httpS = newRedirectServer(port, a.RootPath)
-		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
+		httpsS = a.newHTTPServer(ctx, port, grpcWebS, appResourceTreeFn)
 	} else {
-		httpS = a.newHTTPServer(ctx, port, grpcWebS)
+		httpS = a.newHTTPServer(ctx, port, grpcWebS, appResourceTreeFn)
 	}
 	if a.RootPath != "" {
 		httpS.Handler = withRootPath(httpS.Handler, a)
@@ -406,6 +415,22 @@ func (a *ArgoCDServer) Shutdown() {
 	}
 }
 
+func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newOIDCConfig := newArgoCDSettings.OIDCConfig()
+
+	if (currentOIDCConfig != nil && newOIDCConfig == nil) || (currentOIDCConfig == nil && newOIDCConfig != nil) {
+		return true
+	}
+
+	if currentOIDCConfig != nil && newOIDCConfig != nil {
+		if !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings() {
@@ -413,7 +438,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
-	prevOIDCConfig := a.settings.OIDCConfigRAW
+	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
@@ -435,7 +460,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("dex config modified. restarting")
 			break
 		}
-		if prevOIDCConfig != a.settings.OIDCConfigRAW {
+		if checkOIDCConfigChange(prevOIDCConfig, a.settings) {
 			log.Infof("oidc config modified. restarting")
 			break
 		}
@@ -504,7 +529,7 @@ func (a *ArgoCDServer) useTLS() bool {
 	return true
 }
 
-func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
+func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
 	if enableGRPCTimeHistogram {
 		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
@@ -535,6 +560,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+		otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
@@ -548,6 +574,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
+		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
@@ -560,18 +587,17 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
-	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	kubectl := kubeutil.NewKubectl()
-	clusterService := cluster.NewServer(db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache, a.settingsMgr)
-	repoCredsService := repocreds.NewServer(a.RepoClientset, db, a.enf, a.settingsMgr)
+	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projLister, a.settingsMgr)
+	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
 	sessionService := session.NewServer(a.sessionMgr, a.settingsMgr, a, a.policyEnforcer, loginRateLimiter)
 	projectLock := sync.NewKeyLock()
-	applicationService := application.NewServer(
+	applicationService, appResourceTreeFn := application.NewServer(
 		a.Namespace,
 		a.KubeClientset,
 		a.AppClientset,
@@ -580,16 +606,16 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		a.RepoClientset,
 		a.Cache,
 		kubectl,
-		db,
+		a.db,
 		a.enf,
 		projectLock,
 		a.settingsMgr,
 		a.projInformer)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, db)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
-	certificateService := certificate.NewServer(a.RepoClientset, db, a.enf)
-	gpgkeyService := gpgkey.NewServer(a.RepoClientset, db, a.enf)
+	certificateService := certificate.NewServer(a.RepoClientset, a.db, a.enf)
+	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf)
 	versionpkg.RegisterVersionServiceServer(grpcS, version.NewServer(a, func() (bool, error) {
 		if a.DisableAuth {
 			return true, nil
@@ -614,7 +640,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
 	errors.CheckError(projectService.NormalizeProjs())
-	return grpcS
+	return grpcS, appResourceTreeFn
 }
 
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
@@ -676,7 +702,7 @@ func compressHandler(handler http.Handler) http.Handler {
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler) *http.Server {
+func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
@@ -708,7 +734,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))
 	} else {
-		dOpts = append(dOpts, grpc.WithInsecure())
+		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	// HTTP 1.1+JSON Server
@@ -726,6 +752,30 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 	mux.Handle("/api/", handler)
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
+		if !a.DisableAuth {
+			ctx := request.Context()
+			cookies := request.Cookies()
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err == nil && jwtutil.IsValid(tokenString) {
+				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
+				if err != nil {
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
+				} else if claims != nil {
+					// Add claims to the context to inspect for RBAC
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, "claims", claims)
+				}
+				request = request.WithContext(ctx)
+			} else {
+				writer.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+		terminalHandler.ServeHTTP(writer, request)
+	})
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -867,6 +917,10 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		if server.XFrameOptions != "" {
 			w.Header().Set("X-Frame-Options", server.XFrameOptions)
 		}
+		// Set Content-Security-Policy according to configuration
+		if server.ContentSecurityPolicy != "" {
+			w.Header().Set("Content-Security-Policy", server.ContentSecurityPolicy)
+		}
 		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
@@ -886,9 +940,19 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			}
 			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
 		} else {
+			if isMainJsBundle(r.URL) {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
 		}
 	}
+}
+
+var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
+
+func isMainJsBundle(url *url.URL) bool {
+	filename := path.Base(url.Path)
+	return mainJsBundleRegex.Match([]byte(filename))
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error

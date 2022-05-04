@@ -31,7 +31,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            favourite: !pref.showFavorites || pref.favoritesAppList.includes(app.metadata.name),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {

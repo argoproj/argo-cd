@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testConfig = `contexts:
@@ -44,6 +44,8 @@ func TestContextDelete(t *testing.T) {
 	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	assert.NoError(t, err)
 
+	err = os.Chmod(testConfigFilePath, 0600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, localConfig.CurrentContext, "localhost:8080")
