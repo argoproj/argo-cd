@@ -10,6 +10,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"os"
+	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 
@@ -1001,4 +1004,71 @@ func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
 	assert.Len(t, operationResources, 0)
+}
+
+func TestPrintApplicationTableNotWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "table"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	assert.Equal(t, output, expectation)
+}
+
+func TestPrintApplicationTableWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
+					Path:           "guestbook",
+					TargetRevision: "123",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "wide"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	assert.Equal(t, output, expectation)
 }
