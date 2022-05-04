@@ -10,9 +10,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"os"
-	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 
@@ -990,13 +987,14 @@ func TestParseSelectedResources(t *testing.T) {
 func TestParseSelectedResourcesIncorrect(t *testing.T) {
 	resources := []string{"v1alpha:test", "v1alpha:Application:namespace/test"}
 	_, err := parseSelectedResources(resources)
-	assert.EqualError(t, err, "Resource should have GROUP:KIND:NAME, but instead got: v1alpha:test")
+	assert.ErrorContains(t, err, "v1alpha:test")
 }
 
 func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
 	resources := []string{"v1alpha:Application:namespace/test/unknown"}
 	_, err := parseSelectedResources(resources)
-	assert.EqualError(t, err, "Resource with namespace should have GROUP:KIND:NAMESPACE/NAME, but instead got: v1alpha:Application:namespace/test/unknown")
+	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
+
 }
 
 func TestParseSelectedResourcesEmptyList(t *testing.T) {
