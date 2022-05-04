@@ -81,7 +81,7 @@ $version = (Invoke-RestMethod https://api.github.com/repos/argoproj/argo-cd/rele
 Replace `$version` in the command below with the version of Argo CD you would like to download:
 
 ```powershell
-$url = "https://github.com/argoproj/argo-cd/releases/download/" + $version + "/argocd-windows-amd64.exe"
+$url = "https://github.com/argoproj/argo-cd/releases/download/" + '$version' + "/argocd-windows-amd64.exe"
 $output = "argocd.exe"
 
 Invoke-WebRequest -Uri $url -OutFile $output
