@@ -1055,11 +1055,11 @@ func (s *Server) streamApplicationEvents(
 			actualState = &application.ApplicationResourceResponse{Manifest: ""}
 		}
 
+		var mr *apiclient.ManifestResponse = desiredManifests
 		if isApp(rs) {
 			app := &v1alpha1.Application{}
-			err = json.Unmarshal([]byte(actualState.Manifest), app)
-			if err != nil {
-				logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
+			if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
+				logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
 			}
 			resourceDesiredManifests, err := s.GetManifests(ctx, &application.ApplicationManifestQuery{
 				Name:     &rs.Name,
@@ -1068,11 +1068,11 @@ func (s *Server) streamApplicationEvents(
 			if err != nil {
 				logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
 			} else {
-				desiredManifests = resourceDesiredManifests
+				mr = resourceDesiredManifests
 			}
 		}
 
-		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, desiredManifests, appTree, manifestGenErr, ts)
+		ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to get event payload")
 			continue
