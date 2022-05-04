@@ -1300,27 +1300,29 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 
 	if q.ApplicationSource.Plugin != nil {
 		pluginEnv := q.ApplicationSource.Plugin.Env
-		for i, j := range pluginEnv {
-			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+		for _, entry := range pluginEnv {
+			newValue := parsedEnv.Envsubst(entry.Value)
+			env = append(env, fmt.Sprintf("ARGOCD_ENV_%s=%s", entry.Name, newValue))
 		}
-		env = append(env, pluginEnv.Environ()...)
 	}
 	return env, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
+	// compute variables.
+	env, err := getPluginEnvs(envVars, q, creds, true)
+	if err != nil {
+		return nil, err
+	}
+
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env)
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds, true)
-	if err != nil {
-		return nil, err
-	}
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
