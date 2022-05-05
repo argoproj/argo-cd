@@ -51,6 +51,7 @@ ARGOCD_E2E_TEST_TIMEOUT?=30m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
+ARGOCD_BIN_MODE?=false
 
 ARGOCD_LINT_GOGC?=20
 
@@ -438,6 +439,7 @@ start-e2e-local: mod-vendor-local dep-ui-local
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
