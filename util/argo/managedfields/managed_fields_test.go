@@ -9,7 +9,6 @@ import (
 	arv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
 
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
@@ -17,10 +16,7 @@ import (
 
 func TestNormalize(t *testing.T) {
 
-	parser, err := typed.NewParser(typed.YAMLObject(testdata.K8sSchema))
-	if err != nil {
-		t.Fatal(err)
-	}
+	parser := managedfields.StaticParser()
 	t.Run("will remove conflicting fields if managed by trusted managers", func(t *testing.T) {
 		// given
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)

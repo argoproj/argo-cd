@@ -1,4 +1,21 @@
-types:
+package managedfields
+
+import (
+	"sync"
+
+	typed "sigs.k8s.io/structured-merge-diff/v4/typed"
+)
+
+func StaticParser() *typed.Parser {
+	parserOnce.Do(func() {
+		parser, _ = typed.NewParser(schemaYAML)
+	})
+	return parser
+}
+
+var parserOnce sync.Once
+var parser *typed.Parser
+var schemaYAML = typed.YAMLObject(`types:
 - name: io.k8s.api.admissionregistration.v1.MutatingWebhook
   map:
     fields:
@@ -11671,3 +11688,4 @@ types:
     elementType:
       namedType: __untyped_deduced_
     elementRelationship: separable
+`)
