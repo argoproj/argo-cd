@@ -317,7 +317,6 @@ func TestGitlabListRepos(t *testing.T) {
 		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Empty(t, r.Header.Get("Authorization"))
 		gitlabMockHandler(t)(w, r)
 	}))
 	for _, c := range cases {
@@ -349,7 +348,6 @@ func TestGitlabListRepos(t *testing.T) {
 
 func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Empty(t, r.Header.Get("Authorization"))
 		gitlabMockHandler(t)(w, r)
 	}))
 	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true)

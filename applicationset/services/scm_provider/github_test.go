@@ -236,7 +236,6 @@ func TestGithubListRepos(t *testing.T) {
 		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Empty(t, r.Header.Get("Authorization"))
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
@@ -269,7 +268,6 @@ func TestGithubListRepos(t *testing.T) {
 
 func TestGithubHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Empty(t, r.Header.Get("Authorization"))
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
@@ -290,7 +288,6 @@ func TestGithubHasPath(t *testing.T) {
 
 func TestGithubGetBranches(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Empty(t, r.Header.Get("Authorization"))
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
