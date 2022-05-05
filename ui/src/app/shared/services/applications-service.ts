@@ -238,7 +238,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group
+                group: resource.group || '' // The group query param must be present even if empty.
             })
             .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
@@ -280,7 +280,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 patchType
             })
             .send(JSON.stringify(patch))
@@ -297,7 +297,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 force,
                 orphan
             })
@@ -355,9 +355,7 @@ export class ApplicationsService {
         const search = new URLSearchParams();
         search.set('container', containerName);
         search.set('namespace', namespace);
-        if (follow) {
-            search.set('follow', follow.toString());
-        }
+        search.set('follow', follow.toString());
         if (podName) {
             search.set('podName', podName);
         } else {
@@ -377,6 +375,8 @@ export class ApplicationsService {
         if (previous) {
             search.set('previous', previous.toString());
         }
+        // The API requires that this field be set to a non-empty string.
+        search.set('sinceSeconds', '0');
         return search;
     }
 

@@ -11,8 +11,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/cmd/util"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,7 +277,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := util.FilterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		filteredResources := filterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
@@ -297,7 +295,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := util.FilterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		filteredResources := filterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
@@ -315,7 +313,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := util.FilterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		filteredResources := filterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
@@ -965,4 +963,110 @@ func Test_unset_nothingToUnset(t *testing.T) {
 			assert.True(t, nothingToUnset)
 		})
 	}
+}
+
+func TestParseSelectedResources(t *testing.T) {
+	resources := []string{"v1alpha:Application:test", "v1alpha:Application:namespace/test"}
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 2)
+	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+		Namespace: "namespace",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+}
+
+func TestParseSelectedResourcesIncorrect(t *testing.T) {
+	resources := []string{"v1alpha:test", "v1alpha:Application:namespace/test"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:test")
+}
+
+func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
+	resources := []string{"v1alpha:Application:namespace/test/unknown"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
+
+}
+
+func TestParseSelectedResourcesEmptyList(t *testing.T) {
+	var resources []string
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 0)
+}
+
+func TestPrintApplicationTableNotWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "table"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	assert.Equal(t, output, expectation)
+}
+
+func TestPrintApplicationTableWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
+					Path:           "guestbook",
+					TargetRevision: "123",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "wide"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	assert.Equal(t, output, expectation)
 }

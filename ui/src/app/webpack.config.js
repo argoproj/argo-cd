@@ -96,6 +96,7 @@ const config = {
         })
     ],
     devServer: {
+        compress: false,
         historyApiFallback: {
             disableDotRule: true
         },
