@@ -16,7 +16,6 @@ import (
 func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Println("Got : ", r.RequestURI)
 		switch r.RequestURI {
 		case "/api/v4":
 			fmt.Println("here1")

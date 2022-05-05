@@ -312,7 +312,7 @@ func TestGithubGetBranches(t *testing.T) {
 	if err != nil {
 		assert.NoError(t, err)
 	} else {
-		// considering master and one release branch to always exist.
-		assert.Greater(t, len(repos), 1)
+		// considering master  branch to  exist.
+		assert.Equal(t, len(repos), 1)
 	}
 }
