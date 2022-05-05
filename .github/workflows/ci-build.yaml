@@ -420,6 +420,7 @@ jobs:
           # port 8080 which is not visible in netstat -tulpen, but still there
           # with a HTTP listener. We have API server listening on port 8088
           # instead.
+          export BIN_MODE=true
           make controller repo-server server applicationset-controller
           make start-e2e-local 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
           count=1
