@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/cmd/util"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -277,7 +279,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := filterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		filteredResources := util.FilterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
@@ -295,7 +297,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := filterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		filteredResources := util.FilterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
@@ -313,7 +315,7 @@ func TestFilterResources(t *testing.T) {
 			},
 		}
 
-		filteredResources := filterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		filteredResources := util.FilterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
 		if len(filteredResources) != 1 {
 			t.Fatal("Incorrect number of resources after filter")
 		}
