@@ -85,8 +85,11 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 	for _, appSet := range appSetList.Items {
 		shouldRefresh := false
 		for _, gen := range appSet.Spec.Generators {
-			// check if the ApplicationSet uses the git generator that is relevant to the payload
-			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) || shouldRefreshPRGenerator(gen.PullRequest, prGenInfo)
+			// check if the ApplicationSet uses any generator that is relevant to the payload
+			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
+				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
+				shouldRefreshMatrixGenerator(gen.Matrix, gitGenInfo, prGenInfo) ||
+				shouldRefreshMergeGenerator(gen.Merge, gitGenInfo, prGenInfo)
 			if shouldRefresh {
 				break
 			}
@@ -170,6 +173,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	return &gitGeneratorInfo{
 		RepoRegexp:  repoRegexp,
 		TouchedHead: touchedHead,
+		Revision:    revision,
 	}
 }
 
@@ -281,6 +285,31 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	return true
+}
+
+func shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+	if gen == nil {
+		return false
+	}
+	return shouldRefreshNestedGenerator(gen.Generators, gitGenInfo, prGenInfo)
+}
+
+func shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+	if gen == nil {
+		return false
+	}
+	return shouldRefreshNestedGenerator(gen.Generators, gitGenInfo, prGenInfo)
+}
+
+func shouldRefreshNestedGenerator(gens []v1alpha1.ApplicationSetNestedGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+	shouldRefresh := false
+	for _, gen := range gens {
+		shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) || shouldRefreshPRGenerator(gen.PullRequest, prGenInfo)
+		if shouldRefresh {
+			break
+		}
+	}
+	return shouldRefresh
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {

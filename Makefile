@@ -51,6 +51,7 @@ ARGOCD_E2E_TEST_TIMEOUT?=30m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
+ARGOCD_BIN_MODE?=true
 
 ARGOCD_LINT_GOGC?=20
 
@@ -278,7 +279,7 @@ ifeq ($(DEV_IMAGE), true)
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
-	docker build -t argocd-base --target argocd-base .
+	DOCKER_BUILDKIT=1 docker build -t argocd-base --target argocd-base .
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -417,7 +418,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local
+start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -438,6 +439,7 @@ start-e2e-local: mod-vendor-local dep-ui-local
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
@@ -531,8 +533,7 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	./hack/install.sh kustomize-linux
-	./hack/install.sh helm2-linux
+	./hack/install.sh kustomize
 	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)

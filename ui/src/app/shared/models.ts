@@ -121,6 +121,8 @@ export interface ResourceResult {
 }
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
+export const AnnotationHookKey = 'argocd.argoproj.io/hook';
+export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 
 export interface Application {
     apiVersion?: string;
@@ -309,6 +311,7 @@ export interface ResourceStatus {
     health: HealthStatus;
     hook?: boolean;
     requiresPruning?: boolean;
+    syncOrder?: string;
 }
 
 export interface ResourceRef {
