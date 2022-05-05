@@ -19,6 +19,7 @@ argocd-repo-server [flags]
       --logformat string                     Set the logging format. One of: text|json (default "text")
       --loglevel string                      Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-port int                     Start metrics server on given port (default 8084)
+      --otlp-address string                  OpenTelemetry collector address to send traces to
       --parallelismlimit int                 Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --port int                             Listen on given port for incoming connections (default 8081)
       --redis string                         Redis server hostname and port (e.g. argocd-redis:6379). 

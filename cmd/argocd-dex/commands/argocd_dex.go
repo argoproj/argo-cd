@@ -40,9 +40,6 @@ func NewCommand() *cobra.Command {
 
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
-
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }
 
@@ -54,6 +51,8 @@ func NewRunDexCommand() *cobra.Command {
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
 			_, err := exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
@@ -111,6 +110,8 @@ func NewRunDexCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return &command
 }
 
@@ -123,6 +124,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
@@ -170,6 +173,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
 	return &command
 }

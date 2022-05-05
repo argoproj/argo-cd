@@ -109,12 +109,13 @@ type watchOpts struct {
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts     cmdutil.AppOptions
-		fileURL     string
-		appName     string
-		upsert      bool
-		labels      []string
-		annotations []string
+		appOpts      cmdutil.AppOptions
+		fileURL      string
+		appName      string
+		upsert       bool
+		labels       []string
+		annotations  []string
+		setFinalizer bool
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -136,7 +137,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
 	# Create a app using a custom tool:
-	argocd app create ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+	argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
@@ -149,7 +150,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
-
+				if setFinalizer {
+					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				}
 				conn, appIf := argocdClient.NewApplicationClientOrDie()
 				defer argoio.Close(conn)
 				appCreateRequest := applicationpkg.ApplicationCreateRequest{
@@ -169,6 +172,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
+	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -178,6 +182,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+// getInfos converts a list of string key=value pairs to a list of Info objects.
 func getInfos(infos []string) []*argoappv1.Info {
 	mapInfos, err := label.Parse(infos)
 	errors.CheckError(err)
@@ -400,7 +405,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
-
 			}
 		} else {
 			status = "Sync Allowed"

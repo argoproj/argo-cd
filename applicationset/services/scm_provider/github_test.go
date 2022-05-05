@@ -284,4 +284,13 @@ func TestGithubGetBranches(t *testing.T) {
 	} else {
 		assert.Equal(t, repos[0].Branch, "master")
 	}
+	// Get all branches
+	host.allBranches = true
+	repos, err = host.GetBranches(context.Background(), repo)
+	if err != nil {
+		assert.NoError(t, err)
+	} else {
+		// considering master and one release branch to always exist.
+		assert.Greater(t, len(repos), 1)
+	}
 }

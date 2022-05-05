@@ -380,6 +380,8 @@ type SCMProviderGeneratorFilter struct {
 	RepositoryMatch *string `json:"repositoryMatch,omitempty"`
 	// An array of paths, all of which must exist.
 	PathsExist []string `json:"pathsExist,omitempty"`
+	// An array of paths, all of which must not exist.
+	PathsDoNotExist []string `json:"pathsDoNotExist,omitempty"`
 	// A regex which must match at least one label.
 	LabelMatch *string `json:"labelMatch,omitempty"`
 	// A regex which must match the branch name.

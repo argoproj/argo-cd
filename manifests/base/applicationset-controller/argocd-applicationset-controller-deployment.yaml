@@ -41,6 +41,8 @@ spec:
             name: gpg-keys
           - mountPath: /app/config/gpg/keys
             name: gpg-keyring
+          - mountPath: /tmp
+            name: tmp
           securityContext:
            capabilities:
              drop:
@@ -61,3 +63,5 @@ spec:
         name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - emptyDir: {}
+        name: tmp
