@@ -173,6 +173,28 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v3/repos/argoproj/argo-cd/branches/master":
+			_, err := io.WriteString(w, `{
+				"name": "master",
+				"commit": {
+				  "sha": "c5b97d5ae6c19d5c5df71a34c7fbeeda2479ccbc",
+				  "url": "https://api.github.com/repos/octocat/Hello-World/commits/c5b97d5ae6c19d5c5df71a34c7fbeeda2479ccbc"
+				},
+				"protected": true,
+				"protection": {
+				  "required_status_checks": {
+					"enforcement_level": "non_admins",
+					"contexts": [
+					  "ci-test",
+					  "linter"
+					]
+				  }
+				},
+				"protection_url": "https://api.github.com/repos/octocat/hello-world/branches/master/protection"
+			  }`)
+			if err != nil {
+				t.Fail()
+			}
 		default:
 			w.WriteHeader(404)
 		}
