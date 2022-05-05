@@ -885,7 +885,7 @@ type DifferenceOption struct {
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
 func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
 	var foundDiffs bool
-	liveObjs, err := liveObjects(resources.Items)
+	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
@@ -2014,7 +2014,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					unstructureds = targetObjs
 				}
 			case "live":
-				liveObjs, err := liveObjects(resources.Items)
+				liveObjs, err := cmdutil.LiveObjects(resources.Items)
 				errors.CheckError(err)
 				unstructureds = liveObjs
 			default:
