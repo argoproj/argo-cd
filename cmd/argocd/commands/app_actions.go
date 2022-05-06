@@ -67,7 +67,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		filteredObjects := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, true)
+		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, true)
+		errors.CheckError(err)
 		var availableActions []DisplayedAction
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
@@ -152,7 +153,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		filteredObjects := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		errors.CheckError(err)
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
