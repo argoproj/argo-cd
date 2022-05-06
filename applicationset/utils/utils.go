@@ -177,3 +177,13 @@ func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoapp
 		break
 	}
 }
+
+func NormalizeBitbucketBasePath(basePath string) string {
+	if strings.HasSuffix(basePath, "/rest/") {
+		return strings.TrimSuffix(basePath, "/")
+	}
+	if !strings.HasSuffix(basePath, "/rest") {
+		return basePath + "/rest"
+	}
+	return basePath
+}

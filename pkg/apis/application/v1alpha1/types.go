@@ -237,7 +237,7 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
-	// Version is the Helm version to use for templating (either "2" or "3")
+	// Version is the Helm version to use for templating ("3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
 	PassCredentials bool `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
@@ -2392,7 +2392,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		if c.Config.AWSAuthConfig != nil {
-			args := []string{"eks", "get-token", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
+			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
 			}
@@ -2400,8 +2400,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion:      "client.authentication.k8s.io/v1alpha1",
-					Command:         "aws",
+					APIVersion:      "client.authentication.k8s.io/v1beta1",
+					Command:         "argocd-k8s-auth",
 					Args:            args,
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},

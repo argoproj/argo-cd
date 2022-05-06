@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -31,10 +32,14 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.PathsExist = filter.PathsExist
 			outFilter.FilterType = FilterTypeBranch
 		}
+		if filter.PathsDoNotExist != nil {
+			outFilter.PathsDoNotExist = filter.PathsDoNotExist
+			outFilter.FilterType = FilterTypeBranch
+		}
 		if filter.BranchMatch != nil {
 			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %v", *filter.LabelMatch, err)
+				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %v", *filter.BranchMatch, err)
 			}
 			outFilter.FilterType = FilterTypeBranch
 		}
@@ -67,11 +72,24 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 
 	if len(filter.PathsExist) != 0 {
 		for _, path := range filter.PathsExist {
+			path = strings.TrimRight(path, "/")
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 			if err != nil {
 				return false, err
 			}
 			if !hasPath {
+				return false, nil
+			}
+		}
+	}
+	if len(filter.PathsDoNotExist) != 0 {
+		for _, path := range filter.PathsDoNotExist {
+			path = strings.TrimRight(path, "/")
+			hasPath, err := provider.RepoHasPath(ctx, repo, path)
+			if err != nil {
+				return false, err
+			}
+			if hasPath {
 				return false, nil
 			}
 		}
@@ -85,12 +103,10 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	if err != nil {
 		return nil, err
 	}
-
 	repos, err := provider.ListRepos(ctx, cloneProtocol)
 	if err != nil {
 		return nil, err
 	}
-
 	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
 	if len(repoFilters) == 0 {
 		repos, err := getBranches(ctx, provider, repos, compiledFilters)
@@ -99,7 +115,6 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 		}
 		return repos, nil
 	}
-
 	filteredRepos := make([]*Repository, 0, len(repos))
 	for _, repo := range repos {
 		for _, filter := range repoFilters {

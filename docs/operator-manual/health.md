@@ -21,8 +21,8 @@ with at least one value for `hostname` or `IP`.
 
 ### Argocd App
 
-The health assessement of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
-You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+The health assessment of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating synchronization using sync waves. Add the following resource customization in
 `argocd-cm` ConfigMap:
 
 ```yaml
@@ -86,7 +86,7 @@ data:
         end
       end
     end
-        
+
     hs.status = "Progressing"
     hs.message = "Waiting for certificate"
     return hs
@@ -102,7 +102,7 @@ The custom health check might return one of the following health statuses:
 
 By default health typically returns `Progressing` status.
 
-NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
+NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
 setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
 
 ```yaml

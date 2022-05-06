@@ -12,5 +12,9 @@ spec:
     port: 7000
     protocol: TCP
     targetPort: webhook
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller

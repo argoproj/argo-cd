@@ -9,6 +9,10 @@ on:
   schedule:
     - cron: '0 19 * * 0'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   CodeQL-Build:
     if: github.repository == 'argoproj/argo-cd'

@@ -35,6 +35,7 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
+    truncateNameOnRight?: boolean;
 }
 
 interface FilterInput {
@@ -69,7 +70,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: []};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false};
     }
 
     private get showOperationState() {
@@ -225,6 +226,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
                             };
+                            const toggleNameDirection = () => {
+                                this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -289,6 +293,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <div className='graph-options-panel'>
+                                                        <a
+                                                            className={`group-nodes-button`}
+                                                            onClick={() => {
+                                                                toggleNameDirection();
+                                                            }}
+                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                            <i
+                                                                className={classNames({
+                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                })}
+                                                            />
+                                                        </a>
                                                         {pref.view === 'tree' && (
                                                             <a
                                                                 className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
@@ -322,6 +339,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={pref.zoom}
+                                                        nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
                                                     />
@@ -340,39 +358,68 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
-                                                    <div>
-                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                            {(filteredRes.length > 0 && (
-                                                                <Paginate
-                                                                    page={this.state.page}
-                                                                    data={filteredRes}
-                                                                    onPageChange={page => this.setState({page})}
-                                                                    preferencesKey='application-details'>
-                                                                    {data => (
-                                                                        <ApplicationResourceList
-                                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                                            resources={data}
-                                                                            nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
-                                                                                )
-                                                                            }
-                                                                        />
+                                                    <DataLoader
+                                                        input={{filteredRes}}
+                                                        load={async () => {
+                                                            const liveStatePromises = filteredRes.map(async resource => {
+                                                                const resourceRow: any = {...resource, group: resource.group || ''};
+                                                                const liveState =
+                                                                    typeof resource.group !== 'undefined' &&
+                                                                    (await services.applications.getResource(application.metadata.name, resource).catch(() => null));
+                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
+                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
+                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
+                                                                        resourceRow.syncOrder =
+                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
+                                                                    }
+                                                                } else {
+                                                                    resourceRow.syncOrder = '-';
+                                                                }
+                                                                return resourceRow;
+                                                            });
+                                                            return await Promise.all(liveStatePromises);
+                                                        }}>
+                                                        {(filteredResWithSyncInfo: any[]) => (
+                                                            <div>
+                                                                <Filters
+                                                                    pref={pref}
+                                                                    tree={tree}
+                                                                    resourceNodes={filteredResWithSyncInfo}
+                                                                    onSetFilter={setFilter}
+                                                                    onClearFilter={clearFilter}>
+                                                                    {(filteredResWithSyncInfo.length > 0 && (
+                                                                        <Paginate
+                                                                            page={this.state.page}
+                                                                            data={filteredResWithSyncInfo}
+                                                                            onPageChange={page => this.setState({page})}
+                                                                            preferencesKey='application-details'>
+                                                                            {data => (
+                                                                                <ApplicationResourceList
+                                                                                    onNodeClick={fullName => this.selectNode(fullName)}
+                                                                                    resources={data}
+                                                                                    nodeMenu={node =>
+                                                                                        AppUtils.renderResourceMenu(
+                                                                                            {...node, root: node},
+                                                                                            application,
+                                                                                            tree,
+                                                                                            this.appContext,
+                                                                                            this.appChanged,
+                                                                                            () => this.getApplicationActionMenu(application, false)
+                                                                                        )
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </Paginate>
+                                                                    )) || (
+                                                                        <EmptyState icon='fa fa-search'>
+                                                                            <h4>No resources found</h4>
+                                                                            <h5>Try to change filter criteria</h5>
+                                                                        </EmptyState>
                                                                     )}
-                                                                </Paginate>
-                                                            )) || (
-                                                                <EmptyState icon='fa fa-search'>
-                                                                    <h4>No resources found</h4>
-                                                                    <h5>Try to change filter criteria</h5>
-                                                                </EmptyState>
-                                                            )}
-                                                        </Filters>
-                                                    </div>
+                                                                </Filters>
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>

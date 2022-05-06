@@ -10,7 +10,11 @@ on:
     types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
 env:
-  GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: '1.18'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   publish:
@@ -80,7 +84,7 @@ jobs:
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
           then
-            IMAGE_PLATFORMS=linux/amd64,linux/arm64
+            IMAGE_PLATFORMS=linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
