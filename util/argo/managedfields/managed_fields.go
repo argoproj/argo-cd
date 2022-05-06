@@ -130,19 +130,26 @@ func ResolveParseableType(gvk schema.GroupVersionKind, parser *k8smanagedfields.
 	if parser == nil {
 		return &typed.DeducedParseableType
 	}
+	pt := resolverFromStaticParser(gvk, parser)
+	if pt == nil {
+		return parser.Type(gvk)
+	}
+	return pt
+}
 
+func resolverFromStaticParser(gvk schema.GroupVersionKind, parser *k8smanagedfields.GvkParser) *typed.ParseableType {
 	gvkNameMap := getGvkMap(parser)
 	name := gvkNameMap[gvk]
 
 	p := StaticParser()
 	if p == nil || name == "" {
-		return parser.Type(gvk)
+		return nil
 	}
 	pt := p.Type(name)
 	if pt.IsValid() {
 		return &pt
 	}
-	return parser.Type(gvk)
+	return nil
 }
 
 var gvkMap map[schema.GroupVersionKind]string
