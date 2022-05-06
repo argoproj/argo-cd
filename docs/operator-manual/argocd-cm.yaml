@@ -287,4 +287,4 @@ data:
   server.rbac.log.enforce.enable: "false"
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
-  exec.enabled: false
+  exec.enabled: "false"
