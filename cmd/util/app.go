@@ -664,7 +664,7 @@ func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
+func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) ([]*unstructured.Unstructured, error) {
 	liveObjs, err := LiveObjects(resources)
 	errors.CheckError(err)
 	filteredObjects := make([]*unstructured.Unstructured, 0)
@@ -690,10 +690,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		log.Fatal("No matching resource found")
+		return nil, fmt.Errorf("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
-	return filteredObjects
+	return filteredObjects, nil
 }

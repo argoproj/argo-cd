@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
 	log "github.com/sirupsen/logrus"
@@ -57,7 +59,8 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		objectsToPatch := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		objectsToPatch, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		errors.CheckError(err)
 		for i := range objectsToPatch {
 			obj := objectsToPatch[i]
 			gvk := obj.GroupVersionKind()
@@ -113,7 +116,8 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		objectsToDelete := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		errors.CheckError(err)
 		for i := range objectsToDelete {
 			obj := objectsToDelete[i]
 			gvk := obj.GroupVersionKind()
@@ -135,6 +139,26 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	return command
 }
 
+func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+	fmtStr := "%s\t%s\t%s\t%s\t%s\n"
+	_, _ = fmt.Fprintf(w, fmtStr, headers...)
+	if !orphaned || listAll {
+		for _, res := range appResourceTree.Nodes {
+			if len(res.ParentRefs) == 0 {
+				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
+			}
+		}
+	}
+	if orphaned || listAll {
+		for _, res := range appResourceTree.OrphanedNodes {
+			_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
+		}
+	}
+	_ = w.Flush()
+}
+
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
 	var command = &cobra.Command{
@@ -151,23 +175,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			defer argoio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
-			fmtStr := "%s\t%s\t%s\t%s\t%s\n"
-			_, _ = fmt.Fprintf(w, fmtStr, headers...)
-			if !orphaned || listAll {
-				for _, res := range appResourceTree.Nodes {
-					if len(res.ParentRefs) == 0 {
-						_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
-					}
-				}
-			}
-			if orphaned || listAll {
-				for _, res := range appResourceTree.OrphanedNodes {
-					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
-				}
-			}
-			_ = w.Flush()
+			printResources(listAll, orphaned, appResourceTree)
 		},
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
