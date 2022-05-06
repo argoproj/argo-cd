@@ -56,7 +56,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				  "comments_url": "https://api.github.com/repos/argoproj/argo-cd/comments{/number}",
 				  "commits_url": "https://api.github.com/repos/argoproj/argo-cd/commits{/sha}",
 				  "compare_url": "https://api.github.com/repos/argoproj/argo-cd/compare/{base}...{head}",
-				  "contents_url": "https://api.github.com/repos/argoproj/argo-cd/contents/{+path}",
+				  "contents_url": "https://api.github.com/repos/argoproj/argo-cd/contents/{path}",
 				  "contributors_url": "https://api.github.com/repos/argoproj/argo-cd/contributors",
 				  "deployments_url": "https://api.github.com/repos/argoproj/argo-cd/deployments",
 				  "downloads_url": "https://api.github.com/repos/argoproj/argo-cd/downloads",
@@ -303,6 +303,15 @@ func TestGithubGetBranches(t *testing.T) {
 	} else {
 		assert.Equal(t, repos[0].Branch, "master")
 	}
+	//Branch Doesn't exists instead of error will return no error
+	repo2 := &Repository{
+		Organization: "argoproj",
+		Repository:   "applicationset",
+		Branch:       "main",
+	}
+	_, err = host.GetBranches(context.Background(), repo2)
+	assert.NoError(t, err)
+
 	// Get all branches
 	host.allBranches = true
 	repos, err = host.GetBranches(context.Background(), repo)
