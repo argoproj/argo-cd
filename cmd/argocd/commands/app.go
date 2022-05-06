@@ -1684,6 +1684,7 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 	return resStates
 }
 
+// check if resource health, sync and operation statuses matches watch options
 func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
 	healthCheckPassed := true
 	if watch.suspended && watch.health {

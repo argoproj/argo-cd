@@ -1080,7 +1080,7 @@ func TestResourceStateKey(t *testing.T) {
 	}
 
 	key := rst.Key()
-	assert.Equal(t, key, "group/kind/namespace/name")
+	assert.Equal(t, "group/kind/namespace/name", key)
 }
 
 func TestFormatItems(t *testing.T) {
