@@ -157,8 +157,9 @@ func getGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]s
 
 func extractGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
 	results := make(map[schema.GroupVersionKind]string)
-	value := reflect.ValueOf(*parser)
-	gvkValue := value.FieldByName("gvks")
+
+	value := reflect.ValueOf(parser)
+	gvkValue := reflect.Indirect(value).FieldByName("gvks")
 	iter := gvkValue.MapRange()
 	for iter.Next() {
 		group := iter.Key().FieldByName("Group").String()
