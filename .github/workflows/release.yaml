@@ -99,7 +99,7 @@ jobs:
           echo "=========== BEGIN COMMIT MESSAGE ============="
           git show ${SOURCE_TAG}
           echo "============ END COMMIT MESSAGE =============="
-          
+
           # Quite dirty hack to get the release notes from the annotated tag
           # into a temporary file.
           RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
@@ -212,6 +212,10 @@ jobs:
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
           docker tag ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} argoproj/argocd:v${TARGET_VERSION}
           docker push argoproj/argocd:v${TARGET_VERSION}
+          make release-cli
+          make checksums
+          chmod +x ./dist/argocd-linux-amd64
+          ./dist/argocd-linux-amd64 version --client
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Install cosign
@@ -242,7 +246,7 @@ jobs:
           git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
 
-      - name: Create GitHub release
+      - name: Dry run GitHub release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -253,38 +257,52 @@ jobs:
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ env.PRE_RELEASE }}
           body: ${{ steps.release-notes.outputs.content }}
+        if: ${{ env.DRY_RUN == 'true' }}
 
-      - name: Upload argocd-linux-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-linux-amd64
-          asset_name: argocd-linux-amd64
-          asset_content_type: application/octet-stream
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui"
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
+        run: |
+          yarn install --cwd ./ui
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            generator -p $folder -o /tmp
+          done
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Upload argocd-darwin-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-darwin-amd64
-          asset_name: argocd-darwin-amd64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-windows-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-windows-amd64.exe
-          asset_name: argocd-windows-amd64.exe
-          asset_content_type: application/octet-stream
+          name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}
+          files: |
+            dist/argocd-*
+            /tmp/sbom.tar.gz
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Update homebrew formula

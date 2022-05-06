@@ -542,3 +542,6 @@ dep-ui-local:
 
 start-test-k8s:
 	go run ./hack/k8s
+
+checksums:
+	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done
