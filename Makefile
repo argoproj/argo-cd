@@ -81,6 +81,7 @@ define run-in-test-server
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
+		-e GITHUB_TOKEN \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -102,6 +103,7 @@ define run-in-test-client
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e GITHUB_TOKEN \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRC_MOUNT} \
