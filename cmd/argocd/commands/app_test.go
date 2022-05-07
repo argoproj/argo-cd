@@ -965,6 +965,45 @@ func Test_unset_nothingToUnset(t *testing.T) {
 	}
 }
 
+func TestParseSelectedResources(t *testing.T) {
+	resources := []string{"v1alpha:Application:test", "v1alpha:Application:namespace/test"}
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 2)
+	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+		Namespace: "namespace",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+}
+
+func TestParseSelectedResourcesIncorrect(t *testing.T) {
+	resources := []string{"v1alpha:test", "v1alpha:Application:namespace/test"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:test")
+}
+
+func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
+	resources := []string{"v1alpha:Application:namespace/test/unknown"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
+
+}
+
+func TestParseSelectedResourcesEmptyList(t *testing.T) {
+	var resources []string
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 0)
+}
+
 func TestPrintApplicationTableNotWide(t *testing.T) {
 	output, err := captureOutput(func() error {
 		app := &v1alpha1.Application{

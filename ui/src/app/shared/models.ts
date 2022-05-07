@@ -451,6 +451,7 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    execEnabled: boolean;
 }
 
 export interface UserInfo {
