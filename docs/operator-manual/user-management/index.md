@@ -397,9 +397,9 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 ### Sensitive Data and SSO Client Secrets
 
-`argocd-secret` can be used to store sensititve data which can be referenced by ArgoCD. Values starting with `$` in configmaps is interpreted as follows:
+`argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and reads it value. 
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
 - Otherwise, look for a key in the k8s secret named `argocd-secret`. 
 
 #### Example
