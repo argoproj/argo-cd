@@ -1265,6 +1265,7 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 	var (
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
+		logCtx       = log.WithField("application", a.Name)
 	)
 
 	obj := appv1.Application{}
@@ -1287,16 +1288,20 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 			Revision: &a.Status.Sync.Revision,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get revision metadata: %w", err)
-		}
+			if !strings.Contains(err.Error(), "not found") {
+				return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+			}
 
-		if obj.ObjectMeta.Labels == nil {
-			obj.ObjectMeta.Labels = map[string]string{}
-		}
+			logCtx.Warnf("failed to get revision metadata: %s, reporting application deletion event", err.Error())
+		} else {
+			if obj.ObjectMeta.Labels == nil {
+				obj.ObjectMeta.Labels = map[string]string{}
+			}
 
-		obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
-		obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
-		obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+			obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
+			obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
+			obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+		}
 	}
 
 	object, err := json.Marshal(&obj)
@@ -1307,6 +1312,7 @@ func (s *Server) getApplicationEventPayload(ctx context.Context, a *appv1.Applic
 	actualManifest := string(object)
 	if a.DeletionTimestamp != nil {
 		actualManifest = "" // mark as deleted
+		logCtx.Info("reporting application deletion event")
 	}
 
 	hs := string(a.Status.Health.Status)
