@@ -1070,3 +1070,148 @@ func TestPrintApplicationTableWide(t *testing.T) {
 	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
+
+func TestResourceStateKey(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+	}
+
+	key := rst.Key()
+	assert.Equal(t, "group/kind/namespace/name", key)
+}
+
+func TestFormatItems(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+	items := rst.FormatItems()
+	assert.Equal(t, "group", items[1])
+	assert.Equal(t, "kind", items[2])
+	assert.Equal(t, "namespace", items[3])
+	assert.Equal(t, "name", items[4])
+	assert.Equal(t, "status", items[5])
+	assert.Equal(t, "health", items[6])
+	assert.Equal(t, "hook", items[7])
+	assert.Equal(t, "message", items[8])
+
+}
+
+func TestMerge(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	rstNew := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook2",
+		Message:   "message2",
+	}
+
+	updated := rst.Merge(&rstNew)
+	assert.True(t, updated)
+	assert.Equal(t, rstNew.Hook, rst.Hook)
+	assert.Equal(t, rstNew.Message, rst.Message)
+	assert.Equal(t, rstNew.Status, rst.Status)
+}
+
+func TestMergeWitoutUpdate(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	rstNew := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	updated := rst.Merge(&rstNew)
+	assert.False(t, updated)
+}
+
+func TestCheckResourceStatus(t *testing.T) {
+	t.Run("Suspended and health status passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Suspended and health status failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Suspended passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    false,
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Suspended failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    false,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Health passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Health failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Synced passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Synced failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+}
