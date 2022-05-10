@@ -7,7 +7,6 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate";
 // resources.
 package certificate;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 

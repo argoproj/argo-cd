@@ -1,10 +1,84 @@
 package commands
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/gitops-engine/pkg/health"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
+
+func Test_getInfos(t *testing.T) {
+	testCases := []struct {
+		name          string
+		infos         []string
+		expectedInfos []*v1alpha1.Info
+	}{
+		{
+			name:          "empty",
+			infos:         []string{},
+			expectedInfos: []*v1alpha1.Info{},
+		},
+		{
+			name:  "simple key value",
+			infos: []string{"key1=value1", "key2=value2"},
+			expectedInfos: []*v1alpha1.Info{
+				{Name: "key1", Value: "value1"},
+				{Name: "key2", Value: "value2"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			infos := getInfos(testCase.infos)
+			assert.Len(t, infos, len(testCase.expectedInfos))
+			sort := func(a, b *v1alpha1.Info) bool { return a.Name < b.Name }
+			assert.Empty(t, cmp.Diff(testCase.expectedInfos, infos, cmpopts.SortSlices(sort)))
+		})
+	}
+}
+
+func Test_getRefreshType(t *testing.T) {
+	refreshTypeNormal := string(v1alpha1.RefreshTypeNormal)
+	refreshTypeHard := string(v1alpha1.RefreshTypeHard)
+	testCases := []struct {
+		refresh     bool
+		hardRefresh bool
+		expected    *string
+	}{
+		{false, false, nil},
+		{false, true, &refreshTypeHard},
+		{true, false, &refreshTypeNormal},
+		{true, true, &refreshTypeHard},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(fmt.Sprintf("hardRefresh=%t refresh=%t", testCase.hardRefresh, testCase.refresh), func(t *testing.T) {
+			refreshType := getRefreshType(testCase.refresh, testCase.hardRefresh)
+			if testCase.expected == nil {
+				assert.Nil(t, refreshType)
+			} else {
+				assert.NotNil(t, refreshType)
+				assert.Equal(t, *testCase.expected, *refreshType)
+			}
+		})
+	}
+}
 
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 
@@ -41,6 +115,34 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		t.Fatal("History should be found")
 	}
 
+}
+
+func TestDefaultWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, true, opts.health)
+	assert.Equal(t, true, opts.operation)
+	assert.Equal(t, false, opts.suspended)
+}
+
+func TestOverrideWaitOptions(t *testing.T) {
+	watch := watchOpts{
+		sync:      true,
+		health:    false,
+		operation: false,
+		suspended: false,
+	}
+	opts := getWatchOpts(watch)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, false, opts.health)
+	assert.Equal(t, false, opts.operation)
+	assert.Equal(t, false, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -160,4 +262,956 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 		t.Fatal("Find revision history should fail with correct error message")
 	}
 
+}
+
+func TestFilterResources(t *testing.T) {
+
+	t.Run("Filter by ns", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by kind", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+
+	t.Run("Filter by name", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources := filterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		if len(filteredResources) != 1 {
+			t.Fatal("Incorrect number of resources after filter")
+		}
+
+	})
+}
+
+func Test_groupObjsByKey(t *testing.T) {
+	localObjs := []*unstructured.Unstructured{
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      "pod-name",
+					"namespace": "default",
+				},
+			},
+		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "apiextensions.k8s.io/v1",
+				"kind":       "CustomResourceDefinition",
+				"metadata": map[string]interface{}{
+					"name": "certificates.cert-manager.io",
+				},
+			},
+		},
+	}
+	liveObjs := []*unstructured.Unstructured{
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "Pod",
+				"metadata": map[string]interface{}{
+					"name":      "pod-name",
+					"namespace": "default",
+				},
+			},
+		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "apiextensions.k8s.io/v1",
+				"kind":       "CustomResourceDefinition",
+				"metadata": map[string]interface{}{
+					"name": "certificates.cert-manager.io",
+				},
+			},
+		},
+	}
+
+	expected := map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.ResourceKey{Group: "", Kind: "Pod", Namespace: "default", Name: "pod-name"}:                                                       localObjs[0],
+		kube.ResourceKey{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition", Namespace: "", Name: "certificates.cert-manager.io"}: localObjs[1],
+	}
+
+	objByKey := groupObjsByKey(localObjs, liveObjs, "default")
+	assert.Equal(t, expected, objByKey)
+}
+
+func TestFormatSyncPolicy(t *testing.T) {
+
+	t.Run("Policy not defined", func(t *testing.T) {
+		app := v1alpha1.Application{}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "<none>" {
+			t.Fatalf("Incorrect policy %q, should be <none>", policy)
+		}
+	})
+
+	t.Run("Auto policy", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto" {
+			t.Fatalf("Incorrect policy %q, should be Auto", policy)
+		}
+	})
+
+	t.Run("Auto policy with prune", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		policy := formatSyncPolicy(app)
+
+		if policy != "Auto-Prune" {
+			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
+		}
+	})
+
+}
+
+func TestFormatConditionSummary(t *testing.T) {
+	t.Run("No conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "<none>" {
+			t.Fatalf("Incorrect summary %q, should be <none>", summary)
+		}
+	})
+
+	t.Run("Few conditions are defined", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type2",
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		if summary != "type1(2),type2" && summary != "type2,type1(2)" {
+			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
+		}
+	})
+}
+
+func TestPrintOperationResult(t *testing.T) {
+	t.Run("Operation state is empty", func(t *testing.T) {
+		output, _ := captureOutput(func() error {
+			printOperationResult(nil)
+			return nil
+		})
+
+		if output != "" {
+			t.Fatalf("Incorrect print operation output %q, should be ''", output)
+		}
+	})
+
+	t.Run("Operation state sync result is not empty", func(t *testing.T) {
+		time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+		output, _ := captureOutput(func() error {
+			printOperationResult(&v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "revision"},
+				FinishedAt: &time,
+			})
+			return nil
+		})
+
+		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\n"
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
+	})
+
+	t.Run("Operation state sync result with message is not empty", func(t *testing.T) {
+		time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+		output, _ := captureOutput(func() error {
+			printOperationResult(&v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "revision"},
+				FinishedAt: &time,
+				Message:    "test",
+			})
+			return nil
+		})
+
+		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\nMessage:            test\n"
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
+	})
+}
+
+func TestPrintApplicationHistoryTable(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 1,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "1",
+			},
+		},
+		{
+			ID: 2,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "2",
+			},
+		},
+		{
+			ID: 3,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "3",
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintAppSummaryTable(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "test",
+					TargetRevision: "master",
+					Path:           "/test",
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						ValueFiles: []string{"path1", "path2"},
+					},
+					Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeOutOfSync,
+				},
+				Health: v1alpha1.HealthStatus{
+					Status:  health.HealthStatusProgressing,
+					Message: "health-message",
+				},
+			},
+		}
+
+		windows := &v1alpha1.SyncWindows{
+			{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Applications: []string{
+					"*-prod",
+				},
+				ManualSync: true,
+			},
+			{
+				Kind:     "deny",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Namespaces: []string{
+					"default",
+				},
+			},
+			{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Clusters: []string{
+					"in-cluster",
+					"cluster1",
+				},
+			},
+		}
+
+		printAppSummaryTable(app, "url", windows)
+		return nil
+	})
+
+	expectation := `Name:               test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                url
+Repo:               test
+Target:             master
+Path:               /test
+Helm Values:        path1,path2
+Name Prefix:        prefix
+SyncWindow:         Sync Denied
+Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing (health-message)
+`
+	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
+}
+
+func TestPrintAppConditions(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type:    v1alpha1.ApplicationConditionDeletionError,
+						Message: "test",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionExcludedResourceWarning,
+						Message: "test2",
+					},
+					{
+						Type:    v1alpha1.ApplicationConditionRepeatedResourceWarning,
+						Message: "test3",
+					},
+				},
+			},
+		}
+		printAppConditions(os.Stdout, app)
+		return nil
+	})
+	expectation := "CONDITION\tMESSAGE\tLAST TRANSITION\nDeletionError\ttest\t<nil>\nExcludedResourceWarning\ttest2\t<nil>\nRepeatedResourceWarning\ttest3\t<nil>\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print app conditions output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintParams(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Source: v1alpha1.ApplicationSource{
+					Helm: &v1alpha1.ApplicationSourceHelm{
+						Parameters: []v1alpha1.HelmParameter{
+							{
+								Name:  "name1",
+								Value: "value1",
+							},
+							{
+								Name:  "name2",
+								Value: "value2",
+							},
+							{
+								Name:  "name3",
+								Value: "value3",
+							},
+						},
+					},
+				},
+			},
+		}
+		printParams(app)
+		return nil
+	})
+	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
+}
+
+func TestAppUrlDefault(t *testing.T) {
+	t.Run("Plain text", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:80",
+			PlainText:  true,
+		}), "test")
+		expectation := "http://localhost:80/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("https", func(t *testing.T) {
+		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+			ServerAddr: "localhost:443",
+			PlainText:  false,
+		}), "test")
+		expectation := "https://localhost/applications/test"
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTruncateString(t *testing.T) {
+	result := truncateString("argocdtool", 2)
+	expectation := "ar..."
+	if result != expectation {
+		t.Fatalf("Incorrect truncate string %q, should be %q", result, expectation)
+	}
+}
+
+func TestGetService(t *testing.T) {
+	t.Run("Server", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server: "test-server",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-server"
+		if result != expectation {
+			t.Fatalf("Incorrect server %q, should be %q", result, expectation)
+		}
+	})
+	t.Run("Name", func(t *testing.T) {
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Name: "test-name",
+				},
+			},
+		}
+		result := getServer(app)
+		expectation := "test-name"
+		if result != expectation {
+			t.Fatalf("Incorrect server name %q, should be %q", result, expectation)
+		}
+	})
+}
+
+func TestTargetObjects(t *testing.T) {
+	resources := []*v1alpha1.ResourceDiff{
+		{
+			TargetState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+		{
+			TargetState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+		},
+	}
+	objects, err := targetObjects(resources)
+	if err != nil {
+		t.Fatal("operation should finish without error")
+	}
+
+	if len(objects) != 2 {
+		t.Fatalf("incorrect number of objects %v, should be 2", len(objects))
+	}
+
+	if objects[0].GetName() != "test-helm-guestbook" {
+		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
+	}
+}
+
+func TestTargetObjects_invalid(t *testing.T) {
+	resources := []*v1alpha1.ResourceDiff{{TargetState: "{"}}
+	_, err := targetObjects(resources)
+	assert.Error(t, err)
+}
+
+func TestPrintApplicationNames(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+		printApplicationNames([]v1alpha1.Application{*app, *app})
+		return nil
+	})
+	expectation := "test\ntest\n"
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
+}
+
+func Test_unset(t *testing.T) {
+	kustomizeSource := &v1alpha1.ApplicationSource{
+		Kustomize: &v1alpha1.ApplicationSourceKustomize{
+			NamePrefix: "some-prefix",
+			NameSuffix: "some-suffix",
+			Version:    "123",
+			Images: v1alpha1.KustomizeImages{
+				"old1=new:tag",
+				"old2=new:tag",
+			},
+		},
+	}
+
+	helmSource := &v1alpha1.ApplicationSource{
+		Helm: &v1alpha1.ApplicationSourceHelm{
+			IgnoreMissingValueFiles: true,
+			Parameters: []v1alpha1.HelmParameter{
+				{
+					Name:  "name-1",
+					Value: "value-1",
+				},
+				{
+					Name:  "name-2",
+					Value: "value-2",
+				},
+			},
+			PassCredentials: true,
+			Values:          "some: yaml",
+			ValueFiles: []string{
+				"values-1.yaml",
+				"values-2.yaml",
+			},
+		},
+	}
+
+	pluginSource := &v1alpha1.ApplicationSource{
+		Plugin: &v1alpha1.ApplicationSourcePlugin{
+			Env: v1alpha1.Env{
+				{
+					Name:  "env-1",
+					Value: "env-value-1",
+				},
+				{
+					Name:  "env-2",
+					Value: "env-value-2",
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
+	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.NamePrefix)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.NameSuffix)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	assert.Equal(t, "", kustomizeSource.Kustomize.Version)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, "some: yaml", helmSource.Helm.Values)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	assert.Equal(t, "", helmSource.Helm.Values)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+}
+
+func Test_unset_nothingToUnset(t *testing.T) {
+	testCases := []struct {
+		name   string
+		source v1alpha1.ApplicationSource
+	}{
+		{"kustomize", v1alpha1.ApplicationSource{Kustomize: &v1alpha1.ApplicationSourceKustomize{}}},
+		{"helm", v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{}}},
+		{"plugin", v1alpha1.ApplicationSource{Plugin: &v1alpha1.ApplicationSourcePlugin{}}},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
+			assert.False(t, updated)
+			assert.True(t, nothingToUnset)
+		})
+	}
+}
+
+func TestParseSelectedResources(t *testing.T) {
+	resources := []string{"v1alpha:Application:test", "v1alpha:Application:namespace/test"}
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 2)
+	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+		Namespace: "namespace",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+	})
+}
+
+func TestParseSelectedResourcesIncorrect(t *testing.T) {
+	resources := []string{"v1alpha:test", "v1alpha:Application:namespace/test"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:test")
+}
+
+func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
+	resources := []string{"v1alpha:Application:namespace/test/unknown"}
+	_, err := parseSelectedResources(resources)
+	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
+
+}
+
+func TestParseSelectedResourcesEmptyList(t *testing.T) {
+	var resources []string
+	operationResources, err := parseSelectedResources(resources)
+	assert.NoError(t, err)
+	assert.Len(t, operationResources, 0)
+}
+
+func TestPrintApplicationTableNotWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "table"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	assert.Equal(t, output, expectation)
+}
+
+func TestPrintApplicationTableWide(t *testing.T) {
+	output, err := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app-name",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "http://localhost:8080",
+					Namespace: "default",
+				},
+				Source: v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
+					Path:           "guestbook",
+					TargetRevision: "123",
+				},
+				Project: "prj",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: "OutOfSync",
+				},
+				Health: v1alpha1.HealthStatus{
+					Status: "Healthy",
+				},
+			},
+		}
+		output := "wide"
+		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		return nil
+	})
+	assert.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	assert.Equal(t, output, expectation)
+}
+
+func TestResourceStateKey(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+	}
+
+	key := rst.Key()
+	assert.Equal(t, "group/kind/namespace/name", key)
+}
+
+func TestFormatItems(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+	items := rst.FormatItems()
+	assert.Equal(t, "group", items[1])
+	assert.Equal(t, "kind", items[2])
+	assert.Equal(t, "namespace", items[3])
+	assert.Equal(t, "name", items[4])
+	assert.Equal(t, "status", items[5])
+	assert.Equal(t, "health", items[6])
+	assert.Equal(t, "hook", items[7])
+	assert.Equal(t, "message", items[8])
+
+}
+
+func TestMerge(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	rstNew := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook2",
+		Message:   "message2",
+	}
+
+	updated := rst.Merge(&rstNew)
+	assert.True(t, updated)
+	assert.Equal(t, rstNew.Hook, rst.Hook)
+	assert.Equal(t, rstNew.Message, rst.Message)
+	assert.Equal(t, rstNew.Status, rst.Status)
+}
+
+func TestMergeWitoutUpdate(t *testing.T) {
+	rst := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	rstNew := resourceState{
+		Group:     "group",
+		Kind:      "kind",
+		Namespace: "namespace",
+		Name:      "name",
+		Status:    "status",
+		Health:    "health",
+		Hook:      "hook",
+		Message:   "message",
+	}
+
+	updated := rst.Merge(&rstNew)
+	assert.False(t, updated)
+}
+
+func TestCheckResourceStatus(t *testing.T) {
+	t.Run("Suspended and health status passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Suspended and health status failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Suspended passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    false,
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Suspended failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    false,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Health passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Health failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+	t.Run("Synced passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Synced failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
 }

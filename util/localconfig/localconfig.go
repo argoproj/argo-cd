@@ -2,12 +2,11 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"os"
 	"os/user"
 	"path"
 	"strings"
-
-	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
@@ -79,6 +78,15 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
+
+	// check file permission only when argocd config exists
+	if fi, err := os.Stat(path); err == nil {
+		err = getFilePermission(fi)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = configUtil.UnmarshalLocalFile(path, &config)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -302,4 +310,12 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
+}
+
+func getFilePermission(fi os.FileInfo) error {
+	if fi.Mode().Perm() == 0600 || fi.Mode().Perm() == 0400 {
+		return nil
+	}
+	return fmt.Errorf("config file has incorrect permission flags:%s."+
+		"change the file permission either to 0400 or 0600.", fi.Mode().Perm().String())
 }

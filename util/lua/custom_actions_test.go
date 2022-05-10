@@ -7,9 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/undefinedlabs/go-mpatch"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/ghodss/yaml"
@@ -87,12 +84,8 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				action, err := vm.GetResourceAction(obj, test.Action)
 				assert.NoError(t, err)
 
-				// freeze time so that lua test has predictable time output (will return 0001-01-01T00:00:00Z)
-				patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return time.Time{} })
 				assert.NoError(t, err)
 				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
-				assert.NoError(t, err)
-				err = patch.Unpatch()
 				assert.NoError(t, err)
 
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))

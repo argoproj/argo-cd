@@ -136,7 +136,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 41
+	const countOfManifests = 46
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -254,7 +254,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
 					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
-					Libs:    []string{"./vendor"},
+					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},
@@ -287,8 +287,8 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	service := newService("../..")
 
 	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
+		_ = os.Remove(filepath.Join("../../util/helm/testdata/dependency", helmDepUpMarkerFile))
+		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/dependency", "charts"))
 	}
 	cleanup()
 	defer cleanup()
@@ -297,7 +297,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 		Repos: []*argoappv1.Repository{&helmRepo},
 	}
@@ -305,7 +305,6 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, res1.Manifests, 10)
 }
-
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
@@ -433,9 +432,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 
-	tmpDir, err := ioutil.TempDir("", "repository-test-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	service := newService(tmpDir)
 
@@ -455,7 +452,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		errorExpected := step%2 == 0
 
 		// Ensure that the target directory will succeed or fail, so we can verify the cache correctly handles it
-		err = os.RemoveAll(tmpDir)
+		err := os.RemoveAll(tmpDir)
 		assert.NoError(t, err)
 		err = os.MkdirAll(tmpDir, 0777)
 		assert.NoError(t, err)
@@ -1093,7 +1090,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 	})
 
@@ -1103,7 +1100,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
-
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService("../..")
 
@@ -1401,7 +1397,6 @@ func mkTempParameters(source string) string {
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	tempDir := mkTempParameters("./testdata/app-parameters")
-	defer os.RemoveAll(tempDir)
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 }
 
@@ -1717,11 +1712,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 }
 
 func TestDirectoryPermissionInitializer(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 
 	file, err := ioutil.TempFile(dir, "")
 	require.NoError(t, err)
@@ -1729,9 +1720,15 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	// remove read permissions
 	assert.NoError(t, os.Chmod(dir, 0000))
-	closer := directoryPermissionInitializer(dir)
+
+	// Remember to restore permissions when the test finishes so dir can
+	// be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	// make sure permission are restored
+	closer := directoryPermissionInitializer(dir)
 	_, err = ioutil.ReadFile(file.Name())
 	require.NoError(t, err)
 
@@ -1757,11 +1754,13 @@ func initGitRepo(repoPath string, remote string) error {
 }
 
 func TestInit(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	repoPath := path.Join(dir, "repo1")
 	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
@@ -1778,4 +1777,51 @@ func TestInit(t *testing.T) {
 	_, err = ioutil.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+}
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath := t.TempDir()
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
 }

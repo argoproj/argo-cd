@@ -46,6 +46,7 @@ export interface ApplicationResourceTreeProps {
     zoom: number;
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
+    nameDirection: boolean;
 }
 
 interface Line {
@@ -329,7 +330,12 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
-            style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            style={{
+                left: node.x,
+                top: node.y,
+                width: node.width,
+                height: node.height
+            }}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
@@ -340,9 +346,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
             <div className='application-resource-tree__node-content'>
-                <span className='application-resource-tree__node-title'>{node.name}</span>
-                <br />
-                <span
+                <div
+                    className={classNames('application-resource-tree__node-title', {
+                        'application-resource-tree__direction-right': props.nameDirection,
+                        'application-resource-tree__direction-left': !props.nameDirection
+                    })}>
+                    {node.name}
+                </div>
+                <div
                     className={classNames('application-resource-tree__node-status-icon', {
                         'application-resource-tree__node-status-icon--offset': rootNode
                     })}>
@@ -359,7 +370,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
-                </span>
+                </div>
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
@@ -424,7 +435,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
-    graph.setGraph({nodesep: 15, rankdir: 'LR', marginx: -100});
+    graph.setGraph({nodesep: 15, rankdir: 'LR', marginy: 45, marginx: -100});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
