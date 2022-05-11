@@ -905,6 +905,11 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 func (s *Server) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
 	logCtx := log.WithField("application", ae.Application.Name)
 
+	if ae.Type == watch.Deleted {
+		logCtx.Info("application deleted")
+		return true
+	}
+
 	cachedApp, err := s.cache.GetLastApplicationEvent(&ae.Application)
 	if err != nil || cachedApp == nil {
 		return true
