@@ -141,10 +141,10 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: my-plugin-config
-  volumes:
-    - configMap:
-        name: my-plugin-config
-      name: my-plugin-config
+volumes:
+- configMap:
+    name: my-plugin-config
+  name: my-plugin-config
 ``` 
 
 !!! important "Double-check these items"
