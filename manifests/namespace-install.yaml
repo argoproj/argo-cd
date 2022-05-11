@@ -44,6 +44,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
+  name: argocd-repo-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -1013,6 +1022,7 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
