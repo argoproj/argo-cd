@@ -230,6 +230,10 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
+
+Add Webhook URL with uri `/api/webhook` and select content-type as json
+![Add Webhook URL](../../assets/applicationset/webhook-config-pullrequest-generator.png "Add Webhook URL")
+
 Select `Let me select individual events` and enable the checkbox for `Pull requests`.
 
 ![Add Webhook](../../assets/applicationset/webhook-config-pull-request.png "Add Webhook Pull Request")
