@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
+      serviceAccountName: argocd-repo-server
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
