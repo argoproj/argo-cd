@@ -40,6 +40,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Codefresh](https://www.codefresh.io/)
 1. [Codility](https://www.codility.com/)
 1. [Commonbond](https://commonbond.co/)
+1. [Coralogix](https://coralogix.com/)
 1. [CROZ d.o.o.](https://croz.net/)
 1. [Crédit Agricole CIB](https://www.ca-cib.com)
 1. [CyberAgent](https://www.cyberagent.co.jp/en/)
