@@ -1,6 +1,6 @@
 # Pull Request Generator
 
-The Pull Request generator uses the API of an SCMaaS provider (eg GitHub/GitLab) to automatically discover open pull requests within an repository. This fits well with the style of building a test environment when you create a pull request.
+The Pull Request generator uses the API of an SCMaaS provider (GitHub, Gitea, or Bitbucket Server) to automatically discover open pull requests within an repository. This fits well with the style of building a test environment when you create a pull request.
 
 
 ```yaml
