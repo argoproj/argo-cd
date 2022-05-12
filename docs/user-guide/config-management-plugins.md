@@ -113,8 +113,7 @@ data:
       generate:
         command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
-        find:
-          command: [echo, yes]
+        fileName: "./subdir/s*.yaml"
       allowConcurrency: true
       lockRepo: false
 ```
@@ -128,7 +127,7 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 containers:
 - name: cmp
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: quay.io/argoproj/argo-cd:v2.3.3 # This can be off-the-shelf or custom-built image
+  image: busybox # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
