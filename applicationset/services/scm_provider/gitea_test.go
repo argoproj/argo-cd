@@ -266,28 +266,28 @@ func TestGiteaListRepos(t *testing.T) {
 		filters                                 []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
-			name:     "blank protocol",
+			name:        "blank protocol",
 			allBranches: false,
-			url:      "git@gitea.com:test-argocd/pr-test.git",
-			branches: []string{"main"},
+			url:         "git@gitea.com:test-argocd/pr-test.git",
+			branches:    []string{"main"},
 		},
 		{
-			name:  "ssh protocol",
+			name:        "ssh protocol",
 			allBranches: false,
-			proto: "ssh",
-			url:   "git@gitea.com:test-argocd/pr-test.git",
+			proto:       "ssh",
+			url:         "git@gitea.com:test-argocd/pr-test.git",
 		},
 		{
-			name:  "https protocol",
+			name:        "https protocol",
 			allBranches: false,
-			proto: "https",
-			url:   "https://gitea.com/test-argocd/pr-test",
+			proto:       "https",
+			url:         "https://gitea.com/test-argocd/pr-test",
 		},
 		{
-			name:     "other protocol",
+			name:        "other protocol",
 			allBranches: false,
-			proto:    "other",
-			hasError: true,
+			proto:       "other",
+			hasError:    true,
 		},
 		{
 			name:        "all branches",
@@ -307,7 +307,6 @@ func TestGiteaListRepos(t *testing.T) {
 			if c.hasError {
 				assert.NotNil(t, err)
 			} else {
-				checkRateLimit(t, err)
 				assert.Nil(t, err)
 				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
