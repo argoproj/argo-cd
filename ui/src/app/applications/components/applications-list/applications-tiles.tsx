@@ -156,7 +156,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                             style={{
                                                                                 cursor: 'pointer',
                                                                                 marginLeft: '7px',
-                                                                                color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'
+                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                                                             }}
                                                                         />
                                                                     </button>
