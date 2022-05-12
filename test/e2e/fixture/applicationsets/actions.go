@@ -17,7 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 )

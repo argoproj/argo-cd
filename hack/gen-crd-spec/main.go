@@ -37,6 +37,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/webhook")
 	deleteFile("config/argoproj.io_applications.yaml")
 	deleteFile("config/argoproj.io_appprojects.yaml")
+	deleteFile("config/argoproj.io_applicationsets.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
@@ -106,12 +107,6 @@ func main() {
 		}
 		writeCRDintoFile(crd, path)
 	}
-	crdsappset := getCRDApplicationset()
-	crd := crdsappset[application.ApplicationSetFullName]
-	if crd == nil {
-		panic(fmt.Sprintf("CRD of kind %s was not generated", application.ApplicationSetFullName))
-	}
-	writeCRDintoFile(crd, "manifests/crds/applicationset-crd.yaml")
 }
 
 func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) {
@@ -133,38 +128,4 @@ func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) 
 
 	err = os.WriteFile(path, yamlBytes, 0644)
 	checkErr(err)
-}
-
-// getCRDApplicationset ... generated Custom Resources nased on types defined in pkg/apis/applicationset
-func getCRDApplicationset() map[string]*extensionsobj.CustomResourceDefinition {
-	crdYamlBytes, err := exec.Command(
-		"controller-gen",
-		"paths=./pkg/apis/applicationset/...",
-		"crd:crdVersions=v1,maxDescLen=0",
-		"output:crd:stdout",
-	).Output()
-	checkErr(err)
-
-	// clean up stuff left by controller-gen
-	deleteFile("config/argoproj.io_applicationsets.yaml")
-	deleteFile("config")
-
-	objs, err := kube.SplitYAML(crdYamlBytes)
-	checkErr(err)
-	crds := make(map[string]*extensionsobj.CustomResourceDefinition)
-	for i := range objs {
-		un := objs[i]
-
-		// We need to completely remove validation of problematic fields such as creationTimestamp,
-		// which get marshalled to `null`, but are typed as as a `string` during Open API validation
-		removeValidation(un, "metadata.creationTimestamp")
-		crd := toCRD(un)
-		crd.Labels = map[string]string{
-			"app.kubernetes.io/name": crd.Name,
-		}
-		delete(crd.Annotations, "controller-gen.kubebuilder.io/version")
-		crd.Spec.Scope = "Namespaced"
-		crds[crd.Name] = crd
-	}
-	return crds
 }
