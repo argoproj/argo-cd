@@ -18,5 +18,11 @@ ignore:
     - '*':
         reason: >-
           Code is only run client-side. No risk of directory traversal.
+  SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFUL-2435653:
+    - '*':
+        reason: >-
+          Argo CD uses go-restful as a transitive dependency of kube-openapi. kube-openapi is used to generate openapi
+          specs. We do not use go-restul at runtime and are therefore not vulnerable to this CORS misconfiguration
+          issue in go-restful.
 patch: {}
 
