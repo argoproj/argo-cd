@@ -1682,6 +1682,46 @@
         }
       }
     },
+    "/api/v1/applicationsets/{applicationset.metadata.name}": {
+      "put": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Update updates an applicationset",
+        "operationId": "ApplicationSetService_Update",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "name": "applicationset.metadata.name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSet"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}": {
       "get": {
         "tags": [

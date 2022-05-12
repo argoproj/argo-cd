@@ -325,7 +325,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
-					printParams(app)
+					printParams(app.Spec.Source.Helm)
 				}
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()

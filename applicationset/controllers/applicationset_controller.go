@@ -37,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	log "github.com/sirupsen/logrus"
@@ -45,7 +44,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -87,7 +86,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	_ = r.Log.WithValues("applicationset", req.NamespacedName)
 	_ = log.WithField("applicationset", req.NamespacedName)
 
-	var applicationSetInfo argoprojiov1alpha1.ApplicationSet
+	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
 
 	if err := r.Get(ctx, req.NamespacedName, &applicationSetInfo); err != nil {
@@ -109,11 +108,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argoprojiov1alpha1.ApplicationSetCondition{
-				Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+			argov1alpha1.ApplicationSetCondition{
+				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 				Message: err.Error(),
 				Reason:  string(applicationSetReason),
-				Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
 		return ctrl.Result{}, err
@@ -134,11 +133,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argoprojiov1alpha1.ApplicationSetCondition{
-				Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+			argov1alpha1.ApplicationSetCondition{
+				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 				Message: err.Error(),
-				Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationValidationError,
-				Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
+				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
@@ -163,11 +162,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argoprojiov1alpha1.ApplicationSetCondition{
-				Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+			argov1alpha1.ApplicationSetCondition{
+				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 				Message: message,
-				Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationValidationError,
-				Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
+				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
 	}
@@ -177,11 +176,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argoprojiov1alpha1.ApplicationSetCondition{
-					Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+				argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
-					Reason:  argoprojiov1alpha1.ApplicationSetReasonUpdateApplicationError,
-					Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+					Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -191,11 +190,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argoprojiov1alpha1.ApplicationSetCondition{
-					Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+				argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
-					Reason:  argoprojiov1alpha1.ApplicationSetReasonCreateApplicationError,
-					Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+					Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -207,11 +206,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argoprojiov1alpha1.ApplicationSetCondition{
-					Type:    argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate,
+				argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
 					Message: err.Error(),
-					Reason:  argoprojiov1alpha1.ApplicationSetReasonDeleteApplicationError,
-					Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+					Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -225,11 +224,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			log.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
-				argoprojiov1alpha1.ApplicationSetCondition{
-					Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+				argov1alpha1.ApplicationSetCondition{
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
-					Reason:  argoprojiov1alpha1.ApplicationSetReasonRefreshApplicationError,
-					Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+					Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -242,11 +241,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
-			argoprojiov1alpha1.ApplicationSetCondition{
-				Type:    argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate,
+			argov1alpha1.ApplicationSetCondition{
+				Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
 				Message: "All applications have been generated successfully",
-				Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-				Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		); err != nil {
 			return ctrl.Result{}, err
@@ -258,67 +257,67 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}, nil
 }
 
-func getParametersGeneratedCondition(parametersGenerated bool, message string) argoprojiov1alpha1.ApplicationSetCondition {
-	var paramtersGeneratedCondition argoprojiov1alpha1.ApplicationSetCondition
+func getParametersGeneratedCondition(parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
+	var paramtersGeneratedCondition argov1alpha1.ApplicationSetCondition
 	if parametersGenerated {
-		paramtersGeneratedCondition = argoprojiov1alpha1.ApplicationSetCondition{
-			Type:    argoprojiov1alpha1.ApplicationSetConditionParametersGenerated,
+		paramtersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionParametersGenerated,
 			Message: "Successfully generated parameters for all Applications",
-			Reason:  argoprojiov1alpha1.ApplicationSetReasonParametersGenerated,
-			Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+			Reason:  argov1alpha1.ApplicationSetReasonParametersGenerated,
+			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 		}
 	} else {
-		paramtersGeneratedCondition = argoprojiov1alpha1.ApplicationSetCondition{
-			Type:    argoprojiov1alpha1.ApplicationSetConditionParametersGenerated,
+		paramtersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionParametersGenerated,
 			Message: message,
-			Reason:  argoprojiov1alpha1.ApplicationSetReasonErrorOccurred,
-			Status:  argoprojiov1alpha1.ApplicationSetConditionStatusFalse,
+			Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
+			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 		}
 	}
 	return paramtersGeneratedCondition
 }
 
-func getResourceUpToDateCondition(errorOccurred bool, message string, reason string) argoprojiov1alpha1.ApplicationSetCondition {
-	var resourceUpToDateCondition argoprojiov1alpha1.ApplicationSetCondition
+func getResourceUpToDateCondition(errorOccurred bool, message string, reason string) argov1alpha1.ApplicationSetCondition {
+	var resourceUpToDateCondition argov1alpha1.ApplicationSetCondition
 	if errorOccurred {
-		resourceUpToDateCondition = argoprojiov1alpha1.ApplicationSetCondition{
-			Type:    argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate,
+		resourceUpToDateCondition = argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Message: message,
 			Reason:  reason,
-			Status:  argoprojiov1alpha1.ApplicationSetConditionStatusFalse,
+			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 		}
 	} else {
-		resourceUpToDateCondition = argoprojiov1alpha1.ApplicationSetCondition{
-			Type:    argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate,
+		resourceUpToDateCondition = argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Message: "ApplicationSet up to date",
-			Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-			Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 		}
 	}
 	return resourceUpToDateCondition
 }
 
-func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argoprojiov1alpha1.ApplicationSet, condition argoprojiov1alpha1.ApplicationSetCondition, paramtersGenerated bool) error {
+func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition, paramtersGenerated bool) error {
 	// check if error occurred during reconcile process
-	errOccurred := condition.Type == argoprojiov1alpha1.ApplicationSetConditionErrorOccurred
+	errOccurred := condition.Type == argov1alpha1.ApplicationSetConditionErrorOccurred
 
-	var errOccurredCondition argoprojiov1alpha1.ApplicationSetCondition
+	var errOccurredCondition argov1alpha1.ApplicationSetCondition
 
 	if errOccurred {
 		errOccurredCondition = condition
 	} else {
-		errOccurredCondition = argoprojiov1alpha1.ApplicationSetCondition{
-			Type:    argoprojiov1alpha1.ApplicationSetConditionErrorOccurred,
+		errOccurredCondition = argov1alpha1.ApplicationSetCondition{
+			Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 			Message: "Successfully generated parameters for all Applications",
-			Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-			Status:  argoprojiov1alpha1.ApplicationSetConditionStatusFalse,
+			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 		}
 	}
 
 	paramtersGeneratedCondition := getParametersGeneratedCondition(paramtersGenerated, condition.Message)
 	resourceUpToDateCondition := getResourceUpToDateCondition(errOccurred, condition.Message, condition.Reason)
 
-	newConditions := []argoprojiov1alpha1.ApplicationSetCondition{errOccurredCondition, paramtersGeneratedCondition, resourceUpToDateCondition}
+	newConditions := []argov1alpha1.ApplicationSetCondition{errOccurredCondition, paramtersGeneratedCondition, resourceUpToDateCondition}
 
 	needToUpdateConditions := false
 	for _, condition := range newConditions {
@@ -330,10 +329,10 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			}
 		}
 	}
-	evaluatedTypes := map[argoprojiov1alpha1.ApplicationSetConditionType]bool{
-		argoprojiov1alpha1.ApplicationSetConditionErrorOccurred:       true,
-		argoprojiov1alpha1.ApplicationSetConditionParametersGenerated: true,
-		argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
+	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
+		argov1alpha1.ApplicationSetConditionErrorOccurred:       true,
+		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
+		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
 	}
 
 	if needToUpdateConditions || len(applicationSet.Status.Conditions) < 3 {
@@ -362,7 +361,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
-func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argoprojiov1alpha1.ApplicationSet, namespace string) (map[int]error, error) {
+func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, namespace string) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
@@ -402,7 +401,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	return errorsByIndex, nil
 }
 
-func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argoprojiov1alpha1.ApplicationSet) time.Duration {
+func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
 	var res time.Duration
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
 
@@ -422,7 +421,7 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argopr
 	return res
 }
 
-func getTempApplication(applicationSetTemplate argoprojiov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
+func getTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
 	var tmplApplication argov1alpha1.Application
 	tmplApplication.Annotations = applicationSetTemplate.Annotations
 	tmplApplication.Labels = applicationSetTemplate.Labels
@@ -434,11 +433,11 @@ func getTempApplication(applicationSetTemplate argoprojiov1alpha1.ApplicationSet
 	return &tmplApplication
 }
 
-func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argoprojiov1alpha1.ApplicationSet) ([]argov1alpha1.Application, argoprojiov1alpha1.ApplicationSetReasonType, error) {
+func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
 	var res []argov1alpha1.Application
 
 	var firstError error
-	var applicationSetReason argoprojiov1alpha1.ApplicationSetReasonType
+	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
 		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
@@ -447,7 +446,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 				Error("error generating application from params")
 			if firstError == nil {
 				firstError = err
-				applicationSetReason = argoprojiov1alpha1.ApplicationSetReasonApplicationParamsGenerationError
+				applicationSetReason = argov1alpha1.ApplicationSetReasonApplicationParamsGenerationError
 			}
 			continue
 		}
@@ -463,7 +462,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 
 					if firstError == nil {
 						firstError = err
-						applicationSetReason = argoprojiov1alpha1.ApplicationSetReasonRenderTemplateParamsError
+						applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
 					}
 					continue
 				}
@@ -487,7 +486,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 		// ...make sure it's a application set...
-		if owner.APIVersion != argoprojiov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
+		if owner.APIVersion != argov1alpha1.SchemeGroupVersion.String() || owner.Kind != "ApplicationSet" {
 			return nil
 		}
 
@@ -498,7 +497,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&argoprojiov1alpha1.ApplicationSet{}).
+		For(&argov1alpha1.ApplicationSet{}).
 		Owns(&argov1alpha1.Application{}).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
@@ -514,7 +513,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // - For new applications, it will call create
 // - For existing application, it will call update
 // The function also adds owner reference to all applications, and uses it to delete them.
-func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, applicationSet argoprojiov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
 
 	var firstError error
 	// Creates or updates the application in appList
@@ -572,7 +571,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created
 // Then it will call createOrUpdateInCluster to do the actual create
-func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, applicationSet argoprojiov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
 
 	var createApps []argov1alpha1.Application
 	current, err := r.getCurrentApplications(ctx, applicationSet)
@@ -598,7 +597,7 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, applicat
 	return r.createOrUpdateInCluster(ctx, applicationSet, createApps)
 }
 
-func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, applicationSet argoprojiov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
+func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	// TODO: Should this use the context param?
 	var current argov1alpha1.ApplicationList
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
@@ -612,7 +611,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
-func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicationSet argoprojiov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
 	// argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
@@ -667,7 +666,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicat
 }
 
 // removeFinalizerOnInvalidDestination removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
-func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx context.Context, applicationSet argoprojiov1alpha1.ApplicationSet, app *argov1alpha1.Application, clusterList *argov1alpha1.ClusterList, appLog *log.Entry) error {
+func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, app *argov1alpha1.Application, clusterList *argov1alpha1.ClusterList, appLog *log.Entry) error {
 
 	// Only check if the finalizers need to be removed IF there are finalizers to remove
 	if len(app.Finalizers) == 0 {

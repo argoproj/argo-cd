@@ -624,7 +624,7 @@ func TestPrintParams(t *testing.T) {
 				},
 			},
 		}
-		printParams(app)
+		printParams(app.Spec.Source.Helm)
 		return nil
 	})
 	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"

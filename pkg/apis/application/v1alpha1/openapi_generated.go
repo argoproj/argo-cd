@@ -1337,6 +1337,17 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"version": {
+<<<<<<< HEAD
+						SchemaProps: spec.SchemaProps{
+							Description: "Version is the Helm version to use for templating (\"3\")",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"passCredentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PassCredentials pass credentials to all domains (Helm's --pass-credentials)",
+=======
 						SchemaProps: spec.SchemaProps{
 							Description: "Version is the Helm version to use for templating (\"3\")",
 							Type:        []string{"string"},
@@ -1353,10 +1364,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					"ignoreMissingValueFiles": {
 						SchemaProps: spec.SchemaProps{
 							Description: "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
+<<<<<<< HEAD
+					"ignoreMissingValueFiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values",
+=======
+					"skipCrds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+<<<<<<< HEAD
 					"skipCrds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)",
@@ -1364,6 +1390,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Format:      "",
 						},
 					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourceJsonnet holds options specific to applications of type Jsonnet",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"extVars": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExtVars is a list of Jsonnet External Variables",
+=======
 				},
 			},
 		},
@@ -1396,6 +1441,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 					"tlas": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TLAS is a list of Jsonnet Top-level Arguments",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1407,21 +1453,31 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							},
 						},
 					},
+<<<<<<< HEAD
+					"tlas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLAS is a list of Jsonnet Top-level Arguments",
+=======
 					"libs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Additional library search dirs",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar"),
 									},
 								},
 							},
 						},
 					},
+<<<<<<< HEAD
+					"libs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional library search dirs",
+=======
 				},
 			},
 		},
@@ -1454,6 +1510,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 					"images": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Images is a list of Kustomize image override specifications",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1466,6 +1523,26 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+<<<<<<< HEAD
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namePrefix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamePrefix is a prefix appended to resources for Kustomize apps",
+=======
 					"commonLabels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CommonLabels is a list of additional labels to add to rendered manifests",
@@ -1485,10 +1562,30 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 					"version": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Version controls which version of Kustomize to use for rendering manifests",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
+<<<<<<< HEAD
+					"nameSuffix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NameSuffix is a suffix appended to resources for Kustomize apps",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"images": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Images is a list of Kustomize image override specifications",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+=======
 					"commonAnnotations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CommonAnnotations is a list of additional annotations to add to rendered manifests",
@@ -1545,11 +1642,43 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 									},
 								},
 							},
 						},
 					},
+<<<<<<< HEAD
+					"commonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonLabels is a list of additional labels to add to rendered manifests",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version controls which version of Kustomize to use for rendering manifests",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"commonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonAnnotations is a list of additional annotations to add to rendered manifests",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+=======
 				},
 			},
 		},
@@ -1598,6 +1727,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Description: "IgnoreDifferences is a list of resources and their fields which should be ignored during comparison",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
@@ -1607,15 +1737,56 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							},
 						},
 					},
+<<<<<<< HEAD
+					"forceCommonLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"forceCommonAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourcePlugin holds options specific to config management plugins",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"env": {
+=======
 					"info": {
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 						SchemaProps: spec.SchemaProps{
 							Description: "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
+										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry"),
+=======
 										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 									},
 								},
 							},
@@ -1629,6 +1800,53 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 						},
 					},
 				},
+<<<<<<< HEAD
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"source": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Source is a reference to the location of the application's manifests or chart",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+						},
+					},
+					"destination": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Destination is a reference to the target Kubernetes server and namespace",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination"),
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Project is a reference to the project this application belongs to. The empty string means that application belongs to the 'default' project.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncPolicy controls when and how a sync will be performed",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"),
+						},
+					},
+					"ignoreDifferences": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreDifferences is a list of resources and their fields which should be ignored during comparison",
+=======
 				Required: []string{"source", "destination", "project"},
 			},
 		},
@@ -1647,17 +1865,27 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources is a list of Kubernetes resources managed by this application",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
+<<<<<<< HEAD
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"),
+=======
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 									},
 								},
 							},
 						},
 					},
+<<<<<<< HEAD
+					"info": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
+=======
 					"sync": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Sync contains information about the application's current sync status",
@@ -1675,10 +1903,164 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"history": {
 						SchemaProps: spec.SchemaProps{
 							Description: "History contains information about the application's sync history",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+<<<<<<< HEAD
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info"),
+=======
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory"),
+									},
+								},
+							},
+						},
+					},
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions is a list of currently observed application conditions",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+									},
+								},
+							},
+						},
+					},
+<<<<<<< HEAD
+					"revisionHistoryLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions. This should only be changed in exceptional circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the space used to store the history, so we do not recommend increasing it. Default is 10.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+=======
+					"reconciledAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReconciledAt indicates when the application state was reconciled using the latest git version",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"operationState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OperationState contains information about any ongoing operations, such as a sync",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState"),
+						},
+					},
+					"observedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedAt indicates when the application state was updated without querying latest git state Deprecated: controller no longer updates ObservedAt field",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"sourceType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceType specifies the type of this application",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"summary": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Summary contains a list of URLs and container images used by this application",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary"),
+						},
+					},
+					"resourceHealthSource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
+							Type:        []string{"string"},
+							Format:      "",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+						},
+					},
+				},
+				Required: []string{"source", "destination", "project"},
+			},
+		},
+		Dependencies: []string{
+<<<<<<< HEAD
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicy"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationStatus contains status information for the application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is a list of Kubernetes resources managed by this application",
+=======
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSummary contains information about URLs and container images used by an application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"externalURLs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalURLs holds all external URLs of application child resources.",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"),
+=======
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+									},
+								},
+							},
+						},
+					},
+<<<<<<< HEAD
+					"sync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sync contains information about the application's current sync status",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus"),
+						},
+					},
+					"health": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Health contains information about the application's current health status",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus"),
+						},
+					},
+					"history": {
+						SchemaProps: spec.SchemaProps{
+							Description: "History contains information about the application's sync history",
+=======
+					"images": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Images holds all images of application child resources.",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
 										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory"),
 									},
@@ -1737,11 +2119,20 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
 							Type:        []string{"string"},
 							Format:      "",
+=======
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 						},
 					},
 				},
 			},
 		},
+<<<<<<< HEAD
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
@@ -1757,28 +2148,73 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 					"externalURLs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ExternalURLs holds all external URLs of application child resources.",
+=======
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationTree holds nodes which belongs to the application",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nodes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
 									},
 								},
 							},
 						},
 					},
-					"images": {
+					"orphanedNodes": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Images holds all images of application child resources.",
+							Description: "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
+=======
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+									},
+								},
+							},
+						},
+					},
+<<<<<<< HEAD
+					"images": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Images holds all images of application child resources.",
+=======
+					"hosts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hosts holds list of Kubernetes nodes that run application related pods",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+=======
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo"),
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 									},
 								},
 							},
@@ -1787,9 +2223,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"},
 	}
 }
 
+<<<<<<< HEAD
 func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1887,6 +2326,47 @@ func schema_pkg_apis_application_v1alpha1_Backoff(ref common.ReferenceCallback) 
 					"duration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")",
+=======
+func schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationWatchEvent contains information about application change.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"application": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Application is:\n * If Type is Added or Modified: the new state of the object.\n * If Type is Deleted: the state of the object immediately before deletion.\n * If Type is Error: *api.Status is recommended; other types may make sense\n   depending on context.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application"),
+						},
+					},
+				},
+				Required: []string{"type", "application"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Backoff(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Backoff is the backoff strategy to use on subsequent retries for failing syncs",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1908,6 +2388,99 @@ func schema_pkg_apis_application_v1alpha1_Backoff(ref common.ReferenceCallback) 
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username for Basic auth",
+							Default:     "",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+<<<<<<< HEAD
+					"factor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Factor is a factor to multiply the base duration after each failed retry",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"maxDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxDuration is the maximum amount of time allowed for the backoff strategy",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+=======
+					"passwordRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password (or personal access token) reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+				},
+				Required: []string{"username", "passwordRef"},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+<<<<<<< HEAD
+func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username for Basic auth",
+=======
+func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Cluster is the definition of a cluster resource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"server": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Server is the API server URL of the Kubernetes cluster",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+<<<<<<< HEAD
+					"passwordRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password (or personal access token) reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+				},
+				Required: []string{"username", "passwordRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -2022,6 +2595,74 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"clusterResources": {
 						SchemaProps: spec.SchemaProps{
+=======
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the cluster. If omitted, will use the server address",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config holds cluster information for connecting to a cluster",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig"),
+						},
+					},
+					"connectionState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DEPRECATED: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
+						},
+					},
+					"serverVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DEPRECATED: use Info.ServerVersion field instead. The server version",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"refreshRequestedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RefreshRequestedAt holds time when cluster cache refresh has been requested",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"info": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Info holds information about cluster cache and state",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterInfo"),
+						},
+					},
+					"shard": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"clusterResources": {
+						SchemaProps: spec.SchemaProps{
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Description: "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
 							Type:        []string{"boolean"},
 							Format:      "",
@@ -2235,6 +2876,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallba
 							Description: "CacheInfo contains information about the cluster cache",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo"),
+<<<<<<< HEAD
 						},
 					},
 					"applicationsCount": {
@@ -2283,6 +2925,63 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 						},
 					},
 					"items": {
+=======
+						},
+					},
+					"applicationsCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationsCount is the number of applications managed by Argo CD on the cluster",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"apiVersions": {
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions contains list of API versions supported by the cluster",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+<<<<<<< HEAD
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster"),
+=======
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+									},
+								},
+							},
+						},
+					},
+<<<<<<< HEAD
+=======
+				},
+				Required: []string{"applicationsCount"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ClusterList is a collection of Clusters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
@@ -2295,6 +2994,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 							},
 						},
 					},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 				},
 				Required: []string{"items"},
 			},
@@ -2608,6 +3308,7 @@ func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.Referenc
 									},
 								},
 							},
+<<<<<<< HEAD
 						},
 					},
 					"env": {
@@ -2643,6 +3344,349 @@ func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.Referenc
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"path"},
+=======
+						},
+					},
+					"env": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Env defines additional environment variables to expose to the process",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Preferred input version of the ExecInfo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"installHint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "This text is shown to the user when the executable doesn't seem to be present",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+			},
+		},
+	}
+}
+
+<<<<<<< HEAD
+func schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+=======
+func schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+<<<<<<< HEAD
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"directories": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem"),
+									},
+								},
+							},
+						},
+					},
+					"files": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"),
+									},
+								},
+							},
+						},
+					},
+					"revision": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"requeueAfterSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+				Required: []string{"repoURL", "revision"},
+=======
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"exclude": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"path"},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"},
+	}
+}
+
+<<<<<<< HEAD
+func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GnuPGPublicKey is a representation of a GnuPG public key",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"keyID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeyID specifies the key ID, in hexadecimal string format",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"fingerprint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Fingerprint is the fingerprint of the key",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"owner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Owner holds the owner identification, e.g. a name and e-mail address",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"trust": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Trust holds the level of trust assigned to this key",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"subType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SubType holds the key's sub type (e.g. rsa4096)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keyData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeyData holds the raw key data, in base64 encoded format",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"keyID"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GnuPGPublicKeyList is a collection of GnuPGPublicKey objects",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+=======
+func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"directories": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem"),
+									},
+								},
+							},
+						},
+					},
+					"files": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"),
+									},
+								},
+							},
+						},
+					},
+					"revision": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"requeueAfterSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+				Required: []string{"repoURL", "revision"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"},
 	}
 }
 
@@ -2811,11 +3855,35 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCal
 					},
 				},
 				Required: []string{"keyID"},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
+<<<<<<< HEAD
+func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HealthStatus contains information about the currently observed health state of an application or resource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status holds the status code of the application or resource",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is a human-readable informational message describing the health status",
+							Type:        []string{"string"},
+							Format:      "",
+=======
 func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2840,12 +3908,28 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.Referenc
 									},
 								},
 							},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 						},
 					},
 				},
 				Required: []string{"items"},
 			},
 		},
+<<<<<<< HEAD
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmFileParameter is a file parameter that's passed to helm template during manifest generation",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the Helm parameter",
+=======
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
@@ -2861,13 +3945,20 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status holds the status code of the application or resource",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
+<<<<<<< HEAD
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path is the path to the file containing the values for the Helm parameter",
+=======
 					"message": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Message is a human-readable informational message describing the health status",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2878,6 +3969,15 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 	}
 }
 
+<<<<<<< HEAD
+func schema_pkg_apis_application_v1alpha1_HelmOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmOptions holds helm options",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+=======
 func schema_pkg_apis_application_v1alpha1_HelmFileParameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2912,6 +4012,7 @@ func schema_pkg_apis_application_v1alpha1_HelmOptions(ref common.ReferenceCallba
 				Description: "HelmOptions holds helm options",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 					"ValuesFileSchemes": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -3014,6 +4115,7 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
 					"resourceName": {
+<<<<<<< HEAD
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -3021,6 +4123,15 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 					},
 					"requestedByApp": {
 						SchemaProps: spec.SchemaProps{
+=======
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"requestedByApp": {
+						SchemaProps: spec.SchemaProps{
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 							Type:   []string{"integer"},
 							Format: "int64",
 						},
@@ -3200,6 +4311,7 @@ func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCal
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"field": {
+<<<<<<< HEAD
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -4732,11 +5844,14 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {
+=======
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
 						},
 					},
+<<<<<<< HEAD
 					"kind": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -4750,6 +5865,1712 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 							Format: "",
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"jsonPointers": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"jqPathExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"kind"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceNetworkingInfo holds networking resource related information",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetLabels": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"targetRefs": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceRef"),
+									},
+								},
+							},
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"ingress": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.LoadBalancerIngress"),
+									},
+								},
+							},
+						},
+					},
+					"externalURLs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+=======
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+						},
+					},
+				},
+			},
+		},
+<<<<<<< HEAD
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceRef", "k8s.io/api/core/v1.LoadBalancerIngress"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceNode contains information about live resource and its children",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+=======
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KustomizeOptions are options for kustomize to use when building manifests",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"BuildOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BuildOptions is a string of build parameters to use when calling `kustomize build`",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"BinaryPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BinaryPath holds optional path to kustomize binary",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"BuildOptions", "BinaryPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ListGenerator include items info",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"elements": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+									},
+								},
+							},
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+				Required: []string{"elements"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested generators.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"generators": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator"),
+									},
+								},
+							},
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+				Required: []string{"generators"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_MergeGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MergeGenerator merges the output of two or more generators. Where the values for all specified merge keys are equal between two sets of generated parameters, the parameter sets will be merged with the parameters from the latter generator taking precedence. Parameter sets with merge keys not present in the base generator's params will be ignored. For example, if the first generator produced [{a: '1', b: '2'}, {c: '1', d: '1'}] and the second generator produced [{'a': 'override'}], the united parameters for merge keys = ['a'] would be [{a: 'override', b: '1'}, {c: '1', d: '1'}].\n\nMergeGenerator supports template overriding. If a MergeGenerator is one of multiple top-level generators, its template will be merged with the top-level generator before the parameters are applied.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"generators": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator"),
+									},
+								},
+							},
+						},
+					},
+					"mergeKeys": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+				Required: []string{"generators", "mergeKeys"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_NestedMatrixGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or MergeGenerator). NestedMatrixGenerator does not have an override template, because template overriding has no meaning within the constituent generators of combination-type generators.\n\nNOTE: Nested matrix generator is not included directly in the CRD struct, instead it is included as a generic 'apiextensionsv1.JSON' object, and then marshalled into a NestedMatrixGenerator when processed.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"generators": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"generators"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NestedMergeGenerator is a MergeGenerator nested under another combination-type generator (MatrixGenerator or MergeGenerator). NestedMergeGenerator does not have an override template, because template overriding has no meaning within the constituent generators of combination-type generators.\n\nNOTE: Nested merge generator is not included directly in the CRD struct, instead it is included as a generic 'apiextensionsv1.JSON' object, and then marshalled into a NestedMergeGenerator when processed.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"generators": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"),
+									},
+								},
+							},
+						},
+					},
+					"mergeKeys": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"generators", "mergeKeys"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Operation contains information about a requested or running operation",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"sync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sync contains parameters for the operation",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation"),
+						},
+					},
+					"initiatedBy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InitiatedBy contains information about who initiated the operations",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
+						},
+					},
+					"info": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Info is a list of informational items for this operation",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info"),
+									},
+								},
+							},
+						},
+					},
+					"retry": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Retry controls the strategy to apply if a sync fails",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OperationInitiator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OperationInitiator contains information about the initiator of an operation",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username contains the name of a user who started operation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"automated": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Automated is set to true if operation was initiated automatically by the application controller.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OperationState contains information about state of a running operation",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"operation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Operation is the original requested operation",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation"),
+						},
+					},
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase is the current phase of the operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message holds any pertinent messages when attempting to perform operation (typically errors).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncResult": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncResult is the result of a Sync operation",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult"),
+						},
+					},
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt contains time of operation start",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"finishedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishedAt contains time of operation completion",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"retryCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RetryCount contains time of operation retries",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"operation", "phase", "startedAt"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OrphanedResourceKey(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrphanedResourceKey is a reference to a resource to be ignored from",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+<<<<<<< HEAD
+					"version": {
+=======
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"warn": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Warn indicates if warning condition should be created for apps which have orphaned resources",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"ignore": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ignore contains a list of resources that are to be excluded from orphaned resources monitoring",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OverrideIgnoreDiff(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between the desired state and live state",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"jsonPointers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"jqPathExpressions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"managedFieldsManagers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the desired state defined in the SCM and won't be displayed in diffs",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"jsonPointers", "jqPathExpressions", "managedFieldsManagers"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ProjectRole represents a role that has access to a project",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a name for this role",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description is a description of the role",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"policies": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Policies Stores a list of casbin formatted strings that define access policies for the role in the project",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"jwtTokens": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JWTTokens are a list of generated JWT tokens bound to this role",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken"),
+									},
+								},
+							},
+						},
+					},
+					"groups": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Groups are a list of OIDC group claims bound to this role",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"github": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Which provider to use and config for it.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub"),
+						},
+					},
+					"gitlab": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab"),
+						},
+					},
+					"gitea": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea"),
+						},
+					},
+					"bitbucketServer": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer"),
+						},
+					},
+					"filters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Filters for which pull requests should be considered.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter"),
+									},
+								},
+							},
+						},
+					},
+					"requeueAfterSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Standard parameters.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"template": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGenerator defines connection info specific to BitbucketServer.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Project to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"repo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repo name to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Bitbucket REST API URL to talk to e.g. https://bitbucket.org/rest Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"basicAuth": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for Basic auth",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"),
+						},
+					},
+				},
+				Required: []string{"project", "repo", "api"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGeneratorFilter is a single pull request filter. If multiple filter types are set on a single struct, they will be AND'd together. All filters must pass for a pull request to be included.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"branchMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGeneratorGitLab defines connection info specific to GitLab.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GitLab project to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Authentication token reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels is used to filter the MRs that you want to target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"pullRequestState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"project"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitea(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGenerator defines connection info specific to Gitea.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"owner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Gitea org or user to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"repo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Gitea repo name to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Gitea API URL to talk to. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Authentication token reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow insecure tls, for self-signed certificates; default: false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"owner", "repo", "api"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGenerator defines connection info specific to GitHub.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"owner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GitHub org or user to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"repo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GitHub repo name to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The GitHub API URL to talk to. If blank, use https://api.github.com/.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Authentication token reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"appSecretName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels is used to filter the PRs that you want to target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"owner", "repo"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepoCreds holds the definition for repository credentials",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL is the URL that this credentials matches to",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"sshPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSClientCertData specifies the TLS client cert data for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"githubAppPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"githubAppID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppInstallationID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppEnterpriseBaseUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"enableOCI": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableOCI specifies whether helm-oci support should be enabled for this repo",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"url"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepoCredsList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryList is a collection of Repositories.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Repository is a repository holding application configurations",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repo contains the URL to the remote repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"username": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Username contains the user name used for authenticating at the remote repository",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password contains the password or PAT used for authenticating at the remote repository",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"sshPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"connectionState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConnectionState contains information about the current state of connection to the repository server",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
+						},
+					},
+					"insecureIgnoreHostKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured Used only for Git repos",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableLfs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSClientCertData contains a certificate in PEM format for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsClientCertKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSClientCertKey contains a private key in PEM format for authenticating at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name specifies a name to be used for this repo. Only used with Helm repos",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"inheritedCreds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether credentials were inherited from a credential set",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableOCI": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableOCI specifies whether helm-oci support should be enabled for this repo",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"githubAppPrivateKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Github App Private Key PEM data",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"githubAppID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppId specifies the ID of the GitHub app used to access the repo",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppInstallationID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"githubAppEnterpriseBaseUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy specifies the HTTP/HTTPS proxy used to access the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"project": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"repo"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "A RepositoryCertificate is either SSH known hosts entry or TLS certificate",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"serverName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServerName specifies the DNS name of the server this certificate is intended for",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"certType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CertType specifies the type of the certificate - currently one of \"https\" or \"ssh\"",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"certSubType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CertSubType specifies the sub type of the cert, i.e. \"ssh-rsa\"",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"certData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CertData contains the actual certificate data, dependent on the certificate type",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+					"certInfo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"serverName", "certType", "certSubType", "certData", "certInfo"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryCertificateList is a collection of RepositoryCertificates",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of certificates to be processed",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepositoryCertificate"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepositoryCertificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RepositoryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RepositoryList is a collection of Repositories.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Repository"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Repository", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"params": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionParam"),
+									},
+								},
+							},
+						},
+					},
+					"disabled": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionParam"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"action.lua": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"name", "action.lua"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"default": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"discovery.lua": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"definitions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionDefinition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionDefinition"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceDiff holds the diff of a live and target resource object",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+<<<<<<< HEAD
+						},
+					},
+					"uid": {
+=======
+						},
+					},
+					"targetState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetState contains the JSON serialized resource manifest defined in the Git/Helm",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"liveState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetState contains the JSON live resource manifest",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"diff": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Diff contains the JSON patch between target and live resource Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hook": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"normalizedLiveState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NormalizedLiveState contains JSON serialized live resource state with applied normalizations",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"predictedLiveState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"resourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"modified": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"name": {
+>>>>>>> 857441665 (feat: add applicationset cli commands)
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+<<<<<<< HEAD
+=======
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -4935,6 +7756,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 							Format: "",
 						},
 					},
+>>>>>>> 857441665 (feat: add applicationset cli commands)
 					"parentRefs": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
