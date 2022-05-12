@@ -306,10 +306,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 })}
                                                             />
                                                         </a>
-                                                        {pref.view === 'tree' && (
+                                                        {(pref.view === 'tree' || pref.view === 'network') && (
                                                             <a
                                                                 className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title='Group Nodes'
+                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
                                                                 onClick={() => this.toggleCompactView(pref)}>
                                                                 <i className={classNames('fa fa-object-group fa-fw')} />
                                                             </a>
