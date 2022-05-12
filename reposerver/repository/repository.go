@@ -1252,7 +1252,7 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds)
+	env, err := getPluginEnvs(envVars, q, creds, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,8 +1270,14 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
-	env := append(os.Environ(), envVars.Environ()...)
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+	env := envVars.Environ()
+	// Local plugins need also to have access to the local environment variables.
+	// Remote side car plugins will use the environment in the side car
+	// container.
+	if !remote {
+		env = append(os.Environ(), env...)
+	}
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -1311,7 +1317,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds)
+	env, err := getPluginEnvs(envVars, q, creds, true)
 	if err != nil {
 		return nil, err
 	}
