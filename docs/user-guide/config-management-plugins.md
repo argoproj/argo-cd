@@ -113,7 +113,8 @@ data:
       generate:
         command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
-        fileName: "./subdir/s*.yaml"
+        find:
+          command: [echo, yes]
       allowConcurrency: true
       lockRepo: false
 ```
@@ -127,7 +128,7 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 containers:
 - name: cmp
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: busybox # This can be off-the-shelf or custom-built image
+  image: quay.io/argoproj/argo-cd:v2.3.3 # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -140,10 +141,16 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: cmp-plugin
-  volumes:
-    - configMap:
-        name: cmp-plugin
+    # Starting with v2.3, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # mitigate path traversal attacks.
+    - mountPath: /tmp
+      name: cmp-tmp
+volumes:
+  - configMap:
       name: cmp-plugin
+    name: cmp-plugin
+  - emptyDir: {}
+    name: cmp-tmp
 ``` 
 
 !!! important "Double-check these items"
