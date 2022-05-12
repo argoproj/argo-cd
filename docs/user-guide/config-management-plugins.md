@@ -140,7 +140,7 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: cmp-plugin
-    # Starting with v2.3, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
     # mitigate path traversal attacks.
     - mountPath: /tmp
       name: cmp-tmp
