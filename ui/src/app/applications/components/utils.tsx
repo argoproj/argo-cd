@@ -10,7 +10,7 @@ import {debounceTime} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -241,6 +241,34 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
         return false;
     });
 }
+
+export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string) => {
+    appContext.apis.popup.prompt(
+        'Delete pod',
+        () => (
+            <div>
+                <p>Are you sure you want to delete Pod '{pod.name}'?</p>
+                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                    <CheckboxField id='force-delete-checkbox' field='force' />
+                    <label htmlFor='force-delete-checkbox'>Force delete</label>
+                </div>
+            </div>
+        ),
+        {
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.deleteResource(appName, pod, !!vals.force, false);
+                    close();
+                } catch (e) {
+                    appContext.apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        }
+    );
+};
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
     const isManaged = !!resource.status;

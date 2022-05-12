@@ -1,17 +1,17 @@
-import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {DataLoader, DropDown, DropDownMenu, MenuItem, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import Moment from 'react-moment';
 
 import {AppContext} from '../../../shared/context';
-import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
+import {EmptyState} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
 
 import './pod-view.scss';
 
@@ -25,7 +25,7 @@ interface PodViewProps {
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 
-interface PodGroup extends Partial<ResourceNode> {
+export interface PodGroup extends Partial<ResourceNode> {
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
@@ -43,34 +43,6 @@ export class PodView extends React.Component<PodViewProps> {
 
     public static contextTypes = {
         apis: PropTypes.object
-    };
-
-    deleteAction = async (pod: Pod) => {
-        this.appContext.apis.popup.prompt(
-            'Delete pod',
-            () => (
-                <div>
-                    <p>Are you sure you want to delete Pod '{pod.name}'?</p>
-                    <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                        <CheckboxField id='force-delete-checkbox' field='force' />
-                        <label htmlFor='force-delete-checkbox'>Force delete</label>
-                    </div>
-                </div>
-            ),
-            {
-                submit: async (vals, _, close) => {
-                    try {
-                        await services.applications.deleteResource(this.props.app.metadata.name, pod, !!vals.force, false);
-                        close();
-                    } catch (e) {
-                        this.appContext.apis.notifications.show({
-                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                            type: NotificationType.Error
-                        });
-                    }
-                }
-            }
-        );
     };
 
     public render() {
@@ -263,7 +235,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                this.deleteAction(pod);
+                                                                                deletePodAction(pod, this.appContext, this.props.app.metadata.name);
                                                                             }
                                                                         }
                                                                     ]}
