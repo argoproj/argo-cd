@@ -42,7 +42,8 @@ they have `create` privileges. If the Pod mounts a ServiceAccount token (which i
 then the user effectively has the same privileges as that ServiceAccount.
 
 The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
-ConfigMap. You will also need to add the following to the argocd-api-server Role or ClusterRole.
+ConfigMap. You will also need to add the following to the argocd-api-server Role (if you're using Argo CD in namespaced
+mode) or ClusterRole (if you're using Argo CD in cluster mode).
 
 ```yaml
 - apiGroups:
@@ -78,7 +79,7 @@ data:
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
     p, role:org-admin, logs, get, *, allow
-    p, role:org-admin, exec, get, *, allow
+    p, role:org-admin, exec, create, *, allow
 
     g, your-github-org:your-team, role:org-admin
 ```
@@ -94,12 +95,12 @@ p, role:staging-db-admins, applications, override, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, sync, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, update, staging-db-admins/*, allow
 p, role:staging-db-admins, logs, get, staging-db-admins/*, allow
-p, role:staging-db-admins, exec, get, staging-db-admins/*, allow
+p, role:staging-db-admins, exec, create, staging-db-admins/*, allow
 p, role:staging-db-admins, projects, get, staging-db-admins, allow
 g, db-admins, role:staging-db-admins
 ```
 
-This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `get` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
+This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
 
 ## Anonymous Access
 
