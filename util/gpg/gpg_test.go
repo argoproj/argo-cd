@@ -28,11 +28,23 @@ var syncTestSources = map[string]string{
 }
 
 // Helper function to create temporary GNUPGHOME
-func initTempDir(tb testing.TB) string {
-	p := tb.TempDir()
+func initTempDir() (func(), string) {
+	p, err := ioutil.TempDir(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("-> Using %s as GNUPGHOME\n", p)
-	os.Setenv(common.EnvGnuPGHome, p)
-	return p
+	err = os.Setenv(common.EnvGnuPGHome, p)
+	if err != nil {
+		panic(err)
+	}
+	cleanup := func() {
+		err := os.RemoveAll(p)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return cleanup, p
 }
 
 func Test_IsGPGEnabled(t *testing.T) {
@@ -45,7 +57,8 @@ func Test_IsGPGEnabled(t *testing.T) {
 }
 
 func Test_GPG_InitializeGnuPG(t *testing.T) {
-	p := initTempDir(t)
+	cleanup, p := initTempDir()
+	t.Cleanup(cleanup)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -83,7 +96,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not point to a directory")
 
 	// Unaccessible GNUPGHOME
-	p = initTempDir(t)
+	cleanup, p = initTempDir()
+	t.Cleanup(cleanup)
 	fp := fmt.Sprintf("%s/gpg", p)
 	err = os.Mkdir(fp, 0000)
 	if err != nil {
@@ -104,7 +118,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	// GNUPGHOME with too wide permissions
 	// We do not expect an error here, because of openshift's random UIDs that
 	// forced us to use an emptyDir mount (#4127)
-	p = initTempDir(t)
+	cleanup, p = initTempDir()
+	t.Cleanup(cleanup)
 	err = os.Chmod(p, 0777)
 	if err != nil {
 		panic(err.Error())
@@ -115,7 +130,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -210,7 +226,8 @@ func Test_GPG_KeyManagement(t *testing.T) {
 }
 
 func Test_ImportPGPKeysFromString(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -227,7 +244,8 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeysFromString(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -249,7 +267,8 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeys(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -278,7 +297,8 @@ func Test_ValidateGPGKeys(t *testing.T) {
 }
 
 func Test_GPG_ParseGitCommitVerification(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -494,7 +514,8 @@ func Test_isHexString(t *testing.T) {
 }
 
 func Test_IsSecretKey(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -521,7 +542,8 @@ func Test_IsSecretKey(t *testing.T) {
 }
 
 func Test_SyncKeyRingFromDirectory(t *testing.T) {
-	initTempDir(t)
+	cleanup, _ := initTempDir()
+	t.Cleanup(cleanup)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
