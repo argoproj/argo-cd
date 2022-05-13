@@ -88,8 +88,7 @@ func IsValidHostname(hostname string, fqdn bool) bool {
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetTLSCertificateDataPath() string {
-	envPath := os.Getenv(common.EnvVarTLSDataPath)
-	if envPath != "" {
+	if envPath := os.Getenv(common.EnvVarTLSDataPath); envPath != "" {
 		return envPath
 	} else {
 		return common.DefaultPathTLSConfig
@@ -100,11 +99,10 @@ func GetTLSCertificateDataPath() string {
 // filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetSSHKnownHostsDataPath() string {
-	envPath := os.Getenv(common.EnvVarSSHDataPath)
-	if envPath != "" {
-		return envPath + "/" + common.DefaultSSHKnownHostsName
+	if envPath := os.Getenv(common.EnvVarSSHDataPath); envPath != "" {
+		return filepath.Join(envPath, common.DefaultSSHKnownHostsName)
 	} else {
-		return common.DefaultPathSSHConfig + "/" + common.DefaultSSHKnownHostsName
+		return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 	}
 }
 
@@ -302,9 +300,6 @@ func ServerNameWithoutPort(serverName string) string {
 // consider it an error and just return empty data.
 func GetCertificateForConnect(serverName string) ([]string, error) {
 	dataPath := GetTLSCertificateDataPath()
-	if !strings.HasSuffix(dataPath, "/") {
-		dataPath += "/"
-	}
 	certPath, err := filepath.Abs(filepath.Join(dataPath, ServerNameWithoutPort(serverName)))
 	if err != nil {
 		return nil, err
@@ -332,7 +327,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 // mount. This function makes sure that the path returned actually contain
 // at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
+	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil
