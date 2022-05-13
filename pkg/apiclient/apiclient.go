@@ -815,11 +815,12 @@ func isCanceledContextErr(err error) bool {
 func parseHeaders(headerStrings []string) (http.Header, error) {
 	headers := http.Header{}
 	for _, kv := range headerStrings {
-		items := strings.Split(kv, ":")
-		if len(items)%2 == 1 {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
 			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 		}
-		headers.Add(items[0], items[1])
+		headers.Add(kv[0:i], kv[i+1:])
 	}
 	return headers, nil
 }
