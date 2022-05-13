@@ -6,8 +6,10 @@ import (
 	"net/http"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -21,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 type terminalHandler struct {
@@ -54,6 +57,13 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
+// isValidKubernetesResourceName checks for valid kubernetes resource names
+func isValidKubernetesResourceName(name string) bool {
+	// quick check to ensure we aren't passing along anything unsafe
+	isQualified := validation.IsQualifiedName(name)
+	return len(isQualified) == 0
+}
+
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	podName := q.Get("pod")
@@ -64,6 +74,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if podName == "" || container == "" || app == "" || namespace == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		return
+	}
+
+	// validate query string parameters to prevent unsafe usage
+	if !isValidKubernetesResourceName(namespace) || !isValidKubernetesResourceName(podName) || !isValidKubernetesResourceName(container) {
+		http.Error(w, "Pod, Namespace, or Container name not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -120,17 +136,20 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var findContainer bool
+	var foundContainerName string
 	for _, c := range pod.Spec.Containers {
 		if container == c.Name {
-			findContainer = true
+			foundContainerName = c.Name
 			break
 		}
 	}
-	if !findContainer {
+	if foundContainerName == "" {
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
 	}
+
+	log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": foundContainerName,
+		"podName": pod.Name, "namespace": pod.Namespace, "cluster": a.Spec.Destination.Name}).Info("Serving Terminal")
 
 	session, err := newTerminalSession(w, r, nil)
 	if err != nil {

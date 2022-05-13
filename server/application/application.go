@@ -70,7 +70,7 @@ var (
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 )
 
-// Server provides a Application service
+// Server provides an Application service
 type Server struct {
 	ns             string
 	kubeclientset  kubernetes.Interface

@@ -74,3 +74,44 @@ func TestPodExists(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidKubernetesResourceName(t *testing.T) {
+	for _, tcase := range []struct {
+		name           string
+		resourceName   string
+		expectedResult bool
+	}{
+		{
+			name:           "valid pod namespace name",
+			resourceName:   "argocd",
+			expectedResult: true,
+		},
+		{
+			name:           "valid pod name",
+			resourceName:   "argocd-server-794644486d-r8v9d",
+			expectedResult: true,
+		},
+		{
+			name:           "valid container name",
+			resourceName:   "argocd-server",
+			expectedResult: true,
+		},
+		{
+			name:           "not valid contains spaces",
+			resourceName:   "kubectl delete pods",
+			expectedResult: false,
+		},
+		{
+			name:           "not valid contains special characters",
+			resourceName:   "delete+*+from+etcd%3b",
+			expectedResult: false,
+		},
+	} {
+		t.Run(tcase.name, func(t *testing.T) {
+			result := isValidKubernetesResourceName(tcase.resourceName)
+			if result != tcase.expectedResult {
+				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
+			}
+		})
+	}
+}
