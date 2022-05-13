@@ -203,16 +203,15 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 		return &cert, nil
 	}
-
+	transport := &http.Transport{
+		Proxy: proxyFunc,
+		TLSClientConfig: &tls.Config{
+			GetClientCertificate: clientCertFunc,
+		},
+		DisableKeepAlives: true,
+	}
 	if insecure {
-		customHTTPClient.Transport = &http.Transport{
-			Proxy: proxyFunc,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify:   true,
-				GetClientCertificate: clientCertFunc,
-			},
-			DisableKeepAlives: true,
-		}
+		transport.TLSClientConfig.InsecureSkipVerify = true
 	} else {
 		parsedURL, err := url.Parse(repoURL)
 		if err != nil {
@@ -223,26 +222,10 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 			return customHTTPClient
 		} else if len(serverCertificatePem) > 0 {
 			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					RootCAs:              certPool,
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		} else {
-			// else no custom certificate stored.
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
+			transport.TLSClientConfig.RootCAs = certPool
 		}
 	}
-
+	customHTTPClient.Transport = transport
 	return customHTTPClient
 }
 
