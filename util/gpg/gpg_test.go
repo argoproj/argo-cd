@@ -29,6 +29,8 @@ var syncTestSources = map[string]string{
 
 // Helper function to create temporary GNUPGHOME
 func initTempDir() (func(), string) {
+	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
+	// path length on some OSes. The GPG tests rely on sockets.
 	p, err := ioutil.TempDir(os.TempDir(), "")
 	if err != nil {
 		panic(err)
