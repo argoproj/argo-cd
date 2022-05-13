@@ -108,7 +108,7 @@ handling that edge case:
 data:
   resource.compareoptions: |
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinition-s (default)
+    # 'crd' - CustomResourceDefinitions (default)
     # 'all' - all resources
     # 'none' - disabled
     ignoreResourceStatusField: crd
