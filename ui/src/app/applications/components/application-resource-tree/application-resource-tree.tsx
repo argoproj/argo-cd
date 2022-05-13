@@ -326,10 +326,8 @@ export const describeNode = (node: ResourceTreeNode) => {
 };
 
 function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNode, props: ApplicationResourceTreeProps) {
-    const statusByKey = new Map<string, models.ResourceStatus>();
     if (!targetPodGroup.podGroup) {
         const fullName = nodeKey(targetPodGroup);
-        const status = statusByKey.get(fullName);
         if ((targetPodGroup.parentRefs || []).length === 0) {
             targetPodGroup.root = targetPodGroup;
         }
@@ -340,7 +338,6 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
             ...targetPodGroup,
             info: (targetPodGroup.info || []).filter(i => !i.name.includes('Resource.')),
             createdAt: targetPodGroup.createdAt,
-            resourceStatus: {health: targetPodGroup.health, status: status ? status.status : null},
             renderMenu: () => props.nodeMenu(targetPodGroup),
             kind: targetPodGroup.kind,
             type: 'parentResource',
