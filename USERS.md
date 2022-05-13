@@ -144,6 +144,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Quipper](https://www.quipper.com/)
 1. [Recreation.gov](https://www.recreation.gov/)
 1. [Red Hat](https://www.redhat.com/)
+1. [reev.com](https://www.reev.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rise](https://www.risecard.eu/)
 1. [Riskified](https://www.riskified.com/)
