@@ -129,7 +129,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -224,7 +224,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 }
 
 func Test_ImportPGPKeysFromString(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -241,7 +241,7 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeysFromString(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -263,7 +263,7 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeys(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -292,7 +292,7 @@ func Test_ValidateGPGKeys(t *testing.T) {
 }
 
 func Test_GPG_ParseGitCommitVerification(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -508,7 +508,7 @@ func Test_isHexString(t *testing.T) {
 }
 
 func Test_IsSecretKey(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -535,7 +535,7 @@ func Test_IsSecretKey(t *testing.T) {
 }
 
 func Test_SyncKeyRingFromDirectory(t *testing.T) {
-	_ = initTempDir(t)
+	initTempDir(t)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
