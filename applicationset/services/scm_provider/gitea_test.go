@@ -102,14 +102,118 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		//case "/api/v1/repos/test-argocd/pr-test/labels?limit=0&page=1":
 		case "/api/v1/repos/test-argocd/pr-test/branches/main":
-			_, err := io.WriteString(w, `{"name":"main","commit":{"id":"72687815ccba81ef014a96201cc2e846a68789d8","message":"initial commit\n","url":"https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8","author":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"committer":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"verification":{"verified":false,"reason":"gpg.error.no_gpg_keys_found","signature":"-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n","signer":null,"payload":"tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"},"timestamp":"2022-04-05T14:29:51-04:00","added":null,"removed":null,"modified":null},"protected":false,"required_approvals":0,"enable_status_check":false,"status_check_contexts":[],"user_can_push":false,"user_can_merge":false,"effective_branch_protection_name":""}`)
+			_, err := io.WriteString(w, `{
+				"name": "main",
+				"commit": {
+					"id": "72687815ccba81ef014a96201cc2e846a68789d8",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}`)
 			if err != nil {
 				t.Fail()
 			}
 		case "/api/v1/repos/test-argocd/pr-test/branches?limit=0&page=1":
-			_, err := io.WriteString(w, `[{"name":"main","commit":{"id":"72687815ccba81ef014a96201cc2e846a68789d8","message":"initial commit\n","url":"https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8","author":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"committer":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"verification":{"verified":false,"reason":"gpg.error.no_gpg_keys_found","signature":"-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n","signer":null,"payload":"tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"},"timestamp":"2022-04-05T14:29:51-04:00","added":null,"removed":null,"modified":null},"protected":false,"required_approvals":0,"enable_status_check":false,"status_check_contexts":[],"user_can_push":false,"user_can_merge":false,"effective_branch_protection_name":""},{"name":"test","commit":{"id":"7bbaf62d92ddfafd9cc8b340c619abaec32bc09f","message":"add an empty file\n","url":"https://gitea.com/test-argocd/pr-test/commit/7bbaf62d92ddfafd9cc8b340c619abaec32bc09f","author":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"committer":{"name":"Dan Molik","email":"dan@danmolik.com","username":"graytshirt"},"verification":{"verified":false,"reason":"gpg.error.no_gpg_keys_found","signature":"-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiugACgkQlgCr7m50\nzBN+7wgAkCHD3KfX3Ffkqv2qPwqgHNYM1bA6Hmffzhv0YeD9jWCI3tp0JulP4iFZ\ncQ7jqx9xP9tCQMSFCaijLRHaE6Js1xrVtf0OKRkbpdlvkyrIM3sQhqyQgAsISrDG\nLzSqeoQQjglzeWESYh2Tjn1CgqQNKjI6LLepSwvF1pIeV4pJpJobaEbIfTgStdzM\nWEk8o0I+EZaYqK0C0vU9N0LK/LR/jnlaHsb4OUjvk+S7lRjZwBkrsg7P/QsqtCVd\nw5nkxDiCx1J58zKMnQ7ZinJEK9A5WYdnMYc6aBn7ARgZrblXPPBkkKUhEv3ZSPeW\nKv9i4GQy838xkVSTFkHNj1+a5o6zEA==\n=JiFw\n-----END PGP SIGNATURE-----\n","signer":null,"payload":"tree cdddf3e1d6a8a7e6899a044d0e1bc73bf798e2f5\nparent 72687815ccba81ef014a96201cc2e846a68789d8\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\n\nadd an empty file\n"},"timestamp":"2022-04-05T14:30:58-04:00","added":null,"removed":null,"modified":null},"protected":false,"required_approvals":0,"enable_status_check":false,"status_check_contexts":[],"user_can_push":false,"user_can_merge":false,"effective_branch_protection_name":""}]`)
+			_, err := io.WriteString(w, `[{
+				"name": "main",
+				"commit": {
+					"id": "72687815ccba81ef014a96201cc2e846a68789d8",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}, {
+				"name": "test",
+				"commit": {
+					"id": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+					"message": "add an empty file\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiugACgkQlgCr7m50\nzBN+7wgAkCHD3KfX3Ffkqv2qPwqgHNYM1bA6Hmffzhv0YeD9jWCI3tp0JulP4iFZ\ncQ7jqx9xP9tCQMSFCaijLRHaE6Js1xrVtf0OKRkbpdlvkyrIM3sQhqyQgAsISrDG\nLzSqeoQQjglzeWESYh2Tjn1CgqQNKjI6LLepSwvF1pIeV4pJpJobaEbIfTgStdzM\nWEk8o0I+EZaYqK0C0vU9N0LK/LR/jnlaHsb4OUjvk+S7lRjZwBkrsg7P/QsqtCVd\nw5nkxDiCx1J58zKMnQ7ZinJEK9A5WYdnMYc6aBn7ARgZrblXPPBkkKUhEv3ZSPeW\nKv9i4GQy838xkVSTFkHNj1+a5o6zEA==\n=JiFw\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree cdddf3e1d6a8a7e6899a044d0e1bc73bf798e2f5\nparent 72687815ccba81ef014a96201cc2e846a68789d8\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\n\nadd an empty file\n"
+					},
+					"timestamp": "2022-04-05T14:30:58-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}]`)
 			if err != nil {
 				t.Fail()
 			}
