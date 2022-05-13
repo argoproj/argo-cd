@@ -145,14 +145,15 @@ $num-stats: 2;
                     background-color: $argo-color-gray-6;
                 }
             }
-            &__star-icon {
+            &__new-pod-icon {
                 background: none;
-                color: $argo-running-color;
+                color: #0DADEA;
                 display: block;
                 left: 20px;
                 margin: 0px;
                 position: absolute;
-                top: -5px;
+                top: -4px;
+                font-size: 10px;
             }
             &__stat-tooltip {
                 text-align: left;
