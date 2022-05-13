@@ -17,6 +17,9 @@ data:
   # Redis database
   redis.db:
 
+  # Open-Telemetry collector address: (e.g. "otel-collector:4317")
+  otlp.address:
+
   ## Controller Properties
   # Repo server RPC call timeout seconds.
   controller.repo.server.timeout.seconds: "60"
