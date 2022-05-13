@@ -1614,6 +1614,12 @@ spec:
               key: reposerver.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -1910,6 +1916,12 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:v2.4.0-rc1
         imagePullPolicy: Always
         livenessProbe:
@@ -2110,6 +2122,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.default.cache.expiration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:v2.4.0-rc1
