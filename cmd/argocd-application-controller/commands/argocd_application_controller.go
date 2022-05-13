@@ -28,6 +28,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -58,6 +59,7 @@ func NewCommand() *cobra.Command {
 		redisClient              *redis.Client
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
+		otlpAddress              string
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -149,6 +151,14 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
+			if otlpAddress != "" {
+				closeTracer, err := trace.InitTracer(ctx, "argocd-controller", otlpAddress)
+				if err != nil {
+					log.Fatalf("failed to initialize tracing: %v", err)
+				}
+				defer closeTracer()
+			}
+
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 
 			// Wait forever
@@ -173,6 +183,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
