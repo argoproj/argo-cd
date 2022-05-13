@@ -1687,8 +1687,8 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, err
 	}
 	actionsPtr := []*appv1.ResourceAction{}
-	for _, action := range availableActions {
-		actionsPtr = append(actionsPtr, &action)
+	for idx := range availableActions {
+		actionsPtr = append(actionsPtr, &availableActions[idx])
 	}
 
 	return &application.ResourceActionsListResponse{Actions: actionsPtr}, nil
