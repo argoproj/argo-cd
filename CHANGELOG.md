@@ -13,6 +13,10 @@ commands, and helps to troubleshoot the application state.
 Argo CD is used to manage the critical infrastructure of multiple organizations, which makes security the top priority of the project. We've listened to
 your feedback and introduced additional access control settings that control access to Kubernetes Pod logs and the new Web Terminal feature.
 
+#### Known UI Issue for Pod Logs Access
+
+Currently, upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed instead the log content.
+
 ### OpenTelemetry Tracing Integration
 
 The new feature allows emitting richer telemetry data that might make identifying performance bottlenecks easier. The new feature is available for argocd-server
