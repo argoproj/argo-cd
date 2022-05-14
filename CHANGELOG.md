@@ -15,7 +15,7 @@ your feedback and introduced additional access control settings that control acc
 
 #### Known UI Issue for Pod Logs Access
 
-Currently, upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed instead the log content.
+Currently, upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed.
 
 ### OpenTelemetry Tracing Integration
 
