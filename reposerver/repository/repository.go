@@ -610,7 +610,7 @@ type repositories struct {
 
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
-	f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appPath, "Chart.yaml"))
+	f, err := ioutil.ReadFile(filepath.Join(appPath, "Chart.yaml"))
 	if err != nil {
 		return nil, err
 	}

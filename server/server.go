@@ -721,6 +721,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
+	dOpts = append(dOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,

@@ -97,7 +97,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string) (io.Clos
 	var connFound bool
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
-			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
+			address := filepath.Join(pluginSockFilePath, file.Name())
 			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
