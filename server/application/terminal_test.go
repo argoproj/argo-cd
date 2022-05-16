@@ -142,7 +142,7 @@ func TestIsValidNamespaceName(t *testing.T) {
 	}
 }
 
-func TestisValidContainerNameName(t *testing.T) {
+func TestIsValidContainerNameName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
