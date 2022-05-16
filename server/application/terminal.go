@@ -113,6 +113,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+
 	appRBACName := apputil.AppRBACName(*a)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -150,7 +153,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
-		http.Error(w, "Cannot find pod: "+podName, http.StatusBadRequest)
+		fieldLog.Warn("Terminal Pod Not Found")
+		http.Error(w, "Cannot find pod", http.StatusBadRequest)
 		return
 	}
 
@@ -159,20 +163,20 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var foundContainerName string
+	var findContainer bool
 	for _, c := range pod.Spec.Containers {
 		if container == c.Name {
-			foundContainerName = c.Name
+			findContainer = true
 			break
 		}
 	}
-	if foundContainerName == "" {
-		http.Error(w, "Cannot find container: "+container, http.StatusBadRequest)
+	if !findContainer {
+		fieldLog.Warn("Terminal Container Not Found")
+		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
 	}
 
-	log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": foundContainerName,
-		"podName": pod.Name, "namespace": pod.Namespace, "cluster": a.Spec.Destination.Name}).Info("Serving Terminal")
+	fieldLog.Info("Serving Terminal")
 
 	session, err := newTerminalSession(w, r, nil)
 	if err != nil {
